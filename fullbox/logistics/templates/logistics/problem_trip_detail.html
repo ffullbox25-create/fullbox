@@ -1,0 +1,59 @@
+{% extends "logistics/management_base.html" %}
+{% block title %}Проблемный рейс {{ trip.number }}{% endblock %}
+{% block management_title %}Проблемный рейс {{ trip.number }}{% endblock %}
+{% block management_content %}
+  <section class="dm-card dm-grid">
+    <div class="dm-facts">
+      <div class="dm-fact"><div class="dm-label">Причина</div><div class="dm-value">{{ problem.get_reason_code_display }}</div></div>
+      <div class="dm-fact"><div class="dm-label">Дата отказа</div><div class="dm-value">{{ problem.refusal_at|date:"d.m.Y H:i" }}</div></div>
+      <div class="dm-fact"><div class="dm-label">Водитель</div><div class="dm-value">{{ trip.assigned_driver.full_name|default:"—" }}</div></div>
+      <div class="dm-fact"><div class="dm-label">Склад</div><div class="dm-value">{{ summary.destinations }}</div></div>
+      <div class="dm-fact"><div class="dm-label">Кто отказал</div><div class="dm-value">{{ problem.rejecting_employee|default:"—" }}</div></div>
+      <div class="dm-fact"><div class="dm-label">Поддержка МП</div><div class="dm-value">{{ problem.support_case_number|default:"—" }}</div></div>
+    </div>
+    <div><strong>Комментарий водителя</strong><p>{{ problem.comment }}</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">{% for attachment in attachments %}<a class="btn" href="{{ attachment.file.url }}" target="_blank" rel="noopener">{{ attachment.get_attachment_type_display }} · {{ attachment.created_at|date:"d.m.Y H:i" }}</a>{% empty %}<span class="dm-muted">Файлы не найдены.</span>{% endfor %}</div>
+  </section>
+
+  <section class="dm-card"><h2 style="margin-top:0;">Разбирательство</h2>
+    <form class="dm-form" method="post">{% csrf_token %}<input type="hidden" name="action" value="update_problem">
+      <label>Статус<select name="status">{% for value,label in problem_statuses %}<option value="{{ value }}"{% if problem.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label>Ответственная сторона<select name="responsible_party">{% for value,label in party_choices %}<option value="{{ value }}"{% if problem.responsible_party == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label>Ответственный сотрудник<select name="assigned_to"><option value="">Не назначен</option>{% for employee in employees %}<option value="{{ employee.pk }}"{% if problem.assigned_to_id == employee.pk %} selected{% endif %}>{{ employee.full_name }}</option>{% endfor %}</select></label>
+      <label>Дата следующего действия<input type="datetime-local" name="next_action_at" value="{% if problem.next_action_at %}{{ problem.next_action_at|date:'Y-m-d\TH:i' }}{% endif %}"></label>
+      <button class="btn primary" type="submit">Сохранить</button>
+    </form>
+  </section>
+
+  <section class="dm-card dm-grid"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;"><div><h2 style="margin:0;">Штрафы</h2><div class="dm-muted">К одному рейсу можно добавить несколько штрафов.</div></div><div><strong>{{ totals.estimated|floatformat:2 }} ₽</strong> возможных · <strong>{{ totals.actual|floatformat:2 }} ₽</strong> фактических</div></div>
+    <div class="dm-table-wrap"><table class="dm-table" style="min-width:1050px;"><thead><tr><th>Маркетплейс</th><th>Тип / причина</th><th>Дата</th><th>Суммы</th><th>Документ / обращение</th><th>Статус и факт</th></tr></thead><tbody>
+      {% for penalty in problem.penalties.all %}<tr>
+        <td>{{ penalty.marketplace_name }}</td>
+        <td>{{ penalty.penalty_type }}<div class="dm-muted">{{ penalty.reason|default:"—" }}</div></td>
+        <td>{{ penalty.charged_at|date:"d.m.Y"|default:"—" }}</td>
+        <td>{{ penalty.estimated_amount|default:"0" }} ₽ / {{ penalty.actual_amount|default:"0" }} ₽</td>
+        <td>{% if penalty.document %}<a href="{{ penalty.document.url }}" target="_blank">Файл</a>{% endif %}<div class="dm-muted">{{ penalty.document_number|default:penalty.support_reference|default:"—" }}</div></td>
+        <td><form method="post" class="dm-grid">{% csrf_token %}<input type="hidden" name="action" value="update_penalty"><input type="hidden" name="penalty_id" value="{{ penalty.pk }}"><select name="penalty_status">{% for value,label in penalty_statuses %}<option value="{{ value }}"{% if penalty.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select><input name="actual_amount" value="{{ penalty.actual_amount|default_if_none:'' }}" placeholder="Фактическая сумма" inputmode="decimal"><input name="penalty_comment" value="{{ penalty.comment }}" placeholder="Комментарий"><button class="btn" type="submit">Сохранить</button></form></td>
+      </tr>{% empty %}<tr><td colspan="6">Штрафы пока не добавлены.</td></tr>{% endfor %}
+    </tbody></table></div>
+    <details><summary>Добавить штраф</summary>
+      <form class="dm-form" method="post" enctype="multipart/form-data" style="margin-top:12px;">{% csrf_token %}<input type="hidden" name="action" value="add_penalty">
+        <label>Маркетплейс *<input name="marketplace_name" value="{{ summary.marketplaces }}" required></label>
+        <label>Тип штрафа *<input name="penalty_type" required></label>
+        <label>Причина<textarea name="penalty_reason"></textarea></label>
+        <label>Дата начисления<input type="date" name="charged_at"></label>
+        <label>Предполагаемая сумма<input inputmode="decimal" name="estimated_amount"></label>
+        <label>Фактическая сумма<input inputmode="decimal" name="actual_amount"></label>
+        <label>Номер документа<input name="document_number"></label>
+        <label>Ссылка / обращение<input name="support_reference"></label>
+        <label>Ответственная сторона<select name="penalty_party">{% for value,label in party_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+        <label>Статус<select name="penalty_status">{% for value,label in penalty_statuses %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+        <label>Комментарий<textarea name="penalty_comment"></textarea></label>
+        <label>Документ<input type="file" name="penalty_document"></label>
+        <button class="btn primary" type="submit">Добавить штраф</button>
+      </form>
+    </details>
+  </section>
+
+  <section class="dm-card"><h2 style="margin-top:0;">История</h2><div class="dm-timeline">{% for item in history %}<div class="dm-event"><strong>{{ item.description }}</strong><div class="dm-muted">{{ item.created_at|date:"d.m.Y H:i" }} · {{ item.actor.get_full_name|default:item.actor.username|default:"Система" }}</div></div>{% endfor %}</div></section>
+{% endblock %}

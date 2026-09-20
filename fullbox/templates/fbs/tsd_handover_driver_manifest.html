@@ -1,0 +1,199 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Реестр водителя · FBS-передача #{{ handover.id }}</title>
+  <link href="{% static 'vendor/bricolage-manrope.css' %}" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #303030;
+      --muted: #6e7074;
+      --line: #dcdde0;
+      --accent: #f89000;
+      --accent-strong: #f86800;
+      --accent-soft: rgba(248, 144, 0, 0.13);
+      --surface: #fff;
+      --bg: #f3f4f5;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--bg); font-family: "Manrope", Arial, sans-serif; font-size: 12px; line-height: 1.35; letter-spacing: 0; }
+    .toolbar { width: min(1100px, calc(100% - 32px)); min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 16px auto; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+    .toolbar-copy { min-width: 0; }
+    .toolbar-copy strong { display: block; font-size: 16px; }
+    .toolbar-copy span { color: var(--muted); }
+    .toolbar-actions { display: flex; flex: 0 0 auto; gap: 8px; }
+    .button { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 13px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: #fff; font-weight: 850; text-decoration: none; cursor: pointer; }
+    .button-primary { color: #fff; border-color: var(--accent-strong); background: var(--accent-strong); }
+    .manifest { width: 210mm; min-height: 297mm; margin: 0 auto 24px; padding: 12mm 12mm 14mm; background: #fff; box-shadow: 0 8px 28px rgba(28, 30, 33, .12); }
+    .document-head { display: grid; grid-template-columns: 44mm minmax(0, 1fr); gap: 8mm; align-items: center; padding-bottom: 6mm; border-bottom: .5mm solid var(--accent); }
+    .brand img { display: block; width: 42mm; height: auto; }
+    .document-title { min-width: 0; text-align: right; }
+    .document-title h1 { margin: 0; font-family: "Bricolage Grotesque", "Manrope", sans-serif; font-size: 22px; line-height: 1.1; }
+    .document-title p { margin: 2mm 0 0; color: var(--muted); font-size: 10px; }
+    .summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 6mm 0; border: .3mm solid var(--line); }
+    .summary > div { min-width: 0; min-height: 18mm; padding: 3mm; border-right: .3mm solid var(--line); }
+    .summary > div:last-child { border-right: 0; }
+    .summary span { display: block; color: var(--muted); font-size: 9px; font-weight: 750; }
+    .summary strong { display: block; margin-top: 1.5mm; font-size: 15px; overflow-wrap: anywhere; }
+    .details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 8mm; margin-bottom: 6mm; }
+    .details div { min-width: 0; display: grid; grid-template-columns: 34mm minmax(0, 1fr); gap: 3mm; padding: 2mm 0; border-bottom: .2mm solid var(--line); }
+    .details dt { color: var(--muted); }
+    .details dd { margin: 0; font-weight: 750; text-align: right; overflow-wrap: anywhere; }
+    .section-title { margin: 0 0 3mm; font-size: 15px; }
+    .box { margin-bottom: 5mm; border: .3mm solid var(--line); border-left: 1.2mm solid var(--accent-strong); break-before: auto; }
+    .box-head { min-height: 38mm; display: grid; grid-template-columns: 31mm minmax(0, 1fr) 36mm; gap: 4mm; align-items: center; padding: 3mm; background: #fffaf2; }
+    .qr { width: 29mm; height: 29mm; background: #fff; }
+    .qr canvas, .qr img { display: block; width: 100% !important; height: 100% !important; }
+    .box-main { min-width: 0; }
+    .box-main small { display: block; color: var(--muted); font-size: 9px; }
+    .box-main strong { display: block; margin: 1mm 0; font-size: 14px; overflow-wrap: anywhere; }
+    .box-main code { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; overflow-wrap: anywhere; }
+    .box-counts { text-align: right; }
+    .box-counts strong { display: block; font-size: 18px; }
+    .box-counts span { display: block; color: var(--muted); font-size: 9px; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    th, td { padding: 2mm 2.5mm; border-top: .2mm solid var(--line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+    th { color: var(--muted); background: #f5f5f6; font-size: 8px; text-transform: uppercase; }
+    td { font-size: 9px; }
+    th:nth-child(1), td:nth-child(1) { width: 29%; }
+    th:nth-child(2), td:nth-child(2) { width: 34%; }
+    th:nth-child(3), td:nth-child(3) { width: 17%; }
+    th:nth-child(4), td:nth-child(4) { width: 20%; }
+    td strong, td small { display: block; }
+    td small { margin-top: .8mm; color: var(--muted); }
+    .empty { padding: 5mm; color: var(--muted); text-align: center; }
+    .acceptance { margin: 6mm 0; padding: 4mm; border: .3mm solid var(--line); background: var(--accent-soft); }
+    .acceptance strong { display: block; font-size: 13px; }
+    .acceptance span { display: block; margin-top: 1mm; color: var(--muted); }
+    .signatures { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8mm; margin-top: 12mm; break-inside: avoid; page-break-inside: avoid; }
+    .signature { padding-top: 8mm; border-top: .3mm solid var(--ink); }
+    .signature strong { display: block; }
+    .signature span { display: block; margin-top: 1mm; color: var(--muted); font-size: 9px; }
+    .document-foot { display: flex; justify-content: space-between; gap: 8mm; margin-top: 8mm; padding-top: 3mm; border-top: .2mm solid var(--line); color: var(--muted); font-size: 8px; }
+    @page { size: A4 portrait; margin: 8mm; }
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none; }
+      .manifest { width: auto; min-height: auto; margin: 0; padding: 0; box-shadow: none; }
+      .box { break-inside: auto; page-break-inside: auto; }
+      .box-head, tr { break-inside: avoid; page-break-inside: avoid; }
+      thead { display: table-header-group; }
+    }
+    @media screen and (max-width: 760px) {
+      .toolbar { width: calc(100% - 20px); align-items: stretch; flex-direction: column; }
+      .toolbar-actions { display: grid; grid-template-columns: 1fr 1fr; }
+      .manifest { margin-left: 10px; margin-right: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="toolbar">
+    <div class="toolbar-copy">
+      <strong>Реестр водителя · FBS-передача #{{ handover.id }}</strong>
+      <span>Печать откроет стандартный выбор принтера или сохранение в PDF.</span>
+    </div>
+    <div class="toolbar-actions">
+      <a class="button" href="{% url 'fbs:tsd_handover_detail' handover.id %}">Назад</a>
+      <button class="button button-primary" type="button" onclick="window.print()">Печать / PDF</button>
+    </div>
+  </header>
+
+  <main class="manifest">
+    <header class="document-head">
+      <div class="brand">{% include "partials/fullbox_brand.html" %}</div>
+      <div class="document-title">
+        <h1>Реестр передачи FBS водителю</h1>
+        <p>Передача #{{ handover.id }} · сформировано {{ generated_at|date:"d.m.Y H:i" }}</p>
+      </div>
+    </header>
+
+    <section class="summary" aria-label="Итоги передачи">
+      <div><span>Заказы</span><strong>{{ handover_order_count }}</strong></div>
+      <div><span>Товары</span><strong>{{ handover_unit_count }} шт.</strong></div>
+      <div><span>Короба</span><strong>{{ handover_boxes|length }}</strong></div>
+      <div><span>Вес</span><strong>{{ handover_weight_kg|floatformat:3 }} кг</strong></div>
+    </section>
+
+    <dl class="details">
+      <div><dt>Клиент</dt><dd>{{ handover.profile.agency }}</dd></div>
+      <div><dt>Маркетплейс</dt><dd>{{ handover.profile.get_marketplace_display }}</dd></div>
+      <div><dt>Склад marketplace</dt><dd>{{ handover.profile.external_warehouse_id|default:"-" }}</dd></div>
+      <div><dt>ID поставки</dt><dd>{{ handover.external_supply_id|default:"-" }}</dd></div>
+      <div><dt>Статус</dt><dd>{{ handover.get_status_display }}</dd></div>
+      <div><dt>Передал</dt><dd>{{ handover.dispatched_by|default:handover.created_by|default:"-" }}</dd></div>
+      <div><dt>Создана</dt><dd>{{ handover.created_at|date:"d.m.Y H:i" }}</dd></div>
+      <div><dt>Передана</dt><dd>{{ handover.dispatched_at|date:"d.m.Y H:i"|default:"-" }}</dd></div>
+    </dl>
+
+    <h2 class="section-title">Короба и заказы</h2>
+    {% for box in handover_boxes %}
+      <section class="box">
+        <header class="box-head">
+          <div class="qr" data-qr="{{ box.qr_code }}" aria-label="QR короба {{ box.qr_code }}"></div>
+          <div class="box-main">
+            <small>Короб {{ forloop.counter }} из {{ handover_boxes|length }} · {{ box.get_status_display }}</small>
+            <strong>{{ box.external_box_id|default:"Номер marketplace не указан" }}</strong>
+            <code>{{ box.qr_code }}</code>
+          </div>
+          <div class="box-counts">
+            <strong>{{ box.order_count }}</strong><span>заказов</span>
+            <strong>{{ box.unit_count }}</strong><span>единиц</span>
+          </div>
+        </header>
+        <table>
+          <thead><tr><th>Заказ marketplace</th><th>Товары</th><th>Этикетка</th><th>Статус</th></tr></thead>
+          <tbody>
+            {% for link in box.ui_orders %}
+              <tr>
+                <td><strong>{{ link.order.external_order_id }}</strong><small>{{ link.added_at|date:"d.m.Y H:i" }}</small></td>
+                <td>
+                  <strong>{{ link.order.unit_count }} шт. · {{ link.order.line_count }} поз.</strong>
+                  {% for item in link.order.ui_items %}<small>{{ item.external_sku }} · {{ item.quantity }} шт.</small>{% endfor %}
+                </td>
+                <td>
+                  {% if link.order.latest_label %}<strong>{{ link.order.latest_label.external_label_id|default:"ID не получен" }}</strong><small>{{ link.order.latest_label.get_status_display }}</small>{% else %}<strong>Не получена</strong>{% endif %}
+                </td>
+                <td><strong>{{ link.order.get_internal_status_display }}</strong><small>{{ link.order.marketplace_status|default:"Статус marketplace не получен" }}</small></td>
+              </tr>
+            {% empty %}
+              <tr><td class="empty" colspan="4">В коробе нет заказов.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    {% empty %}
+      <div class="empty">В передачу еще не добавлены короба.</div>
+    {% endfor %}
+
+    <section class="acceptance">
+      <strong>Контроль: {{ handover_acceptance_label }}</strong>
+      <span>Принято коробов: {{ handover_accepted_boxes }} из {{ handover_boxes|length }}. Проблемных коробов: {{ handover_problem_boxes }}.</span>
+    </section>
+
+    <section class="signatures">
+      <div class="signature"><strong>Передал</strong><span>ФИО, подпись, дата и время</span></div>
+      <div class="signature"><strong>Водитель</strong><span>ФИО, подпись, дата и время</span></div>
+      <div class="signature"><strong>Принял</strong><span>ФИО, подпись, дата и время</span></div>
+    </section>
+
+    <footer class="document-foot">
+      <span>Fullbox · отдельный контур FBS</span>
+      <span>Реестр сформирован из текущего состояния передачи #{{ handover.id }}</span>
+    </footer>
+  </main>
+
+  <script src="{% static 'vendor/qrcode.min.js' %}"></script>
+  <script>
+    document.querySelectorAll("[data-qr]").forEach(function (element) {
+      new QRCode(element, {
+        text: element.dataset.qr,
+        width: 160,
+        height: 160,
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    });
+  </script>
+</body>
+</html>

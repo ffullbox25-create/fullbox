@@ -1,0 +1,137 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}Telegram чатов | Кабинет менеджера{% endblock %}
+
+{% block extra_css %}
+    .page-head { display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:12px; }
+    .page-title {
+      margin:0;
+      font-family:"Bricolage Grotesque","Manrope",sans-serif;
+      font-size:28px;
+    }
+    .page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+    .panel {
+      background:var(--surface);
+      border:1px solid var(--line);
+      border-radius:14px;
+      box-shadow:var(--shadow);
+      padding:16px;
+      margin-bottom:12px;
+      max-width:720px;
+    }
+    .panel h2 {
+      margin:0 0 10px;
+      font-size:16px;
+      font-family:"Bricolage Grotesque","Manrope",sans-serif;
+    }
+    .form-grid { display:grid; gap:10px; }
+    .form-grid label { display:grid; gap:4px; font-size:12px; font-weight:700; color:var(--muted); }
+    .form-grid input[type=text] {
+      width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--line);
+      font:inherit; background:#fff; box-sizing:border-box;
+    }
+    .checks { display:flex; flex-wrap:wrap; gap:12px; }
+    .checks label { display:flex; align-items:center; gap:6px; font-weight:700; color:var(--ink); font-size:13px; }
+    .flash { padding:10px 12px; border-radius:12px; font-weight:800; font-size:13px; margin-bottom:12px; max-width:720px; }
+    .flash.ok { background:#e8f7ee; color:#146c36; border:1px solid #b7e0c5; }
+    .flash.err { background:#fdecee; color:#a11a2d; border:1px solid #f0b8c0; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-weight:800; font-size:11px; }
+    .pill.on { background:#e8f7ee; color:#146c36; }
+    .pill.off { background:#f3f1ec; color:var(--muted); }
+    .pill.warn { background:#fff8e8; color:#8a6a12; }
+    .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .code-box {
+      font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size:13px; padding:10px 12px; border-radius:12px;
+      background:var(--surface-2); border:1px solid var(--line); word-break:break-all;
+    }
+    .muted { color:var(--muted); font-size:13px; line-height:1.45; }
+{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Telegram чатов</h1>
+      <div class="page-sub">Односторонние уведомления о сообщениях клиентов и @упоминаниях. Email не подключаем.</div>
+    </div>
+    <div class="head-actions" style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn ghost" href="/team-manager/chats/">← К чатам</a>
+    </div>
+  </div>
+
+  {% if flash_ok %}<div class="flash ok">{{ flash_ok }}</div>{% endif %}
+  {% if flash_err %}<div class="flash err">{{ flash_err }}</div>{% endif %}
+
+  <section class="panel">
+    <h2>Статус</h2>
+    <p class="muted" style="margin:0 0 8px">
+      Бот на сервере:
+      {% if tg_configured %}
+        <span class="pill on">настроен</span>
+        {% if tg_bot_username %} · @{{ tg_bot_username }}{% endif %}
+      {% else %}
+        <span class="pill warn">нет TELEGRAM_BOT_TOKEN</span>
+      {% endif %}
+    </p>
+    <p class="muted" style="margin:0">
+      Ваш Telegram:
+      {% if tg_pref.telegram_chat_id and tg_pref.telegram_enabled %}
+        <span class="pill on">привязан · включён</span>
+      {% elif tg_pref.telegram_chat_id %}
+        <span class="pill warn">привязан · выключен</span>
+      {% else %}
+        <span class="pill off">не привязан</span>
+      {% endif %}
+    </p>
+  </section>
+
+  <section class="panel">
+    <h2>Привязка через бота</h2>
+    <p class="muted">Нажмите «Получить ссылку», откройте бота в Telegram и подтвердите /start. Код действует 2 часа.</p>
+    <form method="post" class="actions">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="issue_link">
+      <button class="btn" type="submit" {% if not tg_configured %}disabled{% endif %}>Получить ссылку</button>
+    </form>
+    {% if tg_pref.telegram_link_code %}
+      <p class="muted" style="margin:14px 0 6px">Код: <strong>{{ tg_pref.telegram_link_code }}</strong></p>
+      {% if tg_deep_link %}
+        <div class="code-box"><a href="{{ tg_deep_link }}">{{ tg_deep_link }}</a></div>
+      {% else %}
+        <p class="muted">В боте отправьте: <code>/start {{ tg_pref.telegram_link_code }}</code></p>
+      {% endif %}
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>Настройки и ручной chat_id</h2>
+    <p class="muted">Если webhook ещё не настроен — можно вставить chat_id вручную (напишите боту любое сообщение и узнайте id через @userinfobot).</p>
+    <form method="post" class="form-grid">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_manual">
+      <label>Telegram chat id
+        <input type="text" name="telegram_chat_id" value="{{ tg_pref.telegram_chat_id }}" placeholder="например 123456789" autocomplete="off">
+      </label>
+      <div class="checks">
+        <label><input type="checkbox" name="telegram_enabled" value="1" {% if tg_pref.telegram_enabled %}checked{% endif %}> Включить уведомления</label>
+        <label><input type="checkbox" name="notify_client_messages" value="1" {% if tg_pref.notify_client_messages %}checked{% endif %}> Сообщения клиентов</label>
+        <label><input type="checkbox" name="notify_mentions" value="1" {% if tg_pref.notify_mentions %}checked{% endif %}> @упоминания</label>
+      </div>
+      <div class="actions">
+        <button class="btn" type="submit">Сохранить</button>
+      </div>
+    </form>
+    <div class="actions">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="test_ping">
+        <button class="btn ghost" type="submit" {% if not tg_pref.telegram_chat_id or not tg_configured %}disabled{% endif %}>Тест в Telegram</button>
+      </form>
+      <form method="post" onsubmit="return confirm('Отвязать Telegram?');">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="unlink">
+        <button class="btn ghost" type="submit" {% if not tg_pref.telegram_chat_id %}disabled{% endif %}>Отвязать</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

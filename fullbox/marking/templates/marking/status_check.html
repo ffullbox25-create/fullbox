@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Проверка Честного знака | ФУЛЛБОКС</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5f5f3;
+      --surface: #ffffff;
+      --surface-2: #f8f8f6;
+      --ink: #303030;
+      --muted: #707070;
+      --accent: #f89000;
+      --accent-strong: #f86800;
+      --accent-soft: rgba(248, 144, 0, 0.13);
+      --stroke: rgba(28, 31, 26, 0.12);
+      --success: #247a4b;
+      --success-soft: rgba(36, 122, 75, 0.1);
+      --warning: #9a6500;
+      --warning-soft: rgba(248, 184, 0, 0.15);
+      --danger: #b83f35;
+      --danger-soft: rgba(184, 63, 53, 0.1);
+      --shadow: 0 8px 24px rgba(48, 48, 48, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Manrope", system-ui, sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input { font: inherit; }
+    .wrap { padding: 24px; }
+    .layout {
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      gap: 20px;
+      min-height: calc(100vh - 48px);
+    }
+    .side,
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+    .side {
+      display: grid;
+      align-content: start;
+      gap: 16px;
+      padding: 18px;
+      overflow: auto;
+    }
+    .fullbox-brand-img { display: block; width: 168px; max-width: 100%; height: auto; }
+    .profile,
+    .nav-link {
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: var(--surface-2);
+    }
+    .profile { padding: 12px; font-weight: 700; }
+    .nav { display: grid; gap: 10px; }
+    .nav-link { display: grid; gap: 4px; padding: 12px; }
+    .nav-link.primary {
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+      border-color: rgba(248, 144, 0, 0.25);
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub { color: var(--muted); font-size: 12px; }
+    .logout {
+      display: block;
+      padding: 10px 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 700;
+    }
+    .content { min-width: 0; }
+    .panel { padding: 24px; }
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+    h1 {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+    .connection {
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .connection.ready { color: var(--success); background: var(--success-soft); }
+    .connection.offline { color: var(--danger); background: var(--danger-soft); }
+    .scan-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .scan-input {
+      min-width: 0;
+      height: 54px;
+      padding: 0 16px;
+      border: 2px solid rgba(248, 144, 0, 0.32);
+      border-radius: 8px;
+      background: #fff;
+      outline: none;
+      font-size: 17px;
+    }
+    .scan-input:focus { border-color: var(--accent); }
+    .scan-button {
+      min-width: 150px;
+      height: 54px;
+      padding: 0 18px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .scan-button:disabled { cursor: wait; opacity: 0.55; }
+    .empty,
+    .error,
+    .result {
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .empty { color: var(--muted); background: var(--surface-2); }
+    .error { color: var(--danger); background: var(--danger-soft); border-color: rgba(184, 63, 53, 0.24); }
+    .result.success { background: var(--success-soft); border-color: rgba(36, 122, 75, 0.24); }
+    .result.warning { background: var(--warning-soft); border-color: rgba(154, 101, 0, 0.24); }
+    .result.danger { background: var(--danger-soft); border-color: rgba(184, 63, 53, 0.24); }
+    .result-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .verdict { margin: 0; font-size: 22px; font-weight: 800; }
+    .result.success .verdict { color: var(--success); }
+    .result.warning .verdict { color: var(--warning); }
+    .result.danger .verdict { color: var(--danger); }
+    .masked { color: var(--muted); font-family: ui-monospace, SFMono-Regular, monospace; }
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .fact {
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.7);
+    }
+    .fact-label { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+    .fact-value { margin-top: 5px; overflow-wrap: anywhere; font-weight: 750; }
+    .product { grid-column: span 2; }
+    [hidden] { display: none !important; }
+    @media (max-width: 1050px) {
+      .layout { grid-template-columns: 1fr; }
+      .side { max-height: none; }
+      .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 620px) {
+      .wrap { padding: 12px; }
+      .panel, .side { padding: 14px; }
+      .header, .result-head { display: grid; }
+      .scan-form { grid-template-columns: 1fr; }
+      .scan-button { width: 100%; }
+      .facts { grid-template-columns: 1fr; }
+      .product { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        {% include "partials/fullbox_brand.html" %}
+        <div class="profile">
+          {% if status_check_role == "processing_head" %}
+            Руководитель обработки<br>
+          {% else %}
+            Кабинет кладовщика<br>
+          {% endif %}
+          {% if request.user.employee_profile %}
+            {{ request.user.employee_profile.full_name }}
+          {% else %}
+            {{ request.user.get_full_name|default:request.user.username }}
+          {% endif %}
+        </div>
+        {% if status_check_role == "processing_head" %}
+          <nav class="nav">
+            <a class="nav-link" href="/processing-head/">
+              <span class="nav-title">Кабинет обработки</span>
+              <span class="nav-sub">Рабочий стол руководителя</span>
+            </a>
+            <a class="nav-link primary" href="/marking/status/">
+              <span class="nav-title">Проверка Честного знака</span>
+              <span class="nav-sub">Статус кода в ГИС МТ</span>
+            </a>
+          </nav>
+        {% else %}
+          {% include "sklad/_side_nav.html" with active_nav="marking-status" %}
+        {% endif %}
+        <a class="logout" href="/logout/">Выход</a>
+      </aside>
+
+      <main class="content">
+        <section class="panel">
+          <div class="header">
+            <h1>Проверка Честного знака</h1>
+            {% if true_api_configured %}
+              <span class="connection ready">ГИС МТ подключена</span>
+            {% else %}
+              <span class="connection offline">ГИС МТ не подключена</span>
+            {% endif %}
+          </div>
+
+          <form class="scan-form" id="scan-form">
+            {% csrf_token %}
+            <input
+              class="scan-input"
+              id="code"
+              name="code"
+              type="text"
+              autocomplete="off"
+              autofocus
+              placeholder="Сканируйте DataMatrix"
+              aria-label="Код Честного знака"
+            >
+            <button class="scan-button" id="scan-button" type="submit">Проверить</button>
+          </form>
+
+          <div class="empty" id="empty-state">Ожидание сканирования</div>
+          <div class="error" id="error-state" role="alert" hidden></div>
+          <article class="result" id="result" hidden>
+            <div class="result-head">
+              <h2 class="verdict" id="verdict"></h2>
+              <div class="masked" id="code-masked"></div>
+            </div>
+            <div class="facts">
+              <div class="fact product">
+                <div class="fact-label">Товар</div>
+                <div class="fact-value" id="product-name"></div>
+              </div>
+              <div class="fact">
+                <div class="fact-label">GTIN</div>
+                <div class="fact-value" id="gtin"></div>
+              </div>
+              <div class="fact">
+                <div class="fact-label">Статус</div>
+                <div class="fact-value" id="status-label"></div>
+              </div>
+              <div class="fact">
+                <div class="fact-label">Особое состояние</div>
+                <div class="fact-value" id="status-ex"></div>
+              </div>
+              <div class="fact">
+                <div class="fact-label">Причина выбытия</div>
+                <div class="fact-value" id="withdraw-reason"></div>
+              </div>
+              <div class="fact">
+                <div class="fact-label">Срок годности</div>
+                <div class="fact-value" id="expiration-date"></div>
+              </div>
+              <div class="fact">
+                <div class="fact-label">Криптография</div>
+                <div class="fact-value" id="crypto-check"></div>
+              </div>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("scan-form");
+    const codeInput = document.getElementById("code");
+    const button = document.getElementById("scan-button");
+    const emptyState = document.getElementById("empty-state");
+    const errorState = document.getElementById("error-state");
+    const result = document.getElementById("result");
+    const csrfToken = form.querySelector("[name=csrfmiddlewaretoken]").value;
+
+    function text(id, value, fallback = "-") {
+      document.getElementById(id).textContent = value || fallback;
+    }
+
+    function showError(message) {
+      emptyState.hidden = true;
+      result.hidden = true;
+      errorState.textContent = message;
+      errorState.hidden = false;
+    }
+
+    function showResult(data) {
+      emptyState.hidden = true;
+      errorState.hidden = true;
+      result.className = `result ${data.tone || "danger"}`;
+      text("verdict", data.verdict);
+      text("code-masked", data.code_masked);
+      text("product-name", [data.product_name, data.brand].filter(Boolean).join(" · "));
+      text("gtin", data.gtin);
+      text("status-label", data.status_label || data.message);
+      text("status-ex", data.status_ex === "EMPTY" ? "Нет" : data.status_ex);
+      text("withdraw-reason", data.withdraw_reason);
+      text("expiration-date", data.expiration_date);
+      text("crypto-check", data.crypto_check);
+      result.hidden = false;
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const code = codeInput.value;
+      if (!code.trim()) {
+        showError("Код Честного знака не указан.");
+        codeInput.focus();
+        return;
+      }
+      button.disabled = true;
+      try {
+        const response = await fetch("/marking/status/check/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
+          },
+          body: JSON.stringify({code}),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+          showError(data.error || "Не удалось проверить код.");
+        } else {
+          showResult(data);
+        }
+      } catch (error) {
+        showError("Сервис проверки временно недоступен.");
+      } finally {
+        button.disabled = false;
+        codeInput.value = "";
+        codeInput.focus();
+      }
+    });
+  </script>
+</body>
+</html>

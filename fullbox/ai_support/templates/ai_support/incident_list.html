@@ -1,0 +1,56 @@
+{% extends "ai_support/base.html" %}
+{% block title %}Обращения{% endblock %}
+{% block content %}
+  <div class="stack">
+    <section>
+      <h1>{% if can_review %}Все обращения{% else %}Мои обращения{% endif %}</h1>
+      <p class="muted">ИИ сначала проводит диагностику в режиме чтения. Опасные действия блокируются политикой доступа.</p>
+    </section>
+    <section class="card stack">
+      <h2 style="margin-bottom:0">Когда обращаться в ИИ‑поддержку</h2>
+      <div class="grid">
+        <div>
+          <strong>Подходит для обращения</strong>
+          <ul>
+            <li>ошибка 500 или страница зависла;</li>
+            <li>кнопка или обычное действие не срабатывает;</li>
+            <li>статус отображается неверно;</li>
+            <li>нужна небольшая правка без изменения процесса.</li>
+          </ul>
+        </div>
+        <div>
+          <strong>Сразу передаётся программисту</strong>
+          <ul>
+            <li>новая функция или большой раздел;</li>
+            <li>изменение архитектуры или прав доступа;</li>
+            <li>массовое изменение данных;</li>
+            <li>любые изменения остатков и движений.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="notice"><strong>Как описать:</strong> укажите страницу или зону, номер заявки/заказа/задания, что нажали, что произошло и что должно было произойти. Скриншот можно добавить следующим этапом в переписке.</div>
+      <div><a class="btn primary" href="{% url 'ai_support:create' %}">Создать обращение</a></div>
+    </section>
+    <form class="card" method="get" style="display:flex; gap:10px; align-items:end; flex-wrap:wrap">
+      <label style="min-width:240px">Статус
+        <select name="status">
+          <option value="">Все статусы</option>
+          {% for value, label in status_choices %}<option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </label>
+      <button class="btn" type="submit">Показать</button>
+    </form>
+    <section class="card">
+      {% for incident in incidents %}
+        <a class="incident-row" href="{% url 'ai_support:detail' incident.pk %}">
+          <strong>{{ incident.number }}</strong>
+          <span><strong>{{ incident.object_label }}</strong><br><span class="muted">{{ incident.zone|default:"Зона не указана" }} · {{ incident.description|truncatechars:90 }}</span></span>
+          <span class="badge {{ incident.status }}">{{ incident.get_status_display }}</span>
+          <span class="muted">{{ incident.updated_at|date:"d.m.Y H:i" }}</span>
+        </a>
+      {% empty %}
+        <p class="muted" style="margin:0">Обращений пока нет.</p>
+      {% endfor %}
+    </section>
+  </div>
+{% endblock %}

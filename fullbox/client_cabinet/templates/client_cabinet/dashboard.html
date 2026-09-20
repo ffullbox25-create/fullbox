@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Кабинет клиента | FULLBOX</title>
+  
+  <style>
+    
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      overflow: hidden;
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      background-image:
+        linear-gradient(rgba(28,31,26,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(28,31,26,0.06) 1px, transparent 1px);
+      background-size: 36px 36px;
+      opacity: 0.08;
+    }
+    body::after {
+      background:
+        radial-gradient(420px 240px at 20% 20%, rgba(242,183,71,0.18), transparent 70%),
+        radial-gradient(360px 220px at 85% 30%, rgba(14,107,91,0.12), transparent 70%);
+      opacity: 0.7;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 24px 24px 72px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr) 240px;
+      gap: 20px;
+      align-items: stretch;
+      min-height: calc(100vh - 96px);
+    }
+    .side {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 16px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+    }
+    .brand {
+      display: grid;
+      gap: 4px;
+    }
+    .brand-title {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.6px;
+    }
+    .fullbox-brand-mark { display: inline-flex; align-items: center; min-width: 0; }
+    .fullbox-brand-img { display: block; width: auto; height: 42px; max-width: 132px; object-fit: contain; }
+    .brand-sub {
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .profile {
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+    }
+    .profile-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--muted);
+    }
+    .profile-value {
+      font-weight: 600;
+    }
+    .nav {
+      display: grid;
+      gap: 10px;
+    }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      padding: 12px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .nav-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 12px 24px rgba(14,107,91,0.12);
+    }
+    .nav-link.primary {
+      background: linear-gradient(135deg, rgba(242,183,71,0.45), rgba(14,107,91,0.15));
+      border-color: transparent;
+    }
+    .nav-link.request-receiving {
+      background: linear-gradient(135deg, rgba(245,158,11,0.24), rgba(254,243,199,0.92));
+      border-color: rgba(245,158,11,0.32);
+    }
+    .nav-link.request-receiving:hover {
+      border-color: rgba(245,158,11,0.55);
+      box-shadow: 0 12px 24px rgba(245,158,11,0.22);
+    }
+    .nav-link.request-processing {
+      background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(220,252,231,0.92));
+      border-color: rgba(16,185,129,0.3);
+    }
+    .nav-link.request-processing:hover {
+      border-color: rgba(16,185,129,0.52);
+      box-shadow: 0 12px 24px rgba(16,185,129,0.2);
+    }
+    .nav-link.request-shipping {
+      background: linear-gradient(135deg, rgba(59,130,246,0.18), rgba(219,234,254,0.95));
+      border-color: rgba(59,130,246,0.3);
+    }
+    .nav-link.request-shipping:hover {
+      border-color: rgba(59,130,246,0.52);
+      box-shadow: 0 12px 24px rgba(59,130,246,0.2);
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub { font-size: 12px; color: var(--muted); }
+    .side-footer {
+      display: grid;
+      gap: 10px;
+    }
+    .content {
+      display: grid;
+      gap: 18px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .rail {
+      display: grid;
+      gap: 18px;
+      align-self: start;
+    }
+    .rail .panel {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+    .hero,
+    .panel,
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+    }
+    .hero {
+      padding: 20px 22px;
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    h1 {
+      margin: 6px 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 30px;
+      letter-spacing: -0.5px;
+    }
+    .lead {
+      margin: 0;
+      color: var(--muted);
+      max-width: 520px;
+    }
+    .hero-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      font-weight: 700;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.14);
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .btn.ghost {
+      background: transparent;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .summary-card {
+      padding: 16px;
+      display: grid;
+      gap: 6px;
+      border-left: 4px solid transparent;
+    }
+    .summary-card[data-status="total"] {
+      border-left-color: var(--accent);
+      background: linear-gradient(135deg, rgba(14,107,91,0.12), rgba(242,183,71,0.12));
+    }
+    .summary-card[data-status="client"] { border-left-color: #6b6f66; }
+    .summary-card[data-status="manager"] { border-left-color: #2563eb; }
+    .summary-card[data-status="warehouse"] { border-left-color: #b45309; }
+    .summary-card[data-status="done"] { border-left-color: #15803d; }
+    .summary-label {
+      text-transform: uppercase;
+      letter-spacing: 1.6px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .summary-value {
+      font-size: 28px;
+      font-weight: 700;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    }
+    .summary-meta {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .panel {
+      padding: 18px;
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .panel-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 20px;
+    }
+    .panel-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .orders-board {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .orders-col {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      min-height: 220px;
+    }
+    .orders-col-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+    }
+    .orders-col-count {
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .orders-list {
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+    .order-card {
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      display: grid;
+      gap: 6px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .order-card.order-receiving {
+      border-color: rgba(245,158,11,0.3);
+      background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(255,248,230,0.8));
+    }
+    .order-card.order-processing {
+      border-color: rgba(14,107,91,0.26);
+      background: linear-gradient(135deg, rgba(14,107,91,0.12), rgba(14,107,91,0.04));
+    }
+    .order-card.attention {
+      border-color: var(--sun);
+      background: linear-gradient(135deg, rgba(242,183,71,0.2), rgba(14,107,91,0.08));
+      box-shadow: 0 14px 26px rgba(242,183,71,0.24);
+    }
+    .order-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 22px rgba(15,23,42,0.12);
+    }
+    .order-title {
+      font-weight: 700;
+    }
+    .order-meta {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .order-meta.status-danger {
+      color: #b23b3b;
+      font-weight: 700;
+    }
+    .orders-empty {
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px dashed var(--stroke);
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+    .message-list {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 4px;
+      max-height: 470px;
+    }
+    .message-card {
+      padding: 10px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      display: grid;
+      gap: 6px;
+    }
+    .message-card > div:last-child {
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .message-title {
+      font-weight: 700;
+    }
+    .message-time {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .verify-panel {
+      gap: 12px;
+    }
+    .verify-panel .panel-header {
+      margin-bottom: 0;
+    }
+    .verify-panel .panel-title {
+      font-size: 18px;
+    }
+    .verify-panel .panel-subtitle {
+      line-height: 1.4;
+    }
+    .verify-form {
+      display: grid;
+      gap: 10px;
+    }
+    .verify-button {
+      width: 100%;
+      cursor: pointer;
+      text-align: center;
+    }
+    .verify-list {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+    }
+    .verify-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(28,31,26,0.08);
+    }
+    .verify-row:last-child {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+    .verify-label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .verify-value {
+      font-weight: 700;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 20px;
+      text-align: right;
+    }
+    .verify-row[data-tone="ok"] .verify-value {
+      color: #15803d;
+    }
+    .verify-row[data-tone="warn"] .verify-value {
+      color: var(--danger);
+    }
+    .verify-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .reveal {
+      animation: rise 0.7s ease both;
+      animation-delay: calc(var(--i, 0) * 70ms);
+    }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal { animation: none; }
+      .btn:hover,
+      .order-card:hover,
+      .nav-link:hover { transform: none; }
+    }
+    @media (max-width: 1200px) {
+      body { overflow: auto; }
+      .layout { grid-template-columns: 1fr; }
+      .side,
+      .content,
+      .rail {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+      }
+      .rail .panel { height: auto; }
+      .message-list {
+        min-height: auto;
+        overflow: visible;
+        padding-right: 0;
+      }
+    }
+    @media (max-width: 720px) {
+      .hero { align-items: flex-start; }
+      h1 { font-size: 26px; }
+      .hero-actions { width: 100%; }
+      .btn { width: 100%; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand">
+          <div class="brand-title">{% include "partials/fullbox_brand.html" %}</div>
+        </div>
+        <div class="profile">
+          <div class="profile-value">
+            {% if selected_client %}
+              Кабинет клиента<br>
+              {{ selected_client.agn_name|default:selected_client.fio_agn|default:"клиента" }}
+            {% else %}
+              {% include "partials/current_user.html" %}
+            {% endif %}
+          </div>
+        </div>
+        <nav class="nav">
+          {% if selected_client %}
+            <a class="nav-link primary" href="/market-sync/?client={{ selected_client.id }}">
+              <span class="nav-title">Синхронизация</span>
+              <span class="nav-sub">Маркетплейсы</span>
+            </a>
+            <a class="nav-link" href="/client/dashboard/lk/?client={{ selected_client.id }}">
+              <span class="nav-title">Кабинет</span>
+              <span class="nav-sub">Личный кабинет</span>
+            </a>
+            <a class="nav-link" href="/client/{{ selected_client.id }}/sku/">
+              <span class="nav-title">Номенклатура</span>
+              <span class="nav-sub">SKU и карточки</span>
+            </a>
+            <a class="nav-link request-receiving" href="/orders/receiving/?client={{ selected_client.id }}">
+              <span class="nav-title">Заявка на приемку</span>
+              <span class="nav-sub">Отправить поставку</span>
+            </a>
+            <a class="nav-link request-processing" href="/orders/processing/?client={{ selected_client.id }}">
+              <span class="nav-title">Заявка на обработку</span>
+              <span class="nav-sub">Техническая карта</span>
+            </a>
+            <a class="nav-link request-shipping" href="/client/{{ selected_client.id }}/shipping/new/">
+              <span class="nav-title">Заявка на отгрузку</span>
+              <span class="nav-sub">Отправить товар</span>
+            </a>
+            <a class="nav-link" href="/client/marking/?client={{ selected_client.id }}">
+              <span class="nav-title">Честный знак</span>
+              <span class="nav-sub">Коды и история</span>
+            </a>
+            <a class="nav-link" href="/sklad/journal/?client={{ selected_client.id }}">
+              <span class="nav-title">Складские остатки</span>
+              <span class="nav-sub">Актуальные стоки</span>
+            </a>
+            <a class="nav-link" href="/client/{{ selected_client.id }}/edit/">
+              <span class="nav-title">Реквизиты клиента</span>
+              <span class="nav-sub">Карточка контрагента</span>
+            </a>
+          {% else %}
+            <a class="nav-link" href="/client/">
+              <span class="nav-title">Список клиентов</span>
+              <span class="nav-sub">Выбрать кабинет</span>
+            </a>
+            <a class="nav-link" href="/client/dashboard/lk/">
+              <span class="nav-title">Кабинет</span>
+              <span class="nav-sub">Личный кабинет</span>
+            </a>
+            <a class="nav-link" href="/sku/">
+              <span class="nav-title">Номенклатура</span>
+              <span class="nav-sub">Общий каталог</span>
+            </a>
+            <a class="nav-link" href="/sklad/journal/">
+              <span class="nav-title">Складские остатки</span>
+              <span class="nav-sub">Общий журнал</span>
+            </a>
+          {% endif %}
+        </nav>
+        <div class="side-footer">
+          <a class="btn ghost" href="/logout/">Выход</a>
+        </div>
+      </aside>
+
+      <main class="content">
+        <section class="panel reveal" style="--i:2">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Заявки</h2>
+              <div class="panel-subtitle">Состояние по этапам и переходам.</div>
+            </div>
+            <div>
+              {% if selected_client %}
+                <a class="btn primary" href="/orders/?client={{ selected_client.id }}">Открыть журнал</a>
+              {% else %}
+                <a class="btn primary" href="/orders/">Открыть журнал</a>
+              {% endif %}
+            </div>
+          </div>
+          <div class="orders-board">
+            {% for column in orders_panel_columns %}
+              <div class="orders-col reveal" style="--i:{{ forloop.counter }}">
+                <div class="orders-col-header">
+                  <div>{{ column.label }}</div>
+                  <div class="orders-col-count">{{ column.count }}</div>
+                </div>
+                <div class="orders-list">
+                  {% if column.orders %}
+                    {% for order in column.orders %}
+                      <article class="order-card{% if order.order_type == "receiving" %} order-receiving{% elif order.order_type == "processing" %} order-processing{% endif %}{% if order.attention %} attention{% endif %}">
+                        <div class="order-title">
+                          <a href="{{ order.detail_url }}">{{ order.title }}</a>
+                        </div>
+                        <div class="order-meta{% if order.status_tone == "danger" %} status-danger{% endif %}">Статус: {{ order.status_label }}</div>
+                        <div class="order-meta">{{ order.created_at|date:"d.m.Y, H:i" }}</div>
+                      </article>
+                    {% endfor %}
+                  {% else %}
+                    <div class="orders-empty">Нет заявок</div>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </section>
+
+      </main>
+
+      <aside class="rail">
+        <section class="panel reveal" style="--i:3">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Сообщения</h2>
+              <div class="panel-subtitle">Последние изменения и комментарии.</div>
+            </div>
+          </div>
+          <div class="message-list">
+            {% if selected_client %}
+              {% if client_messages %}
+                {% for message in client_messages %}
+                  <article class="message-card reveal" style="--i:{{ forloop.counter }}">
+                    <div class="message-title">
+                      <a href="{{ message.detail_url }}">{{ message.title }}</a>
+                    </div>
+                    <div class="message-time">{{ message.created_at|date:"d.m.Y, H:i" }}</div>
+                    <div>{{ message.text }}</div>
+                  </article>
+                {% endfor %}
+              {% else %}
+                <div class="orders-empty">Сообщений пока нет.</div>
+              {% endif %}
+            {% else %}
+              <div class="orders-empty">Выберите клиента, чтобы увидеть сообщения.</div>
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="panel verify-panel reveal" style="--i:4">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Проверка</h2>
+              <div class="panel-subtitle">Факт по поставке, отгрузке и остатку.</div>
+            </div>
+          </div>
+          {% if selected_client %}
+            <form class="verify-form" method="get" action="/client/dashboard/">
+              <input type="hidden" name="client" value="{{ selected_client.id }}">
+              <input type="hidden" name="verify" value="1">
+              <button class="btn primary verify-button" type="submit">Проверить товар</button>
+            </form>
+            {% if inventory_check %}
+              <div class="verify-list">
+                <div class="verify-row">
+                  <div class="verify-label">Поставлено</div>
+                  <div class="verify-value">{{ inventory_check.received_total }}</div>
+                </div>
+                <div class="verify-row">
+                  <div class="verify-label">Отгружено</div>
+                  <div class="verify-value">{{ inventory_check.shipped_total }}</div>
+                </div>
+                <div class="verify-row">
+                  <div class="verify-label">Разница</div>
+                  <div class="verify-value">{{ inventory_check.expected_stock }}</div>
+                </div>
+                <div class="verify-row">
+                  <div class="verify-label">На складе</div>
+                  <div class="verify-value">{{ inventory_check.stock_total }}</div>
+                </div>
+                <div class="verify-row">
+                  <div class="verify-label">В обработке</div>
+                  <div class="verify-value">{{ inventory_check.processing_in_progress_total }}</div>
+                </div>
+                <div class="verify-row" data-tone="{{ inventory_check.status_tone }}">
+                  <div class="verify-label">Результат</div>
+                  <div class="verify-value">{{ inventory_check.discrepancy }}</div>
+                </div>
+              </div>
+              <div class="verify-note">{{ inventory_check.status_label }}. Проверка считает наш факт как склад + обработка. Обновлено {{ inventory_check.computed_at|date:"d.m.Y, H:i" }}.</div>
+            {% else %}
+              <div class="verify-note">Нажми кнопку, чтобы посчитать факт поставки, отгрузки и сверить остаток.</div>
+            {% endif %}
+          {% else %}
+            <div class="verify-note">Сначала выбери клиента.</div>
+          {% endif %}
+        </section>
+      </aside>
+    </div>
+  </div>
+</body>
+</html>

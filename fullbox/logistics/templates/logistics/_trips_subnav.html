@@ -1,0 +1,148 @@
+{# Компактная шапка раздела «Рейсы» #}
+<header class="trips-page-head">
+  <div class="trips-page-titles">
+    <h1 class="trips-page-title">
+      Рейсы{% if trips_heading_number %}<span class="trips-page-number"> · {{ trips_heading_number }}</span>{% endif %}
+    </h1>
+    <p class="trips-page-sub">Формирование маршрутов и контроль доставки</p>
+  </div>
+  <div class="trips-page-actions">
+    <button type="button" class="trips-icon-btn" id="trips-help-open" aria-label="Как провести рейс" title="Как провести рейс">?</button>
+    {% if sidebar_trip %}
+      <a class="btn trips-head-btn" href="/logistics/trips/{{ sidebar_trip.pk }}/">Открыть черновик</a>
+    {% endif %}
+    <a class="btn trips-head-btn" href="/logistics/trips/">Все рейсы</a>
+  </div>
+</header>
+<nav class="trips-tabs" aria-label="Разделы рейсов">
+  <a class="trips-tab{% if trips_subnav == 'pool' %} is-active{% endif %}" href="/logistics/">Подбор заявок</a>
+  <a class="trips-tab{% if trips_subnav == 'planning' %} is-active{% endif %}" href="/logistics/trips/planning/">Планирование</a>
+  <a class="trips-tab{% if trips_subnav == 'active' %} is-active{% endif %}" href="/logistics/trips/?bucket=active">Активные рейсы</a>
+  <a class="trips-tab{% if trips_subnav == 'completed' %} is-active{% endif %}" href="/logistics/trips/?bucket=completed">Завершённые</a>
+  <a class="trips-tab{% if trips_subnav == 'problems' %} is-active{% endif %}" href="/logistics/problems/">Проблемные рейсы</a>
+</nav>
+<style>
+  .trips-page-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .trips-page-title {
+    margin: 0;
+    font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--ink, #1c1f1a);
+    line-height: 1.2;
+  }
+  .trips-page-number {
+    color: var(--orange-strong, #f86800);
+    white-space: nowrap;
+  }
+  .trips-page-sub {
+    margin: 4px 0 0;
+    color: var(--muted, #6b6f66);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .trips-page-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .trips-head-btn {
+    width: auto !important;
+    min-height: 36px;
+    padding: 8px 12px !important;
+    font-size: 13px;
+    text-decoration: none;
+  }
+  .trips-icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    border: 1px solid rgba(35, 33, 29, 0.14);
+    background: #fffdf8;
+    color: #0e6b5b;
+    font-weight: 800;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .trips-icon-btn:hover { border-color: rgba(14, 107, 91, 0.35); }
+  .trips-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+    padding-bottom: 2px;
+  }
+  .trips-tab {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    color: var(--muted, #6b6f66);
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    background: transparent;
+  }
+  .trips-tab:hover { background: rgba(14, 107, 91, 0.06); color: var(--ink, #1c1f1a); }
+  .trips-tab.is-active {
+    background: linear-gradient(120deg, #f2b747, #ffd88a);
+    color: #2a2110;
+    border-color: rgba(42, 33, 16, 0.16);
+  }
+</style>
+<dialog id="trips-help-dialog" class="trips-help-dialog">
+  <form method="dialog" class="trips-help-card">
+    <header>
+      <strong>Как провести рейс?</strong>
+      <button type="submit" class="trips-icon-btn" aria-label="Закрыть">×</button>
+    </header>
+    <ol>
+      <li>Выберите готовые заявки.</li>
+      <li>Нажмите «Создать рейс».</li>
+      <li>Укажите машину, водителя и маршрут.</li>
+      <li>Нажмите «Сформировать рейс» — он будет передан складу на погрузку.</li>
+      <li>Пока склад грузит машину, действие рейса будет «Ожидает погрузку».</li>
+      <li>После завершения погрузки откройте задачу «Подтвердить доставку».</li>
+      <li>Для каждой заявки отметьте «Сдано на МП» или «Не сдано».</li>
+      <li>После отметки всех заявок рейс завершится автоматически.</li>
+    </ol>
+    <a class="btn trips-head-btn" href="/logistics/help/">Полная инструкция</a>
+  </form>
+</dialog>
+<style>
+  .trips-help-dialog {
+    border: none;
+    border-radius: 16px;
+    padding: 0;
+    max-width: 420px;
+    width: calc(100% - 32px);
+    box-shadow: 0 20px 55px rgba(15, 23, 42, 0.18);
+  }
+  .trips-help-dialog::backdrop { background: rgba(28, 31, 26, 0.35); }
+  .trips-help-card { padding: 16px 18px; display: grid; gap: 12px; }
+  .trips-help-card header {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+  .trips-help-card ol {
+    margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.45;
+  }
+  .trips-help-card li + li { margin-top: 4px; }
+</style>
+<script>
+(function () {
+  const dialog = document.getElementById("trips-help-dialog");
+  const openBtn = document.getElementById("trips-help-open");
+  if (!dialog || !openBtn || typeof dialog.showModal !== "function") return;
+  openBtn.addEventListener("click", function () { dialog.showModal(); });
+})();
+</script>

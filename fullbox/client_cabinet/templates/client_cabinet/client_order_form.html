@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Заявка | {{ agency.agn_name|default:"Клиент" }}</title>
+<style>
+    :root {
+      --primary:#c79a1c;
+      --primary-light:#f6f4ed;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--primary-light); color:var(--text); font-family:"Manrope", system-ui, sans-serif; }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 760px; margin: 32px auto 64px; padding: 0 16px; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+    h1 { margin:0; letter-spacing:-0.2px; }
+    .muted { color: var(--muted); }
+    .btn { padding:10px 14px; border-radius:8px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); color:var(--text); font-weight:600; }
+    .btn.primary { background: var(--primary); color:#1f2328; border-color: var(--primary); }
+    .card { background:var(--card); border:1px solid var(--stroke); border-radius:12px; padding:18px; box-shadow:0 12px 32px rgba(15,23,42,0.08); }
+    form { display:grid; gap:16px; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px; }
+    label { display:block; font-weight:600; margin-bottom:6px; color:var(--muted); }
+    input, select, textarea { width:100%; padding:10px; border-radius:8px; border:1px solid var(--stroke); background:#fff; color:var(--text); }
+    textarea { resize:vertical; }
+    .section { border-top:1px solid var(--stroke); padding-top:12px; }
+    .section h3 { margin:0 0 10px; }
+    .success { background:#e8f5e9; border:1px solid #a5d6a7; color:#2e7d32; border-radius:10px; padding:12px; }
+    .required { color: var(--danger); margin-left:4px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="muted">FULLBOX · {{ agency.agn_name|default:"Клиент" }} · {% include "partials/current_user.html" %}</div>
+        <h1>Заявка</h1>
+        <div class="muted">Первичная форма для клиента. Поля с <span class="required">*</span> обязательны.</div>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <a class="btn" href="/client/{{ agency.id }}/sku/?view=table">Номенклатура клиента</a>
+        <a class="btn" href="/client/dashboard/lk/?client={{ agency.id }}">Кабинет клиента</a>
+      </div>
+    </header>
+
+    {% if submitted %}
+      <div class="success">Черновик заявки отправлен. Мы свяжемся с вами для уточнения деталей.</div>
+    {% endif %}
+
+    <div class="card">
+      <form method="post">
+        {% csrf_token %}
+        <div class="section">
+          <h3>Контакты</h3>
+          <div class="grid">
+            <div>
+              <label>Компания</label>
+              <input type="text" name="company" value="{{ agency.agn_name }}" readonly>
+            </div>
+            <div>
+              <label>Email для уведомлений <span class="required">*</span></label>
+              <input type="email" name="email" placeholder="name@example.com" required>
+            </div>
+            <div>
+              <label>Телефон <span class="required">*</span></label>
+              <input type="tel" name="phone" placeholder="+7..." required>
+            </div>
+            <div>
+              <label>Контактное лицо <span class="required">*</span></label>
+              <input type="text" name="contact" placeholder="ФИО" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Параметры заявки</h3>
+          <div class="grid">
+            <div>
+              <label>Тип заявки <span class="required">*</span></label>
+              <select name="type" required>
+                <option value="">Выберите</option>
+                <option>Приемка</option>
+                <option>Отгрузка</option>
+                <option>Доп. обработка</option>
+              </select>
+            </div>
+            <div>
+              <label>Склад/площадка</label>
+              <input type="text" name="warehouse" placeholder="Например: Фулфилмент Москва">
+            </div>
+            <div>
+              <label>Город доставки / ТК</label>
+              <input type="text" name="city" placeholder="Город, транспортная компания">
+            </div>
+            <div>
+              <label>Желаемая дата</label>
+              <input type="date" name="date">
+            </div>
+          </div>
+          <div>
+            <label>Комментарий</label>
+            <textarea name="comment" rows="3" placeholder="Особые требования, слоты, упаковка..."></textarea>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Позиции</h3>
+          <p class="muted" style="margin-top:0;">Опишите товары и количества. Позже добавим табличный ввод.</p>
+          <textarea name="items" rows="4" placeholder="Например: Артикул / Наименование / Кол-во / ШК / Примечание"></textarea>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button type="submit" class="btn primary">Отправить черновик</button>
+          <a class="btn" href="/client/dashboard/lk/?client={{ agency.id }}">Отмена</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

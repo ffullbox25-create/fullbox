@@ -1,0 +1,79 @@
+{% extends use_cabinet_shell|yesno:"teammanager/_base.html,logistics/_standalone_base.html" %}
+{% block title %}Инструкции · логистика{% endblock %}
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.kb-article {
+  background: rgba(255,253,248,0.96);
+  border: 1px solid var(--stroke, rgba(35,33,29,0.11));
+  border-radius: 18px;
+  box-shadow: var(--shadow, 0 20px 55px rgba(15,23,42,0.12));
+  padding: 18px 20px 22px;
+  display: grid;
+  gap: 16px;
+  margin-top: 12px;
+}
+.kb-article h2 { margin: 0 0 8px; font-size: 16px; font-weight: 900; }
+.kb-article p { margin: 0 0 8px; font-size: 14px; line-height: 1.5; }
+.kb-article ol, .kb-article ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.kb-article li + li { margin-top: 5px; }
+.kb-section {
+  padding-top: 12px;
+  border-top: 1px solid rgba(35,33,29,0.08);
+}
+.kb-section:first-child { border-top: 0; padding-top: 0; }
+.kb-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.kb-links a {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke, rgba(35,33,29,0.11));
+  background: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  color: inherit;
+  text-decoration: none;
+}
+{% endblock %}
+{% block content %}
+{% if use_cabinet_shell %}{% include "logistics/_trips_subnav.html" %}{% endif %}
+<div>
+  <h1 class="page-title">{{ kb_article.title }}</h1>
+  <div class="page-sub">{{ kb_article.summary }}</div>
+</div>
+
+<article class="kb-article">
+  {% for section in kb_article.sections %}
+    <section class="kb-section">
+      <h2>{{ section.heading }}</h2>
+      {% if section.body %}<p>{{ section.body }}</p>{% endif %}
+      {% if section.steps %}
+        <ol>
+          {% for step in section.steps %}<li>{{ step }}</li>{% endfor %}
+        </ol>
+      {% endif %}
+      {% if section.bullets %}
+        <ul>
+          {% for item in section.bullets %}<li>{{ item }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+    </section>
+  {% endfor %}
+  {% if kb_article.links %}
+    <div class="kb-links">
+      {% for link in kb_article.links %}
+        <a href="{{ link.href }}">{{ link.label }}</a>
+      {% endfor %}
+      {% if use_cabinet_shell %}
+        <a href="/team-manager/knowledge/">Вся база знаний</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</article>
+{% endblock %}

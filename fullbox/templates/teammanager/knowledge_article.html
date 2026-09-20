@@ -1,0 +1,355 @@
+{% extends "teammanager/_base.html" %}
+{% block title %}{{ kb_article.title }} — база знаний{% endblock %}
+{% block extra_css %}
+.kb-article-shell {
+  --kb-orange:#f89000;
+  --kb-orange-strong:#f86800;
+  --kb-yellow:#f8b800;
+  --kb-ink:#303030;
+  display:grid;
+  gap:16px;
+  color:var(--kb-ink);
+}
+.kb-back {
+  width:fit-content;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  color:var(--kb-orange-strong);
+  font-size:12px;
+  font-weight:900;
+  text-decoration:none;
+}
+.kb-back:hover { color:var(--kb-orange); }
+.kb-article-head {
+  display:grid;
+  gap:10px;
+  padding:4px 0 17px;
+  border-bottom:1px solid var(--stroke);
+}
+.kb-eyebrow {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:var(--kb-orange-strong);
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.kb-eyebrow::before {
+  content:"";
+  width:28px;
+  height:4px;
+  border-radius:2px;
+  background:linear-gradient(90deg,var(--kb-orange-strong),var(--kb-yellow));
+}
+.page-title {
+  max-width:980px;
+  margin:0;
+  font-family:"Bricolage Grotesque","Manrope",sans-serif;
+  font-size:30px;
+  line-height:1.16;
+  font-weight:800;
+  letter-spacing:0;
+}
+.page-sub {
+  max-width:840px;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.5;
+}
+.kb-meta-row { display:flex; flex-wrap:wrap; gap:6px; }
+.kb-pill {
+  display:inline-flex;
+  align-items:center;
+  min-height:24px;
+  padding:4px 8px;
+  border:1px solid var(--stroke);
+  border-radius:999px;
+  background:#fff;
+  color:var(--muted);
+  font-size:10.5px;
+  font-weight:800;
+}
+.kb-pill.accent {
+  border-color:rgba(248,144,0,.26);
+  background:rgba(248,144,0,.13);
+  color:var(--kb-orange-strong);
+}
+.kb-layout {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 272px;
+  gap:14px;
+  align-items:start;
+}
+.kb-article {
+  display:grid;
+  gap:0;
+  overflow:hidden;
+  border:1px solid var(--stroke);
+  border-top:3px solid var(--kb-orange);
+  border-radius:8px;
+  background:#fff;
+}
+.kb-section {
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr);
+  gap:12px;
+  padding:18px;
+  border-top:1px solid rgba(48,48,48,.08);
+}
+.kb-section:first-child { border-top:0; }
+.kb-section-num {
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  border-radius:7px;
+  background:rgba(248,144,0,.13);
+  color:var(--kb-orange-strong);
+  font-family:"Bricolage Grotesque","Manrope",sans-serif;
+  font-size:14px;
+  font-weight:900;
+}
+.kb-section-copy { min-width:0; }
+.kb-section h2 { margin:0 0 8px; font-size:16px; line-height:1.28; font-weight:900; }
+.kb-section p { margin:0 0 10px; color:var(--kb-ink); font-size:13px; line-height:1.6; }
+.kb-section ol,
+.kb-section ul { margin:0; padding-left:20px; color:var(--kb-ink); font-size:13px; line-height:1.6; }
+.kb-section li + li { margin-top:5px; }
+.kb-actions {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.kb-downloads {
+  padding:16px 18px;
+  border-top:1px solid rgba(48,48,48,.08);
+  background:#fffaf0;
+}
+.kb-link,
+.kb-action-btn {
+  min-height:36px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:8px 12px;
+  border:1px solid var(--stroke);
+  border-radius:7px;
+  background:#fff;
+  color:var(--kb-ink);
+  font:inherit;
+  font-size:11.5px;
+  font-weight:900;
+  text-decoration:none;
+  cursor:pointer;
+}
+.kb-link.primary,
+.kb-action-btn.primary {
+  border-color:var(--kb-orange);
+  background:linear-gradient(120deg,var(--kb-orange),var(--kb-yellow));
+  color:#2a2110;
+}
+.kb-feedback {
+  display:grid;
+  gap:10px;
+  padding:16px 18px;
+  border-top:1px solid rgba(48,48,48,.08);
+  background:var(--surface);
+}
+.kb-feedback-head { display:grid; gap:3px; }
+.kb-feedback-title { font-size:13px; font-weight:900; }
+.kb-feedback-sub { color:var(--muted); font-size:11px; line-height:1.4; }
+.kb-feedback textarea {
+  width:100%;
+  min-height:78px;
+  resize:vertical;
+  padding:10px 12px;
+  border:1px solid var(--stroke);
+  border-radius:7px;
+  background:#fff;
+  color:var(--kb-ink);
+  font:inherit;
+  font-size:12px;
+}
+.kb-feedback textarea:focus {
+  outline:2px solid rgba(248,144,0,.24);
+  border-color:var(--kb-orange);
+}
+.kb-feedback-note {
+  display:none;
+  color:var(--kb-orange-strong);
+  font-size:11px;
+  font-weight:800;
+}
+.kb-side {
+  position:sticky;
+  top:12px;
+  display:grid;
+  gap:14px;
+  padding:13px;
+  border:1px solid var(--stroke);
+  border-radius:8px;
+  background:#fff;
+}
+.kb-side-section { display:grid; gap:7px; }
+.kb-side-section + .kb-side-section {
+  padding-top:12px;
+  border-top:1px solid var(--stroke);
+}
+.kb-side-title {
+  color:var(--muted);
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.kb-toc,
+.kb-related { display:grid; gap:3px; }
+.kb-toc a,
+.kb-related a {
+  padding:7px 8px;
+  border-radius:6px;
+  color:var(--kb-ink);
+  font-size:11.5px;
+  line-height:1.35;
+  font-weight:800;
+  text-decoration:none;
+}
+.kb-toc a:hover,
+.kb-related a:hover,
+.kb-related a.active {
+  background:rgba(248,144,0,.13);
+  color:var(--kb-orange-strong);
+}
+.kb-related a.active { box-shadow:inset 3px 0 0 var(--kb-orange); }
+@media (max-width:980px) {
+  .kb-layout { grid-template-columns:1fr; }
+  .kb-side { position:static; order:-1; }
+}
+@media (max-width:640px) {
+  .page-title { font-size:25px; }
+  .kb-section { grid-template-columns:34px minmax(0,1fr); gap:9px; padding:14px 12px; }
+  .kb-section-num { width:30px; height:30px; }
+  .kb-downloads,
+  .kb-feedback { padding:14px 12px; }
+}
+{% endblock %}
+{% block content %}
+<div class="kb-article-shell">
+  <a class="kb-back" href="/team-manager/knowledge/"><span aria-hidden="true">←</span> База знаний</a>
+
+  <header class="kb-article-head">
+    <div class="kb-eyebrow">Стандарт Fullbox</div>
+    <h1 class="page-title">{{ kb_article.title }}</h1>
+    <div class="page-sub">{{ kb_article.summary }}</div>
+    <div class="kb-meta-row">
+      {% if kb_section %}<span class="kb-pill accent">{{ kb_section.title }}</span>{% endif %}
+      <span class="kb-pill">{{ kb_article.kind }}</span>
+      <span class="kb-pill">{{ kb_article.status }}</span>
+      <span class="kb-pill">Обновлено: {{ kb_article.updated_at }}</span>
+      <span class="kb-pill">Автор: {{ kb_article.author }}</span>
+      {% for tag in kb_article.tags %}<span class="kb-pill">#{{ tag }}</span>{% endfor %}
+    </div>
+  </header>
+
+  <div class="kb-layout">
+    <article class="kb-article">
+      {% for section in kb_article.sections %}
+        <section class="kb-section" id="part-{{ forloop.counter }}">
+          <span class="kb-section-num">{{ forloop.counter|stringformat:"02d" }}</span>
+          <div class="kb-section-copy">
+            <h2>{{ section.heading }}</h2>
+            {% if section.body %}<p>{{ section.body }}</p>{% endif %}
+            {% if section.steps %}
+              <ol>
+                {% for step in section.steps %}<li>{{ step }}</li>{% endfor %}
+              </ol>
+            {% endif %}
+            {% if section.bullets %}
+              <ul>
+                {% for item in section.bullets %}<li>{{ item }}</li>{% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+        </section>
+      {% endfor %}
+
+      {% if kb_article.links %}
+        <div class="kb-downloads" aria-label="Связанные материалы">
+          <div class="kb-actions">
+            {% for link in kb_article.links %}
+              <a class="kb-link {% if forloop.first %}primary{% endif %}" href="{{ link.href }}"{% if link.download %} download{% endif %}>
+                {% if link.download %}<span aria-hidden="true">↓</span>{% else %}<span aria-hidden="true">→</span>{% endif %}
+                {{ link.label }}
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="kb-feedback">
+        <div class="kb-feedback-head">
+          <div class="kb-feedback-title">Материал был полезен?</div>
+          <div class="kb-feedback-sub">Отметьте результат или оставьте вопрос по инструкции.</div>
+        </div>
+        <div class="kb-actions">
+          <button class="kb-action-btn primary" type="button" data-kb-feedback="ok">Понятно</button>
+          <button class="kb-action-btn" type="button" data-kb-feedback="help">Нужна помощь</button>
+        </div>
+        <textarea id="kb-question" placeholder="Комментарий или вопрос"></textarea>
+        <div class="kb-actions">
+          <button class="kb-action-btn" type="button" data-kb-feedback="comment">Отправить комментарий</button>
+        </div>
+        <div class="kb-feedback-note" id="kb-feedback-note">Комментарий сохранён локально. Для срочного вопроса напишите руководителю или ответственному отделу.</div>
+      </div>
+    </article>
+
+    <aside class="kb-side">
+      <div class="kb-side-section">
+        <div class="kb-side-title">Содержание</div>
+        <nav class="kb-toc" aria-label="Содержание материала">
+          {% for section in kb_article.sections %}
+            <a href="#part-{{ forloop.counter }}">{{ forloop.counter|stringformat:"02d" }}. {{ section.heading }}</a>
+          {% endfor %}
+        </nav>
+      </div>
+      <div class="kb-side-section">
+        <div class="kb-side-title">Материалы раздела</div>
+        <nav class="kb-related" aria-label="Материалы раздела">
+          {% for article in kb_articles %}
+            {% if article.category == kb_article.category %}
+              <a href="/team-manager/knowledge/{{ article.slug }}/" class="{% if article.slug == kb_article.slug %}active{% endif %}">
+                {{ article.num }}. {{ article.title }}
+              </a>
+            {% endif %}
+          {% endfor %}
+        </nav>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function () {
+  var note = document.getElementById("kb-feedback-note");
+  var question = document.getElementById("kb-question");
+  Array.prototype.slice.call(document.querySelectorAll("[data-kb-feedback]")).forEach(function (button) {
+    button.addEventListener("click", function () {
+      if (!note) return;
+      var action = button.getAttribute("data-kb-feedback");
+      if (action === "ok") {
+        note.textContent = "Отмечено: материал понятен.";
+      } else if (action === "help") {
+        note.textContent = "Отмечено: нужна помощь. Для срочного вопроса напишите руководителю или ответственному отделу.";
+      } else {
+        note.textContent = question && question.value.trim()
+          ? "Комментарий сохранён локально. Для срочного вопроса напишите руководителю или ответственному отделу."
+          : "Напишите вопрос в поле выше.";
+      }
+      note.style.display = "block";
+    });
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,885 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Складские короба</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #0e6b5b;
+      --sun: #f2b747;
+      --danger: #d4543c;
+      --stroke: rgba(28,31,26,0.12);
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+    }
+    .wrap {
+      min-height: 100vh;
+      padding: 24px;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .header-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 26px;
+    }
+    .header-subtitle,
+    .client-label,
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .client-label {
+      margin-top: 8px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .header-actions,
+    .summary {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .search {
+      min-width: 320px;
+      padding: 10px 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: var(--surface);
+      font-size: 14px;
+    }
+    .btn {
+      padding: 9px 13px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .btn:hover { border-color: rgba(14,107,91,0.45); }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .btn[disabled] {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .table-wrap {
+      min-height: 0;
+      overflow: auto;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: rgba(15,23,42,0.03);
+    }
+    table {
+      width: 100%;
+      min-width: 1040px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th,
+    td {
+      padding: 8px;
+      border-bottom: 1px solid var(--stroke);
+      vertical-align: middle;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--surface-2);
+      color: var(--muted);
+      text-align: left;
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.8px;
+    }
+    tbody tr.is-hidden { display: none; }
+    tbody tr.is-mixed { background: rgba(14,107,91,0.06); }
+    .mix-badge {
+      display: inline-flex;
+      margin-top: 4px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(14,107,91,0.13);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .box-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .box-control input,
+    .split-count {
+      width: 96px;
+      padding: 7px 8px;
+      border: 1px solid var(--stroke);
+      border-radius: 9px;
+      background: var(--surface);
+    }
+    .split-btn {
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 9px;
+    }
+    .split-summary {
+      margin-top: 4px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .empty-state {
+      padding: 18px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(15,23,42,0.45);
+      z-index: 20;
+    }
+    .modal-overlay.is-open { display: flex; }
+    .modal {
+      width: min(720px, 100%);
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+    }
+    .modal-header,
+    .modal-actions,
+    .split-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .modal-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 20px;
+    }
+    .split-lines {
+      display: grid;
+      gap: 8px;
+    }
+    .split-line {
+      padding: 10px;
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      background: var(--surface-2);
+    }
+    .split-line-title {
+      font-weight: 800;
+    }
+    .split-error {
+      color: var(--danger);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    @media (max-width: 860px) {
+      .search { min-width: 0; width: 100%; }
+      .header-actions { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap" data-return-url="{{ return_url }}">
+    <div class="header">
+      <div>
+        <h1 class="header-title">Складские короба</h1>
+        <div class="header-subtitle">Выберите короба или разбивку короба для заявки на обработку.</div>
+        {% if agency %}
+          <div class="client-label">Клиент: {{ agency.agn_name|default:agency.fio_agn|default:"-" }}</div>
+        {% endif %}
+      </div>
+      <div class="header-actions">
+        <input class="search" type="text" id="stock-search" placeholder="Поиск по артикулу, названию, размеру или ШК">
+        <button class="btn" type="button" id="close-picker">Закрыть</button>
+        <button class="btn primary" type="button" id="confirm-selection" disabled>Выбрать</button>
+      </div>
+    </div>
+
+    <div class="panel toolbar">
+      <div>
+        <b>Позиции</b>
+        <div class="hint">Для микс-короба достаточно указать количество в одной строке: остальные позиции этого короба добавятся автоматически.</div>
+      </div>
+      <div class="summary">
+        <span id="selected-summary">Ничего не выбрано</span>
+      </div>
+    </div>
+
+    <div class="panel table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Артикул</th>
+            <th>Наименование</th>
+            <th>Размер</th>
+            <th>ШК</th>
+            <th>Тип</th>
+            <th>Ед. в коробе</th>
+            <th>Доступно коробов</th>
+            <th>К обработке</th>
+            <th>Итог, шт</th>
+          </tr>
+        </thead>
+        <tbody id="stock-rows-body"></tbody>
+      </table>
+      <div class="empty-state" id="empty-state" hidden>Складских коробов для выбора не найдено.</div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="split-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="split-title">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="split-title">Разбить короб</h2>
+          <div class="hint" id="split-subtitle"></div>
+        </div>
+        <button class="btn" type="button" id="split-close">Закрыть</button>
+      </div>
+      <div>
+        <div class="hint" id="split-count-hint"></div>
+        <input class="split-count" type="number" min="1" value="1" id="split-count">
+      </div>
+      <div class="split-lines" id="split-lines"></div>
+      <div class="split-error" id="split-error"></div>
+      <div class="modal-actions">
+        <button class="btn" type="button" id="split-remove">Убрать разбивку</button>
+        <span></span>
+        <button class="btn" type="button" id="split-cancel">Отмена</button>
+        <button class="btn primary" type="button" id="split-save">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="application/json" id="stock-rows-data">{{ stock_rows_json|default:"[]"|safe }}</script>
+  <script>
+    (() => {
+      const wrapper = document.querySelector('.wrap');
+      const returnUrl = wrapper?.dataset?.returnUrl || '/orders/processing/';
+      const dataEl = document.getElementById('stock-rows-data');
+      const tbody = document.getElementById('stock-rows-body');
+      const searchInput = document.getElementById('stock-search');
+      const closeBtn = document.getElementById('close-picker');
+      const confirmBtn = document.getElementById('confirm-selection');
+      const summaryEl = document.getElementById('selected-summary');
+      const emptyState = document.getElementById('empty-state');
+      const splitOverlay = document.getElementById('split-overlay');
+      const splitClose = document.getElementById('split-close');
+      const splitCancel = document.getElementById('split-cancel');
+      const splitRemove = document.getElementById('split-remove');
+      const splitSave = document.getElementById('split-save');
+      const splitSubtitle = document.getElementById('split-subtitle');
+      const splitCountHint = document.getElementById('split-count-hint');
+      const splitCountInput = document.getElementById('split-count');
+      const splitLines = document.getElementById('split-lines');
+      const splitError = document.getElementById('split-error');
+
+      let rows = [];
+      try {
+        rows = JSON.parse(dataEl?.textContent || '[]');
+      } catch (err) {
+        rows = [];
+      }
+
+      const rowByKey = new Map();
+      const groupRows = new Map();
+      const rowElements = new Map();
+      let partialSplits = [];
+      const splitState = { row: null, rows: [] };
+
+      const clean = (value) => String(value || '').trim();
+      const intValue = (value) => {
+        const parsed = Number.parseInt(String(value || '').trim(), 10);
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+      const splitIdentityForRow = (row) => row?.is_mixed_box && row?.mixed_group ? `group:${row.mixed_group}` : `row:${row?.key || ''}`;
+      const rowTitle = (row) => `${clean(row.sku_code) || '-'} / ${clean(row.size) || '-'} / ${clean(row.barcode) || '-'}`;
+
+      rows.forEach((row) => {
+        rowByKey.set(clean(row.key), row);
+        if (row.is_mixed_box && row.mixed_group) {
+          const list = groupRows.get(row.mixed_group) || [];
+          list.push(row);
+          groupRows.set(row.mixed_group, list);
+        }
+      });
+
+      const splitForIdentity = (identity) => partialSplits.find((split) => clean(split.identity) === identity) || null;
+
+      const splitBoxesMaps = () => {
+        const byKey = new Map();
+        const byGroup = new Map();
+        partialSplits.forEach((split) => {
+          const boxes = Math.max(intValue(split.boxes), 0);
+          if (boxes <= 0) {
+            return;
+          }
+          const group = clean(split.group_key);
+          const key = clean(split.row_key);
+          if (group) {
+            byGroup.set(group, (byGroup.get(group) || 0) + boxes);
+          } else if (key) {
+            byKey.set(key, (byKey.get(key) || 0) + boxes);
+          }
+        });
+        return { byKey, byGroup };
+      };
+
+      const splitQtyByKey = () => {
+        const qtyMap = new Map();
+        partialSplits.forEach((split) => {
+          const boxes = Math.max(intValue(split.boxes), 0);
+          (split.items || []).forEach((item) => {
+            const key = clean(item.key);
+            const qty = Math.max(intValue(item.qty), 0);
+            if (!key || qty <= 0 || boxes <= 0) {
+              return;
+            }
+            qtyMap.set(key, (qtyMap.get(key) || 0) + (boxes * qty));
+          });
+        });
+        return qtyMap;
+      };
+
+      const splitBoxesForRow = (row) => {
+        const maps = splitBoxesMaps();
+        if (row.is_mixed_box && row.mixed_group) {
+          return maps.byGroup.get(row.mixed_group) || 0;
+        }
+        return maps.byKey.get(clean(row.key)) || 0;
+      };
+
+      const rowInputValue = (row) => {
+        const el = rowElements.get(clean(row.key));
+        const input = el?.querySelector('[data-box-input]');
+        return Math.max(intValue(input?.value), 0);
+      };
+
+      const normalizeInput = (input, row) => {
+        const available = Math.max(intValue(row.available_boxes), 0);
+        const max = Math.max(available - splitBoxesForRow(row), 0);
+        let value = Math.max(intValue(input.value), 0);
+        value = Math.min(value, max);
+        input.max = String(max);
+        input.value = String(value);
+        return value;
+      };
+
+      const updateSummary = () => {
+        let boxes = 0;
+        let qty = 0;
+        const countedGroups = new Set();
+        const splitQty = splitQtyByKey();
+        rows.forEach((row) => {
+          const value = rowInputValue(row);
+          if (value > 0) {
+            if (row.is_mixed_box && row.mixed_group) {
+              if (!countedGroups.has(row.mixed_group)) {
+                countedGroups.add(row.mixed_group);
+                boxes += value;
+              }
+            } else {
+              boxes += value;
+            }
+            qty += value * intValue(row.box_qty);
+          }
+          qty += splitQty.get(clean(row.key)) || 0;
+        });
+        partialSplits.forEach((split) => {
+          boxes += Math.max(intValue(split.boxes), 0);
+        });
+        if (summaryEl) {
+          summaryEl.textContent = boxes > 0 ? `Выбрано коробов: ${boxes}, товаров: ${qty} шт` : 'Ничего не выбрано';
+        }
+        if (confirmBtn) {
+          confirmBtn.disabled = boxes <= 0 || qty <= 0;
+        }
+      };
+
+      const updateRowTotals = () => {
+        const splitQty = splitQtyByKey();
+        rows.forEach((row) => {
+          const el = rowElements.get(clean(row.key));
+          if (!el) {
+            return;
+          }
+          const input = el.querySelector('[data-box-input]');
+          const boxes = normalizeInput(input, row);
+          const total = (boxes * intValue(row.box_qty)) + (splitQty.get(clean(row.key)) || 0);
+          el.querySelector('[data-total]').textContent = String(total);
+          const splitSummary = el.querySelector('[data-split-summary]');
+          const splitBoxes = splitBoxesForRow(row);
+          splitSummary.textContent = splitBoxes > 0 ? `Разбивка: ${splitBoxes} короб.` : '';
+        });
+        updateSummary();
+      };
+
+      const syncMixedGroup = (sourceRow, value) => {
+        if (!sourceRow.is_mixed_box || !sourceRow.mixed_group) {
+          return;
+        }
+        (groupRows.get(sourceRow.mixed_group) || []).forEach((row) => {
+          if (row.key === sourceRow.key) {
+            return;
+          }
+          const el = rowElements.get(clean(row.key));
+          const input = el?.querySelector('[data-box-input]');
+          if (input) {
+            input.value = String(value);
+          }
+        });
+      };
+
+      const renderRows = () => {
+        if (!tbody) {
+          return;
+        }
+        tbody.innerHTML = '';
+        rowElements.clear();
+        rows.forEach((row) => {
+          const tr = document.createElement('tr');
+          tr.dataset.key = clean(row.key);
+          tr.dataset.search = [
+            row.sku_code,
+            row.name,
+            row.size,
+            row.barcode,
+            row.goods_type,
+          ].map(clean).join(' ').toLowerCase();
+          if (row.is_mixed_box) {
+            tr.classList.add('is-mixed');
+          }
+
+          const cells = [
+            `<b>${clean(row.sku_code) || '-'}</b>`,
+            clean(row.name) || '-',
+            clean(row.size) || '-',
+            clean(row.barcode) || '-',
+            `${clean(row.goods_type) || '-'}${row.is_mixed_box ? '<br><span class="mix-badge">Микс-короб</span>' : ''}`,
+            String(intValue(row.box_qty)),
+            `${intValue(row.available_boxes)} (${intValue(row.available_qty)} шт)`,
+          ];
+          cells.forEach((html) => {
+            const td = document.createElement('td');
+            td.innerHTML = html;
+            tr.appendChild(td);
+          });
+
+          const actionCell = document.createElement('td');
+          const control = document.createElement('div');
+          control.className = 'box-control';
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.min = '0';
+          input.max = String(intValue(row.available_boxes));
+          input.value = '0';
+          input.dataset.boxInput = '1';
+          input.addEventListener('input', () => {
+            const value = normalizeInput(input, row);
+            syncMixedGroup(row, value);
+            updateRowTotals();
+          });
+          const splitBtn = document.createElement('button');
+          splitBtn.type = 'button';
+          splitBtn.className = 'btn split-btn';
+          splitBtn.textContent = '↯';
+          splitBtn.title = 'Разбить короб';
+          splitBtn.addEventListener('click', () => openSplitModal(row));
+          control.appendChild(input);
+          control.appendChild(splitBtn);
+          actionCell.appendChild(control);
+          const splitSummary = document.createElement('div');
+          splitSummary.className = 'split-summary';
+          splitSummary.dataset.splitSummary = '1';
+          actionCell.appendChild(splitSummary);
+          tr.appendChild(actionCell);
+
+          const totalCell = document.createElement('td');
+          const total = document.createElement('span');
+          total.dataset.total = '1';
+          total.textContent = '0';
+          totalCell.appendChild(total);
+          tr.appendChild(totalCell);
+
+          rowElements.set(clean(row.key), tr);
+          tbody.appendChild(tr);
+        });
+        if (emptyState) {
+          emptyState.hidden = rows.length > 0;
+        }
+        updateRowTotals();
+      };
+
+      const applySearch = () => {
+        const term = clean(searchInput?.value).toLowerCase();
+        const groupMatched = new Map();
+        rows.forEach((row) => {
+          if (!row.is_mixed_box || !row.mixed_group) {
+            return;
+          }
+          const el = rowElements.get(clean(row.key));
+          const matched = !term || clean(el?.dataset.search).includes(term);
+          groupMatched.set(row.mixed_group, (groupMatched.get(row.mixed_group) || false) || matched);
+        });
+        let visibleCount = 0;
+        rows.forEach((row) => {
+          const el = rowElements.get(clean(row.key));
+          if (!el) {
+            return;
+          }
+          let visible = !term || clean(el.dataset.search).includes(term);
+          if (row.is_mixed_box && row.mixed_group) {
+            visible = groupMatched.get(row.mixed_group) === true;
+          }
+          el.classList.toggle('is-hidden', !visible);
+          if (visible) {
+            visibleCount += 1;
+          }
+        });
+        if (emptyState) {
+          emptyState.hidden = visibleCount > 0;
+        }
+      };
+
+      const closeSplitModal = () => {
+        splitState.row = null;
+        splitState.rows = [];
+        splitOverlay?.classList.remove('is-open');
+        splitOverlay?.setAttribute('aria-hidden', 'true');
+      };
+
+      function openSplitModal(row) {
+        const relatedRows = row.is_mixed_box && row.mixed_group ? (groupRows.get(row.mixed_group) || [row]) : [row];
+        const identity = splitIdentityForRow(row);
+        const existing = splitForIdentity(identity);
+        const available = Math.min(...relatedRows.map((item) => intValue(item.available_boxes)));
+        const selectedWhole = row.is_mixed_box && row.mixed_group
+          ? Math.max(...relatedRows.map((item) => rowInputValue(item)))
+          : rowInputValue(row);
+        const maxBoxes = Math.max(available - selectedWhole, 0);
+        splitState.row = row;
+        splitState.rows = relatedRows;
+        if (splitSubtitle) {
+          splitSubtitle.textContent = row.is_mixed_box ? 'Микс-короб: укажите состав отбора из одного короба.' : rowTitle(row);
+        }
+        if (splitCountHint) {
+          splitCountHint.textContent = `Доступно для разбивки: ${maxBoxes} короб.`;
+        }
+        if (splitCountInput) {
+          splitCountInput.max = String(maxBoxes);
+          splitCountInput.value = String(Math.max(1, Math.min(intValue(existing?.boxes) || 1, maxBoxes || 1)));
+        }
+        if (splitError) {
+          splitError.textContent = '';
+        }
+        if (splitLines) {
+          const existingQty = new Map((existing?.items || []).map((item) => [clean(item.key), intValue(item.qty)]));
+          splitLines.innerHTML = '';
+          relatedRows.forEach((item) => {
+            const line = document.createElement('div');
+            line.className = 'split-line';
+            const left = document.createElement('div');
+            left.innerHTML = `<div class="split-line-title">${rowTitle(item)}</div><div class="hint">В коробе: ${intValue(item.box_qty)} шт</div>`;
+            const input = document.createElement('input');
+            input.className = 'split-count';
+            input.type = 'number';
+            input.min = '0';
+            input.max = String(intValue(item.box_qty));
+            input.value = String(existingQty.get(clean(item.key)) || 0);
+            input.dataset.itemKey = clean(item.key);
+            line.appendChild(left);
+            line.appendChild(input);
+            splitLines.appendChild(line);
+          });
+        }
+        splitRemove.hidden = !existing;
+        splitOverlay?.classList.add('is-open');
+        splitOverlay?.setAttribute('aria-hidden', 'false');
+      }
+
+      const saveCurrentSplit = () => {
+        const row = splitState.row;
+        const relatedRows = splitState.rows || [];
+        if (!row || !relatedRows.length) {
+          return;
+        }
+        const identity = splitIdentityForRow(row);
+        const boxes = Math.max(intValue(splitCountInput?.value), 0);
+        const available = Math.min(...relatedRows.map((item) => intValue(item.available_boxes)));
+        const selectedWhole = row.is_mixed_box && row.mixed_group
+          ? Math.max(...relatedRows.map((item) => rowInputValue(item)))
+          : rowInputValue(row);
+        const maxBoxes = Math.max(available - selectedWhole, 0);
+        if (boxes <= 0 || boxes > maxBoxes) {
+          splitError.textContent = 'Укажите доступное количество коробов для разбивки.';
+          return;
+        }
+        const items = [];
+        let pickTotal = 0;
+        let sourceTotal = 0;
+        relatedRows.forEach((item) => {
+          sourceTotal += intValue(item.box_qty);
+        });
+        splitLines.querySelectorAll('[data-item-key]').forEach((input) => {
+          const key = clean(input.dataset.itemKey);
+          const source = rowByKey.get(key);
+          const qty = Math.max(intValue(input.value), 0);
+          if (!source || qty <= 0) {
+            return;
+          }
+          if (qty > intValue(source.box_qty)) {
+            splitError.textContent = `${rowTitle(source)}: в коробе только ${intValue(source.box_qty)} шт.`;
+            return;
+          }
+          pickTotal += qty;
+          items.push({ key, qty });
+        });
+        if (splitError.textContent) {
+          return;
+        }
+        if (!items.length || pickTotal <= 0) {
+          splitError.textContent = 'Укажите количество товара к обработке.';
+          return;
+        }
+        if (pickTotal >= sourceTotal) {
+          splitError.textContent = 'Если в обработку идет весь короб, используйте поле "К обработке".';
+          return;
+        }
+        partialSplits = partialSplits.filter((split) => clean(split.identity) !== identity);
+        partialSplits.push({
+          identity,
+          row_key: clean(row.key),
+          group_key: row.is_mixed_box ? clean(row.mixed_group) : '',
+          boxes,
+          items,
+        });
+        closeSplitModal();
+        updateRowTotals();
+      };
+
+      const removeCurrentSplit = () => {
+        const row = splitState.row;
+        if (!row) {
+          return;
+        }
+        const identity = splitIdentityForRow(row);
+        partialSplits = partialSplits.filter((split) => clean(split.identity) !== identity);
+        closeSplitModal();
+        updateRowTotals();
+      };
+
+      const selectedBoxCodes = (row, boxes, offset) => {
+        const codes = Array.isArray(row.box_codes) ? row.box_codes : [];
+        return codes.slice(offset, offset + boxes).map(clean).filter(Boolean);
+      };
+
+      const appendCardRow = (cards, row, qty, meta = {}) => {
+        if (!qty || qty <= 0) {
+          return;
+        }
+        const cardKey = [row.sku_code, row.name, row.goods_type].map(clean).join('||');
+        if (!cards.has(cardKey)) {
+          cards.set(cardKey, {
+            article: clean(row.sku_code),
+            product_name: clean(row.name),
+            goods_type: clean(row.goods_type),
+            photo_url: clean(row.photo),
+            rows: [],
+          });
+        }
+        cards.get(cardKey).rows.push({
+          article: clean(row.sku_code),
+          sku: clean(row.sku_code),
+          size: clean(row.size),
+          barcode: clean(row.barcode),
+          qty,
+          maxQty: qty,
+          box_qty: intValue(row.box_qty),
+          is_mixed_box: Boolean(row.is_mixed_box),
+          mixed_group: clean(row.mixed_group),
+          ...meta,
+        });
+      };
+
+      const buildSelectedCards = () => {
+        const cards = new Map();
+        const countedGroups = new Set();
+        const splitMaps = splitBoxesMaps();
+
+        rows.forEach((row) => {
+          const boxes = rowInputValue(row);
+          if (boxes <= 0) {
+            return;
+          }
+          if (row.is_mixed_box && row.mixed_group) {
+            if (countedGroups.has(row.mixed_group)) {
+              return;
+            }
+            countedGroups.add(row.mixed_group);
+            const offset = splitMaps.byGroup.get(row.mixed_group) || 0;
+            (groupRows.get(row.mixed_group) || []).forEach((item) => {
+              appendCardRow(cards, item, boxes * intValue(item.box_qty), {
+                boxes,
+                box_codes: selectedBoxCodes(item, boxes, offset),
+              });
+            });
+            return;
+          }
+          const offset = splitMaps.byKey.get(clean(row.key)) || 0;
+          appendCardRow(cards, row, boxes * intValue(row.box_qty), {
+            boxes,
+            box_codes: selectedBoxCodes(row, boxes, offset),
+          });
+        });
+
+        const splitOffsetsByKey = new Map();
+        const splitOffsetsByGroup = new Map();
+        partialSplits.forEach((split, index) => {
+          const sourceRow = rowByKey.get(clean(split.row_key));
+          if (!sourceRow) {
+            return;
+          }
+          const boxes = Math.max(intValue(split.boxes), 0);
+          const group = clean(split.group_key);
+          const offset = group ? (splitOffsetsByGroup.get(group) || 0) : (splitOffsetsByKey.get(clean(sourceRow.key)) || 0);
+          const codes = selectedBoxCodes(sourceRow, boxes, offset);
+          if (group) {
+            splitOffsetsByGroup.set(group, offset + boxes);
+          } else {
+            splitOffsetsByKey.set(clean(sourceRow.key), offset + boxes);
+          }
+          (split.items || []).forEach((item) => {
+            const row = rowByKey.get(clean(item.key));
+            const qtyPerBox = Math.max(intValue(item.qty), 0);
+            if (!row || qtyPerBox <= 0 || boxes <= 0) {
+              return;
+            }
+            appendCardRow(cards, row, boxes * qtyPerBox, {
+              partial_boxes: boxes,
+              box_codes: codes,
+              allow_partial_box_reserve: true,
+              partial_box_split: {
+                version: 1,
+                kind: 'processing_partial_box_split',
+                index: index + 1,
+                source_row_key: clean(sourceRow.key),
+                source_group: group,
+                source_box_codes: codes,
+                item_pick_qty: qtyPerBox,
+                item_source_qty: intValue(row.box_qty),
+              },
+            });
+          });
+        });
+        return Array.from(cards.values()).filter((card) => card.rows.length);
+      };
+
+      const sendSelection = () => {
+        const cards = buildSelectedCards();
+        if (!cards.length) {
+          window.alert('Выберите минимум один короб или разбивку короба.');
+          return;
+        }
+        const payload = cards.length === 1 ? { ...cards[0], cards } : { cards };
+        const message = { type: 'processing-stock-select', payload };
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(message, window.location.origin);
+          window.close();
+          return;
+        }
+        sessionStorage.setItem('processingStockSelection', JSON.stringify(message));
+        window.location.href = returnUrl;
+      };
+
+      searchInput?.addEventListener('input', applySearch);
+      confirmBtn?.addEventListener('click', sendSelection);
+      closeBtn?.addEventListener('click', () => {
+        if (window.opener && !window.opener.closed) {
+          window.close();
+          return;
+        }
+        window.location.href = returnUrl;
+      });
+      splitClose?.addEventListener('click', closeSplitModal);
+      splitCancel?.addEventListener('click', closeSplitModal);
+      splitRemove?.addEventListener('click', removeCurrentSplit);
+      splitSave?.addEventListener('click', saveCurrentSplit);
+      splitOverlay?.addEventListener('click', (event) => {
+        if (event.target === splitOverlay) {
+          closeSplitModal();
+        }
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && splitOverlay?.classList.contains('is-open')) {
+          closeSplitModal();
+        }
+      });
+
+      renderRows();
+      applySearch();
+    })();
+  </script>
+</body>
+</html>

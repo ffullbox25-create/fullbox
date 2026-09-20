@@ -1,0 +1,455 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}{{ operation_report_title }} — Биллинг{% endblock %}
+
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; max-width:980px; line-height:1.45; }
+.filter-card {
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:12px;
+  display:flex; gap:10px; flex-wrap:wrap; align-items:end;
+}
+.field {
+  border:1px solid var(--line); border-radius:10px; background:#fff;
+  padding:9px 12px; font:inherit; font-size:13px;
+}
+.kpi-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+.kpi {
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:14px;
+}
+.kpi span { display:block; color:var(--muted); font-size:12px; font-weight:800; }
+.kpi strong { display:block; margin-top:4px; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:26px; font-weight:900; }
+.table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:1220px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:2px solid var(--line); }
+td { padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+tbody tr:hover td { background:#fff9ef; }
+tbody tr.manual-not-invoiced td { background:#fff; }
+tbody tr.manual-not-invoiced:hover td { background:#fff; }
+tbody tr.manual-invoiced td { background:#bbf7d0; border-bottom-color:#86efac; }
+tbody tr.manual-invoiced:hover td { background:#a7f3d0; }
+tbody tr.manual-invoiced td:first-child { box-shadow:inset 5px 0 0 #16a34a; }
+.row-main { font-weight:850; }
+.row-sub { color:var(--muted); font-size:11px; margin-top:2px; line-height:1.35; }
+.num { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-weight:850; white-space:nowrap; }
+.badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900; white-space:nowrap; }
+.badge.green { background:var(--green-soft); color:var(--green-strong); }
+.badge.invoice-done { background:#16a34a; color:#fff; box-shadow:0 0 0 2px rgba(22,163,74,.12); }
+.badge.invoice-pending { background:#f3f4f6; color:#6b7280; border:1px solid #d1d5db; }
+.badge.orange { background:var(--orange-soft); color:#b45309; }
+.badge.red { background:#fff0f0; color:var(--red); }
+.badge.gray { background:var(--surface-2); color:var(--muted); }
+.badge.blue { background:#eff6ff; color:#1d4ed8; }
+.billing-link {
+  display:block; min-width:156px; padding:8px 10px; border:1px solid #f8b800;
+  border-radius:9px; background:var(--orange-soft); color:#7a4300; text-decoration:none;
+  transition:background .15s ease, transform .15s ease;
+}
+.billing-link:hover, .billing-link:focus-visible { background:#ffe2a7; color:#5c3200; transform:translateY(-1px); }
+.billing-link .row-main { display:flex; align-items:center; gap:5px; }
+.billing-link .row-sub { color:#7a4300; }
+.service-list { display:grid; gap:5px; max-width:360px; }
+.service-line { padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+.service-line .row-main { display:flex; justify-content:space-between; gap:10px; }
+.service-comment { color:var(--muted); font-size:11px; margin-top:3px; }
+.manual-invoice-box { margin-top:6px; display:grid; gap:5px; }
+.bulk-invoice-bar {
+  display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  background:#fff9ef; border:1px solid #f8b800; border-radius:12px; padding:10px 12px;
+}
+.bulk-invoice-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.report-select-cell { width:38px; text-align:center; }
+.report-select-cell input { width:16px; height:16px; accent-color:#f89000; }
+.manual-invoice-btn {
+  border:1px solid var(--line); border-radius:8px; background:#fff; padding:6px 8px;
+  font:inherit; font-size:11px; font-weight:850; cursor:pointer; color:var(--text);
+}
+.manual-invoice-btn:hover, .manual-invoice-btn:focus-visible { border-color:#f8b800; background:#fff9ef; }
+.manual-invoice-note {
+  display:inline-flex; width:max-content; max-width:100%; padding:5px 8px; border-radius:999px;
+  background:#16a34a; color:#fff; font-size:11px; font-weight:900;
+}
+.manual-invoice-pending {
+  display:inline-flex; width:max-content; max-width:100%; padding:5px 8px; border-radius:999px;
+  background:#f3f4f6; color:#6b7280; border:1px solid #d1d5db; font-size:11px; font-weight:900;
+}
+.manual-invoice-modal {
+  position:fixed; inset:0; z-index:2000; display:none; align-items:center; justify-content:center;
+  background:rgba(48,48,48,.35); padding:20px;
+}
+.manual-invoice-modal.is-open { display:flex; }
+.manual-invoice-dialog {
+  width:min(420px,100%); background:#fff; border:1px solid var(--line);
+  border-radius:14px; box-shadow:0 20px 50px rgba(0,0,0,.18); padding:18px;
+}
+.manual-invoice-dialog h2 { margin:0 0 12px; font-size:18px; font-weight:900; }
+.manual-invoice-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+.manual-invoice-check { display:flex; align-items:center; gap:8px; margin-top:10px; font-size:13px; font-weight:800; }
+.client-summary { display:flex; gap:8px; flex-wrap:wrap; }
+.client-chip {
+  border:1px solid var(--line); border-radius:12px; background:#fff; padding:9px 12px;
+  display:grid; gap:3px; min-width:220px;
+}
+.client-chip strong { font-size:13px; }
+.summary-note { color:var(--muted); font-size:12px; font-weight:700; }
+@media (max-width: 900px) { .kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+{% endblock %}
+
+{% block content %}
+{% include "billing/_billing_nav.html" %}
+
+<div>
+  <h1 class="page-title">{{ operation_report_title }}</h1>
+  <div class="page-sub">{{ operation_report_subtitle }}</div>
+</div>
+
+<form class="filter-card" method="get">
+  <div>
+    <div class="row-sub">С даты работ</div>
+    <input class="field" type="date" name="date_from" value="{{ operation_filter_date_from }}" style="width:150px">
+  </div>
+  <div>
+    <div class="row-sub">По дату работ</div>
+    <input class="field" type="date" name="date_to" value="{{ operation_filter_date_to }}" style="width:150px">
+  </div>
+  <div style="min-width:240px;flex:1">
+    <div class="row-sub">Клиент</div>
+    <select class="field" name="client" style="width:100%">
+      <option value="">Все</option>
+      {% for c in operation_clients %}
+        <option value="{{ c.id }}" {% if operation_filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <div class="row-sub">Статус биллинга</div>
+    <select class="field" name="billing_status" style="width:210px">
+      <option value="">Все</option>
+      {% for code, label in operation_billing_status_choices %}
+        <option value="{{ code }}" {% if operation_filter_billing_status == code %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div style="min-width:260px;flex:1">
+    <div class="row-sub">Поиск</div>
+    <input class="field" name="q" value="{{ operation_filter_q }}" placeholder="Заявка, клиент, ИНН, склад" style="width:100%">
+  </div>
+  <label class="field" style="display:flex;gap:8px;align-items:center">
+    <input type="checkbox" name="show_empty" value="1" {% if operation_filter_show_empty %}checked{% endif %}>
+    <span>Показывать без фактов</span>
+  </label>
+  <button class="btn primary" type="submit">Показать</button>
+  <a class="btn" href="{{ operation_report_reset_url }}">Сбросить</a>
+</form>
+
+<div class="kpi-grid">
+  <div class="kpi"><span>Заявок в отчете</span><strong>{{ operation_report_totals.applications }}</strong></div>
+  <div class="kpi"><span>Фактов склада</span><strong>{{ operation_report_totals.facts }}</strong></div>
+  <div class="kpi"><span>Начислений</span><strong>{{ operation_report_totals.charges }}</strong></div>
+  <div class="kpi"><span>Без начислений</span><strong>{{ operation_report_totals.without_charges }}</strong></div>
+</div>
+
+{% if operation_report_client_totals %}
+  <div class="client-summary">
+    {% for item in operation_report_client_totals %}
+      <div class="client-chip">
+        <strong>{{ item.client.short_name|default:item.client.agn_name }}</strong>
+        <span class="row-sub">{{ item.applications }} заявок · {{ item.facts }} фактов · {{ item.charges }} начислений</span>
+        <span class="row-sub">Итого: {{ item.total_amount|floatformat:2 }} ₽</span>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<div class="summary-note">
+  Проверено заявок в периоде: {{ operation_report_total_scanned }}. На экран выводятся первые 300 заявок.
+</div>
+
+<div class="bulk-invoice-bar">
+  <div>
+    <div class="row-main">Групповой ручной счет</div>
+    <div class="row-sub">Отметьте заявки галочками и укажите один номер счета для всех выбранных строк.</div>
+  </div>
+  <div class="bulk-invoice-actions">
+    <span class="row-sub">Выбрано: <span class="num" id="manual-invoice-selected-count">0</span></span>
+    <button class="btn primary" type="button" id="manual-invoice-bulk-open" disabled>Ручной счет по выбранным</button>
+  </div>
+</div>
+
+<div class="table-card">
+  <table>
+    <thead>
+      <tr>
+        <th class="report-select-cell">
+          <input type="checkbox" id="manual-invoice-select-all" aria-label="Выбрать все заявки на странице">
+        </th>
+        <th>Дата работ / заявка</th>
+        <th>Клиент</th>
+        <th>Статус</th>
+        <th>Факты склада</th>
+        <th>Начисления</th>
+        <th>Биллинг</th>
+        <th>Проверка</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in operation_report_rows %}
+        <tr class="{% if row.manual_invoice.is_issued %}manual-invoiced{% elif row.application %}manual-not-invoiced{% endif %}">
+          <td class="report-select-cell">
+            <input
+              type="checkbox"
+              class="js-operation-row-select"
+              value="{{ row.application.id }}"
+              data-app-number="{{ row.application.application_id }}"
+              aria-label="Выбрать заявку {{ row.application.application_id }}"
+            >
+          </td>
+          <td>
+            {% if row.application.operations_completed_at %}
+              <div class="row-main">{{ row.application.operations_completed_at|date:"d.m.Y" }}</div>
+              <div class="row-sub">завершено складом {{ row.application.operations_completed_at|date:"H:i" }}</div>
+            {% elif row.application.created_at_source %}
+              <div class="row-main">{{ row.application.created_at_source|date:"d.m.Y" }}</div>
+              <div class="row-sub">дата заявки {{ row.application.created_at_source|date:"H:i" }}</div>
+            {% else %}
+              <div class="row-main">Дата не указана</div>
+              <div class="row-sub">нет даты источника</div>
+            {% endif %}
+            <div class="row-sub">{{ row.application.application_id }}</div>
+          </td>
+          <td>
+            <div class="row-main">{{ row.client.short_name|default:row.client.agn_name|truncatechars:42 }}</div>
+            <div class="row-sub">ИНН {{ row.client.inn|default:"—" }}</div>
+            {% if row.application.warehouse_label %}
+              <div class="row-sub">Склад: {{ row.application.warehouse_label|truncatechars:60 }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <div><span class="badge gray">{{ row.application.operational_status_label|default:row.application.operational_status|default:"—" }}</span></div>
+            <div style="margin-top:5px"><span class="badge blue">{{ row.application.get_billing_status_display }}</span></div>
+          </td>
+          <td>
+            {% if row.facts %}
+              <div class="service-list">
+                {% for fact in row.facts %}
+                  <div class="service-line">
+                    <div class="row-main">
+                      <span>{{ fact.name|truncatechars:48 }}</span>
+                      <span class="num">{{ fact.quantity|floatformat:3 }} {{ fact.unit }}</span>
+                    </div>
+                    {% if fact.status_label %}<div class="row-sub">{{ fact.status_label }}</div>{% endif %}
+                    {% if fact.comment %}<div class="service-comment">{{ fact.comment|truncatechars:90 }}</div>{% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <span class="badge orange">фактов нет</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if row.charges %}
+              <div class="service-list">
+                {% for charge in row.charges %}
+                  <div class="service-line">
+                    <div class="row-main">
+                      <span>{{ charge.name|truncatechars:48 }}</span>
+                      <span class="num">{{ charge.quantity|floatformat:3 }} {{ charge.unit }}</span>
+                    </div>
+                    <div class="row-sub">Итого: {{ charge.total|floatformat:2 }} ₽{% if charge.is_confirmed %} · подтверждено{% endif %}</div>
+                  </div>
+                {% endfor %}
+              </div>
+              <div class="row-main" style="margin-top:7px">Сумма: {{ row.charge_total|floatformat:2 }} ₽</div>
+            {% else %}
+              <span class="badge orange">начислений нет</span>
+            {% endif %}
+          </td>
+          <td>
+            <a class="billing-link" href="/team-manager/billing/applications/{{ row.application.id }}/" aria-label="Открыть заявку биллинга {{ row.application.application_id }}">
+              <span class="row-main">Открыть заявку биллинга <span aria-hidden="true">↗</span></span>
+              <span class="row-sub">{{ row.application.application_id }} · фактов: {{ row.facts_count }} · начислений: {{ row.charges_count }}</span>
+            </a>
+            <div class="manual-invoice-box">
+              {% if row.manual_invoice.is_issued %}
+                <div class="manual-invoice-note">Счет выставлен{% if row.manual_invoice.number %}: {{ row.manual_invoice.number }}{% endif %}</div>
+              {% elif row.manual_invoice.number %}
+                <div class="manual-invoice-pending">Номер указан, счет не выставлен: {{ row.manual_invoice.number }}</div>
+              {% else %}
+                <div class="manual-invoice-pending">Счет не выставлен</div>
+              {% endif %}
+              <button
+                type="button"
+                class="manual-invoice-btn js-manual-invoice"
+                data-app-id="{{ row.application.id }}"
+                data-app-number="{{ row.application.application_id }}"
+                data-invoice-number="{{ row.manual_invoice.number|default:'' }}"
+                data-invoice-issued="{% if row.manual_invoice.is_issued %}1{% else %}0{% endif %}"
+              >Ручной счет</button>
+            </div>
+          </td>
+          <td>
+            {% if row.manual_invoice.is_issued %}
+              <span class="badge invoice-done">счет выставлен</span>
+            {% elif not row.facts_count %}
+              <span class="badge red">нет фактов склада</span>
+            {% elif not row.charges_count %}
+              <span class="badge orange">нужно начислить</span>
+            {% else %}
+              <span class="badge invoice-pending">счет не выставлен</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="8">
+            <div class="row-main">За выбранный период заявок не найдено.</div>
+            <div class="row-sub">{{ operation_report_empty_hint }}</div>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="manual-invoice-modal" id="manual-invoice-modal" aria-hidden="true">
+  <div class="manual-invoice-dialog" role="dialog" aria-modal="true" aria-labelledby="manual-invoice-title">
+    <h2 id="manual-invoice-title">Ручной счет</h2>
+    <form id="manual-invoice-form">
+      {% csrf_token %}
+      <input type="hidden" name="application_id" id="manual-invoice-app-id">
+      <input type="hidden" name="application_ids" id="manual-invoice-app-ids">
+      <div class="row-sub" id="manual-invoice-app-number"></div>
+      <div style="margin-top:10px">
+        <div class="row-sub">Номер счета</div>
+        <input class="field" name="number" id="manual-invoice-number" maxlength="64" placeholder="Например INV-2026-000001" style="width:100%">
+      </div>
+      <label class="manual-invoice-check">
+        <input type="checkbox" name="is_issued" id="manual-invoice-issued">
+        <span>Счет выставлен</span>
+      </label>
+      <div class="manual-invoice-actions">
+        <button class="btn" type="button" id="manual-invoice-cancel">Отмена</button>
+        <button class="btn primary" type="submit">Сохранить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  const modal = document.getElementById('manual-invoice-modal');
+  const form = document.getElementById('manual-invoice-form');
+  const appId = document.getElementById('manual-invoice-app-id');
+  const appIds = document.getElementById('manual-invoice-app-ids');
+  const appNumber = document.getElementById('manual-invoice-app-number');
+  const numberInput = document.getElementById('manual-invoice-number');
+  const issuedInput = document.getElementById('manual-invoice-issued');
+  const cancelBtn = document.getElementById('manual-invoice-cancel');
+  const bulkOpenBtn = document.getElementById('manual-invoice-bulk-open');
+  const selectedCount = document.getElementById('manual-invoice-selected-count');
+  const selectAll = document.getElementById('manual-invoice-select-all');
+  const csrf = form ? form.querySelector('[name=csrfmiddlewaretoken]') : null;
+  const rowChecks = Array.from(document.querySelectorAll('.js-operation-row-select'));
+
+  function openModal(btn) {
+    appId.value = btn.dataset.appId || '';
+    appIds.value = '';
+    appNumber.textContent = btn.dataset.appNumber ? 'Заявка ' + btn.dataset.appNumber : '';
+    numberInput.value = btn.dataset.invoiceNumber || '';
+    issuedInput.checked = btn.dataset.invoiceIssued === '1';
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    setTimeout(function(){ numberInput.focus(); }, 30);
+  }
+
+  function openBulkModal() {
+    const selected = rowChecks.filter(function(item){ return item.checked; });
+    if (!selected.length) return;
+    const ids = selected.map(function(item){ return item.value; });
+    const numbers = selected.map(function(item){ return item.dataset.appNumber || item.value; });
+    appId.value = '';
+    appIds.value = ids.join(',');
+    appNumber.textContent = 'Выбрано заявок: ' + selected.length + ' · ' + numbers.slice(0, 5).join(', ') + (numbers.length > 5 ? '...' : '');
+    numberInput.value = '';
+    issuedInput.checked = true;
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    setTimeout(function(){ numberInput.focus(); }, 30);
+  }
+
+  function closeModal() {
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function refreshBulkState() {
+    const selected = rowChecks.filter(function(item){ return item.checked; });
+    if (selectedCount) selectedCount.textContent = selected.length;
+    if (bulkOpenBtn) bulkOpenBtn.disabled = selected.length === 0;
+    if (selectAll) {
+      selectAll.checked = rowChecks.length > 0 && selected.length === rowChecks.length;
+      selectAll.indeterminate = selected.length > 0 && selected.length < rowChecks.length;
+    }
+  }
+
+  document.querySelectorAll('.js-manual-invoice').forEach(function(btn){
+    btn.addEventListener('click', function(){ openModal(btn); });
+  });
+  rowChecks.forEach(function(item){
+    item.addEventListener('change', refreshBulkState);
+  });
+  if (selectAll) {
+    selectAll.addEventListener('change', function(){
+      rowChecks.forEach(function(item){ item.checked = selectAll.checked; });
+      refreshBulkState();
+    });
+  }
+  if (bulkOpenBtn) bulkOpenBtn.addEventListener('click', openBulkModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+  if (modal) {
+    modal.addEventListener('click', function(event){
+      if (event.target === modal) closeModal();
+    });
+  }
+  document.addEventListener('keydown', function(event){
+    if (event.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+  });
+  if (form) {
+    form.addEventListener('submit', function(event){
+      event.preventDefault();
+      const id = appId.value;
+      const ids = (appIds.value || '').split(',').filter(Boolean);
+      const isBulk = ids.length > 0;
+      if (!id && !isBulk) return;
+      const url = isBulk
+        ? '/team-manager/billing/api/applications/manual-invoice-marker/bulk/'
+        : '/team-manager/billing/api/applications/' + id + '/manual-invoice-marker/';
+      const payload = {
+        number: numberInput.value || '',
+        is_issued: issuedInput.checked
+      };
+      if (isBulk) payload.application_ids = ids;
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrf ? csrf.value : ''
+        },
+        body: JSON.stringify(payload)
+      })
+        .then(function(response){ return response.json().then(function(data){ return {response: response, data: data}; }); })
+        .then(function(result){
+          if (!result.response.ok || !result.data.ok) {
+            throw new Error(result.data.error || 'Не удалось сохранить отметку счета');
+          }
+          window.location.reload();
+        })
+        .catch(function(error){ alert(error.message || 'Не удалось сохранить отметку счета'); });
+    });
+  }
+  refreshBulkState();
+})();
+</script>
+{% endblock %}

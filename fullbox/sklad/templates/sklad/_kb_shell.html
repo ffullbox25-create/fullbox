@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}База знаний{% endblock %} | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f4f2;
+      --surface: #ffffff;
+      --surface-2: #faf9f6;
+      --ink: #303030;
+      --muted: #6f6f6a;
+      --accent: #f89000;
+      --accent-strong: #f86800;
+      --sun: #f8b800;
+      --stroke: rgba(48,48,48,0.13);
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      min-height: 100vh;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 24px; }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+    .side {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 16px;
+      position: sticky;
+      top: 16px;
+    }
+    .brand-title {
+      display: block;
+    }
+    .brand-title .fullbox-brand-mark { display:block; }
+    .brand-title .fullbox-brand-img {
+      display:block;
+      width:150px;
+      max-width:100%;
+      height:auto;
+    }
+    .profile {
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+      font-weight: 600;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .nav { display: grid; gap: 10px; }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+    }
+    .nav-link.primary {
+      background: rgba(248,144,0,.13);
+      border-color: rgba(248,144,0,.28);
+    }
+    .nav-title { font-weight: 700; font-size: 13px; }
+    .nav-sub { color: var(--muted); font-size: 11px; }
+    .side-footer { margin-top: 4px; }
+    .btn.ghost {
+      display: inline-flex;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .content {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 22px;
+      min-width: 0;
+    }
+    {% block extra_css %}{% endblock %}
+    @media (max-width: 960px) {
+      .layout { grid-template-columns: 1fr; }
+      .side { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand-title">{% include "partials/fullbox_brand.html" %}</div>
+        <div class="profile">
+          Кабинет кладовщика<br>
+          {% if request.user.is_authenticated and request.user.employee_profile %}
+            {{ request.user.employee_profile.full_name }}
+          {% elif request.session.employee_name %}
+            {{ request.session.employee_name }}
+          {% elif request.user.is_authenticated %}
+            {{ request.user.get_full_name|default:request.user.username }}
+          {% else %}
+            Гость
+          {% endif %}
+        </div>
+        {% include "sklad/_side_nav.html" with active_nav=active_nav|default:"knowledge" %}
+        <div class="side-footer">
+          <a class="btn ghost" href="/logout/">Выход</a>
+        </div>
+      </aside>
+      <main class="content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+</body>
+</html>

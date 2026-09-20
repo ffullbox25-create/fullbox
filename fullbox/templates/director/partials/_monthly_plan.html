@@ -1,0 +1,14 @@
+<article class="dir-card" style="--plan-pct: {{ plan.pct }}">
+  <h2 class="dir-card-title">План месяца</h2>
+  <p class="dir-card-sub">Выполнение и прогноз · демо</p>
+  <div class="dir-plan-ring" aria-label="Выполнение плана {{ plan.pct }}%">
+    <strong>{{ plan.pct }}%</strong>
+  </div>
+  <div class="dir-plan-stats">
+    <div><span>План выручки</span><b>{{ plan.target }}</b></div>
+    <div><span>Факт</span><b>{{ plan.fact }}</b></div>
+    <div><span>Прогноз</span><b>{{ plan.forecast }}</b></div>
+    <div><span>Осталось до плана</span><b>{{ plan.left }}</b></div>
+    <div><span>Рабочих дней осталось</span><b>{{ plan.workdays_left }}</b></div>
+  </div>
+</article>

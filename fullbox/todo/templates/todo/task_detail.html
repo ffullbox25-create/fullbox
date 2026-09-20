@@ -1,0 +1,542 @@
+{% load order_display %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FULLBOX | {{ task.display_title }}</title>
+  <link href="/static/vendor/space-grotesk.css" rel="stylesheet">
+  <style>
+    :root { --bg:#f6f4ed; --card:#ffffff; --card-soft:#f8f6f1; --gold:#c79a1c; --gold-soft:#f2d48c; --muted:#6b7280; --stroke: rgba(31,35,40,0.12); --text:#1f2328; --green:#1f9d55; --red:#d14343; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:'Space Grotesk',system-ui,sans-serif; }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: none; margin: 0; padding: 24px 18px 64px; min-height: 100vh; }
+    header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:12px; flex-wrap:wrap; }
+    .tab { padding:10px 14px; border-radius:10px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); color:var(--text); font-weight:600; display:inline-flex; justify-content:center; align-items:center; }
+    .tab.primary { border-color: var(--gold); color:#1f2328; background: linear-gradient(120deg,var(--gold),var(--gold-soft)); box-shadow:0 10px 30px rgba(199,154,32,0.2); }
+    .card { background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:16px; box-shadow:0 20px 40px rgba(15,23,42,0.12); }
+    .detail-layout { display:grid; grid-template-columns: 280px minmax(0, 1fr) 300px; gap:16px; align-items:start; min-height: calc(100vh - 88px); }
+    .detail-layout.trip-mode { grid-template-columns: 280px minmax(0, 1fr); }
+    .detail-side { display:grid; gap:12px; }
+    .detail-main { display:grid; gap:12px; height: calc(100vh - 88px); overflow:hidden; }
+    .detail-main.trip-mode { height:auto; overflow:visible; min-height: calc(100vh - 88px); }
+    .detail-chat { display:grid; gap:12px; }
+    .table-card { height: 100%; display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+    .table-scroll { overflow:auto; min-height:0; flex:1; border:1px solid var(--stroke); border-radius:12px; }
+    .table-scroll table { margin-top:0; }
+    .table-scroll thead th { position: sticky; top: 0; background: #f3e6b8; z-index: 1; box-shadow: 0 2px 0 rgba(31,35,40,0.08); }
+    .side-card { background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:14px; box-shadow:0 16px 30px rgba(15,23,42,0.12); }
+    .side-title { font-weight:600; margin:0 0 8px; }
+    .side-actions { display:grid; gap:8px; }
+    .side-actions .tab,
+    .side-actions button.tab { width:100%; }
+    .info-list { display:grid; gap:10px; }
+    .info-item { display:grid; gap:4px; }
+    .info-label { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
+    .info-value { font-weight:600; word-break:break-word; }
+    .chat { display:grid; gap:10px; max-height:360px; overflow:auto; padding-right:6px; }
+    .chat-item { border:1px solid var(--stroke); border-radius:12px; padding:10px; background:rgba(15,23,42,0.03); }
+    .chat-meta { font-size:12px; color:var(--muted); margin-bottom:6px; display:flex; justify-content:space-between; gap:6px; flex-wrap:wrap; }
+    .chat-text { font-size:13px; }
+    .chat-form { display:grid; gap:8px; margin-bottom:12px; }
+    textarea, input[type=file] { width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--stroke); font-size:13px; font-family:inherit; background:#fff; color:var(--text); }
+    textarea { resize:vertical; min-height:100px; }
+    .participants { display:grid; gap:6px; }
+    .participant { border:1px dashed var(--stroke); border-radius:10px; padding:8px; font-size:13px; }
+    h1 { margin:0 0 6px; letter-spacing:-0.5px; }
+    h2, h3 { margin:0 0 8px; }
+    .muted { color: var(--muted); }
+    .field { display:grid; gap:6px; }
+    table { width:100%; border-collapse:collapse; margin-top:12px; }
+    .history-wrap { max-height:320px; overflow:auto; border:1px solid var(--stroke); border-radius:12px; }
+    .history-wrap table { margin-top:0; }
+    th, td { border-bottom:1px solid var(--stroke); border-right:1px solid var(--stroke); padding:10px; text-align:left; vertical-align:top; }
+    th:last-child, td:last-child { border-right:none; }
+    .table-scroll tbody tr:nth-child(even) { background: #fbf6e3; }
+    th { color: var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:1px; background:rgba(15,23,42,0.04); }
+    .details-table th { width:180px; background:transparent; text-transform:none; letter-spacing:0; font-size:12px; }
+    .details-table tr:last-child th,
+    .details-table tr:last-child td { border-bottom:none; }
+    .history-latest td { background: rgba(31,157,85,0.08); }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); font-size:12px; font-weight:600; }
+    .pill.done { color:var(--green); }
+    .pill.warn { color:var(--red); }
+    .section { display:grid; gap:10px; }
+    .list { display:grid; gap:10px; }
+    .item { padding:12px; border:1px solid var(--stroke); border-radius:12px; background:var(--card-soft); }
+    .item-head { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .trip-table th, .trip-table td { white-space: nowrap; }
+    .trip-table td.trip-destination,
+    .trip-table td.trip-comment { white-space: normal; min-width: 220px; }
+    @media (max-width: 1100px) {
+      .detail-layout { grid-template-columns: 1fr; }
+      .detail-layout.trip-mode { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="detail-layout{% if trip_context %} trip-mode{% endif %}">
+      <aside class="detail-side">
+        <div class="side-card">
+          <div class="muted">FULLBOX · {% include "partials/current_user.html" %}</div>
+          {% if trip_context %}
+            <h3>Рейс № {{ trip_context.trip_display_number }}</h3>
+            <div class="muted">Статус: {{ trip_context.status_label }} · В задаче погрузки</div>
+          {% elif order_context %}
+            <h3>Заявка № {{ order_context.order_id|display_order_number:"receiving" }}</h3>
+            <div class="muted">Статус: {{ order_context.status_label }} · Текущий ответственный: {{ order_context.responsible }}</div>
+          {% else %}
+            <h3>{{ task.display_title }}</h3>
+            <div class="muted">Карточка задачи</div>
+          {% endif %}
+        </div>
+        <div class="side-card">
+          <h4 class="side-title">Действия</h4>
+          <div class="side-actions">
+            {% if task.route and not read_only %}
+              <a class="tab" href="{{ task.route }}">{% if trip_context %}К рейсу{% else %}К заявке{% endif %}</a>
+            {% endif %}
+            {% if order_context %}
+              {% if receiving_act_exists %}
+                <a class="tab" href="{{ receiving_act_open_url }}">{{ receiving_act_label|default:"Акт приемки" }}</a>
+              {% elif can_create_receiving_act and receiving_act_url %}
+                <form method="post" action="{{ receiving_act_url }}">
+                  {% csrf_token %}
+                  <input type="hidden" name="flow_action" value="start">
+                  <button class="tab" type="submit">Взять в работу</button>
+                </form>
+              {% endif %}
+              {% if placement_act_exists %}
+                <a class="tab" href="{{ placement_act_open_url }}">{{ placement_act_label|default:"Акт размещения" }}</a>
+              {% elif can_create_placement_act and placement_act_open_url %}
+                <a class="tab" href="{{ placement_act_open_url }}">Создать акт размещения</a>
+              {% endif %}
+            {% endif %}
+            <a class="tab" href="{{ return_url }}">В кабинет</a>
+            <a class="tab" href="{% url 'todo:list' %}">К списку</a>
+            {% if can_edit %}
+              <a class="tab" href="{% url 'todo:update' task.id %}">Редактировать</a>
+            {% endif %}
+            <a class="tab" href="/logout/">Выход</a>
+          </div>
+        </div>
+
+        <div class="side-card">
+          <h4 class="side-title">Статус</h4>
+          <div class="section">
+            {% if read_only %}
+              <span class="pill warn">Только просмотр</span>
+            {% endif %}
+            {% if task.status == "done" %}
+              <span class="pill done">Выполнена</span>
+            {% elif can_complete %}
+              {% if task.route and "orders/other" in task.route %}
+                <a class="tab primary" href="{{ task.route }}">
+                  {% if task.assigned_to and task.assigned_to.role == "manager" %}Открыть заявку и передать на склад{% elif task.assigned_to and task.assigned_to.role == "storekeeper" %}Открыть заявку и заполнить результат{% else %}Открыть заявку{% endif %}
+                </a>
+              {% elif task.route and "orders/receiving" in task.route and task.assigned_to and task.assigned_to.role == "storekeeper" %}
+                {% if receiving_act_exists %}
+                  <a class="tab primary" href="{{ receiving_act_open_url }}">{{ receiving_act_label|default:"Акт приемки" }}</a>
+                {% elif can_create_receiving_act and receiving_act_url %}
+                  <form method="post" action="{{ receiving_act_url }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="flow_action" value="start">
+                    <button class="tab primary" type="submit">Взять в работу</button>
+                  </form>
+                {% endif %}
+                {% if placement_act_exists %}
+                  <a class="tab" href="{{ placement_act_open_url }}">{{ placement_act_label|default:"Акт размещения" }}</a>
+                {% elif can_create_placement_act and placement_act_url %}
+                  <a class="tab" href="{{ placement_act_url }}">Создать акт размещения</a>
+                {% elif not receiving_act_exists and not can_create_receiving_act %}
+                  <span class="pill warn">Ожидается акт приемки</span>
+                {% endif %}
+              {% else %}
+                {% if can_send_act_to_client %}
+                  <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="send_act_to_client">
+                    <button class="tab primary" type="submit">Отправить акт клиенту</button>
+                  </form>
+                {% endif %}
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="complete">
+                  {% if task.assigned_to and task.assigned_to.role == "manager" and task.route and "orders/receiving" in task.route %}
+                    <button class="tab primary" type="submit">Подтвердить и отправить на склад</button>
+                  {% elif task.assigned_to and task.assigned_to.role == "manager" and task.route and "orders/other" in task.route %}
+                    <button class="tab primary" type="submit">Подтвердить и отправить на склад</button>
+                  {% else %}
+                    <button class="tab primary" type="submit">Отметить выполненной</button>
+                  {% endif %}
+                </form>
+              {% endif %}
+            {% else %}
+              <span class="pill warn">Только исполнитель может отметить выполнение</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="side-card">
+          <h4 class="side-title">Участники</h4>
+          <div class="participants">
+            {% if trip_context %}
+              {% for person in trip_context.participants %}
+                <div class="participant">{{ person }}</div>
+              {% empty %}
+                <div class="muted">Нет данных.</div>
+              {% endfor %}
+            {% elif order_context %}
+              {% for person in order_context.participants %}
+                <div class="participant">{{ person }}</div>
+              {% empty %}
+                <div class="muted">Нет данных.</div>
+              {% endfor %}
+            {% else %}
+              <div class="participant">Исполнитель: {{ task.assigned_to.full_name|default:"-" }}</div>
+              <div class="participant">Наблюдатель: {{ task.observer.full_name|default:"-" }}</div>
+              <div class="participant">Постановщик: {{ task.created_by|default:"-" }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if trip_context %}
+          <div class="side-card">
+            <h4 class="side-title">Параметры рейса</h4>
+            <div class="info-list">
+              <div class="info-item">
+                <div class="info-label">Транспорт</div>
+                <div class="info-value">{{ trip_context.vehicle_name }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Номер авто</div>
+                <div class="info-value">{{ trip_context.vehicle_number }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Водитель</div>
+                <div class="info-value">{{ trip_context.driver_name }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Телефон водителя</div>
+                <div class="info-value">{{ trip_context.driver_phone }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Комментарий маршрута</div>
+                <div class="info-value">{{ trip_context.route_comment }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Комментарий погрузки</div>
+                <div class="info-value">{{ trip_context.loading_comment }}</div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="side-card">
+          <h4 class="side-title">Файлы</h4>
+          <div class="list">
+            {% if attachments %}
+              {% for attachment in attachments %}
+                <div class="item">
+                  <div class="item-head">
+                    <div><a href="{{ attachment.file.url }}">{{ attachment.filename }}</a></div>
+                    <div class="muted">{{ attachment.uploaded_at|date:'d.m.y H:i' }}</div>
+                  </div>
+                  <div class="muted" style="margin-top:6px;">Загрузил: {{ attachment.uploaded_by|default:"-" }}</div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="item muted">Файлов пока нет.</div>
+            {% endif %}
+          </div>
+
+          {% if not read_only %}
+            <form method="post" enctype="multipart/form-data" style="margin-top:12px;">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="attach">
+              <div style="margin-bottom:10px;">
+                {{ attachment_form.files }}
+              </div>
+              <button class="tab primary" type="submit">Загрузить файлы</button>
+            </form>
+          {% endif %}
+        </div>
+      </aside>
+
+      <main class="detail-main{% if trip_context %} trip-mode{% endif %}">
+        <div class="card table-card">
+          {% if trip_context %}
+            <h3>Заявки, включенные в рейс</h3>
+            <div class="muted">Маршрутная последовательность, клиент, склад назначения и фактические объемы по рейсу.</div>
+            <div class="table-scroll" style="margin-top:12px;">
+              <table class="trip-table">
+                <thead>
+                  <tr>
+                    <th>Маршрут</th>
+                    <th>№ заявки</th>
+                    <th>Клиент</th>
+                    <th>Склад назначения</th>
+                    <th>Дата слота</th>
+                    <th>Паллет</th>
+                    <th>Коробов</th>
+                    <th>Статус</th>
+                    <th>Комментарий логиста</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in trip_context.orders %}
+                    <tr>
+                      <td>{{ row.route_position|default:"-" }}</td>
+                      <td>{{ row.display_number }}</td>
+                      <td>{{ row.agency_name }}</td>
+                      <td class="trip-destination">{{ row.destination_label }}</td>
+                      <td>{{ row.slot_date_label }}</td>
+                      <td>{{ row.pallet_count }}</td>
+                      <td>{{ row.box_count }}</td>
+                      <td>{{ row.status_label }}</td>
+                      <td class="trip-comment">{{ row.comment }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="9" class="muted">В рейс пока не включены заявки.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% elif order_context %}
+            <h3>Состав поставки</h3>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Наименование</th>
+                    <th>Размер</th>
+                    <th>Количество</th>
+                    <th>Комментарий</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in order_context.items %}
+                    <tr>
+                      <td>{{ item.sku_code|default:"-" }}</td>
+                      <td>{{ item.name|default:"-" }}</td>
+                      <td>{{ item.size|default:"-" }}</td>
+                      <td>{{ item.qty|default:"-" }}</td>
+                      <td>{{ item.comment|default:"-" }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="5" class="muted">Товарные позиции не указаны.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            <h3 style="margin-top:18px;">История</h3>
+            <div class="history-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Когда</th>
+                    <th>Действие</th>
+                    <th>Статус</th>
+                    <th>Описание</th>
+                    <th>Ответственный</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in order_context.history %}
+                    <tr{% if forloop.first %} class="history-latest"{% endif %}>
+                      <td>{{ row.created_at|date:"d.m.Y, H:i" }}</td>
+                      <td>{{ row.action_label }}</td>
+                      <td>{{ row.status_label }}</td>
+                      <td>{{ row.description|default:"-" }}</td>
+                      <td>{{ row.actor_label|default:"-" }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="5" class="muted">Нет данных</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <h3>Детали задачи</h3>
+            <table class="details-table">
+              <tbody>
+                {% if task.description %}
+                  <tr>
+                    <th>Описание</th>
+                    <td>{{ task.description }}</td>
+                  </tr>
+                {% endif %}
+                <tr>
+                  <th>Исполнитель</th>
+                  <td>{{ task.assigned_to.full_name|default:"Не назначен" }}</td>
+                </tr>
+                <tr>
+                  <th>Наблюдатель</th>
+                  <td>{{ task.observer.full_name|default:"-" }}</td>
+                </tr>
+                <tr>
+                  <th>Постановщик</th>
+                  <td>{{ task.created_by|default:"-" }}</td>
+                </tr>
+                <tr>
+                  <th>Приоритет</th>
+                  <td>{{ task.get_priority_display }}</td>
+                </tr>
+                <tr>
+                  <th>Дедлайн</th>
+                  <td>{% if task.due_date %}{{ task.due_date|date:'d.m.y H:i' }}{% else %}-{% endif %}</td>
+                </tr>
+                <tr>
+                  <th>Создана</th>
+                  <td>{{ task.created_at|date:'d.m.y H:i' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          {% endif %}
+        </div>
+
+        {% if trip_context %}
+          <div class="card">
+            <div class="item-head">
+              <h3>Комментарии</h3>
+              <div class="pill">Паллет: {{ trip_context.total_pallets }} · Коробов: {{ trip_context.total_boxes }}</div>
+            </div>
+            {% if not read_only %}
+              <form class="chat-form" method="post">
+                {% csrf_token %}
+                {{ comment_form.body }}
+                <button class="tab primary" type="submit" name="action" value="comment">Добавить</button>
+                {% if can_edit and task.status == "done" %}
+                  <button class="tab" type="submit" name="action" value="rework">Вернуть на доработку</button>
+                {% endif %}
+              </form>
+            {% endif %}
+            <div class="chat">
+              {% if comments %}
+                {% for comment in comments %}
+                  <div class="chat-item">
+                    <div class="chat-meta">
+                      <span>{{ comment.author|default:"Система" }}</span>
+                      <span>{{ comment.created_at|date:'d.m.y H:i' }}</span>
+                    </div>
+                    <div class="chat-text">{{ comment.body }}</div>
+                  </div>
+                {% endfor %}
+              {% else %}
+                <div class="muted">Пока нет комментариев.</div>
+              {% endif %}
+            </div>
+          </div>
+        {% endif %}
+      </main>
+
+      {% if not trip_context %}
+      <aside class="detail-chat">
+        <div class="side-card">
+          <h4 class="side-title">Информация</h4>
+          {% if order_context %}
+            <div class="info-list">
+              <div class="info-item">
+                <div class="info-label">Клиент</div>
+                <div class="info-value">{{ order_context.client_label|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Дата/время прибытия</div>
+                <div class="info-value">{{ order_context.meta.eta_at|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Количество мест</div>
+                <div class="info-value">{{ order_context.meta.expected_boxes|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Тип мест</div>
+                <div class="info-value">{{ order_context.meta.place_type|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Номер авто</div>
+                <div class="info-value">{{ order_context.meta.vehicle_number|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Телефон водителя</div>
+                <div class="info-value">{{ order_context.meta.driver_phone|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Комментарий</div>
+                <div class="info-value">{{ order_context.meta.comment|default:"-" }}</div>
+              </div>
+            </div>
+          {% else %}
+            <div class="info-list">
+              {% if task.description %}
+                <div class="info-item">
+                  <div class="info-label">Описание</div>
+                  <div class="info-value">{{ task.description }}</div>
+                </div>
+              {% endif %}
+              <div class="info-item">
+                <div class="info-label">Исполнитель</div>
+                <div class="info-value">{{ task.assigned_to.full_name|default:"Не назначен" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Наблюдатель</div>
+                <div class="info-value">{{ task.observer.full_name|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Постановщик</div>
+                <div class="info-value">{{ task.created_by|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Приоритет</div>
+                <div class="info-value">{{ task.get_priority_display }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Дедлайн</div>
+                <div class="info-value">{% if task.due_date %}{{ task.due_date|date:'d.m.y H:i' }}{% else %}-{% endif %}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Создана</div>
+                <div class="info-value">{{ task.created_at|date:'d.m.y H:i' }}</div>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="card">
+          <h3>Комментарии</h3>
+          {% if not read_only %}
+            <form class="chat-form" method="post">
+              {% csrf_token %}
+              {{ comment_form.body }}
+              <button class="tab primary" type="submit" name="action" value="comment">Добавить</button>
+              {% if can_edit and task.status == "done" %}
+                <button class="tab" type="submit" name="action" value="rework">Вернуть на доработку</button>
+              {% endif %}
+            </form>
+          {% endif %}
+          <div class="chat">
+            {% if comments %}
+              {% for comment in comments %}
+                <div class="chat-item">
+                  <div class="chat-meta">
+                    <span>{{ comment.author|default:"Система" }}</span>
+                    <span>{{ comment.created_at|date:'d.m.y H:i' }}</span>
+                  </div>
+                  <div class="chat-text">{{ comment.body }}</div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="muted">Пока нет комментариев.</div>
+            {% endif %}
+          </div>
+        </div>
+      </aside>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

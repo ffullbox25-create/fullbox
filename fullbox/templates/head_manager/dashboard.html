@@ -1,0 +1,1340 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Кабинет начальника склада | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/head_manager/cabinet.css" rel="stylesheet">
+  <style>
+    :root {
+      --font-body: "Manrope", system-ui, sans-serif;
+      --font-display: "Bricolage Grotesque", "Manrope", system-ui, sans-serif;
+      --bg: #f6f8f7;
+      --surface: #ffffff;
+      --surface-soft: #f8faf9;
+      --ink: #303030;
+      --muted: #70665f;
+      --accent: #f89000;
+      --accent-strong: #f86800;
+      --accent-soft: rgba(248, 144, 0, 0.13);
+      --blue: #1f6b9c;
+      --blue-soft: rgba(31, 107, 156, 0.1);
+      --sun: #b7791f;
+      --sun-soft: rgba(183, 121, 31, 0.12);
+      --danger: #c43f4d;
+      --danger-soft: rgba(196, 63, 77, 0.1);
+      --violet: #6d56a8;
+      --violet-soft: rgba(109, 86, 168, 0.1);
+      --stroke: rgba(23, 33, 29, 0.1);
+      --shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+      --radius: 12px;
+      --side-bg: #ffffff;
+      --side-bg-soft: #f8fafc;
+      --side-text: #303030;
+      --side-muted: #70665f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font-body);
+      color: var(--ink);
+      background: var(--bg);
+    }
+    a { color: inherit; text-decoration: none; }
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+    }
+    .shell.nav-collapsed {
+      grid-template-columns: 82px minmax(0, 1fr);
+    }
+    .side {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 22px 18px;
+      background: var(--side-bg);
+      border-right: 1px solid var(--stroke);
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 22px;
+      color: var(--side-text);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 900;
+      font-family: var(--font-display);
+      font-size: 20px;
+      letter-spacing: 0;
+      min-height: 42px;
+      padding: 0 2px;
+    }
+    .fullbox-brand-mark {
+      display: inline-flex;
+      align-items: center;
+      min-width: 0;
+    }
+    .fullbox-brand-img {
+      display: block;
+      width: auto;
+      height: 44px;
+      max-width: 142px;
+      object-fit: contain;
+      filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.16));
+    }
+    .profile {
+      padding: 14px 16px;
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+    }
+    .profile-label,
+    .nav-heading,
+    .eyebrow {
+      color: var(--side-muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .profile-name {
+      margin-top: 4px;
+      font-weight: 800;
+      line-height: 1.35;
+      color: var(--ink);
+    }
+    .nav {
+      display: grid;
+      align-content: start;
+      gap: 18px;
+    }
+    .nav-section {
+      display: grid;
+      gap: 7px;
+    }
+    .nav-link {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+      min-height: 46px;
+      padding: 11px 13px;
+      border-radius: var(--radius);
+      color: var(--side-text);
+      border: 1px solid transparent;
+    }
+    .nav-link:hover,
+    .nav-link.primary {
+      color: #fff;
+      background: linear-gradient(135deg, #f86800, #f8b800);
+      border-color: rgba(248, 144, 0, 0.32);
+      box-shadow: 0 10px 24px rgba(248, 144, 0, 0.16);
+    }
+    .nav-link.primary {
+      position: relative;
+    }
+    .nav-link.primary::before {
+      content: "";
+      position: absolute;
+      left: -18px;
+      top: 8px;
+      bottom: 8px;
+      width: 3px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+    .nav-drilldown {
+      display: grid;
+      gap: 6px;
+    }
+    .nav-drilldown summary {
+      list-style: none;
+      cursor: pointer;
+    }
+    .nav-drilldown summary::-webkit-details-marker {
+      display: none;
+    }
+    .nav-submenu {
+      display: grid;
+      gap: 4px;
+      padding: 2px 0 4px 44px;
+    }
+    .nav-submenu a {
+      color: var(--side-muted);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.35;
+      padding: 5px 0;
+    }
+    .nav-submenu a:hover {
+      color: var(--accent);
+    }
+    .nav-icon {
+      width: 20px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      color: currentColor;
+    }
+    .nav-title {
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+    .nav-text {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+    .nav-sub {
+      color: var(--side-muted);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 9px 13px;
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      font-weight: 800;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn:hover {
+      border-color: rgba(248, 144, 0, 0.32);
+      box-shadow: 0 10px 24px rgba(248, 144, 0, 0.12);
+    }
+    .btn.primary {
+      border-color: transparent;
+      background: var(--accent);
+      color: #fff;
+    }
+    .collapse-btn {
+      width: 100%;
+      color: var(--ink);
+      background: var(--surface);
+      border-color: var(--stroke);
+    }
+    .sidebar-actions {
+      display: grid;
+      gap: 8px;
+    }
+    .logout-btn {
+      color: var(--ink);
+      background: var(--surface);
+      border-color: var(--stroke);
+    }
+    .shell.nav-collapsed .side {
+      padding-inline: 14px;
+    }
+    .shell.nav-collapsed .profile,
+    .shell.nav-collapsed .nav-heading,
+    .shell.nav-collapsed .nav-title,
+    .shell.nav-collapsed .nav-sub,
+    .shell.nav-collapsed .nav-submenu,
+    .shell.nav-collapsed .btn-label {
+      display: none;
+    }
+    .shell.nav-collapsed .brand,
+    .shell.nav-collapsed .nav-link {
+      justify-content: center;
+    }
+    .shell.nav-collapsed .fullbox-brand-img {
+      height: 34px;
+      max-width: 42px;
+    }
+    .shell.nav-collapsed .nav-link {
+      grid-template-columns: 22px;
+      padding-inline: 10px;
+    }
+    .shell.nav-collapsed .nav-link.primary::before {
+      left: -14px;
+    }
+    .content {
+      min-width: 0;
+      padding: 0 28px 34px;
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin: 0 -28px 16px;
+      padding: 22px 28px 20px;
+      background: rgba(255, 255, 255, 0.92);
+      border-bottom: 1px solid var(--stroke);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+      backdrop-filter: blur(10px);
+    }
+    h1,
+    h2,
+    h3,
+    p { margin: 0; }
+    h1 {
+      font-family: var(--font-display);
+      font-size: 28px;
+      line-height: 1.15;
+      font-weight: 900;
+    }
+    .subtitle {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .top-control-form {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
+    }
+    .select-control {
+      display: inline-grid;
+      grid-template-columns: auto minmax(120px, 1fr);
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 0 10px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: var(--surface);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .select-control span {
+      color: var(--muted);
+    }
+    .select-control select {
+      min-width: 0;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+      outline: 0;
+    }
+    .notification-btn {
+      width: 38px;
+      padding-inline: 0;
+      position: relative;
+    }
+    .notification-dot {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--danger);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 900;
+    }
+    .user-pill {
+      min-width: 210px;
+      justify-content: space-between;
+      padding: 8px 12px 8px 8px;
+    }
+    .avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #e5e7eb;
+      color: #475467;
+      font-weight: 900;
+      flex: 0 0 auto;
+    }
+    .user-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(136px, 1fr));
+      gap: 14px;
+    }
+    .kpi-card,
+    .panel,
+    .task-shell .card {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .kpi-card {
+      min-height: 126px;
+      padding: 18px 20px;
+      display: grid;
+      align-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+      transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+    }
+    .kpi-card:hover,
+    .kpi-card.active {
+      border-color: rgba(248, 144, 0, 0.28);
+      box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+      transform: translateY(-1px);
+    }
+    .kpi-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+    .kpi-label {
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--muted);
+    }
+    .kpi-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 900;
+    }
+    .kpi-value {
+      font-size: 34px;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+    .kpi-note {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .tone-danger { --tone: var(--danger); --tone-bg: var(--danger-soft); }
+    .tone-sun { --tone: var(--sun); --tone-bg: var(--sun-soft); }
+    .tone-blue { --tone: var(--blue); --tone-bg: var(--blue-soft); }
+    .tone-violet { --tone: var(--violet); --tone-bg: var(--violet-soft); }
+    .tone-green { --tone: var(--accent); --tone-bg: var(--accent-soft); }
+    .tone-ink { --tone: var(--ink); --tone-bg: rgba(23, 33, 29, 0.06); }
+    .kpi-card[class*="tone-"] .kpi-label,
+    .kpi-card[class*="tone-"] .kpi-value { color: var(--tone); }
+    .kpi-card[class*="tone-"] .kpi-icon { background: var(--tone-bg); color: var(--tone); }
+    .kpi-card.tone-danger { background: linear-gradient(135deg, #ffffff, #fff1f2); }
+    .kpi-card.tone-sun { background: linear-gradient(135deg, #ffffff, #fffbeb); }
+    .kpi-card.tone-blue { background: linear-gradient(135deg, #ffffff, #eef7fb); }
+    .kpi-card.tone-violet { background: linear-gradient(135deg, #ffffff, #f5f3ff); }
+    .kpi-card.tone-green { background: linear-gradient(135deg, #ffffff, #ecfdf5); }
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(260px, 1fr));
+      gap: 14px;
+    }
+    .panel {
+      padding: 16px 18px;
+      min-width: 0;
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .panel-title {
+      font-size: 16px;
+      font-weight: 900;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid var(--stroke);
+    }
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+    .problem-link,
+    .trip-row,
+    .report-link,
+    .total-row {
+      display: grid;
+      gap: 4px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--stroke);
+    }
+    .problem-link:last-child,
+    .trip-row:last-child,
+    .report-link:last-child,
+    .total-row:last-child { border-bottom: 0; }
+    .problem-link {
+      grid-template-columns: 10px minmax(0, 1fr) auto;
+      align-items: center;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--tone, var(--accent));
+    }
+    .problem-text,
+    .trip-title,
+    .report-title,
+    .total-value {
+      font-weight: 900;
+      font-size: 13px;
+    }
+    .problem-value {
+      color: var(--tone, var(--accent));
+      font-weight: 900;
+      font-size: 13px;
+    }
+    .muted {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .sla-list {
+      display: grid;
+      gap: 14px;
+    }
+    .sla-row {
+      display: grid;
+      gap: 7px;
+    }
+    .sla-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .sla-track {
+      height: 8px;
+      border-radius: 999px;
+      background: #edf1ef;
+      overflow: hidden;
+    }
+    .sla-fill {
+      width: var(--value);
+      height: 100%;
+      border-radius: inherit;
+      background: var(--tone, var(--accent));
+    }
+    .requests-panel {
+      display: grid;
+      gap: 12px;
+      padding: 18px 20px;
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .requests-panel summary {
+      list-style: none;
+      cursor: pointer;
+    }
+    .requests-panel summary::-webkit-details-marker {
+      display: none;
+    }
+    .requests-panel:not([open]) .requests-body {
+      display: none;
+    }
+    .requests-body {
+      display: grid;
+      gap: 12px;
+    }
+    .requests-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .request-count-note {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .collapse-state {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .requests-panel[open] .collapse-state::before {
+      content: "Свернуть";
+    }
+    .requests-panel:not([open]) .collapse-state::before {
+      content: "Развернуть";
+    }
+    .request-view-toggle,
+    .request-tabs,
+    .request-filter-bar,
+    .active-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .segmented {
+      display: inline-flex;
+      min-height: 34px;
+      padding: 2px;
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+    }
+    .segmented a,
+    .request-tab {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .segmented a.active,
+    .request-tab.active {
+      color: #fff;
+      background: var(--accent);
+    }
+    .request-filter-bar {
+      display: grid;
+      grid-template-columns: minmax(260px, 1.5fr) repeat(4, minmax(130px, 1fr)) auto auto;
+      align-items: end;
+    }
+    .request-filter-bar input,
+    .request-filter-bar select {
+      min-height: 36px;
+      padding: 8px 10px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: #fff;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 800;
+      outline: 0;
+      min-width: 0;
+    }
+    .active-tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .requests-table-wrap {
+      overflow: auto;
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+    .requests-table {
+      width: 100%;
+      min-width: 1320px;
+      border-collapse: collapse;
+      background: var(--surface);
+    }
+    .requests-table th,
+    .requests-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--stroke);
+      text-align: left;
+      font-size: 12px;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    .requests-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-weight: 900;
+    }
+    .requests-table td.request-title-cell {
+      min-width: 240px;
+      white-space: normal;
+    }
+    .request-row {
+      --row-tone: var(--muted);
+      cursor: pointer;
+    }
+    .request-row:hover td {
+      background: var(--surface-soft);
+    }
+    .request-row td:first-child {
+      border-left: 3px solid var(--row-tone);
+    }
+    .request-row.stage-overdue { --row-tone: var(--danger); }
+    .request-row.stage-today,
+    .request-row.stage-soon { --row-tone: var(--sun); }
+    .request-row.stage-in_work { --row-tone: var(--blue); }
+    .request-row.stage-no_owner { --row-tone: var(--violet); }
+    .request-row.stage-done { --row-tone: var(--accent); }
+    .request-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      color: var(--row-tone, var(--accent));
+      background: rgba(248, 144, 0, 0.09);
+      border: 1px solid var(--stroke);
+      font-size: 12px;
+      font-weight: 900;
+      white-space: normal;
+    }
+    .status-overdue { color: var(--danger); background: var(--danger-soft); }
+    .status-today,
+    .status-soon { color: #d97706; background: var(--sun-soft); }
+    .status-in_work { color: var(--blue); background: var(--blue-soft); }
+    .status-no_owner { color: var(--violet); background: var(--violet-soft); }
+    .status-done { color: var(--accent); background: var(--accent-soft); }
+    .request-board {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(260px, 1fr);
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .request-col {
+      min-height: 0;
+      padding: 12px;
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+    }
+    .request-col-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-weight: 900;
+      font-size: 13px;
+    }
+    .request-mini-card {
+      display: grid;
+      gap: 5px;
+      padding: 10px;
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      background: #fff;
+      margin-bottom: 8px;
+    }
+    .shortcut-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .shortcut {
+      min-height: 96px;
+      padding: 16px;
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      display: grid;
+      align-content: space-between;
+      gap: 10px;
+    }
+    .shortcut-title {
+      font-weight: 900;
+      font-size: 15px;
+    }
+    .shortcut-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .board-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+    }
+    .board-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .board-head h2 {
+      font-size: 21px;
+      font-family: var(--font-display);
+    }
+    .board-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .filter-select {
+      min-height: 34px;
+      padding: 7px 10px;
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      background: var(--surface);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 900;
+      outline: 0;
+    }
+    .task-shell {
+      min-width: 0;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.7fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+    .control-table-wrap {
+      overflow: auto;
+      border-top: 1px solid var(--stroke);
+      margin: 0 -18px -16px;
+    }
+    .control-table {
+      width: 100%;
+      min-width: 860px;
+      border-collapse: collapse;
+      background: var(--surface);
+    }
+    .control-table th,
+    .control-table td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--stroke);
+      text-align: left;
+      font-size: 12px;
+      white-space: nowrap;
+      vertical-align: top;
+    }
+    .control-table th {
+      color: var(--muted);
+      background: var(--surface-soft);
+      font-weight: 900;
+    }
+    .stock-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      overflow: hidden;
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+    }
+    .stock-metric {
+      min-width: 0;
+      padding: 18px;
+      border-right: 1px solid var(--stroke);
+    }
+    .stock-metric:last-child { border-right: 0; }
+    .stock-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .stock-value {
+      margin-top: 8px;
+      color: var(--ink);
+      font-size: 22px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .stock-value.danger { color: var(--danger); }
+    .unit-switch {
+      display: inline-flex;
+      min-height: 30px;
+      padding: 2px;
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+    }
+    .unit-switch a {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 9px;
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .unit-switch a.active {
+      color: #fff;
+      background: var(--accent);
+    }
+    .watch-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .watch-list .report-link {
+      padding: 8px 0;
+    }
+    .task-shell summary {
+      list-style: none;
+      cursor: pointer;
+    }
+    .task-shell summary::-webkit-details-marker {
+      display: none;
+    }
+    .task-shell .card {
+      padding: 16px;
+      border: 0;
+      box-shadow: none;
+    }
+    .task-shell .task-board {
+      min-width: 0;
+      overflow: auto;
+    }
+    .task-shell .task-col {
+      border-radius: var(--radius);
+    }
+    .reports-grid {
+      display: grid;
+      gap: 8px;
+    }
+    .report-link {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+    }
+    .report-description {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .empty {
+      padding: 14px;
+      border: 1px dashed var(--stroke);
+      border-radius: var(--radius);
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+    .total-row {
+      grid-template-columns: 34px minmax(0, 1fr);
+      align-items: center;
+    }
+    .total-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius);
+      background: var(--accent-soft);
+      color: var(--accent);
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+    }
+    .footer-note {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    @media (max-width: 1320px) {
+      .kpi-grid { grid-template-columns: repeat(4, minmax(150px, 1fr)); }
+      .overview-grid,
+      .shortcut-grid,
+      .bottom-grid { grid-template-columns: 1fr 1fr; }
+      .request-filter-bar { grid-template-columns: 1fr 1fr; }
+      .board-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      .side {
+        position: static;
+        height: auto;
+        grid-template-rows: auto;
+      }
+      .content { padding: 18px; }
+      .topbar { display: grid; }
+      .top-actions { justify-content: start; }
+      .kpi-grid,
+      .shortcut-grid,
+      .overview-grid { grid-template-columns: 1fr; }
+      .request-filter-bar { grid-template-columns: 1fr; }
+      .bottom-grid { grid-template-columns: 1fr; }
+      .stock-metrics { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" id="dashboard-shell">
+    {% include "head_manager/_main_sidebar.html" with active="dashboard" %}
+
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <h1>Начальник склада</h1>
+          <div class="subtitle">Состояние склада на сегодня, {{ today_label }} · данные обновлены {{ dashboard_updated_at }}</div>
+        </div>
+        <form class="top-control-form" method="get">
+          <label class="select-control">
+            <span>Склад:</span>
+            <select name="warehouse" onchange="this.form.submit()">
+              {% for warehouse in warehouses %}
+                <option value="{{ warehouse.code }}"{% if warehouse.code == selected_warehouse %} selected{% endif %}>{{ warehouse.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="select-control">
+            <span>Смена:</span>
+            <select name="shift" onchange="this.form.submit()">
+              {% for shift in shifts %}
+                <option value="{{ shift.code }}"{% if shift.code == selected_shift %} selected{% endif %}>{{ shift.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <a class="btn notification-btn" href="/todo/" title="Открыть задачи без исполнителя и просрочки">
+            ◴
+            {% if dashboard_problem_count %}<span class="notification-dot">{{ dashboard_problem_count }}</span>{% endif %}
+          </a>
+          <a class="btn user-pill" href="/logout/" title="{{ user_display_name }}">
+            <span class="avatar">●</span>
+            <span class="user-name">{{ user_display_name }}</span>
+            <span aria-hidden="true">⌄</span>
+          </a>
+        </form>
+      </header>
+
+      <section class="kpi-grid" aria-label="Ключевые показатели">
+        {% for card in status_cards %}
+          <a class="kpi-card tone-{{ card.tone }}{% if card.active %} active{% endif %}" href="{{ card.href }}"{% if card.active %} aria-current="true"{% endif %}>
+            <div class="kpi-top">
+              <div class="kpi-label">{{ card.label }}</div>
+              <div class="kpi-icon">{{ card.icon }}</div>
+            </div>
+            <div>
+              <div class="kpi-value">{{ card.value }}</div>
+              <div class="kpi-note">{{ card.note }}</div>
+            </div>
+          </a>
+        {% endfor %}
+      </section>
+
+      <section class="overview-grid">
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Проблемы</h2>
+            <a class="pill" href="/todo/">Все проблемы ({{ dashboard_problem_count }})</a>
+          </div>
+          <div class="list">
+            {% for item in dashboard_problems %}
+              <a class="problem-link tone-{{ item.tone }}" href="{{ item.href }}">
+                <span class="dot"></span>
+                <span class="problem-text">{{ item.label }}</span>
+                <span class="problem-value">{{ item.value }}</span>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Отправки сегодня</h2>
+            <a class="pill" href="/logistics/trips/">Все рейсы</a>
+          </div>
+          {% if trips_today %}
+            <div class="list">
+              {% for trip in trips_today %}
+                <a class="trip-row" href="/logistics/trips/{{ trip.pk }}/">
+                  <div class="trip-title">Рейс {{ trip.number }}</div>
+                  <div class="muted">
+                    {{ trip.get_status_display }}
+                    {% if trip.assigned_logistician %} · {{ trip.assigned_logistician.full_name }}{% endif %}
+                    {% if trip.trip_date %} · {{ trip.trip_date|date:"d.m.Y" }}{% endif %}
+                  </div>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="empty">На сегодня активных рейсов нет.</div>
+          {% endif %}
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">SLA показатели</h2>
+            <span class="pill">Сегодня</span>
+          </div>
+          <div class="sla-list">
+            {% for item in sla_summary %}
+              <a class="sla-row tone-{{ item.tone }}" href="{{ item.href }}">
+                <span class="sla-meta">
+                  <span>{{ item.label }}</span>
+                  <span>{{ item.percent }}%</span>
+                </span>
+                <span class="sla-track"><span class="sla-fill" style="--value: {{ item.percent }}%;"></span></span>
+                <span class="muted">{{ item.delta }}</span>
+              </a>
+              {% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <details class="requests-panel" id="all-requests" aria-label="Все заявки"{% if requests_panel_open %} open{% endif %}>
+        <summary class="requests-head">
+          <div>
+            <h2 class="panel-title">Все заявки</h2>
+            <div class="request-count-note">Найдено {{ request_total_count }} · показано {{ request_rows|length }}</div>
+          </div>
+          <div class="request-view-toggle">
+            <span class="collapse-state"></span>
+            <span class="segmented">
+              <a class="{% if request_view == 'list' %}active{% endif %}" href="?request_view=list#all-requests">Список</a>
+              <a class="{% if request_view == 'board' %}active{% endif %}" href="?request_view=board#all-requests">Доска</a>
+            </span>
+            <a class="btn" href="/head-manager/requests/">Открыть полный экран</a>
+          </div>
+        </summary>
+
+        <div class="requests-body">
+          <nav class="request-tabs" aria-label="Быстрые фильтры заявок">
+            {% for item in request_stage_filters %}
+              <a class="request-tab{% if request_filters.stage == item.key %} active{% endif %}" href="?request_filter={{ item.key }}#all-requests">{{ item.label }} · {{ item.count }}</a>
+            {% endfor %}
+            <span hidden value="logistics">Рейсы</span>
+          </nav>
+
+          <form class="request-filter-bar" method="get">
+          <input type="hidden" name="request_view" value="{{ request_view }}">
+          <input type="search" name="q" value="{{ request_filters.q }}" placeholder="Поиск: номер, клиент, исполнитель, рейс, склад, зона, МП">
+          <select name="type">
+            {% for item in request_types %}
+              <option value="{{ item.key }}"{% if request_filters.type == item.key %} selected{% endif %}>{{ item.label }} · {{ item.count }}</option>
+            {% endfor %}
+          </select>
+          <input type="search" name="client" value="{{ request_filters.client }}" placeholder="Клиент">
+          <input type="search" name="employee" value="{{ request_filters.employee }}" placeholder="Исполнитель">
+          <input type="search" name="warehouse_filter" value="{{ request_filters.warehouse_filter }}" placeholder="Склад">
+          <button class="btn primary" type="submit">Применить</button>
+          <a class="btn" href="/head-manager/#all-requests">Сбросить</a>
+          </form>
+
+          <div class="active-tags">
+          {% if request_filters.stage != "all" %}<span class="active-tag">Фильтр: {{ request_filters.stage }}</span>{% endif %}
+          {% if request_filters.type != "all" %}<span class="active-tag">Тип: {{ request_filters.type }}</span>{% endif %}
+          {% if request_filters.q %}<span class="active-tag">Поиск: {{ request_filters.q }}</span>{% endif %}
+          {% if request_filters.client %}<span class="active-tag">Клиент: {{ request_filters.client }}</span>{% endif %}
+          {% if request_filters.employee %}<span class="active-tag">Исполнитель: {{ request_filters.employee }}</span>{% endif %}
+          {% if request_filters.warehouse_filter %}<span class="active-tag">Склад: {{ request_filters.warehouse_filter }}</span>{% endif %}
+          </div>
+
+          {% if request_view == "board" %}
+          <div class="request-board">
+            {% for group in request_board_groups %}
+              <div class="request-col">
+                <div class="request-col-head">
+                  <span>{{ group.label }}</span>
+                  <span>{{ group.count }}</span>
+                </div>
+                {% for row in group.rows %}
+                  <a class="request-mini-card" href="{{ row.href }}">
+                    <span class="report-title">{{ row.number }} · {{ row.type_label }}</span>
+                    <span class="muted">{{ row.client }} · {{ row.executor }}</span>
+                    <span class="request-badge">{{ row.status }}{% if row.deadline_label %} · {{ row.deadline_label }}{% endif %}</span>
+                  </a>
+                {% empty %}
+                  <div class="empty">За выбранный период задач нет.</div>
+                {% endfor %}
+                {% if group.more %}
+                  <a class="pill" href="{{ group.href }}">Показать еще {{ group.more }}</a>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          {% if request_rows %}
+            <div class="requests-table-wrap">
+              <table class="requests-table">
+                <thead>
+                  <tr>
+                    <th>№ заявки</th>
+                    <th>Тип операции</th>
+                    <th>Клиент</th>
+                    <th>Склад / Зона</th>
+                    <th>Маркетплейс</th>
+                    <th>Исполнитель</th>
+                    <th>Статус документов</th>
+                    <th>Статус заявки</th>
+                    <th>Создана</th>
+                    <th>Дедлайн</th>
+                    <th>Просрочка / До отгрузки</th>
+                    <th>Изменено</th>
+                    <th>Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in request_rows %}
+                    <tr class="request-row stage-{{ row.stage }}" onclick="window.location.href='{{ row.href }}'">
+                      <td>
+                        <a href="{{ row.href }}">{{ row.number }}</a>
+                        <div class="muted">{{ row.title }}</div>
+                      </td>
+                      <td>{{ row.type_label }}</td>
+                      <td>{{ row.client }}</td>
+                      <td>{{ row.warehouse }}{% if row.zone and row.zone != "-" %} / {{ row.zone }}{% endif %}</td>
+                      <td>{{ row.marketplace }}</td>
+                      <td>{{ row.executor }}</td>
+                      <td><span class="request-badge status-{{ row.stage }}">{{ row.document_status }}</span></td>
+                      <td><span class="request-badge status-{{ row.stage }}">{{ row.status }}</span></td>
+                      <td>{{ row.created|default:"-" }}</td>
+                      <td>{{ row.deadline|default:"-" }}</td>
+                      <td><span class="problem-value">{{ row.deadline_label|default:"-" }}</span></td>
+                      <td>{{ row.updated|default:"-" }}</td>
+                      <td><a class="pill" href="{{ row.href }}">•••</a></td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            {% if request_filters.stage == "no_owner" %}
+              <div class="empty">Заявок без исполнителя нет.</div>
+            {% else %}
+              <div class="empty">По заданным фильтрам заявки не найдены.</div>
+            {% endif %}
+          {% endif %}
+        {% endif %}
+        </div>
+      </details>
+
+      <section class="bottom-grid">
+        <div class="task-shell">
+          <div class="board-head">
+            <h2>Отгрузки в контроле</h2>
+            <a class="pill" href="/head-manager/requests/?type=shipping">Все отгрузки</a>
+          </div>
+          {% if shipping_watch %}
+            <div class="control-table-wrap">
+              <table class="control-table">
+                <thead>
+                  <tr>
+                    <th>№ заявки</th>
+                    <th>Клиент</th>
+                    <th>Время отгрузки</th>
+                    <th>Документы</th>
+                    <th>Исполнитель</th>
+                    <th>Статус</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in shipping_watch %}
+                    <tr onclick="window.location.href='{{ item.href }}'">
+                      <td><a href="{{ item.href }}">{{ item.title }}</a></td>
+                      <td>{{ item.client }}</td>
+                      <td>{{ item.due|default:"-" }}</td>
+                      <td><span class="request-badge status-soon">{{ item.documents }}</span></td>
+                      <td>{{ item.executor }}</td>
+                      <td><span class="request-badge status-in_work">{{ item.stage_label }}</span></td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="empty">Активных складских отгрузок сейчас нет.</div>
+          {% endif %}
+        </div>
+
+        <div class="task-shell" id="warehouse-stock">
+          <div class="board-head">
+            <h2>Остатки на складе</h2>
+            <div class="request-view-toggle">
+              <span class="unit-switch" aria-label="Единица остатков">
+                {% for option in stock_summary.unit_options %}
+                  <a class="{% if option.active %}active{% endif %}" href="{{ option.href }}">{{ option.label }}</a>
+                {% endfor %}
+              </span>
+              <a class="pill" href="/head-manager/stock-editor/">Перейти к остаткам</a>
+            </div>
+          </div>
+          <div class="stock-metrics">
+            <div class="stock-metric">
+              <div class="stock-label">Общий остаток</div>
+              <div class="stock-value">{{ stock_summary.total_value }} {{ stock_summary.unit_suffix }}</div>
+            </div>
+            <div class="stock-metric">
+              <div class="stock-label">Доступно</div>
+              <div class="stock-value">{{ stock_summary.available_value }} {{ stock_summary.unit_suffix }}</div>
+            </div>
+            <div class="stock-metric">
+              <div class="stock-label">В резерве</div>
+              <div class="stock-value">{{ stock_summary.reserved_value }} {{ stock_summary.unit_suffix }}</div>
+            </div>
+            <div class="stock-metric">
+              <div class="stock-label">Без места хранения</div>
+              <div class="stock-value danger">{{ stock_summary.without_location }} {{ stock_summary.unit_suffix }}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="footer-note">Данные обновлены {{ dashboard_updated_at }}. Разделы используют текущие страницы Fullbox и не меняют складскую логику.</div>
+    </main>
+  </div>
+  <script>
+    (function () {
+      var shell = document.getElementById("dashboard-shell");
+      var button = document.getElementById("sidebar-collapse");
+      if (!shell || !button) return;
+      var storageKey = "head-manager-sidebar-collapsed";
+      var collapsed = localStorage.getItem(storageKey) === "1";
+      function render() {
+        shell.classList.toggle("nav-collapsed", collapsed);
+        button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      }
+      button.addEventListener("click", function () {
+        collapsed = !collapsed;
+        localStorage.setItem(storageKey, collapsed ? "1" : "0");
+        render();
+      });
+      render();
+    })();
+  </script>
+</body>
+</html>

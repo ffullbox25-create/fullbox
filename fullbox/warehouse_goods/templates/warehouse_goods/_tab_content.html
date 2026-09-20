@@ -1,0 +1,129 @@
+{% if tab == 'about' %}
+  <div class="two-column">
+    <section class="content-card">
+      <h2>Основные данные</h2>
+      <dl class="data-list">
+        <div><dt>Клиент</dt><dd>{{ sku.agency.agn_name|default:'—' }}</dd></div>
+        <div><dt>Артикул</dt><dd>{{ sku.sku_code }}</dd></div>
+        <div><dt>Бренд</dt><dd>{{ sku.brand|default:'—' }}</dd></div>
+        <div><dt>Маркетплейс</dt><dd>{{ sku.market|default:'—' }}</dd></div>
+        <div><dt>Категория</dt><dd>{{ sku.tovar_category|default:'—' }}</dd></div>
+        <div><dt>Тип товара</dt><dd>{{ sku.type_tovar|default:'—' }}</dd></div>
+      </dl>
+      <h3>Описание</h3><p class="preserve-lines">{{ sku.description|default:'Описание не заполнено.' }}</p>
+    </section>
+    <section class="content-card">
+      <h2>Остатки</h2>
+      <div class="metric-grid stock-breakdown-grid">
+        <div data-stock-key="total" data-stock-value="{{ totals.total }}"><span>Всего</span><strong>{{ totals.total }}</strong></div>
+        {% for item in totals.components %}<div data-stock-key="{{ item.key }}" data-stock-value="{{ item.value }}"><span>{{ item.label }}</span><strong{% if item.css_class %} class="{{ item.css_class }}"{% endif %}>{{ item.value }}</strong></div>{% endfor %}
+      </div>
+      <p class="stock-balance{% if totals.balanced %} is-balanced{% endif %}">Проверка суммы: {{ totals.equation }} = <strong>{{ totals.explained_total }}</strong>{% if not totals.balanced %}; расхождение с «Всего»: {{ totals.total }}{% endif %}</p>
+      <form method="post" action="{% url 'warehouse_goods:profile-update' sku.pk %}" class="stack-form">
+        {% csrf_token %}<input type="hidden" name="return_tab" value="about">
+        <label><span>Внутренние заметки</span><textarea name="internal_notes" rows="6">{{ profile.internal_notes }}</textarea></label>
+        <button class="btn primary" type="submit">Сохранить заметки</button>
+      </form>
+    </section>
+  </div>
+
+{% elif tab == 'characteristics' %}
+  <section class="content-card">
+    <div class="section-head"><div><h2>Характеристики</h2><p>Параметры из общей номенклатуры и настройка складского контроля.</p></div><a class="btn secondary" href="{% url 'warehouse_goods:edit' sku.pk %}">Изменить характеристики</a></div>
+    <dl class="data-list three"><div><dt>Цвет</dt><dd>{{ sku.color_ref|default:sku.color|default:'—' }}</dd></div><div><dt>Размер</dt><dd>{{ sku.size|default:'—' }}</dd></div><div><dt>Состав</dt><dd>{{ sku.composition|default:'—' }}</dd></div><div><dt>Страна</dt><dd>{{ sku.made_in|default:'—' }}</dd></div><div><dt>Вес, кг</dt><dd>{{ sku.weight_kg|default:'—' }}</dd></div><div><dt>Габариты, мм</dt><dd>{{ sku.length_mm|default:'—' }} × {{ sku.width_mm|default:'—' }} × {{ sku.height_mm|default:'—' }}</dd></div><div><dt>Дата производства</dt><dd>{{ sku.cr_product_date|date:'d.m.Y'|default:'—' }}</dd></div><div><dt>Срок годности</dt><dd>{{ sku.end_product_date|date:'d.m.Y'|default:'—' }}</dd></div><div><dt>Честный знак</dt><dd>{{ sku.honest_sign|yesno:'Да,Нет' }}</dd></div></dl>
+    <form method="post" action="{% url 'warehouse_goods:profile-update' sku.pk %}" class="inline-form divider-top">
+      {% csrf_token %}<input type="hidden" name="return_tab" value="characteristics">
+      <label class="switch-field"><input type="checkbox" name="fbs_shelf_life_required"{% if profile.fbs_shelf_life_required %} checked{% endif %}><span>Контролировать срок годности для FBS</span></label>
+      <button class="btn primary" type="submit">Сохранить</button>
+    </form>
+  </section>
+
+{% elif tab == 'locations' %}
+  <section class="content-card flush">
+    <div class="section-head padded"><div><h2>Места хранения</h2><p>Актуальный срез складских остатков без копирования данных.</p></div></div>
+    <div class="table-scroll">
+      <table class="goods-table filter-sort-table" data-filter-sort-table>
+        <thead>
+          <tr>
+            <th><button class="table-sort-button" type="button" data-sort-column="0" data-sort-type="text">Место <span aria-hidden="true">⇅</span></button></th>
+            <th><button class="table-sort-button" type="button" data-sort-column="1" data-sort-type="text">Зона <span aria-hidden="true">⇅</span></button></th>
+            <th><button class="table-sort-button" type="button" data-sort-column="2" data-sort-type="text">Короб <span aria-hidden="true">⇅</span></button></th>
+            <th><button class="table-sort-button" type="button" data-sort-column="3" data-sort-type="text">Паллета <span aria-hidden="true">⇅</span></button></th>
+            <th><button class="table-sort-button" type="button" data-sort-column="4" data-sort-type="text">Вариант хранения <span aria-hidden="true">⇅</span></button></th>
+            <th class="num"><button class="table-sort-button" type="button" data-sort-column="5" data-sort-type="number">Всего <span aria-hidden="true">⇅</span></button></th>
+            <th class="num"><button class="table-sort-button" type="button" data-sort-column="6" data-sort-type="number">Свободно <span aria-hidden="true">⇅</span></button></th>
+            <th class="num"><button class="table-sort-button" type="button" data-sort-column="7" data-sort-type="number">Резерв <span aria-hidden="true">⇅</span></button></th>
+          </tr>
+          <tr class="table-filter-row">
+            <th><input class="table-filter-input" type="search" data-column-filter="0" placeholder="Место" aria-label="Фильтр по месту"></th>
+            <th><input class="table-filter-input" type="search" data-column-filter="1" placeholder="Зона" aria-label="Фильтр по зоне"></th>
+            <th><input class="table-filter-input" type="search" data-column-filter="2" placeholder="Короб" aria-label="Фильтр по коробу"></th>
+            <th><input class="table-filter-input" type="search" data-column-filter="3" placeholder="Паллета" aria-label="Фильтр по паллете"></th>
+            <th><input class="table-filter-input" type="search" data-column-filter="4" placeholder="Вариант" aria-label="Фильтр по варианту хранения"></th>
+            <th><input class="table-filter-input num" type="search" inputmode="numeric" data-column-filter="5" placeholder="Всего" aria-label="Фильтр по общему количеству"></th>
+            <th><input class="table-filter-input num" type="search" inputmode="numeric" data-column-filter="6" placeholder="Свободно" aria-label="Фильтр по свободному количеству"></th>
+            <th><input class="table-filter-input num" type="search" inputmode="numeric" data-column-filter="7" placeholder="Резерв" aria-label="Фильтр по резерву"></th>
+          </tr>
+        </thead>
+        <tbody>{% for row in locations %}<tr data-filter-sort-row><td><strong>{{ row.location__display_name|default:row.location__location_code|default:'Без адреса' }}</strong></td><td>{{ row.zone_code|default:'—' }}</td><td>{{ row.container_code|default:'—' }}</td><td>{{ row.parent_container__container_code|default:'—' }}</td><td>{{ row.goods_type|default:'—' }}</td><td class="num">{{ row.qty }}</td><td class="num stock-good">{{ row.available }}</td><td class="num">{{ row.reserved }}</td></tr>{% empty %}<tr><td colspan="8"><div class="empty-state"><strong>Товар сейчас не размещен на складе</strong></div></td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </section>
+
+{% elif tab == 'identifiers' %}
+  <div class="two-column wide-left">
+    <section class="content-card">
+      <h2>Штрихкоды</h2>
+      <div class="item-list">{% for barcode in barcodes %}<div class="item-row"><div><strong>{{ barcode.value }}</strong><small>{% if barcode.is_primary %}Основной{% else %}Дополнительный{% endif %}{% if barcode.size %} · размер {{ barcode.size }}{% endif %}</small></div><form method="post" action="{% url 'warehouse_goods:barcode-delete' sku.pk barcode.pk %}" data-confirm="Удалить штрихкод {{ barcode.value }}?">{% csrf_token %}<button class="icon-btn danger" type="submit">Удалить</button></form></div>{% empty %}<div class="empty-state compact"><strong>Штрихкоды не добавлены</strong></div>{% endfor %}</div>
+      <form method="post" action="{% url 'warehouse_goods:barcode-add' sku.pk %}" class="inline-form divider-top">
+        {% csrf_token %}<label><span>Штрихкод</span><input name="value" required></label><label><span>Размер</span><input name="size"></label><label class="switch-field"><input type="checkbox" name="is_primary"><span>Основной</span></label><button class="btn primary" type="submit">Добавить</button>
+      </form>
+    </section>
+    <section class="content-card">
+      <h2>Артикулы и интеграции</h2>
+      <div class="item-list"><div class="item-row"><div><strong>{{ sku.sku_code }}</strong><small>Основной артикул FULLBOX</small></div></div>{% for binding in bindings %}<div class="item-row"><div><strong>{{ binding.external_id }}</strong><small>{{ binding.marketplace }} · {{ binding.get_sync_mode_display }}</small></div><form method="post" action="{% url 'warehouse_goods:binding-delete' sku.pk binding.pk %}" data-confirm="Удалить внешний артикул {{ binding.external_id }}?">{% csrf_token %}<button class="icon-btn danger" type="submit">Удалить</button></form></div>{% empty %}<div class="muted-block">Внешних артикулов пока нет. Основной артикул можно изменить в карточке товара.</div>{% endfor %}</div>
+      <form method="post" action="{% url 'warehouse_goods:binding-add' sku.pk %}" class="stack-form divider-top">{% csrf_token %}<label><span>Маркетплейс</span>{{ binding_form.marketplace }}</label><label><span>Артикул / внешний ID</span>{{ binding_form.external_id }}</label><label><span>Режим синхронизации</span>{{ binding_form.sync_mode }}</label><button class="btn secondary" type="submit">Добавить внешний артикул</button></form>
+    </section>
+  </div>
+
+{% elif tab == 'services' %}
+  <section class="content-card">
+    <h2>Типовые услуги</h2><p>Услуги по умолчанию для этапов работы с этим товаром.</p>
+    <div class="table-scroll"><table class="goods-table"><thead><tr><th>Этап</th><th>Услуга</th><th>Единица</th><th class="num">Цена</th><th class="num">Количество</th><th>Авто</th><th></th></tr></thead><tbody>{% for row in default_services %}<tr><td>{{ row.get_stage_display }}</td><td><strong>{{ row.service.name }}</strong></td><td>{{ row.service.unit }}</td><td class="num">{{ row.unit_price|default:row.service.default_price|default:'—' }}</td><td class="num">{{ row.quantity }}</td><td>{{ row.auto_add|yesno:'Да,Нет' }}</td><td><form method="post" action="{% url 'warehouse_goods:service-delete' sku.pk row.pk %}" data-confirm="Удалить типовую услугу?">{% csrf_token %}<button class="icon-btn danger" type="submit">Удалить</button></form></td></tr>{% empty %}<tr><td colspan="7"><div class="empty-state compact"><strong>Типовые услуги не настроены</strong></div></td></tr>{% endfor %}</tbody></table></div>
+    <form method="post" action="{% url 'warehouse_goods:service-add' sku.pk %}" class="service-form divider-top">
+      {% csrf_token %}<label><span>Этап</span>{{ service_form.stage }}</label><label><span>Услуга</span>{{ service_form.service }}</label><label><span>Цена</span>{{ service_form.unit_price }}</label><label><span>Количество</span>{{ service_form.quantity }}</label><label class="switch-field">{{ service_form.auto_add }}<span>Добавлять автоматически</span></label><button class="btn primary" type="submit">Добавить услугу</button>
+    </form>
+  </section>
+
+{% elif tab == 'orders' %}
+  <section class="content-card flush">
+    <div class="section-head padded"><div><h2>Заказы</h2><p>Заявки на приемку и отгрузку, в которых найден этот товар.</p></div></div>
+    <div class="table-scroll"><table class="goods-table"><thead><tr><th>Тип</th><th>Номер</th><th>Статус</th><th class="num">Запрошено</th><th class="num">Резерв</th><th class="num">Выполнено</th><th>Дата</th></tr></thead><tbody>
+      {% for item in orders.shipping %}<tr><td>Отгрузка</td><td><a href="{% url 'shipping:detail' item.order.pk %}"><strong>{{ item.order.number }}</strong></a></td><td>{{ item.order.get_status_display }}</td><td class="num">{{ item.qty_requested }}</td><td class="num">{{ item.qty_reserved }}</td><td class="num">{{ item.qty_shipped }}</td><td>{{ item.order.planned_ship_date|date:'d.m.Y'|default:'—' }}</td></tr>{% endfor %}
+      {% for row in orders.receiving %}<tr><td>Приемка</td><td><strong>{{ row.entry.order_id }}</strong></td><td>{{ row.entry.payload_status_display }}</td><td class="num">{{ row.items|length }} поз.</td><td class="num">—</td><td class="num">—</td><td>{{ row.entry.created_at|date:'d.m.Y H:i' }}</td></tr>{% endfor %}
+      {% if not orders.shipping and not orders.receiving %}<tr><td colspan="7"><div class="empty-state"><strong>Связанные заказы не найдены</strong></div></td></tr>{% endif %}
+    </tbody></table></div>
+  </section>
+
+{% elif tab == 'files' %}
+  <section class="content-card">
+    <h2>Файлы</h2>
+    <form method="post" enctype="multipart/form-data" action="{% url 'warehouse_goods:file-upload' sku.pk %}" class="inline-form upload-form">{% csrf_token %}<label><span>Выберите файл</span>{{ file_form.file }}</label><button class="btn primary" type="submit">Загрузить</button></form>
+    <div class="item-list divider-top">{% for item in files %}<div class="item-row"><div><a href="{{ item.file.url }}" target="_blank"><strong>{{ item.original_name }}</strong></a><small>{{ item.uploaded_at|date:'d.m.Y H:i' }}{% if item.uploaded_by %} · {{ item.uploaded_by.get_full_name|default:item.uploaded_by.username }}{% endif %}</small></div><form method="post" action="{% url 'warehouse_goods:file-delete' sku.pk item.pk %}" data-confirm="Удалить файл {{ item.original_name }}?">{% csrf_token %}<button class="icon-btn danger" type="submit">Удалить</button></form></div>{% empty %}<div class="empty-state compact"><strong>Файлы не загружены</strong></div>{% endfor %}</div>
+  </section>
+
+{% elif tab == 'marking' %}
+  <section class="content-card flush">
+    <div class="section-head padded"><div><h2>Маркировка</h2><p>Коды Честного знака, связанные с товаром.</p></div><div class="mini-metrics"><span>Всего <strong>{{ marking_summary.total }}</strong></span><span>Не напечатано <strong>{{ marking_summary.unprinted }}</strong></span><span>Не использовано <strong>{{ marking_summary.unused }}</strong></span></div></div>
+    <div class="table-scroll"><table class="goods-table"><thead><tr><th>Код</th><th>Тип / заявка</th><th>Получен</th><th>Напечатан</th><th>Использован</th></tr></thead><tbody>{% for row in marking_rows %}<tr><td class="code-cell">{{ row.code }}</td><td>{{ row.get_order_type_display }}{% if row.order_id %} · {{ row.order_id }}{% endif %}</td><td>{{ row.created_at|date:'d.m.Y H:i' }}</td><td>{{ row.printed_at|date:'d.m.Y H:i'|default:'Нет' }}</td><td>{{ row.used_at|date:'d.m.Y H:i'|default:'Нет' }}</td></tr>{% empty %}<tr><td colspan="5"><div class="empty-state"><strong>Коды маркировки не найдены</strong></div></td></tr>{% endfor %}</tbody></table></div>
+  </section>
+
+{% elif tab == 'extra' %}
+  <div class="two-column">
+    <section class="content-card"><h2>Дополнительные поля</h2><form method="post" action="{% url 'warehouse_goods:extra-update' sku.pk %}" class="stack-form">{% csrf_token %}{% for definition, value in extra_fields %}<label><span>{{ definition.name }}</span>{% if definition.field_type == 'boolean' %}<input type="checkbox" name="field_{{ definition.pk }}"{% if value %} checked{% endif %}>{% elif definition.field_type == 'number' %}<input type="number" step="any" name="field_{{ definition.pk }}" value="{{ value|default_if_none:'' }}">{% elif definition.field_type == 'date' %}<input type="date" name="field_{{ definition.pk }}" value="{{ value|default_if_none:'' }}">{% else %}<input name="field_{{ definition.pk }}" value="{{ value|default_if_none:'' }}">{% endif %}</label>{% empty %}<div class="empty-state compact"><strong>Дополнительных полей пока нет</strong></div>{% endfor %}<button class="btn primary" type="submit">Сохранить</button></form></section>
+    <section class="content-card"><h2>Добавить поле</h2><p>Новое поле появится у всех товаров, значения хранятся отдельно для каждой карточки.</p><form method="post" action="{% url 'warehouse_goods:extra-add' sku.pk %}" class="stack-form">{% csrf_token %}<label><span>Название</span>{{ definition_form.name }}</label><label><span>Тип данных</span>{{ definition_form.field_type }}</label><button class="btn secondary" type="submit">Создать поле</button></form></section>
+  </div>
+
+{% elif tab == 'tasks' %}
+  <section class="content-card"><h2>Типовая задача</h2><p>Инструкции, которые сотрудники используют при работе именно с этим товаром.</p><form method="post" action="{% url 'warehouse_goods:profile-update' sku.pk %}" class="stack-form">{% csrf_token %}<input type="hidden" name="return_tab" value="tasks"><label><span>Приемка</span><textarea name="receiving_task_template" rows="7" placeholder="Как проверить и принять товар…">{{ profile.receiving_task_template }}</textarea></label><label><span>Отгрузка</span><textarea name="shipping_task_template" rows="7" placeholder="Как подготовить и передать товар…">{{ profile.shipping_task_template }}</textarea></label><button class="btn primary" type="submit">Сохранить инструкции</button></form></section>
+{% endif %}

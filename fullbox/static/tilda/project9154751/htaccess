@@ -1,0 +1,39 @@
+ErrorDocument 403 /page61187857.html
+ErrorDocument 404 /page61187857.html
+
+DirectoryIndex page62228559.html
+
+RewriteEngine On
+
+RewriteCond %{HTTP:X-Forwarded-Proto} =http
+RewriteRule ^(.*)$ https://fullbox\.ru/$1 [R=301,L]
+
+RewriteCond %{HTTP:X-Forwarded-Proto} =https
+RewriteCond %{HTTP_HOST} ^www\.fullbox.ru [NC]
+RewriteRule ^(.*)$ https://fullbox\.ru/$1 [R=301,L]
+
+RewriteCond %{REQUEST_FILENAME} /robots.txt
+RewriteCond "%{DOCUMENT_ROOT}/robots_%{HTTP_HOST}.txt" -f
+RewriteRule ^(.*)$ robots_%{HTTP_HOST}.txt [NC,L]
+RewriteRule ^error404$ page61187857.html [NC]
+RewriteRule ^error404/$ page61187857.html [NC]
+
+RewriteRule ^cases$ page62237531.html [NC]
+RewriteRule ^cases/$ page62237531.html [NC]
+
+RewriteRule ^policy$ page61188153.html [NC]
+RewriteRule ^policy/$ page61188153.html [NC]
+
+RewriteRule ^spasibo$ page61188359.html [NC]
+RewriteRule ^spasibo/$ page61188359.html [NC]
+
+RewriteRule ^kviz$ page67482435.html [NC]
+RewriteRule ^kviz/$ page67482435.html [NC]
+
+RewriteRule ^contact$ https://fullbox\.ru/ [R=301,NC,L]
+
+RewriteRule ^projects$ https://fullbox\.ru/ [R=301,NC,L]
+
+RewriteRule ^members/ ma_start.html [NC,L]
+
+

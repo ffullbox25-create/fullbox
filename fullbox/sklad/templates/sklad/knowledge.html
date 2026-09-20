@@ -1,0 +1,102 @@
+{% extends "sklad/_kb_shell.html" %}
+{% block title %}База знаний — кладовщик{% endblock %}
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; letter-spacing:0; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.kb-search {
+  margin-top: 12px;
+  width: min(420px, 100%);
+  padding: 11px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: #fff;
+  font: inherit;
+}
+.kb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+.kb-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--stroke);
+  background: var(--surface-2);
+  min-height: 160px;
+  transition: border-color .15s ease, transform .15s ease;
+}
+.kb-card:hover {
+  border-color: rgba(242,183,71,.55);
+  transform: translateY(-1px);
+}
+.kb-card.featured {
+  border-color: rgba(248,144,0,.48);
+  background: rgba(248,144,0,.08);
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+.kb-card[hidden] { display: none !important; }
+.kb-num { font-size: 11px; font-weight: 800; color: var(--muted); }
+.kb-card h2 { margin:0; font-size:16px; font-weight:900; }
+.kb-card p { margin:0; color:var(--muted); font-size:13px; line-height:1.45; }
+.kb-empty { margin-top: 18px; color: var(--muted); font-weight: 700; display:none; }
+.kb-highlight {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(248,144,0,.28);
+  background: rgba(248,144,0,.08);
+  font-size: 13px;
+  line-height: 1.45;
+}
+{% endblock %}
+{% block content %}
+<div>
+  <h1 class="page-title">База знаний кладовщика</h1>
+  <div class="page-sub">FBS, приёмка и хранение, спецификации, паллеты, отгрузка и рейсы.</div>
+  <div class="kb-highlight">
+    <b>Запуск FBS:</b> откройте материал «FBS: работа оператора-кладовщика».
+    Внутри находится полный порядок смены и печатный контрольный лист.
+  </div>
+  <input id="kb-search" class="kb-search" type="search" placeholder="Поиск по базе знаний" autocomplete="off">
+</div>
+
+<div class="kb-grid" id="kb-grid">
+  {% for article in kb_articles %}
+    <a
+      class="kb-card{% if article.featured %} featured{% endif %}"
+      href="/sklad/knowledge/{{ article.slug }}/"
+      data-kb-search="{{ article.title|lower }} {{ article.summary|lower }} {{ article.search }}"
+    >
+      <span class="kb-num">{{ article.num }}</span>
+      <h2>{{ article.title }}</h2>
+      <p>{{ article.summary }}</p>
+    </a>
+  {% endfor %}
+</div>
+<div class="kb-empty" id="kb-empty">Ничего не найдено по текущему запросу.</div>
+
+<script>
+(function () {
+  var input = document.getElementById("kb-search");
+  var grid = document.getElementById("kb-grid");
+  var empty = document.getElementById("kb-empty");
+  if (!input || !grid || !empty) return;
+  var cards = Array.prototype.slice.call(grid.querySelectorAll(".kb-card"));
+  function apply() {
+    var q = String(input.value || "").trim().toLowerCase();
+    var shown = 0;
+    cards.forEach(function (card) {
+      var hay = String(card.getAttribute("data-kb-search") || "");
+      var ok = !q || hay.indexOf(q) !== -1;
+      card.hidden = !ok;
+      if (ok) shown += 1;
+    });
+    empty.style.display = shown ? "none" : "block";
+  }
+  input.addEventListener("input", apply);
+})();
+</script>
+{% endblock %}

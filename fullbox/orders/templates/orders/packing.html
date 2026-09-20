@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Заявка на упаковку</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #0e6b5b;
+      --accent-strong: #0b5246;
+      --accent-soft: rgba(14,107,91,0.12);
+      --sun: #f2b747;
+      --sun-soft: rgba(242,183,71,0.18);
+      --danger: #d4543c;
+      --danger-soft: rgba(212,84,60,0.14);
+      --stroke: rgba(28,31,26,0.12);
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      overflow: hidden;
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      background-image:
+        linear-gradient(rgba(28,31,26,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(28,31,26,0.06) 1px, transparent 1px);
+      background-size: 36px 36px;
+      opacity: 0.08;
+    }
+    body::after {
+      background:
+        radial-gradient(420px 240px at 20% 20%, rgba(242,183,71,0.18), transparent 70%),
+        radial-gradient(360px 220px at 85% 30%, rgba(14,107,91,0.12), transparent 70%);
+      opacity: 0.7;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 24px 24px 72px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      align-items: stretch;
+      min-height: calc(100vh - 96px);
+    }
+    .side {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 16px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+    }
+    .brand {
+      display: grid;
+      gap: 4px;
+    }
+    .brand-title {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.6px;
+    }
+    .profile {
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+    }
+    .profile-value {
+      font-weight: 600;
+    }
+    .nav {
+      display: grid;
+      gap: 10px;
+    }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      padding: 12px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .nav-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 12px 24px rgba(14,107,91,0.12);
+    }
+    .nav-link.primary {
+      background: linear-gradient(135deg, rgba(242,183,71,0.45), rgba(14,107,91,0.15));
+      border-color: transparent;
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub { font-size: 12px; color: var(--muted); }
+    .side-footer {
+      display: grid;
+      gap: 10px;
+    }
+    .content {
+      display: grid;
+      gap: 18px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .panel-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+    }
+    .panel-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      font-weight: 700;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.14);
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .btn.ghost {
+      background: transparent;
+    }
+    .alert {
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      border: 1px solid transparent;
+    }
+    .alert.success {
+      border-color: rgba(14,107,91,0.35);
+      background: rgba(14,107,91,0.12);
+      color: var(--accent-strong);
+    }
+    .alert.error {
+      border-color: rgba(212,84,60,0.35);
+      background: var(--danger-soft);
+      color: #7f1d1d;
+    }
+    form {
+      display: grid;
+      gap: 12px;
+    }
+    .form-section {
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      border-radius: 16px;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .form-section h3 {
+      margin: 0;
+      font-size: 16px;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+    label {
+      font-weight: 600;
+      color: var(--muted);
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 14px;
+      font-family: inherit;
+    }
+    textarea { resize: vertical; }
+    input[type="checkbox"],
+    input[type="radio"] {
+      width: auto;
+      margin: 0;
+      accent-color: var(--accent);
+    }
+    .inline { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .inline label { display: flex; align-items: center; gap: 6px; font-weight: 500; color: var(--ink); }
+    .hint { color: var(--muted); font-size: 12px; }
+    .required { color: var(--danger); margin-left: 4px; }
+    .static-field {
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      font-weight: 600;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    @media (max-width: 1200px) {
+      body { overflow: auto; }
+      .layout { grid-template-columns: 1fr; }
+      .side,
+      .content {
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand">
+          <div class="brand-title">FULLBOX</div>
+        </div>
+        <div class="profile">
+          <div class="profile-value">
+            {% if agency %}
+              Кабинет клиента<br>
+              {{ agency.agn_name|default:agency.fio_agn|default:"клиента" }}
+            {% else %}
+              {% include "partials/current_user.html" %}
+            {% endif %}
+          </div>
+        </div>
+        <nav class="nav">
+          {% if agency %}
+            <a class="nav-link" href="/orders/?client={{ agency.id }}">
+              <span class="nav-title">Журнал заявок</span>
+              <span class="nav-sub">Все заявки</span>
+            </a>
+            <a class="nav-link" href="/client/dashboard/?client={{ agency.id }}">
+              <span class="nav-title">В кабинет</span>
+              <span class="nav-sub">Главная клиента</span>
+            </a>
+            <a class="nav-link" href="/client/{{ agency.id }}/sku/">
+              <span class="nav-title">Номенклатура</span>
+              <span class="nav-sub">SKU и карточки</span>
+            </a>
+            <a class="nav-link primary" href="/orders/packing/?client={{ agency.id }}">
+              <span class="nav-title">Заявка на упаковку</span>
+              <span class="nav-sub">Подготовка товара</span>
+            </a>
+            <a class="nav-link" href="/sklad/journal/?client={{ agency.id }}">
+              <span class="nav-title">Складские остатки</span>
+              <span class="nav-sub">Актуальные стоки</span>
+            </a>
+          {% else %}
+            <a class="nav-link" href="/orders/">
+              <span class="nav-title">Журнал заявок</span>
+              <span class="nav-sub">Все заявки</span>
+            </a>
+            <a class="nav-link" href="{{ cabinet_url }}">
+              <span class="nav-title">В кабинет</span>
+              <span class="nav-sub">Главная роль</span>
+            </a>
+            <a class="nav-link" href="/orders/receiving/">
+              <span class="nav-title">Новая приемка</span>
+              <span class="nav-sub">Поставка</span>
+            </a>
+            <a class="nav-link primary" href="/orders/packing/">
+              <span class="nav-title">Заявка на упаковку</span>
+              <span class="nav-sub">Подготовка товара</span>
+            </a>
+            <a class="nav-link" href="/client/">
+              <span class="nav-title">Список клиентов</span>
+              <span class="nav-sub">Выбрать кабинет</span>
+            </a>
+          {% endif %}
+        </nav>
+        <div class="side-footer">
+          <a class="btn ghost" href="/logout/">Выход</a>
+        </div>
+      </aside>
+
+      <main class="content">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Заявка на упаковку товара</h2>
+              <div class="panel-subtitle">Поля со <span class="required">*</span> обязательны.</div>
+            </div>
+          </div>
+
+          {% if error %}
+            <div class="alert error">{{ error }}</div>
+          {% endif %}
+          {% if submitted %}
+            <div class="alert success">Заявка на упаковку отправлена. Мы свяжемся с вами для уточнения деталей.</div>
+          {% endif %}
+
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="agency_id" value="{{ agency.id|default:'' }}">
+            <input type="hidden" name="email" value="{{ agency.email|default:'' }}">
+            <input type="hidden" name="fio" value="{{ agency.fio_agn|default:'' }}">
+            <input type="hidden" name="org" value="{{ agency.agn_name|default:'' }}">
+
+            <div class="form-section">
+              <h3>Описание товаров</h3>
+              <div class="form-grid">
+                <div class="field">
+                  <label>Предмет</label>
+                  <input type="text" name="subject" placeholder="Например: джинсы / картина / детская игрушка">
+                </div>
+                <div class="field">
+                  <label>Общее количество к обработке <span class="required">*</span></label>
+                  <input type="number" name="total_qty" min="1" required placeholder="Мы работаем от 500 ед. на артикул">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <h3>Срок и площадки</h3>
+              <div class="form-grid">
+                <div class="field">
+                  <label>Плановая дата выполнения <span class="required">*</span></label>
+                  <input type="date" name="plan_date" required>
+                  <div class="hint">Мин. 3 дня на упаковку.</div>
+                </div>
+                <div class="field" style="grid-column: 1 / -1;">
+                  <label>На какие маркетплейсы <span class="required">*</span></label>
+                  <div class="inline">
+                    <label><input type="checkbox" name="mp[]" value="Wildberries"> Wildberries</label>
+                    <label><input type="checkbox" name="mp[]" value="OZON"> OZON</label>
+                    <label><input type="checkbox" name="mp[]" value="Яндекс Маркет"> Яндекс Маркет</label>
+                    <label><input type="checkbox" name="mp[]" value="СберМегаМаркет"> СберМегамаркет</label>
+                    <label><input type="checkbox" name="mp[]" value="Другое"> Другое</label>
+                  </div>
+                  <input type="text" name="mp_other" placeholder="Другое (уточните)">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <h3>Кратность формирования коробов</h3>
+              <div class="inline">
+                <label><input type="radio" name="box_mode" value="микс"> микс (все подряд)</label>
+                <label><input type="radio" name="box_mode" value="моно"> моно (один размер в коробку)</label>
+                <label><input type="radio" name="box_mode" value="по направлениям"> по направлениям</label>
+                <label><input type="radio" name="box_mode" value="Другое"> Другое</label>
+              </div>
+              <input type="text" name="box_mode_other" placeholder="Другое (уточните)">
+            </div>
+
+            <div class="form-section">
+              <h3>Что нужно выполнить</h3>
+              <div class="inline">
+                <label><input type="checkbox" name="tasks[]" value="Проверка 10%"> Полная проверка на брак 10%</label>
+                <label><input type="checkbox" name="tasks[]" value="Проверка 100%"> Полная проверка на брак 100%</label>
+                <label><input type="checkbox" name="tasks[]" value="Замена бирки"> Замена бирки</label>
+                <label><input type="checkbox" name="tasks[]" value="Замена упаковки"> Замена упаковки</label>
+                <label><input type="checkbox" name="tasks[]" value="Доп вложение"> Дополнительное вложение</label>
+              </div>
+              <input type="text" name="tasks_other" placeholder="Другое/комментарий">
+            </div>
+
+            <div class="form-section">
+              <h3>Маркировка товара</h3>
+              <div class="inline">
+                <label><input type="radio" name="marking" value="1 стикер 58x40"> 1 стикер 58x40</label>
+                <label><input type="radio" name="marking" value="2 стикера 58x40"> 2 стикера 58x40</label>
+                <label><input type="radio" name="marking" value="ШК с ЧЗ на 1 стикере"> ШК с ЧЗ на 1 стикере</label>
+                <label><input type="radio" name="marking" value="Другое"> Другое</label>
+              </div>
+              <input type="text" name="marking_other" placeholder="Другое (уточните)">
+            </div>
+
+            <div class="form-section">
+              <h3>Отгрузка</h3>
+              <div class="inline">
+                <label><input type="radio" name="ship_as" value="Монопаллет"> Монопаллет</label>
+                <label><input type="radio" name="ship_as" value="Короб"> Короб</label>
+                <label><input type="radio" name="ship_as" value="Другое"> Другое</label>
+              </div>
+              <input type="text" name="ship_other" placeholder="Другое (уточните)">
+            </div>
+
+            <div class="form-section">
+              <h3>Распределение по складам</h3>
+              <div class="inline">
+                <label><input type="radio" name="has_distribution" value="Да"> Да</label>
+                <label><input type="radio" name="has_distribution" value="Нет" checked> Нет</label>
+              </div>
+              <div class="field">
+                <label>Файл распределения</label>
+                <input type="file" name="files_distribution">
+                <div class="hint">1 файл, до 10 МБ.</div>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <h3>Честный знак</h3>
+              <div class="field">
+                <label>Файл с ЧЗ</label>
+                <input type="file" name="files_cz" multiple>
+                <div class="hint">До 10 файлов, до 100 МБ каждый.</div>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <h3>Материалы и файлы</h3>
+              <div class="form-grid">
+                <div class="field" style="grid-column: 1 / -1;">
+                  <label>Отчет с перечнем номенклатур</label>
+                  <input type="file" name="files_report" multiple>
+                  <div class="hint">До 5 файлов, до 100 МБ каждый.</div>
+                </div>
+                <div class="field">
+                  <label>Шаблон (для скачивания)</label>
+                  <a class="btn ghost" href="#" onclick="alert('Пока без файла-шаблона.'); return false;">Скачать шаблон</a>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <h3>Комментарий</h3>
+              <div class="field">
+                <textarea name="comments" rows="2" placeholder="Дополнительная информация"></textarea>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button type="submit" class="btn primary">Отправить</button>
+              {% if agency %}
+                <a class="btn ghost" href="/orders/?client={{ agency.id }}">Отмена</a>
+              {% else %}
+                <a class="btn ghost" href="/orders/">Отмена</a>
+              {% endif %}
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

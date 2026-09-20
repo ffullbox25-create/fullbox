@@ -1,0 +1,56 @@
+{% extends "logistics/driver_base.html" %}
+{% block title %}Мои рейсы{% endblock %}
+{% block content %}
+  <h1 class="page-title">Мои рейсы</h1>
+  <p class="page-sub">Назначения, статусы и результат сдачи груза.</p>
+
+  <nav class="card driver-tabs" aria-label="Фильтр рейсов">
+    <a class="bottom-link{% if bucket == 'new' %} active{% endif %}" href="?bucket=new">Новые</a>
+    <a class="bottom-link{% if bucket == 'today' %} active{% endif %}" href="?bucket=today">Сегодня</a>
+    <a class="bottom-link{% if bucket == 'work' %} active{% endif %}" href="?bucket=work">В работе</a>
+    <a class="bottom-link{% if bucket == 'completed' %} active{% endif %}" href="?bucket=completed">Завершенные</a>
+    <a class="bottom-link{% if bucket == 'problem' %} active{% endif %}" href="?bucket=problem">Проблемные</a>
+  </nav>
+
+  {% if unread_count %}
+    <details class="card">
+      <summary>Новые уведомления · {{ unread_count }}</summary>
+      <div class="grid" style="margin-top:12px;">
+        {% for notification in notifications %}
+          <a href="{{ notification.detail_url }}" style="text-decoration:none;padding:10px;border-radius:12px;background:#faf8f3;">
+            <strong>{{ notification.title }}</strong><div class="muted">{{ notification.text }}</div>
+          </a>
+        {% endfor %}
+      </div>
+    </details>
+  {% endif %}
+
+  <div class="grid">
+    {% for row in rows %}
+      <a class="card" href="/logistics/driver/trips/{{ row.trip.pk }}/" style="text-decoration:none;display:block;">
+        <div class="trip-card-head">
+          <div><div class="muted">Рейс</div><strong style="font-size:20px;">{{ row.trip.number }}</strong></div>
+          <span class="status{% if row.trip.driver_status == 'delivered' %} ok{% elif row.trip.driver_status == 'problem' %} bad{% endif %}">{{ row.trip.get_driver_status_display }}</span>
+        </div>
+        <div class="facts" style="margin-top:12px;">
+          <div class="fact"><div class="fact-label">Подача</div><div class="fact-value">{% if row.trip.scheduled_at %}{{ row.trip.scheduled_at|date:"d.m.Y H:i" }}{% elif row.trip.trip_date %}{{ row.trip.trip_date|date:"d.m.Y" }}{% else %}—{% endif %}</div></div>
+          {% if row.summary.is_external %}
+            <div class="fact"><div class="fact-label">Тип</div><div class="fact-value">Внешний рейс</div></div>
+            <div class="fact"><div class="fact-label">Клиент</div><div class="fact-value">{{ row.summary.external_client }}</div></div>
+            <div class="fact"><div class="fact-label">Точка А</div><div class="fact-value">{{ row.summary.pickup_address }}</div></div>
+            <div class="fact"><div class="fact-label">Точка Б</div><div class="fact-value">{{ row.summary.delivery_address }}</div></div>
+            <div class="fact"><div class="fact-label">Груз</div><div class="fact-value">{{ row.summary.cargo_description }}</div></div>
+          {% else %}
+            <div class="fact"><div class="fact-label">Слот сдачи</div><div class="fact-value">{{ row.summary.delivery_slots_label }}</div></div>
+            <div class="fact"><div class="fact-label">Маркетплейс</div><div class="fact-value">{{ row.summary.marketplaces }}</div></div>
+            <div class="fact"><div class="fact-label">Адрес</div><div class="fact-value">{{ row.summary.destinations }}</div></div>
+            <div class="fact"><div class="fact-label">Груз</div><div class="fact-value">{{ row.summary.total_pallets }} палл. · {{ row.summary.total_boxes }} мест</div></div>
+          {% endif %}
+        </div>
+        {% if row.trip.driver_status == "preliminary" %}<div class="pending-note show" style="margin-top:10px;">План еще не подтвержден. Ожидайте отдельного уведомления логиста.</div>{% endif %}
+      </a>
+    {% empty %}
+      <section class="card"><strong>В этой вкладке пока нет рейсов.</strong><div class="muted" style="margin-top:5px;">Новые назначения появятся здесь автоматически.</div></section>
+    {% endfor %}
+  </div>
+{% endblock %}

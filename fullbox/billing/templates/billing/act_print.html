@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Акт {{ act.number }}</title>
+  <style>
+    @page { size: A4; margin: 14mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: #111;
+      font: 13px/1.4 "Times New Roman", Times, serif;
+      background: #fff;
+    }
+    .sheet { max-width: 210mm; margin: 0 auto; padding: 8mm 10mm; }
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .toolbar a, .toolbar button {
+      display: inline-block;
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #f7f7f7;
+      color: #111;
+      text-decoration: none;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #fff3e0;
+      border: 1px solid #ffcc80;
+      font-size: 12px;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    h1 { margin: 8px 0 6px; font-size: 18px; text-align: center; }
+    .meta { text-align: center; margin-bottom: 16px; color: #444; }
+    .parties { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+    .parties td { border: 1px solid #111; padding: 8px; vertical-align: top; }
+    .lbl { font-weight: 700; width: 110px; background: #f7f7f7; }
+    table.items { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    table.items th, table.items td { border: 1px solid #111; padding: 6px; font-size: 12px; }
+    table.items th { background: #f3f3f3; text-align: center; }
+    .right { text-align: right; }
+    .totals { margin-top: 12px; text-align: right; font-size: 14px; }
+    .totals b { font-size: 16px; }
+    .hint {
+      margin-top: 18px;
+      padding: 10px 12px;
+      border: 1px dashed #999;
+      color: #444;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 12px;
+    }
+    @media print {
+      .toolbar, .hint { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="toolbar">
+      <button type="button" onclick="window.print()">Печать</button>
+      <a href="/team-manager/billing/applications/{{ application.id }}/">К заявке</a>
+    </div>
+
+    <div style="text-align:center;margin-bottom:8px">
+      <span class="badge">{{ act.get_status_display }} · проверка до отправки клиенту</span>
+    </div>
+    <h1>Акт № {{ act.number }}</h1>
+    <div class="meta">от {{ act.act_date|date:"d.m.Y" }} · версия {{ act.version }}</div>
+
+    <table class="parties">
+      <tr>
+        <td class="lbl">Клиент</td>
+        <td>
+          {{ client.agn_name|default:client.short_name }}
+          {% if client.inn %}<br>ИНН {{ client.inn }}{% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl">Заявка</td>
+        <td>{{ application.get_application_type_display }} {{ application.application_id }}</td>
+      </tr>
+    </table>
+
+    <table class="items">
+      <thead>
+        <tr>
+          <th>№</th>
+          <th>Услуга</th>
+          <th>Кол-во</th>
+          <th>Ед.</th>
+          <th>Цена</th>
+          <th>Сумма</th>
+          <th>НДС</th>
+          <th>Итого</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in lines %}
+        <tr>
+          <td class="right">{{ forloop.counter }}</td>
+          <td>{{ line.service_name }}</td>
+          <td class="right">{{ line.quantity }}</td>
+          <td>{{ line.unit }}</td>
+          <td class="right">{{ line.tariff }}</td>
+          <td class="right">{{ line.amount }}</td>
+          <td class="right">{{ line.vat_amount }}</td>
+          <td class="right">{{ line.total_amount }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8">Нет строк</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="totals">
+      Без НДС: {{ act.subtotal }} · НДС: {{ act.vat_amount }}<br>
+      <b>Итого: {{ act.total_amount }} ₽</b>
+    </div>
+
+    {% if act.status == "draft" %}
+    <div class="hint">
+      Это черновик для проверки. Чтобы отправить клиенту, вернитесь в карточку заявки и нажмите «Отправить клиенту».
+      Если услуги неверные — исправьте начисления в карточке (черновик акта при сохранении снимется автоматически), затем создайте акт заново.
+    </div>
+    {% endif %}
+  </div>
+</body>
+</html>

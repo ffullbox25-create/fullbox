@@ -1,0 +1,104 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Возврат отбора{% endblock %}
+{% block page_class %}picker-restock-detail{% endblock %}
+
+{% block content %}
+  <section class="picker-restock-progress" aria-label="Прогресс возврата">
+    <div><span>Задание #{{ restock.id }}</span><small>Волна #{{ restock.batch_id }}</small></div>
+    <strong>{{ restock.returned_qty }} / {{ restock.planned_qty }} <small>шт.</small></strong>
+  </section>
+
+  {% if restock.status == 'queued' %}
+    <section class="restock-claim-screen">
+      <span class="step-number">1</span>
+      <div>
+        <span class="section-kicker">Свободное задание</span>
+        <h2>{% if source_tote %}Забрать товар из тары{% else %}Забрать товар со стола{% endif %}</h2>
+        <p>{% if source_tote %}Подойдите к таре {{ source_tote.name }} · {{ source_tote.barcode }}{% if source_workstation %} у {{ source_workstation.name }}{% endif %} и отсканируйте ее QR.{% else %}Подойдите к столу {{ source_workstation.name|default:"не назначен" }} и отсканируйте его QR.{% endif %} Затем система покажет {% if is_quarantine %}карантинное место{% else %}исходную ячейку и короб{% endif %}.</p>
+      </div>
+      <form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="claim"><button class="button button-primary" type="submit"{% if not warehouse_writes_enabled %} disabled{% endif %}>Взять задание</button></form>
+    </section>
+  {% elif restock.status == 'completed' %}
+    <section class="picker-ready-state restock-completed-state"><strong>Возврат завершен</strong><span>Все {{ restock.returned_qty }} шт. подтверждены сканированием и {% if is_quarantine %}помещены в недоступный карантинный остаток{% else %}возвращены в подтвержденные короба{% endif %}.</span><a class="button button-primary" href="{{ back_url }}">К списку возвратов</a></section>
+  {% elif line %}
+    <section class="restock-current-source">
+      <div class="restock-stage-number">{% if stage == 'workstation' %}1{% elif stage == 'pickup_item' %}2{% elif stage == 'cell' %}3{% elif stage == 'box' %}4{% else %}5{% endif %}</div>
+      <div><span class="section-kicker">Текущий этап</span><h2>{{ stage_title }}</h2><p>{{ stage_instruction }}</p></div>
+      <div class="restock-box-progress"><span>Этот короб</span><strong>{{ restock_state.box_returned_qty }} / {{ restock_state.box_planned_qty }}</strong></div>
+    </section>
+
+    <section class="restock-route-strip" aria-label="Маршрут возврата">
+      <div class="{% if restock_state.workstation_confirmed %}is-done{% elif stage == 'workstation' %}is-current{% endif %}"><span>Забрать</span><strong>{% if source_tote %}{{ source_tote.name }}{% else %}{{ source_workstation.name|default:"Стол не назначен" }}{% endif %}</strong><small>{% if source_tote and source_workstation %}{{ source_workstation.name }} · {% endif %}QR: {% if source_tote %}{{ source_tote.barcode }}{% else %}{{ source_workstation.barcode|default:"-" }}{% endif %}</small></div>
+      <div class="{% if restock_state.pickup_confirmed %}is-done{% elif stage == 'pickup_item' %}is-current{% endif %}"><span>{% if source_tote %}Из тары{% else %}Со стола{% endif %}</span><strong>{{ restock_state.pickup_scanned_qty }} / {{ restock_state.pickup_planned_qty }} шт.</strong><small>Скан каждой единицы</small></div>
+      <div class="{% if restock_state.cell_confirmed %}is-done{% elif stage == 'cell' %}is-current{% endif %}"><span>{% if is_quarantine %}Карантин{% else %}Куда вернуть{% endif %}</span>{% if restock_state.pickup_confirmed %}<strong>{{ restock_state.destination_location_label }}</strong><small>QR места: {{ restock_state.destination_location_code|default:"не определён" }}</small>{% else %}<strong>После проверки товара</strong><small>Адрес откроется после обязательного скана ШК</small>{% endif %}</div>
+      <div class="{% if restock_state.box_confirmed %}is-done{% elif stage == 'box' %}is-current{% endif %}"><span>Короб</span>{% if restock_state.pickup_confirmed %}<strong>{{ destination_box.box_code }}</strong><small>{{ restock_state.box_planned_qty }} шт. к возврату{% if is_quarantine %} · недоступный остаток{% endif %}</small>{% else %}<strong>Пока скрыт</strong><small>Сначала выберите и отсканируйте товар</small>{% endif %}</div>
+      <div class="{% if stage == 'item' %}is-current{% endif %}"><span>Товар</span>{% if stage == 'pickup_item' %}<strong>Выберите из списка</strong><small>Затем отсканируйте ШК</small>{% else %}<strong>{{ line.source_balance.name|default:line.allocation.order_item.product_name|default:line.source_balance.sku_code }}</strong><small>Арт. {{ line.source_balance.sku_code }} · ШК {{ line.source_balance.barcode|default:line.allocation.order_item.barcode }}</small>{% endif %}</div>
+    </section>
+
+    {% if stage == 'item' %}
+      <section class="restock-product-line">
+        <div><span>Товар</span><strong>{{ line.source_balance.name|default:line.allocation.order_item.product_name|default:line.source_balance.sku_code }}</strong></div>
+        <div><span>В этой позиции</span><strong>{{ line.returned_qty }} / {{ line.planned_qty }} шт.</strong></div>
+        <div><span>Сканировать</span><strong>Штрихкод товара</strong></div>
+      </section>
+    {% endif %}
+
+    {% if not is_quarantine and restock_state.pickup_confirmed %}
+      <section class="picker-tool-card">
+        {% if show_alternatives %}
+          <h2>Другой короб этого клиента</h2>
+          {% if error %}<div class="scan-inline-error" role="alert">{{ error }}</div>{% endif %}
+          <p>Короба рядом по складским адресам. Проверьте свободное место внутри выбранного короба.</p>
+          {% for option in alternative_boxes %}<p><strong>{{ option.box_code }}</strong><br>{{ option.location }}</p>{% empty %}<p>Подходящих коробов для подсказки нет.</p>{% endfor %}
+          <p>Можно отсканировать любой другой доступный короб этого клиента, в том числе пустой. Товары разных клиентов смешивать нельзя.</p>
+          <form method="post" autocomplete="off" data-submit-once>
+            {% csrf_token %}<input type="hidden" name="action" value="select_destination"><input type="hidden" name="line_id" value="{{ line.id }}">
+            <label for="return-box-scan">QR выбранного короба</label><input id="return-box-scan" name="box_scan" type="text" required autocomplete="off" autofocus>
+            <label><input type="checkbox" name="space_confirmed" value="1" required> В коробе достаточно места для возвращаемого товара</label>
+            <button class="button button-primary" type="submit"{% if not warehouse_writes_enabled %} disabled{% endif %}>Выбрать короб</button>
+          </form>
+          <a href="{% url 'fbs:tsd_pick_restock' request_id=restock.id %}">Продолжить текущий возврат</a>
+        {% else %}
+          <a class="button" href="?choose_box=1">Короба нет на месте — выбрать другой</a>
+        {% endif %}
+      </section>
+    {% endif %}
+    {% if not show_alternatives %}
+    <form class="scan-form restock-scan-form" method="post" autocomplete="off" novalidate data-submit-once data-scan-feedback data-scan-focus-lock>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="scan">
+      <input type="hidden" name="stage" value="{{ stage }}">
+      <input type="hidden" name="destination_event_id" value="{{ restock_state.destination_event_id|default:'' }}">
+      <input type="hidden" name="request_token" value="{{ request_token }}">
+      {% if stage == 'pickup_item' %}
+        <fieldset class="restock-pick-options">
+          <legend>1. Выберите товар, который берёте</legend>
+          {% for option in restock_state.pickup_options %}
+            <label class="restock-pick-option">
+              <input type="radio" name="pickup_line_id" value="{{ option.line.id }}" required{% if option.line.id|stringformat:'s' == selected_pickup_line_id %} checked{% endif %}>
+              <span>
+                <strong>{{ option.line.source_balance.name|default:option.line.allocation.order_item.product_name|default:option.line.source_balance.sku_code }}</strong>
+                <small>Арт. {{ option.line.source_balance.sku_code }} · ШК {{ option.line.source_balance.barcode|default:option.line.allocation.order_item.barcode }}</small>
+              </span>
+              <b>Осталось {{ option.remaining }} шт.</b>
+            </label>
+          {% endfor %}
+        </fieldset>
+        <p class="restock-scan-step">2. Отсканируйте ШК выбранного товара</p>
+      {% endif %}
+      <label for="restock-scan">{{ scan_input_label }}</label>
+      <input id="restock-scan" type="text" name="scan_value" required autofocus autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" enterkeyhint="done" data-scanner-only data-scan-autosubmit="250" data-scan-focus-lock>
+      <div class="scan-inline-error" role="alert" aria-live="assertive" data-scan-error {% if not error %}hidden{% endif %}>{{ error }}</div>
+      <button class="button button-primary" type="submit"{% if not warehouse_writes_enabled %} disabled{% endif %}>Подтвердить сканом</button>
+    </form>
+    {% endif %}
+  {% endif %}
+
+  {% if recent_scans %}
+    <section class="restock-scan-history">
+      <div class="section-heading"><h2>Последние сканы</h2></div>
+      {% for scan in recent_scans %}<div class="{% if scan.result == 'error' %}is-error{% endif %}"><time>{{ scan.created_at|date:"H:i:s" }}</time><span>{% if scan.stage == 'cart' %}Тара{% else %}{{ scan.get_stage_display }}{% endif %}</span><strong>{{ scan.message }}</strong></div>{% endfor %}
+    </section>
+  {% endif %}
+{% endblock %}

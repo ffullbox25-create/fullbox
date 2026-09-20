@@ -1,0 +1,906 @@
+# Project Context
+
+## Latest production change
+
+- 2026-08-26 16:19: ричтраковая инвентаризация теперь проверяет количество коробов, а не единиц товара. Рабочий экран сведен к цепочке `скан места → количество коробов → совпало/не совпало`. При расхождении сканируются паллета и все фактически найденные короба; пустое место отправляется начальнику без сканов. Менеджер получает место, план/факт/разницу, базовые и фактические коды контейнеров, текущий остаток и товарный состав. Применена `reachtruck_inventory.0003`; 23 локальных теста, production rollback-check задания №18 и проверка минимального HTML прошли. Backup с PostgreSQL dump: `/opt/fullbox/_deploy_backups/reachtruck_inventory_box_count_20260826_160726`; WSGI/ASGI active.
+- 2026-08-26 14:44: план ричтраковой инвентаризации теперь обновляется из текущего складского остатка при каждом новом взятии свободного задания и замораживается только на рабочую 20-минутную сессию. Освобождение/тайм-аут очищает незавершенный факт. Пустое место подтверждается без сканов: при `текущая база=0` и `факт=0` задание закрывается без расхождения, а при ненулевой базе начальнику склада отправляется отчет о пустом месте. Production rollback-check задания №19 подтвердил исправление старого сценария `план 12 / текущая база 0 / факт 0`; backup `/opt/fullbox/_deploy_backups/reachtruck_inventory_live_plan_20260826_143547`, проверки чистые, WSGI/ASGI активны.
+- 2026-08-26 12:35: production-контур ричтраковой инвентаризации обновлен. Исправлен PostgreSQL `NotSupportedError` на `FOR UPDATE` с nullable join при вводе факта; задания теперь арендуются исполнителем на 20 минут бездействия и освобождаются автоматически или вручную. При отличии факта от замороженного плана исполнитель обязан отсканировать минимум одну паллету и один короб; после подтверждения создается high-priority `todo.Task` начальнику склада с местом, планом/фактом/разницей и сканами. `WarehouseStockSnapshot` этим процессом не корректируется. Migration `reachtruck_inventory.0002` применена; backup `/opt/fullbox/_deploy_backups/reachtruck_inventory_20260826_114600`; 22 локальных теста и production rollback-check прошли, WSGI/ASGI активны, live UI take/release проверен.
+
+## Quick Summary
+- Project name: Fullbox (internal fulfillment/WMS portal).
+- Goal: manage SKU, orders/receiving, tasks, audits, role-based cabinets, and label printing.
+- Current status: Django 6.0 app in production; latest updates on 2026-01-04 (placement act UI changes, favicon, template tweaks).
+
+## Current Focus
+- Last recorded focus: shipping order box split flow (client -> manager reserve -> storekeeper -> reachtruck -> OTG -> packing).
+- Why it matters: lets clients ship part of a box while keeping warehouse source boxes/pallets truthful.
+
+## Recent Decisions
+- Decision: Django 6.0 + Python 3.12; default SQLite with optional PostgreSQL via env.
+- Reason: lightweight local setup with production-ready DB option.
+- Date: see `journal.md`.
+- Decision: the warehouse server is the single source of truth for warehouse state and operational data.
+- Reason: avoid divergence between local assumptions, temporary data, and production warehouse reality.
+- Date: 2026-05-04.
+- Decision: always deploy changes to server after edits (and restart service when needed).
+- Reason: keep production in sync with local fixes.
+- Date: 2026-01-04.
+
+## Open Questions
+- Question: confirm scope/ownership of Oracle APEX + FastAPI integration (see `note.txt`).
+- Owner: project lead.
+
+## TODO (short list)
+- [ ] Capture current sprint goals / next tasks.
+- [ ] Verify pending deployments or migrations.
+- [ ] After reboot: confirm if busy cursor persists on desktop; if yes, check Task Manager/Explorer; if no, check browser extensions.
+
+## How to Run / Test
+- Setup: `python -m venv .venv`, `.venv\\Scripts\\activate`, `pip install -r requirements.txt`.
+- Run: `python fullbox/manage.py migrate`, `python fullbox/manage.py runserver`.
+- Tests: not documented.
+
+## Key Files / Folders
+- `README.md` - overview, routes, env vars.
+- `description.md` - stack, modules, local run details.
+- `journal.md` - detailed change log.
+- `fullbox/` - Django apps and project code.
+- `DEPLOY.md` - deployment steps.
+- `LABEL_PRINT.md` - label printing spec.
+- `server_access.md` - server access details (sensitive).
+- `.env.example` - env vars reference.
+- `Начальные таблицы/` - source XLSX data for `load_initial_tables`.
+- `fullbox/db.sqlite3` - local SQLite DB (default).
+
+## Notes for AI Assistant
+- Preferred language: Russian (based on chat).
+- Style constraints: concise, CLI-friendly; ask only when needed.
+- Anything to avoid: do not paste credentials; refer to `server_access.md` and `note.txt` for secrets.
+- This file is my memory aid; I must log each of my actions here.
+- Default project rule: treat the warehouse server as the single source of truth.
+- Always deploy changes to the server after edits.
+- Default project rule: local fixes are not considered complete until they are deployed to the server.
+
+## Restart Notes
+- After reboot: check if busy cursor appears on desktop (not just browser).
+- If yes: open Task Manager → sort by CPU/Disk; restart `Windows Explorer`.
+- If no: test in incognito or disable extensions; share pending requests if any.
+
+## AI Action Log
+- 2026-05-22 11:22: enlarged the shipping close-pallet confirmation modal by roughly 2x with wider layout and larger input/actions. Local `manage.py check` and targeted packing test passed.
+- 2026-05-22 11:24: deployed the enlarged close-pallet modal to production; backup created, server `manage.py check` passed, service restarted active, and `/login/` returned `200`.
+- 2026-05-22 11:08: added a close-pallet count confirmation modal to shipping packing; storekeeper must enter the actual box count before the pallet closes, mismatches keep the pallet open. Local `manage.py check` and targeted packing test passed.
+- 2026-05-22 11:14: deployed the close-pallet count confirmation to production `93.123.255.241`; backup created, server `manage.py check` passed, `fullbox` restarted active, and public smoke checks returned `200`.
+- 2026-05-22 01:10: fixed split-only mixed-box shipping flow so saving a box split resets whole-box selection to `0`; reachtruck partial-pick plans now show only picked units moving to OBR/OTG and the remaining units in the source box to return. Local `manage.py check`, targeted reachtruck partial-mix test, and targeted shipping split parser test passed.
+- 2026-05-22 00:38: fixed mixed-box split reserve selection so split source boxes and whole mixed boxes use distinct box codes; the target case now maps loose `M=10`, changed `M=15/XL=25` left in storage, and whole `M=25/XL=25` shipped without double-reserving one box. Local `manage.py check` and `ShippingPickerParseTests` passed.
+- 2026-05-22 00:20: fixed production save failure for shipping orders with mixed-box split metadata by changing `ShippingOrderItem.comment` from `varchar(255)` to `TextField` via migration `shipping.0010_alter_shippingorderitem_comment`; local `manage.py check` and `ShippingPickerParseTests` passed.
+- 2026-05-21 21:04: fixed the shipping split icon visibility rule so CSS cannot override hidden split buttons; mixed-box groups now show one unpack icon per physical box group, with local `manage.py check` and `ShippingPickerParseTests` passing.
+- 2026-05-21 20:55: refined shipping split result controls: loose `Без короба` row is read-only, while the remaining untouched mixed box has a single editable control on the first row that syncs back to hidden source rows; local `manage.py check` and `ShippingPickerParseTests` passed.
+- 2026-05-21 20:45: replaced shipping split button SVG with the user-provided unpack-box JPG and show the split button only once per mixed-box group; local `manage.py check` and `ShippingPickerParseTests` passed.
+- 2026-05-21 20:31: expanded shipping split result rows so changed and untouched mixed boxes render as the original per-item mixed-box rows instead of one aggregated row; local `manage.py check` and `ShippingPickerParseTests` passed.
+- 2026-05-21 20:06: changed shipping split display so source mixed-box rows are hidden and replaced by actual table rows for resulting physical positions (`Без короба`, changed mixed box, unchanged mixed box); local `manage.py check` and `ShippingPickerParseTests` passed.
+- 2026-05-21 19:31: moved shipping split result from the right-column explanation into a separate physical result row under the source stock group, showing only resulting positions (`Без короба`, changed mixed box, unchanged mixed box); local `manage.py check` and `ShippingPickerParseTests` passed.
+- 2026-05-21 18:14: simplified shipping split UI to show only physical result rows without explanatory headings: loose item, changed mixed box, unchanged mixed box; local `manage.py check` and `ShippingPickerParseTests` passed.
+- 2026-05-21 18:02: deployed refined shipping box split UX to production `93.123.255.241`; backup `/opt/fullbox/deploy_backups/shipping_box_split_ui_20260521_180116.tgz` created, server `manage.py check` passed, `fullbox` restarted and stayed active, public HTTP checks returned `200 OK`.
+- 2026-05-21 18:00: refined shipping box split UX locally: split boxes now consume physical available boxes and clamp whole-box inputs, UI shows a breakdown of loose goods to ship, whole boxes to ship, and remainder box left in storage; `ShippingPickerParseTests` and `manage.py check` passed.
+- 2026-05-21 16:58: deployed shipping box split flow to production `93.123.255.241`; server backup `/opt/fullbox/deploy_backups/shipping_box_splits_20260521_165537.tgz` created, runtime files uploaded, file permissions normalized to `644`, server `manage.py check` passed, `fullbox` restarted and stayed `active`, `fullbox.ru` and `www.fullbox.ru` returned `200 OK`.
+- 2026-05-21 16:52: implemented optional shipping box split flow locally: client UI split icon/modal, structured split metadata on order items, immediate partial reserve, reachtruck flexible partial pick from any suitable source box, loose-unit OTG arrival with source box history, and packing-time grouping of loose goods into an outbound box. Local `manage.py check` and 41 targeted shipping/reachtruck tests passed; wider `shipping reachtruck sklad` suite still has unrelated pre-existing failures.
+- 2026-05-19 10:20: deployed OTG physical stock model update to production: uploaded targeted sklad/reachtruck/shipping runtime files plus processing_app/stages.py, backed up server files to `/opt/fullbox/deploy_backups/otg_20260519_101242.tgz`, ran server `manage.py check`, confirmed no migrations, restarted `fullbox`, and verified HTTP/service smoke checks.
+- 2026-05-04 10:20: fixed reachtruck/warehouse truth handling for OS destination reservations; active putaway operations now block duplicate destination cells, manual destination edits validate conflicts, targeted tests passed locally, changes deployed to `93.123.255.241`, `manage.py check` passed, and `fullbox` service was restarted successfully.
+- 2026-05-04 09:57: added permanent project rules to treat the warehouse server as the single source of truth and to consider work complete only after deployment to server.
+- 2026-04-30 08:53: deployed `todo_panel` orphan-receiving filter to `fullbox.ru`, restarted `fullbox`, verified storekeeper task panel returns zero tasks for stale receiving orders.
+- 2026-04-30 08:54: removed orphan receiving tasks from prod `todo_task` where `/orders/receiving/<id>/` remained but `audit_orderauditentry` for that order was empty.
+- 2026-02-02 20:44: deployed updated agent app (events poll) and processing flow polling; applied agent event migration (faked on server due to preexisting table).
+- 2026-02-02 20:22: wired processing flow to poll agent scan events; added printer commands integration in processing print queue actions.
+- 2026-02-02 20:22: expanded Windows agent to handle print jobs (existing print queue), printer control commands, and include printer list in ping meta.
+- 2026-02-02 19:46: deployed agent app to server, applied migrations, restarted service.
+- 2026-02-02 19:28: scaffolded Fullbox Windows agent (.NET 8 service + tray app + shared config) and build script under `fullbox_agent/`.
+- 2026-02-02 18:58: added new `agent` Django app with DeviceAgent/AgentCommand models and token-protected API endpoints (ping, commands, ack) plus settings/urls wiring.
+- 2026-02-02 17:08: added COM reconnect button using Web Serial getPorts/requestPort fallback to avoid physical unplug/replug.
+- 2026-02-02 16:56: added RAW COM log panel with clear button to processing flow Web Serial block.
+- 2026-02-02 16:41: added Web Serial (COM) connector on processing flow page to feed scans directly into placement flow and mini scanner test.
+- 2026-02-02 16:23: added mini scanner test panel on processing flow page (last code/length/source/detected/time + clear).
+- 2026-02-02 16:11: expanded labels settings access to processing_head and manager (along with storekeeper).
+- 2026-02-02 16:04: allowed storekeeper role to access labels settings page for scanner setup.
+- 2026-02-02 15:56: added "Настройка сканера" action link on processing flow sidebar pointing to labels settings.
+- 2026-02-02 15:48: added CHZ-only placement mode in processing flow (UI notice + scanner copy/manual blocks), plus `/orders/processing/<id>/flow/scan/` endpoint to validate/lock MarkingCode and record box placement.
+- 2026-01-18 10:50: added labels app with settings page (printers/scanners/label previews), centralized label markup/styles, updated SKU + processing card label previews to 58x40, and linked from head manager; updated LABEL_PRINT.md.
+- 2026-01-18 10:55: deployed labels/print updates to server and restarted fullbox service.
+- 2026-01-15 18:32: moved processing direction distribution into a dedicated full-width screen and connected it back to the main form via session storage.
+- 2026-01-15 18:38: hardened direction screen button handling and sessionStorage access to avoid dead clicks.
+- 2026-01-15 18:44: fixed directions screen JS syntax error by embedding return URL JSON without extra quotes.
+- 2026-01-15 19:03: added head manager editor for marketplace warehouse addresses saved in `marketplace_warehouses.json`.
+- 2026-01-15 18:10: expanded processing direction distribution (none/file/set), added addresses/table capture in forms and payload summary.
+- 2026-01-09 10:14: keep in-box inputs empty unless user types manually; scan only updates box counts.
+- 2026-01-09 10:07: show active box qty in the in-box input when no manual value and clear only the scanned row's manual input.
+- 2026-01-09 10:01: focus scanned row using pending element after render to prevent cursor staying in the previous in-box input.
+- 2026-01-09 09:54: move focus to scanned row input during table render to avoid losing focus on the first scan.
+- 2026-01-09 09:48: defer focus transfer to scanned row with requestAnimationFrame so cursor reliably moves to the new in-box cell.
+- 2026-01-09 09:44: move focus to scanned row input after scan while suppressing blur side effects.
+- 2026-01-09 09:39: keep in-box inputs empty during scans and preserve manual entry values separately in receiving flow.
+- 2026-01-09 09:27: relax scan detection when focus is in qty inputs so repeated scans increment counts reliably.
+- 2026-01-09 09:13: keep last scanned row highlighted and avoid rerender timeout so focus stays in the in-box input.
+- 2026-01-09 09:06: add idle-based scan detection to receiving flow so barcodes are captured even without Enter and restore focused input values.
+- 2026-01-09 09:00: improved receiving flow scanner capture to work regardless of focus and add scanned SKU from client catalog when missing in the table, with clear status messages.
+- 2026-01-09 08:47: remove client-confirmed response tasks after manager views the act print page and close manager receiving tasks so confirmed orders move to done.
+- 2026-01-09 08:37: mark client-confirmed receiving act response tasks as done when manager opens the act print page so they move to the done column.
+- 2026-01-04 09:40: prepared guidance on Windows Terminal settings locations (Russian UI).
+- 2026-01-04 09:45: reviewed core Django config (`settings.py`, `urls.py`, `manage.py`).
+- 2026-01-04 09:45: reviewed key models (`sku`, `todo`, `employees`, `audit`).
+- 2026-01-04 09:45: reviewed key views (`orders`, `client_cabinet`, `sku`, `market_sync`).
+- 2026-01-04 09:48: reviewed `sklad` app (views/urls/templates) and inventory journal templates.
+- 2026-01-04 09:48: reviewed orders flow around storekeeper tasks and acts in `fullbox/orders/views.py`.
+- 2026-01-04 09:48: reviewed task panel template tag used by storekeeper dashboard.
+- 2026-01-04 09:52: inspected placement act template/JS to diagnose UI counts.
+- 2026-01-04 10:01: updated placement act UI to show pallet contents and correct pallet item counts.
+- 2026-01-04 10:04: user asked about deployment; changes are local only, not deployed.
+- 2026-01-04 10:06: added reminder to always deploy; uploaded `fullbox/orders/templates/orders/placement_act.html` to server via scp.
+- 2026-01-04 10:09: reviewed updated placement act UI screenshot feedback.
+- 2026-01-04 10:15: moved pallet contents into pallets table (removed right sidebar active pallet panel) and redeployed template to server.
+- 2026-01-04 10:19: verified server template has no "Активная палета" block; likely browser cache if still visible.
+- 2026-01-04 10:21: searched server for placement_act template and "Активная палета" string; only one template exists and it lacks the block.
+- 2026-01-04 10:26: restarted `fullbox` systemd service to refresh cached templates.
+- 2026-01-04 10:35: changed pallet logic so boxes in pallet cannot be opened; updated UI to only extract, deployed template, restarted service.
+- 2026-01-04 10:39: added SKU column to remaining items table in placement act; deployed template and restarted service.
+- 2026-01-04 10:42: investigating report of busy cursor/spinner on placement page; suggested checking pending network requests.
+- 2026-01-04 10:45: reviewed devtools screenshot; noted favicon 404 as likely cause of loading indicator.
+- 2026-01-04 10:47: added `/favicon.ico` route (SVG) in `fullbox/fullbox/views.py` and `fullbox/fullbox/urls.py`, deployed and restarted service.
+- 2026-01-04 10:50: advised checking pending network requests; suspect external fonts or extensions for spinner.
+- 2026-01-04 10:58: removed external Google Fonts from placement act template to avoid hanging loads; deployed and restarted service.
+- 2026-01-04 11:01: forced default cursor on placement act body to avoid busy cursor; deployed and restarted service.
+- 2026-01-04 11:08: advised OS/browser-level troubleshooting for persistent busy cursor across all pages.
+- 2026-01-04 11:26: listed project markdown files; reviewed README, description, DEPLOY, LABEL_PRINT, journal, and research notes to refresh project context.
+- 2026-01-04 11:27: reviewed storekeeper cabinet (sklad) views/templates and orders (urls, journal/detail, receiving/placement act templates) to summarize workflows.
+- 2026-01-04 11:35: reviewed placement act screenshot and checked UI logic in placement_act template to diagnose inconsistencies.
+- 2026-01-04 11:45: updated receiving act status labels and placement act active-container logic to match storekeeper workflow.
+- 2026-01-04 11:46: deployed updated placement act template and status logic to server; restarted fullbox service.
+- 2026-01-04 11:50: removed placement act notice/banner and active container strip from template per screenshot feedback.
+- 2026-01-04 11:51: deployed updated placement act template to server; restarted fullbox service.
+- 2026-01-04 11:57: enforced placement-act close validation requiring all boxes assigned to pallets.
+- 2026-01-04 11:57: deployed placement act validation update to server; restarted fullbox service.
+- 2026-01-04 12:00: added placement act info summary (items/boxes/pallets) in sidebar.
+- 2026-01-04 12:00: deployed placement act info summary update to server; restarted fullbox service.
+- 2026-01-04 12:05: replaced placement act info block with summary sentence and pluralization.
+- 2026-01-04 12:05: deployed placement act info summary sentence to server; restarted fullbox service.
+- 2026-01-04 12:13: added server-side validation to require boxes assigned to pallets before closing placement act.
+- 2026-01-04 12:14: deployed placement act validation update to server; restarted fullbox service.
+- 2026-01-04 12:21: reviewed client_cabinet views, urls, forms, services, and core templates (dashboard, SKU list/form, receiving/packing forms, clients list/form, inventory journal).
+- 2026-01-04 12:28: updated client dashboard status/bucket logic for acts and added highlight styling for client-side act cards.
+- 2026-01-04 12:28: deployed client dashboard status/highlight changes to server; restarted fullbox service.
+- 2026-01-04 12:31: adjusted client dashboard to keep act cards out of the "done" column.
+- 2026-01-04 12:31: deployed client dashboard bucket change to server; restarted fullbox service.
+- 2026-01-04 12:33: hide client act cards after they are viewed (client can open via order).
+- 2026-01-04 12:33: deployed client act visibility change to server; restarted fullbox service.
+- 2026-01-04 12:37: fixed client inventory journal filter column indices (SKU/Name/Size dropdowns).
+- 2026-01-04 12:38: deployed client inventory journal filter fix to server; restarted fullbox service.
+- 2026-01-04 20:11: listed repo root to check structure and searched for AGENTS.md (not found).
+- 2026-01-04 20:12: reviewed PROJECT_CONTEXT.md and README.md to refresh project context.
+- 2026-01-04 20:25: user asked to record each step; acknowledged and will log actions in this file.
+- 2026-01-04 20:38: reviewed client_cabinet backend (views.py, urls.py, forms.py, services.py).
+- 2026-01-04 20:38: reviewed client_cabinet templates (dashboard, clients list/form, SKU list/form, receiving/packing/order forms, inventory journal).
+- 2026-01-04 20:40: summarized client packing request flow (routes, view handling, payload logging, dashboard status behavior).
+- 2026-01-04 20:44: restyled client packing request form template to match receiving form visual style.
+- 2026-01-04 20:54: reviewed DEPLOY.md and server_access.md for server connection instructions.
+- 2026-01-04 20:54: uploaded updated client packing form template to `/opt/fullbox` on server.
+- 2026-01-04 20:54: restarted `fullbox` systemd service on server.
+- 2026-01-04 21:00: restyled client packing form to match client cabinet visual design.
+- 2026-01-04 21:00: uploaded updated client packing form template to `/opt/fullbox` on server.
+- 2026-01-04 21:00: restarted `fullbox` systemd service on server.
+- 2026-01-04 21:12: user request on packing form style was ambiguous; asked for clarification before changing.
+- 2026-01-04 21:14: reverted client packing form to match receiving form visual style.
+- 2026-01-04 21:14: uploaded updated client packing form template to `/opt/fullbox` on server.
+- 2026-01-04 21:14: restarted `fullbox` systemd service on server.
+- 2026-01-04 21:16: noted where the client receiving request lives (view, template, route).
+- 2026-01-04 21:18: checked orders urls/views/templates to confirm receiving form is rendered in orders app (`orders/index.html` via `OrdersHomeView`).
+- 2026-01-05 04:56: added packing order support in orders app (views: new packing submit flow, helper formatters, order number per type, packing detail view).
+- 2026-01-05 04:56: added packing routes and UI in orders (tabs/heading in `orders/index.html`, packing form markup there, packing detail display in `orders/detail.html`).
+- 2026-01-05 04:57: deployed updated orders views/urls/templates to server and restarted `fullbox`.
+- 2026-01-05 04:58: clarified that packing uses conditional blocks inside orders templates (no separate template file).
+- 2026-01-05 05:05: moved packing form into separate orders template (`orders/packing.html`) and wired OrdersPackingView.
+- 2026-01-05 05:05: updated client cabinet links to point packing to `/orders/packing/` and added packing redirect route.
+- 2026-01-05 05:06: deployed orders packing template/routes and client cabinet link updates to server; restarted `fullbox`.
+- 2026-01-05 05:35: restyled `orders/packing.html` to match client dashboard visual design (palette/layout/sidebar).
+- 2026-01-05 05:37: deployed updated `orders/packing.html` to server and restarted `fullbox`.
+- 2026-01-05 05:51: trimmed packing sidebar links and moved "В кабинет"/"Журнал заявок" into left nav; deployed and restarted `fullbox`.
+- 2026-01-05 05:57: user reported "Доступ запрещен" on client edit page; need to adjust access policy if client self-edit is desired.
+- 2026-01-05 05:58: allowed client users to edit their own agency record; deployed and restarted `fullbox`.
+- 2026-01-05 06:00: checked audit app; found SKU journal and order journal only, no отдельный журнал клиентов.
+- 2026-01-05 06:07: implemented client audit journal (AuditEntry with agency, new list view/template/route, logging on client create/update/archive).
+- 2026-01-05 06:07: deployed audit changes, ran migrations (audit/sku/todo), and restarted `fullbox`.
+- 2026-01-05 06:08: added client audit logging for Agency changes made via admin; deployed and restarted `fullbox`.
+- 2026-01-05 06:12: allowed client users to access INN autofill endpoint; deployed and restarted `fullbox`.
+- 2026-01-05 06:20: checked server journalctl/nginx logs for client edit 500; no gunicorn errors found.
+- 2026-01-05 06:21: inspected PostgreSQL logs; found missing `audit_auditentry.agency_id` column causing 500 on client save.
+- 2026-01-05 06:22: verified Postgres schema missing `agency_id` on `audit_auditentry`.
+- 2026-01-05 06:23: applied audit migrations to Postgres with `.env` loaded (previously ran against SQLite).
+- 2026-01-05 06:23: rechecked Postgres schema; `audit_auditentry.agency_id` column now present.
+- 2026-01-05 06:29: adjusted client edit success redirect for non-staff to stay on `/client/<id>/edit/` instead of staff-only list.
+- 2026-01-05 06:29: deployed updated `client_cabinet/views.py` to server and restarted `fullbox`.
+- 2026-01-05 06:36: added validation for client requisites form (required INN/phone/FIO, field format checks).
+- 2026-01-05 06:36: updated client requisites template labels to mark required fields.
+- 2026-01-05 06:36: deployed updated `client_cabinet/forms.py` and `client_cabinet/templates/client_cabinet/clients_form.html`, restarted `fullbox`.
+- 2026-01-05 06:41: added phone input mask (+7 with brackets/dashes) and enforced +7 formatting/validation for client requisites form.
+- 2026-01-05 06:41: deployed updated `client_cabinet/forms.py` and `client_cabinet/templates/client_cabinet/clients_form.html`, restarted `fullbox`.
+- 2026-01-05 06:46: hid client-only buttons ("К списку клиентов", "Dev") on requisites form; cancel now points to client dashboard.
+- 2026-01-05 06:46: changed client save redirect to `/client/dashboard/`.
+- 2026-01-05 06:46: deployed updated `client_cabinet/views.py` and `client_cabinet/templates/client_cabinet/clients_form.html`, restarted `fullbox`.
+- 2026-01-05 06:53: removed client/contact sections from packing form (kept hidden agency/contact fields); deployed and restarted `fullbox`.
+- 2026-01-05 07:02: updated `journal.md` with summary of 2026-01-05 changes (packing request, client edit, audit journal, validations).
+- 2026-01-07 20:00: updated receiving act flow for clients (redirect to print form, client confirmation/dispute handling, task panel status label) and refreshed `receiving_act_print.html` with client-facing confirmation text and actions.
+- 2026-01-07 20:06: adjusted client dashboard to show receiving act card until client responds, even after viewing.
+- 2026-01-07 20:24: fixed back navigation for receiving act print (return URL propagation + safe handling) and added dashboard return param to act card links.
+- 2026-01-07 20:44: switched placement location to single "Место хранения" (default "Поле приемки"), updated placement UI/validation and inventory journal location display.
+- 2026-01-05 07:02: uploaded updated `journal.md` to server.
+- 2026-01-05 07:06: added 2026-01-04 summary to `journal.md` and uploaded to server.
+- 2026-02-10 13:35: reviewed repo overview (README/description/AGENT), scanned PROJECT_CONTEXT notes, and listed core directories/apps.
+- 2026-02-10 13:41: reviewed processing-related code paths (processing_app flows, orders receiving/placement flow, marking/labels/agent links, templates for processing work/flow).
+- 2026-02-10 13:49: fixed processing worker task routing to keep flow link when status is "Взята в работу" (todo_panel).
+- 2026-02-10 13:55: deployed updated todo_panel.py to server, restarted fullbox service, and ran a basic HTTP status check on /processing-worker/ (403 without auth).
+- 2026-02-10 14:06: fixed payload selection to ignore packer-only updates, deployed orders/views.py, restarted service, and verified processing order #7 items now resolve in flow.
+- 2026-02-10 14:15: fixed processing_flow_marking_scan to use latest meaningful payload (ignore packer-only update), deployed processing_app/views.py, restarted service.
+- 2026-01-05 07:11: reordered packing request form to start with item description and deadline, moved materials/comment sections; deployed and restarted `fullbox`.
+- 2026-01-05 07:18: reworked packing order detail layout to remove right column; moved info/comments under main content for packing; deployed and restarted `fullbox`.
+- 2026-01-05 07:25: restored right column for packing detail; info/comments stay in two blocks on the right; deployed and restarted `fullbox`.
+- 2026-01-05 07:33: скрыты черновики заявок для не-клиентов в клиентском кабинете и журнале заявок; задеплоены `client_cabinet/views.py` и `orders/views.py`, перезапущен `fullbox`.
+- 2026-01-05 07:36: уточнена фильтрация сообщений для не-клиентов (исключены черновики); задеплоен `client_cabinet/views.py`, перезапущен `fullbox`.
+- 2026-01-05 07:45: черновики в кабинете/журнале открываются в форме редактирования для клиента; разрешено редактирование черновиков клиентом; задеплоены `client_cabinet/views.py` и `orders/views.py`, перезапущен `fullbox`.
+- 2026-01-05 07:49: исправлена ошибка отступов в `orders/views.py` (500 на /orders/); задеплоен файл и перезапущен `fullbox`.
+- 2026-01-05 07:55: для клиента разрешен просмотр заказов без параметра `?client=` (берется привязанный portal_user); задеплоен `orders/views.py`, перезапущен `fullbox`.
+- 2026-01-05 08:03: добавлены кнопки "Отправить менеджеру" и "Сохранить черновик" в режиме редактирования черновика, отправка меняет статус; задеплоены `orders/views.py` и `orders/templates/orders/index.html`, перезапущен `fullbox`.
+- 2026-01-05 08:11: для отправленных заявок на приемку без товаров добавлено спец-имя "Заявка на приемку без указания товара" в карточках/детали; задеплоены `client_cabinet/views.py` и `orders/views.py`, перезапущен `fullbox`.
+- 2026-01-06 07:21: listed repo root to find project memory file; searched for memory markers.
+- 2026-01-06 07:21: reviewed `README.md` and `PROJECT_CONTEXT.md` to refresh project context.
+- 2026-01-06 07:30: updated task display titles to use receiving order payload so empty receiving orders show "Заявка на приемку без указания товара" (todo `models.py`).
+- 2026-01-06 07:32: uploaded updated `fullbox/todo/models.py` to `/opt/fullbox` and restarted `fullbox` service.
+- 2026-01-06 07:44: updated order title logic for empty receiving orders (orders/client_cabinet/todo), deployed changes, restarted `fullbox`.
+- 2026-01-06 08:08: added manual restore prompt for receiving autosave drafts so new orders start clean; deployed updated `orders/index.html`, restarted `fullbox`.
+- 2026-01-16 05:15: reviewed repo overview (README/description/PROJECT_CONTEXT) and core config (settings/urls) to re-familiarize with the project.
+- 2026-01-16 05:19: inspected client cabinet processing request flow (client_cabinet dashboard, processing_app views/templates, orders detail integration).
+- 2026-01-16 05:27: updated processing direction UI to hide the select when data exists and show view/edit/delete buttons with the "Распределение задано" label.
+- 2026-01-16 05:29: deployed updated processing templates (processing, manager, work) to `/opt/fullbox` and restarted `fullbox` service.
+- 2026-01-16 06:01: removed the "view" direction button, simplified direction summary to show only cities, and redeployed processing templates.
+- 2026-01-16 06:10: changed processing direction params to show only cities in summary values and redeployed `processing_app/views.py`.
+- 2026-01-16 06:19: added per-direction shipment tables to processing card view and deployed updated `processing_app/views.py` and `processing_card.html`.
+- 2026-01-16 06:24: merged sizes and direction shipment tables into a single processing card block and redeployed `processing_card.html`.
+- 2026-01-16 06:25: renamed processing card sizes header to "Всего к обработке" and redeployed `processing_card.html`.
+- 2026-01-16 06:32: added processing results block table to processing card and redeployed `processing_card.html`.
+- 2026-01-16 06:40: populated processing results table with received qty per direction and short city names from distribution plan, redeployed `processing_app/views.py` and `processing_card.html`.
+- 2026-01-16 06:45: added "К заявке" button on processing card and redeployed `processing_card.html`.
+- 2026-01-16 06:49: updated processing card to return to processing form via return URL, wired processing work cards to pass the return URL, redeployed templates and `processing_app/views.py`.
+- 2026-01-16 07:22: made processing results editable on the card view, added validation to block closing until results are filled, and redeployed templates plus `processing_app/views.py`.
+- 2026-01-16 07:33: widened processing card layout to full width and redeployed `processing_card.html`.
+- 2026-01-16 11:38: added "Доступные принтеры" block to processing card sidebar and redeployed `processing_card.html`.
+- 2026-01-16 11:56: added available printers loading, template loop, and local sync script; deployed `processing_app/views.py` and `processing_card.html`, restarted `fullbox`.
+- 2026-01-16 12:02: added printers sync button (copies PowerShell command) with last-sync metadata in processing card sidebar, deployed updated `processing_app/views.py` and `processing_card.html`.
+- 2026-01-16 12:08: fixed `sync_printers.ps1` scp target interpolation and renamed `Host` param to `HostName`.
+- 2026-01-06 08:19: added client line to order task cards in task panel (todo template tag + `_task_panel.html`), deployed and restarted `fullbox`.
+- 2026-01-06 08:26: removed stray todo files on server; highlighted client/status values and shortened "Индивидуальный предприниматель" to "ИП" in task cards; deployed and restarted `fullbox`.
+- 2026-01-06 08:28: colored task card status values (waiting red, done green) in `_task_panel.html`, deployed and restarted `fullbox`.
+- 2026-01-06 08:40: renamed receiving act creation button to "Взять в работу" in order detail and task detail; deployed and restarted `fullbox`.
+- 2026-01-06 08:49: changed receiving act add-item flow to a persistent top entry row with add button; extra items append below; deployed and restarted `fullbox`.
+- 2026-01-10 13:18: reviewed repo root, `fullbox/`, `README.md`, and `PROJECT_CONTEXT.md` to familiarize with the project.
+- 2026-01-10 13:22: reviewed storekeeper cabinet and streaming receiving flow (orders flow/receiving views and templates).
+- 2026-01-10 13:34: updated receiving flow scan highlight color and persistence behavior in `receiving_flow.html`.
+- 2026-01-10 13:36: added timed scan highlight auto-clear in receiving flow UI.
+- 2026-01-10 13:38: deployed updated `receiving_flow.html` to server and restarted `fullbox` service.
+- 2026-01-10 13:44: hid scanner UI block in receiving flow template.
+- 2026-01-10 13:44: deployed updated `receiving_flow.html` to server and restarted `fullbox` service.
+- 2026-01-10 13:49: changed closed pallets display to chips in receiving flow.
+- 2026-01-10 13:50: deployed updated `receiving_flow.html` to server and restarted `fullbox` service.
+- 2026-01-10 13:58: added closed pallet context menu with open/print QR actions in receiving flow.
+- 2026-01-10 13:59: deployed updated `receiving_flow.html` to server and restarted `fullbox` service.
+- 2026-01-10 14:49: enforced single open pallet when opening a closed pallet in receiving flow.
+- 2026-01-10 14:51: deployed updated `receiving_flow.html` to server and restarted `fullbox` service.
+- 2026-01-10 15:07: removed active pallet/box pills from receiving flow header.
+- 2026-01-10 15:09: deployed updated `receiving_flow.html` to server and restarted `fullbox` service.
+- 2026-01-10 15:12: moved pallet close/finish buttons into pallets block in receiving flow.
+- 2026-01-10 15:13: deployed updated `receiving_flow.html` to server and restarted `fullbox` service.
+- 2026-01-06 08:54: updated receiving act page title/header to "В работе ..." using order title derived from payload; deployed and restarted `fullbox`.
+- 2026-01-06 09:03: added SKU/barcode columns to receiving act table with backend lookup and extra-item fields; deployed and restarted `fullbox`.
+- 2026-01-06 09:17: added SKU/barcode/name datalist suggestions for receiving act entry fields; deployed and restarted `fullbox`.
+- 2026-01-06 09:21: listed repo root, searched for memory markers, reviewed `PROJECT_CONTEXT.md` and `README.md` to refresh project context and confirm memory file.
+- 2026-01-06 09:24: searched for barcode/scanner references and reviewed `fullbox/templates/scanner_test.html` plus `fullbox/orders/templates/orders/receiving_act.html` to prep scanner troubleshooting.
+- 2026-01-06 09:27: updated head manager dashboard scanner link to "Настройка сканеров" (points to `/scanner-test/`).
+- 2026-01-06 09:31: added `/scanner-settings/` route and new `scanner_settings.html` page; updated head manager dashboard link to new settings page.
+- 2026-01-06 09:37: deployed updated head manager dashboard, new scanner settings template, and `fullbox/fullbox/urls.py` to server; restarted `fullbox`.
+- 2026-01-06 09:53: added Web Serial (COM) connect UI + read loop to `scanner_settings.html`, updated instructions, deployed template, restarted `fullbox`.
+- 2026-01-06 10:13: added Proton IMS-2290HD_K guidance and COM control-char display to `scanner_settings.html`; deployed template, restarted `fullbox`.
+- 2026-01-06 11:15: added Proton IMS-2290HD_K dedicated page with barcode instructions, new route and button, added static barcode images, updated static settings; deployed templates/settings/static to server and restarted `fullbox`.
+- 2026-01-06 11:21: embedded IMS-2290HD_K barcode images as data URIs in `scanner_ims_2290hd.html`, fixed scanner settings text, redeployed templates, restarted `fullbox`.
+- 2026-01-06 12:07: troubleshooting scanner COM/VCP; identified USB port issue (scanner started working on different USB port).
+- 2026-01-06 13:18: added barcode scan support to receiving act page (scanner UI, barcode->SKU map, auto-add/increment, unknown barcode link to SKU) in `orders/views.py` and `orders/templates/orders/receiving_act.html`.
+- 2026-01-06 14:13: added "Настройка сканеров" link to storekeeper dashboard nav (`sklad/templates/sklad/dashboard.html`) pointing to `/scanner-settings/`.
+- 2026-01-06 14:17: made scanner settings "В кабинет" button return to referrer when available (`templates/scanner_settings.html`).
+- 2026-01-06 14:31: rendered barcode as SVG in client SKU card view using JsBarcode; updated `client_cabinet/templates/client_cabinet/client_sku_list.html`.
+- 2026-01-06 15:15: allow receiving act save when planned items are empty but extra scanned items exist; keep mismatch logic only for planned items (`orders/views.py`).
+- 2026-01-06 15:21: prevent Enter key in act inputs from submitting form (scanner/text inputs won’t auto-save act) in `orders/templates/orders/receiving_act.html`.
+- 2026-01-06 15:37: journal list now shows actual qty for receiving orders after acceptance (added totals from act items in `orders/views.py`, column in `orders/templates/orders/index.html`).
+- 2026-01-06 15:44: receiving order detail now shows actual qty from act (falls back to act items when no planned items) in `orders/views.py` and `orders/templates/orders/detail.html`.
+- 2026-01-06 16:15: client dashboard messages now use full order titles and the messages panel scrolls (`client_cabinet/views.py`, `client_cabinet/templates/client_cabinet/dashboard.html`); deployed and restarted `fullbox`.
+- 2026-01-06 16:31: increased client dashboard messages list to 30 items (`client_cabinet/views.py`); deployed and restarted `fullbox`.
+- 2026-01-06 17:09: removed packing tab/button from client view in orders list/receiving (`orders/templates/orders/index.html`); deployed and restarted `fullbox`.
+- 2026-01-06 17:13: removed journal and receiving tabs from client view in orders pages header (`orders/templates/orders/index.html`); deployed and restarted `fullbox`.
+- 2026-01-06 17:24: wired receiving "Скачать шаблон" button to download receiving + SKU upload templates from new static docs (`orders/templates/orders/index.html`, `static/docs`); deployed and restarted `fullbox`.
+- 2026-01-06 17:28: fixed static download URLs to use absolute `/static/...` paths on receiving template download button (`orders/templates/orders/index.html`); deployed and restarted `fullbox`.
+- 2026-01-06 17:33: added Django download endpoints for receiving/SKU templates and switched "Скачать шаблон" to those URLs (`orders/views.py`, `orders/urls.py`, `orders/templates/orders/index.html`); deployed and restarted `fullbox`.
+- 2026-01-06 17:42: added upload modal for filled templates on receiving form (modal UI + file input attached to form, JS open/close, file list) in `orders/templates/orders/index.html`; deployed and restarted `fullbox`.
+- 2026-01-06 17:45: updated `journal.md` with 2026-01-05 and 2026-01-06 work summary entries; deployed to server.
+- 2026-01-06 18:48: receiving template upload now accepts only SKU/receiving templates; SKU template adds SKUs first, receiving template adds order items only from catalog, with new backend parsing logic and modal text updates (`orders/views.py`, `orders/templates/orders/index.html`); deployed and restarted `fullbox`.
+- 2026-01-06 18:55: template upload modal now has separate file inputs for SKU vs receiving templates with client-facing descriptions; backend accepts both fields (`orders/views.py`, `orders/templates/orders/index.html`); deployed and restarted `fullbox`.
+- 2026-01-06 19:05: storekeeper dashboard task board no longer stretches columns; switched to content-height layout with scroll on main content (`sklad/templates/sklad/dashboard.html`); deployed and restarted `fullbox`.
+- 2026-01-06 19:10: storekeeper dashboard task columns now capped to viewport with internal scroll; task cards stay compact (`sklad/templates/sklad/dashboard.html`); deployed and restarted `fullbox`.
+- 2026-01-06 19:33: receiving act now detects fast scanner input and routes it to the scan field even when focus is elsewhere (keyboard-wedge heuristic), without affecting manual typing (`orders/templates/orders/receiving_act.html`); deployed and restarted `fullbox`.
+- 2026-01-06 19:46: relaxed scan heuristic timing for keyboard-wedge input to capture full barcode strings (gap/avg/total thresholds) in `orders/templates/orders/receiving_act.html`; deployed and restarted `fullbox`.
+- 2026-01-06 19:51: reworked scan heuristic to avoid truncation (no per-char preventDefault, larger gaps, only intercept on terminator) in `orders/templates/orders/receiving_act.html`; deployed and restarted `fullbox`.
+- 2026-01-06 19:54: disabled global scanner heuristic when scan input is focused and restored direct Enter handling on scan field (`orders/templates/orders/receiving_act.html`); deployed and restarted `fullbox`.
+- 2026-01-06 22:36: added automatic act document generation (receiving act + МХ-1), download endpoints, and links in receiving act UI; added template xlsx files under `static/docs` (`orders/views.py`, `orders/urls.py`, `orders/templates/orders/receiving_act.html`, `static/docs`); deployed and restarted `fullbox`.
+- 2026-01-07 08:12: cleared unused template rows in act documents and forced regeneration on download to remove sample positions (`orders/views.py`); deployed and restarted `fullbox`.
+- 2026-01-07 08:17: avoid writing into merged cells while clearing act templates (prevents 500 on download) in `orders/views.py`; deployed and restarted `fullbox`.
+- 2026-01-07 08:24: act document generation now deletes unused item rows so only actual items remain (no sample/blank rows) for receiving act and MX-1 sheets (`orders/views.py`); deployed and restarted `fullbox`.
+- 2026-01-07 08:35: wired placement payload into act document generation so box quantities can fill receiving act columns; deployed and restarted `fullbox` (`orders/views.py`).
+- 2026-01-07 08:43: reviewed project docs (`README.md`, `PROJECT_CONTEXT.md`, `description.md`, `note.txt`), searched for "вспоин/споин" and apex/fastapi references, inspected Django root routes and FastAPI entry (`fullbox/fullbox/urls.py`, `nb/FApiT.py`) to locate the requested file.
+- 2026-01-07 08:48: reviewed storekeeper receiving act route/view/template for `/orders/receiving/<id>/act/` (`fullbox/orders/urls.py`, `fullbox/orders/views.py`, `fullbox/orders/templates/orders/receiving_act.html`).
+- 2026-01-07 08:53: acknowledged renaming the receiving act document label to "акт приемки печатная форма" per request; pending implementation.
+- 2026-01-07 08:54: renamed receiving act document button label to "Акт приемки печатная форма" and deployed updated `fullbox/orders/views.py`, restarted `fullbox` service.
+- 2026-01-07 09:02: added printable receiving act page (`fullbox/orders/templates/orders/receiving_act_print.html`), wired new print route and updated act button URL (`fullbox/orders/views.py`, `fullbox/orders/urls.py`).
+- 2026-01-07 09:03: deployed receiving act print changes to server (views/urls/template), corrected template path on server, restarted `fullbox` service.
+- 2026-01-07 09:25: adjusted receiving act print layout to match spreadsheet sample and count boxes by number of boxes, deployed updated `fullbox/orders/views.py` and `fullbox/orders/templates/orders/receiving_act_print.html`, restarted `fullbox` service.
+- 2026-01-07 09:30: added bottom signature/summary block to receiving act print and switched total boxes/pallets to unique counts from placement payload, deployed updated `fullbox/orders/views.py` and `fullbox/orders/templates/orders/receiving_act_print.html`, restarted `fullbox` service.
+- 2026-01-07 10:06: added printable MХ-1 page (HTML template + route), wired MХ-1 button to print view, included per-item boxes/pallets and page splitting (`fullbox/orders/views.py`, `fullbox/orders/urls.py`, `fullbox/orders/templates/orders/mx1_print.html`).
+- 2026-01-07 10:20: reworked MХ-1 print layout to match sample form (header blocks, codes, contract, act block, column numbering), adjusted item mapping and page size (`fullbox/orders/views.py`, `fullbox/orders/templates/orders/mx1_print.html`).
+- 2026-01-07 10:23: added "Артикул" column to receiving act print and separated SKU from item name (`fullbox/orders/views.py`, `fullbox/orders/templates/orders/receiving_act_print.html`).
+- 2026-01-07 10:36: updated receiving act print title to "Акт приемки" and adjusted column widths (wider name, narrower barcode), deployed template and restarted `fullbox`.
+- 2026-01-07 10:42: added "Сотрудники" navigation link to head manager dashboard (`fullbox/templates/head_manager/dashboard.html`).
+- 2026-01-07 10:42: deployed updated head manager dashboard and restarted `fullbox` service.
+- 2026-01-07 10:47: added head manager employee edit view + template and edit links, deployed `fullbox/employees/views.py`, `fullbox/employees/urls.py`, `fullbox/employees/templates/employees/employee_list.html`, `fullbox/employees/templates/employees/employee_form.html`, restarted `fullbox`.
+- 2026-01-07 10:57: restyled employees list/edit pages to match head manager cabinet and removed Dev/Admin buttons, deployed updated `fullbox/employees/views.py`, `fullbox/employees/templates/employees/employee_list.html`, `fullbox/employees/templates/employees/employee_form.html`, restarted `fullbox`.
+- 2026-01-07 11:03: expanded employees list/edit pages to full-width layout, deployed updated `fullbox/employees/templates/employees/employee_list.html` and `fullbox/employees/templates/employees/employee_form.html`, restarted `fullbox`.
+- 2026-01-07 11:15: added employee facsimile upload (PNG normalization), wired facsimile into receiving act and MX-1 print templates, updated settings and requirements, deployed, ran migrations, installed Pillow, restarted `fullbox`.
+- 2026-01-07 11:26: applied facsimile migration to production DB with env loaded and restarted `fullbox` to fix missing column error.
+- 2026-01-07 11:33: ensured facsimile normalization runs on new uploads and added facsimile preview column to employees list; deployed and restarted `fullbox`.
+- 2026-01-07 11:39: fixed media access for facsimile previews by opening permissions on `/opt/fullbox/fullbox/media` and parent folder; verified `/media/` returns 200 from nginx.
+- 2026-01-07 11:43: set employees list/edit pages background to white; deployed and restarted `fullbox`.
+- 2026-01-07 11:45: set facsimile preview background to white on employees list/edit pages; deployed and restarted `fullbox`.
+- 2026-01-07 11:47: boosted facsimile preview visibility with CSS contrast/brightness filters; deployed and restarted `fullbox`.
+- 2026-01-07 11:49: adjusted facsimile preview to darker tone for better visibility on white background; deployed and restarted `fullbox`.
+- 2026-01-07 11:51: increased facsimile preview darkness (contrast 1.7, brightness 0.65) to improve visibility; deployed and restarted `fullbox`.
+- 2026-01-07 18:55: added new `stockmap` app with storekeeper access and "Карта склада" button, plus stockmap table template; deployed and restarted `fullbox`.
+- 2026-01-07 19:03: expanded stockmap table with free/occupied columns and full-width layout; deployed and restarted `fullbox`.
+- 2026-01-07 19:07: updated stockmap capacity to compute total cells per row as sections * tiers * cells per tier; deployed and restarted `fullbox`.
+- 2026-01-07 19:18: added OS row detail page with rack view (sections/tiers/cells) and linked row numbers in stockmap table; deployed and restarted `fullbox`.
+- 2026-01-07 19:21: removed "Ярус" label and tightened rack layout to fit more sections on screen; deployed and restarted `fullbox`.
+- 2026-01-07 11:39: reviewed `README.md`, `description.md`, and `PROJECT_CONTEXT.md` to refresh project overview.
+- 2026-01-07 11:41: reviewed `fullbox/sku/models.py` to list client (Agency) fields.
+- 2026-01-07 11:48: checked local SQLite `fullbox/db.sqlite3` for Agency pref заполненность (counts and sample rows).
+- 2026-01-07 11:58: queried production Postgres on server for Agency pref заполненность (counts).
+- 2026-01-07 12:07: updated receiving order detail items mapping to include extra act positions in `fullbox/orders/views.py`.
+- 2026-01-07 12:07: deployed updated `fullbox/orders/views.py` to server and restarted `fullbox` service.
+- 2026-01-07 12:22: added receiving act signing workflow (storekeeper/manager) and locked edits after storekeeper signature; updated `fullbox/orders/views.py`, `fullbox/orders/urls.py`, `fullbox/orders/templates/orders/receiving_act_print.html`.
+- 2026-01-07 12:22: deployed updated orders views/urls/receiving act print template to server and restarted `fullbox`.
+- 2026-01-07 12:34: added back button to receiving act print, gated print/signing on closed placement, and hid print buttons until placement closed (`fullbox/orders/views.py`, `fullbox/orders/urls.py`, `fullbox/orders/templates/orders/receiving_act_print.html`, `fullbox/orders/templates/orders/receiving_act.html`).
+- 2026-01-07 12:34: deployed updated orders views/urls/templates to server and restarted `fullbox`.
+- 2026-01-07 12:44: blocked reopening placement act after storekeeper signature, gated act downloads on closed placement, and updated placement act UI message (`fullbox/orders/views.py`, `fullbox/orders/templates/orders/placement_act.html`).
+- 2026-01-07 12:44: deployed updated placement act view/template to server and restarted `fullbox`.
+- 2026-01-07 13:22: hid MХ-1 print link for storekeeper view on receiving act page (`fullbox/orders/views.py`).
+- 2026-01-07 13:22: deployed updated orders views to server and restarted `fullbox`.
+- 2026-01-07 13:32: added manager sign task creation on storekeeper signature and updated order status label; close sign task on manager signature (`fullbox/orders/views.py`).
+- 2026-01-07 13:32: deployed updated orders views to server and restarted `fullbox`.
+- 2026-01-07 18:27: added status label override for signed receiving acts and auto-create manager sign task on print view (`fullbox/orders/views.py`).
+- 2026-01-07 18:27: deployed updated orders views to server and restarted `fullbox`.
+- 2026-01-07 18:47: backfilled manager sign task for order 5 in production DB.
+- 2026-01-07 18:49: remove manager sign task after successful manager signature to hide it from dashboard (`fullbox/orders/views.py`).
+- 2026-01-07 18:49: deployed updated orders views to server and restarted `fullbox`.
+- 2026-01-07 18:55: show storekeeper-signed status in task board and keep sign tasks separate with explicit title (`fullbox/todo/templatetags/todo_panel.py`, `fullbox/todo/templates/todo/_task_panel.html`).
+- 2026-01-07 18:55: deployed updated todo panel code to server and restarted `fullbox`.
+- 2026-01-07 19:06: made task cards compact (no stretch) and limited attention highlight to act sign tasks (`fullbox/todo/templates/todo/_task_panel.html`).
+- 2026-01-07 19:06: deployed updated task panel template and restarted `fullbox`.
+- 2026-01-07 19:24: styled main stock row links as buttons in stockmap overview (`fullbox/stockmap/templates/stockmap/stockmap.html`).
+- 2026-01-07 19:24: deployed updated stockmap template to server; `fullbox` service active after restart.
+- 2026-01-07 20:57: switched placement act location to zone codes (default PR + suggestions), normalized legacy location values to PR/OS, and renamed inventory journal column to "Зона"; deployed and restarted `fullbox`.
+- 2026-01-07 21:05: replaced zone input with a dropdown to show PR/OS choices immediately; deployed and restarted `fullbox`.
+- 2026-01-07 21:12: expanded placement zone options to PR/OT/MR/OS and normalized new zone names in orders/sklad views; deployed and restarted `fullbox`.
+- 2026-01-07 21:48: added MR/OS dependent fields in placement act (row/section/tier/cell) with occupied-cell blocking, and normalized OTG zone labels; deployed and restarted `fullbox`.
+- 2026-01-07 21:56: wired stockmap occupancy to placement acts (OS row view + counts), including MR row occupancy totals; deployed and restarted `fullbox`.
+- 2026-01-07 22:48: cleared all order audit entries and tasks from production DB and removed act/task_files from media to reset stockmap occupancy.
+- 2026-01-08 06:25: auto-restore receiving draft when returning from SKU list to avoid form reset prompt; deployed template update.
+- 2026-01-08 06:44: fixed client receiving draft restore after SKU list by auto-restoring when cart items exist and setting return flag on SKU list; deployed templates and restarted `fullbox`.
+- 2026-01-08 15:50: reviewed README/description and core Django settings/urls plus key app models/views (orders, audit, sku, todo) to understand project structure.
+- 2026-01-08 15:55: replaced "Дашборд/Dev" buttons with "В кабинет" on clients list and wired cabinet URL into view context.
+- 2026-01-08 15:57: uploaded updated client list template/view to server and restarted `fullbox` service.
+- 2026-01-08 22:09: added placement act barcode scan support (barcode map + scan UI/logic to add item into active box).
+- 2026-01-08 22:09: uploaded placement act scan updates to server and restarted `fullbox` service.
+- 2026-01-09 08:23: listed repo root and searched for AGENTS.md (not found).
+- 2026-01-09 08:23: reviewed `README.md`, `PROJECT_CONTEXT.md`, and `description.md` to refresh project context.
+- 2026-01-09 08:24: located team manager routing and access, reviewed `teammanager` view/urls and dashboard template.
+- 2026-01-09 10:28: adjusted receiving flow scan/manual input handling to ignore scanner digits in "В короб" field and preserve manual values; deployed template and restarted `fullbox`.
+- 2026-01-09 21:14: updated receiving flow close logic to delete empty boxes/pallets and auto-close open boxes when closing a pallet (`fullbox/orders/templates/orders/receiving_flow.html`).
+- 2026-01-09 21:17: deployed updated receiving flow template to server and restarted `fullbox`.
+- 2026-01-09 21:58: allowed finishing receiving flow with mismatches (confirm prompt), deployed updated template and restarted `fullbox`.
+- 2026-01-09 22:07: finalize receiving flow now seals open containers and removes empty boxes/pallets on submit; deployed template and restarted `fullbox`.
+- 2026-01-10 07:14: fixed inventory journal to return empty list for clients without their own receiving entries (avoid showing other clients' stock), deployed `fullbox/sklad/views.py`, restarted `fullbox`.
+- 2026-01-10 07:24: added goods type "Не обработанный" (no) in receiving flow selection and labels, deployed `fullbox/orders/views.py` and `fullbox/orders/templates/orders/detail.html`, restarted `fullbox`.
+- 2026-01-10 07:40: restyled current box panel in receiving flow with split layout and large close button, highlighted quantities, deployed template and restarted `fullbox`.
+- 2026-01-10 07:47: keep focus in "В короб" input after closing box in receiving flow, deployed template and restarted `fullbox`.
+- 2026-01-10 07:53: constrained closed boxes panel with scroll and newest-first ordering in receiving flow, deployed template and restarted `fullbox`.
+- 2026-01-10 08:14: added print button for current box label (58x60) next to "Убрать лишнее" with print preview, deployed receiving flow template and restarted `fullbox`.
+- 2026-01-10 08:18: fixed receiving flow JS break by removing inline </script> from print preview HTML, redeployed template and restarted `fullbox`.
+- 2026-01-10 08:53: added QR code to current box print label preview (receiving flow), deployed template and restarted `fullbox`.
+- 2026-01-10 08:56: resized box label code text and QR image to fit without wrapping, redeployed receiving flow template and restarted `fullbox`.
+- 2026-01-10 09:05: embedded QR generation for box label via local qrcodejs (no external QR fetch), deployed template and static vendor script, restarted `fullbox`.
+- 2026-01-10 09:18: switched box label print preview to generate QR inside the print window (qrcodejs) and show error text if QR fails; redeployed template and restarted `fullbox`.
+- 2026-01-10 09:25: fixed QR loader to use absolute script URL in print preview, redeployed receiving flow template and restarted `fullbox`.
+- 2026-01-10 09:29: copied qrcode.min.js into staticfiles so /static/vendor/qrcode.min.js serves 200 (QR print preview).
+- 2026-01-10 09:34: generate QR data URL in main window before print preview (ensure QR lib load), embedded QR image in print HTML, redeployed template and restarted `fullbox`.
+- 2026-01-10 09:38: opened print preview window synchronously to avoid popup blocking; QR generation runs after lib load, redeployed template and restarted `fullbox`.
+- 2026-01-10 09:42: render QR data URL asynchronously with retry and show placeholder in print preview before printing, redeployed template and restarted `fullbox`.
+- 2026-01-10 09:54: reverted to generating QR inside print preview window using qrcodejs script, with placeholder fallback, redeployed template and restarted `fullbox`.
+- 2026-01-10 09:58: generate QR data URL in main window after ensuring qrcodejs, inject QR image into print preview, redeployed template and restarted `fullbox`.
+- 2026-01-10 10:18: render box label QR directly in print preview by loading qrcodejs inside the preview window, add fallback message for missing box; deployed template and restarted `fullbox`.
+- 2026-01-10 10:32: wait for print preview DOM ready before loading qrcodejs and rendering QR, then print; deployed template and restarted `fullbox`.
+- 2026-01-10 10:42: added QR preview column in current box panel and render QR immediately in main window on box change; deployed template and restarted `fullbox`.
+- 2026-01-10 10:49: removed QR header text, reduced QR preview size to avoid expanding current box panel, and added dynamic loader for qrcodejs in main flow view; deployed template and restarted `fullbox`.
+- 2026-01-10 11:30: reviewed repo structure and core docs (`README.md`, `PROJECT_CONTEXT.md`, `description.md`, `DEPLOY.md`, `LABEL_PRINT.md`) plus Django settings/urls/manage entrypoints to refresh project understanding.
+- 2026-01-10 11:36: reviewed storekeeper streaming receiving entrypoints and UI (orders detail link, `/orders/receiving/<id>/flow/`, `ReceivingFlowView`, and `receiving_flow.html`) to explain the workflow.
+- 2026-01-10 11:44: inspected receiving flow QR rendering path and local `qrcode.min.js` asset to diagnose missing QR preview.
+- 2026-01-10 11:46: added console logging around receiving flow QR load/render to surface missing lib or render errors.
+- 2026-01-10 12:01: patched local `qrcode.min.js` to reset UTF-8 byte buffer per char (fixes QR overflow on Cyrillic).
+- 2026-01-10 12:11: added pallet numbering in flow UI and prefixed closed box codes with pallet/box numbers.
+- 2026-01-10 12:40: added box context menu in receiving flow (view/edit/delete), server logging to new audit journal, and head manager link to the new journal.
+- 2026-01-10 12:59: removed per-row "В короб" button from receiving flow items table; keep input-only entry.
+- 2026-01-10 13:02: highlighted remaining items rows in green when planned qty equals actual qty.
+- 2026-01-10 13:11: enforced single open pallet by closing current pallet when editing a box in another pallet (empty pallet removed).
+- 2026-01-10 15:40: added catalog-backed add row for unplaced items in receiving flow (datalist, extra-item ordering, and seeding from existing boxes) plus catalog items JSON in the template.
+- 2026-01-10 15:41: deployed receiving flow add-row/catalog updates (`fullbox/orders/views.py`, `fullbox/orders/templates/orders/receiving_flow.html`) and restarted `fullbox`.
+- 2026-01-10 15:50: split add-row inputs into separate SKU/name/size fields with individual dropdown lists in receiving flow.
+- 2026-01-10 15:50: deployed receiving flow add-row field split update (`fullbox/orders/templates/orders/receiving_flow.html`) and restarted `fullbox`.
+- 2026-01-10 15:59: auto-fill SKU/name/size in add-row based on a matching catalog item and allow selection with single-field input.
+- 2026-01-10 16:00: deployed add-row auto-fill tweak (`fullbox/orders/templates/orders/receiving_flow.html`) and restarted `fullbox`.
+- 2026-01-10 17:39: kept receiving flow completion on flow page and adjusted status label logic for "Товар принят (с расхождениями)" (`fullbox/orders/views.py`).
+- 2026-01-10 17:40: deployed receiving flow completion/status update (`fullbox/orders/views.py`) and restarted `fullbox`.
+- 2026-01-10 17:52: updated receiving flow completion to lock with flow_closed, add reopen action logging, status label, and act print link (`fullbox/orders/views.py`, `fullbox/orders/templates/orders/receiving_flow.html`).
+- 2026-01-10 17:53: deployed receiving flow completion/reopen updates and restarted `fullbox`.
+- 2026-01-10 17:59: hide current box section and open pallets when flow is closed in receiving flow UI (`fullbox/orders/templates/orders/receiving_flow.html`).
+- 2026-01-10 18:00: deployed flow-closed UI cleanup (`fullbox/orders/templates/orders/receiving_flow.html`) and restarted `fullbox`.
+- 2026-01-10 18:18: hid "Новая приемка" and "Упаковка" buttons on orders journal page (`fullbox/orders/templates/orders/index.html`).
+- 2026-01-10 18:19: deployed orders journal header change (`fullbox/orders/templates/orders/index.html`) and restarted `fullbox`.
+- 2026-01-10 18:34: force opening pallets/boxes when adding via scanner or manual add row in flow (`fullbox/orders/templates/orders/receiving_flow.html`).
+- 2026-01-10 18:35: deployed flow scanner/open-container tweak (`fullbox/orders/templates/orders/receiving_flow.html`) and restarted `fullbox`.
+- 2026-01-10 19:03: adjusted flow auto-open logic to treat extra (qty=0) items as remaining (`fullbox/orders/templates/orders/receiving_flow.html`).
+- 2026-01-10 19:04: deployed auto-open tweak for extra items and restarted `fullbox`.
+- 2026-01-10 19:12: set flow act print link to return back to flow (`fullbox/orders/views.py`).
+- 2026-01-10 19:13: deployed flow act print return link update (`fullbox/orders/views.py`) and restarted `fullbox`.
+- 2026-01-10 20:01: fixed login redirect for already-authenticated client users (`fullbox/fullbox/views.py`).
+- 2026-01-10 20:02: deployed login redirect fix (`fullbox/fullbox/views.py`) and restarted `fullbox`.
+- 2026-01-10 22:15: added processing order type (views/urls), client cabinet button, and processing template with detailed fields (`fullbox/orders/views.py`, `fullbox/orders/urls.py`, `fullbox/orders/templates/orders/processing.html`, `fullbox/orders/templates/orders/detail.html`, `fullbox/client_cabinet/views.py`, `fullbox/client_cabinet/templates/client_cabinet/dashboard.html`).
+- 2026-01-10 22:20: deployed processing order changes (orders/client cabinet templates/views) and restarted `fullbox` service.
+- 2026-01-10 22:30: trimmed client-side nav in processing order page to only cabinet + stock links (`fullbox/orders/templates/orders/processing.html`).
+- 2026-01-10 22:31: deployed processing nav trim and restarted `fullbox` service.
+- 2026-01-10 22:45: restructured processing form into 2x2 grid with only product info in top-left and photo placeholder (`fullbox/orders/templates/orders/processing.html`).
+- 2026-01-10 22:46: deployed processing grid layout update and restarted `fullbox` service.
+- 2026-01-10 23:10: updated journal.md with 2026-01-10 work summary, uploaded to server and restarted `fullbox`.
+- 2026-01-10 23:11: committed and pushed changes to GitHub (commit 5a51b43).
+- 2026-01-11 08:45: updated processing form to replace extra fields with stock table, added stock picker modal, and wired inventory data (`fullbox/orders/templates/orders/processing.html`, `fullbox/orders/views.py`, `fullbox/orders/templates/orders/detail.html`).
+- 2026-01-11 08:47: deployed processing stock picker/table update and restarted `fullbox` service.
+- 2026-01-11 08:55: reduced processing stock table typography/padding to fit block (`fullbox/orders/templates/orders/processing.html`).
+- 2026-01-11 08:56: deployed smaller stock table styling for processing page and restarted `fullbox` service.
+- 2026-01-11 09:05: narrowed size column in processing stock table (`fullbox/orders/templates/orders/processing.html`).
+- 2026-01-11 09:06: deployed size column width adjustment for processing table and restarted `fullbox` service.
+- 2026-01-11 09:20: moved processing form actions to sidebar, added draft save handling, and aligned product name input with "Выбрать"; deployed processing template/view updates and restarted `fullbox` service.
+- 2026-01-11 09:24: fixed processing block scroll behavior by constraining block body (`fullbox/orders/templates/orders/processing.html`); deployed and restarted `fullbox` service.
+- 2026-01-11 10:11: added processing stock photo autofill from SKU, limited processing qty to available stock (UI + server validation), and stored stock photo URL (`fullbox/orders/templates/orders/processing.html`, `fullbox/orders/views.py`); deployed and restarted `fullbox` service.
+- 2026-01-11 10:23: added "Тип товара" column to inventory journal with goods type mapping from receiving status (`fullbox/sklad/views.py`, `fullbox/sklad/templates/sklad/inventory_journal.html`, `fullbox/client_cabinet/templates/client_cabinet/inventory_journal.html`, `fullbox/templates/teammanager/inventory_journal.html`); deployed and restarted `fullbox` service.
+- 2026-01-11 10:38: restored client inventory journal rows by falling back to payload org/email/fio matching when agency links are missing (`fullbox/sklad/views.py`); deployed and restarted `fullbox` service.
+- 2026-01-11 10:44: broadened inventory journal client match to use agency, portal user, and payload org/fio/email (includes icontains fallback) to restore rows (`fullbox/sklad/views.py`); deployed and restarted `fullbox` service.
+- 2026-01-11 11:18: fixed inventory journal row generation by correcting indentation so box/pallet items append properly (`fullbox/sklad/views.py`); deployed and restarted `fullbox` service.
+- 2026-01-11 11:55: created `processing_app` and routed `/orders/processing/` to it, moved processing form template into the app, and updated settings/urls (`fullbox/processing_app`, `fullbox/orders/urls.py`, `fullbox/orders/views.py`, `fullbox/fullbox/settings.py`); deployed and restarted `fullbox` service.
+- 2026-01-11 12:15: removed processing logic from `fullbox/orders/views.py` so processing handlers live in `fullbox/processing_app/views.py`.
+- 2026-01-11 12:40: added processing stock picker view/template and wired "Выбрать" to open it; removed duplicate processing template from orders app and moved `processing_app` ahead of `orders` in `INSTALLED_APPS`.
+- 2026-01-11 13:08: expanded processing stock picker to full width, added goods type column and filters, and included goods type data in processing inventory payload (`fullbox/processing_app/views.py`, `fullbox/processing_app/templates/processing/stock_picker.html`).
+- 2026-01-11 13:14: enforced equal 2x2 processing grid blocks and added table scroll behavior within the processing form layout (`fullbox/processing_app/templates/processing/processing.html`).
+- 2026-01-11 13:22: restored processing draft prefill (product name, photo URL, stock rows) after save by loading draft payload in `ProcessingHomeView` and hydrating the form via JS (`fullbox/processing_app/views.py`, `fullbox/processing_app/templates/processing/processing.html`).
+- 2026-01-11 13:25: moved processing status/notifications to left sidebar and removed client-side "Складские остатки" link from processing form (`fullbox/processing_app/templates/processing/processing.html`).
+- 2026-01-11 13:29: merged right-side processing blocks into a single "Параметры обработки" panel spanning two rows (`fullbox/processing_app/templates/processing/processing.html`).
+- 2026-01-11 13:40: added processing parameters table (quality, marking, packaging, inserts, box forming) with draft prefill and payload storage (`fullbox/processing_app/templates/processing/processing.html`, `fullbox/processing_app/views.py`).
+- 2026-01-11 17:15: renamed processing parameter label to "Маркировка 58/40 (шт/чз)" (`fullbox/processing_app/templates/processing/processing.html`).
+- 2026-01-11 17:25: open client draft processing orders in edit form instead of detail view (`fullbox/client_cabinet/views.py`).
+- 2026-01-11 20:00: reduced remaining-items table height in receiving flow with internal scroll and tighter padding (`fullbox/orders/templates/orders/receiving_flow.html`).
+- 2026-01-11 20:21: added closed pallet context menu action to set storage location with modal form and draft save (`fullbox/orders/templates/orders/receiving_flow.html`).
+- 2026-01-14 09:18: added closed box context menu actions for copy/print and pallet box batch QR printing with a copy-count modal (`fullbox/orders/templates/orders/receiving_flow.html`).
+- 2026-01-14 09:47: adjusted copied box insertion to follow the source box and keep open boxes at the end of pallet order (`fullbox/orders/templates/orders/receiving_flow.html`).
+- 2026-01-14 09:58: tuned task card colors so receiving tasks are light green and processing tasks are light blue (`fullbox/todo/templates/todo/_task_panel.html`).
+- 2026-01-14 10:01: hid assignee/due line on storekeeper board for receiving/processing order tasks (`fullbox/todo/templates/todo/_task_panel.html`).
+- 2026-01-14 18:36: added processing order manager approval/edit flow with task creation and journal logging (`fullbox/processing_app/views.py`, `fullbox/processing_app/templates/processing/processing.html`, `fullbox/orders/templates/orders/detail.html`).
+- 2026-01-14 21:33: locked processing stock items by active processing orders (added goods_type to processing cards, filtered stock picker, and blocked duplicate submissions) (`fullbox/processing_app/views.py`, `fullbox/processing_app/templates/processing/processing.html`).
+- 2026-01-14 22:20: added inventory state records for processing reservations and subtracted them from available stock (`fullbox/sklad/models.py`, `fullbox/sklad/migrations/0001_inventory_state.py`, `fullbox/processing_app/views.py`, `fullbox/processing_app/templates/processing/processing.html`).
+- 2026-01-15 08:45: added manager-specific processing edit template and status label handling, wired template selection for manager edit flow (`fullbox/processing_app/templates/processing/processing_manager.html`, `fullbox/processing_app/views.py`).
+- 2026-01-15 09:06: replaced processing "Раскоробовка" block with non-empty processing parameters list in order detail (`fullbox/processing_app/views.py`, `fullbox/orders/templates/orders/detail.html`).
+- 2026-01-15 09:05: removed processing detail table from main column and renamed right-side "Информация" to "Детали заявки" in order detail (`fullbox/orders/templates/orders/detail.html`).
+- 2026-01-15 09:17: removed manager edit sidebar navigation links from processing edit template (`fullbox/processing_app/templates/processing/processing_manager.html`).
+- 2026-01-15 09:23: after manager approval, processing orders are marked as sent to processing head and create processing_head tasks (`fullbox/processing_app/views.py`).
+- 2026-01-15 09:51: show processing head as current responsible for processing orders after manager approval (`fullbox/orders/views.py`).
+- 2026-01-15 09:54: show processing head as responsible in processing status history rows (`fullbox/orders/views.py`).
+- 2026-01-15 10:01: removed extra navigation buttons from the processing head cabinet sidebar (`fullbox/templates/processing_head/dashboard.html`).
+- 2026-01-15 10:05: added processing journal button in processing head cabinet and added journal filter by order type (`fullbox/templates/processing_head/dashboard.html`, `fullbox/orders/views.py`).
+- 2026-01-15 10:08: allowed processing head role to open processing order detail pages (`fullbox/processing_app/views.py`).
+- 2026-01-15 10:12: allowed processing head role to open orders journal and forced processing-only filter for that role (`fullbox/orders/views.py`).
+- 2026-01-15 10:25: added processing work view/template and "Принять в работу" action for processing orders, with status logging and responsible display updates (`fullbox/processing_app/views.py`, `fullbox/processing_app/urls.py`, `fullbox/processing_app/templates/processing/processing_work.html`, `fullbox/orders/templates/orders/detail.html`, `fullbox/orders/views.py`).
+- 2026-01-15 11:52: keep processing_head task open when taking processing order in work (set status to in_progress, not done) (`fullbox/processing_app/views.py`).
+- 2026-01-15 12:01: reopen processing_head tasks when status is "Взята в работу" and update task status without excluding done (`fullbox/processing_app/views.py`).
+- 2026-01-15 12:06: task panel now prefers open tasks over done tasks when multiple tasks share the same route (`fullbox/todo/templatetags/todo_panel.py`).
+- 2026-01-15 12:18: task panel treats processing orders with status "Взята в работу" as in-progress so they don't appear in "Готово" (`fullbox/todo/templatetags/todo_panel.py`).
+- 2026-01-15 12:30: processing tasks with status "Взята в работу" now link to the work template instead of the detail page (`fullbox/todo/templatetags/todo_panel.py`).
+- 2026-01-15 13:15: customized processing work template for processing head (view-only params, finish/return buttons) and added finish-processing action (`fullbox/processing_app/templates/processing/processing_work.html`, `fullbox/processing_app/views.py`).
+- 2026-01-15 13:35: added per-item processing card template and route, plus "Открыть карту обработки" button in work view (`fullbox/processing_app/templates/processing/processing_card.html`, `fullbox/processing_app/templates/processing/processing_work.html`, `fullbox/processing_app/views.py`, `fullbox/processing_app/urls.py`).
+- 2026-01-15 15:57: added reachtruck cabinet with pallet move workflow, move audit journal, driver role/user, and location updates to placement acts (`fullbox/reachtruck`, `fullbox/audit`, `fullbox/employees`, `fullbox/fullbox`, templates).
+- 2026-01-15 16:58: added marketplace field (highlighted) to processing parameters with payload support (`fullbox/processing_app/views.py`, `fullbox/processing_app/templates/processing/processing.html`, `fullbox/processing_app/templates/processing/processing_manager.html`, `fullbox/processing_app/templates/processing/processing_work.html`).
+- 2026-01-15 21:10: added marketplace warehouse sync for head manager (sync view + form, client lookup, save with meta, WB error handling tweaks) (`fullbox/head_manager/views.py`, `fullbox/head_manager/urls.py`, `fullbox/head_manager/templates/head_manager/marketplace_warehouses.html`).
+- 2026-01-16 03:24: reviewed repo structure and core docs plus Django settings/urls/views to refresh project understanding.
+- 2026-01-16 03:25: checked recent action log to answer what was done yesterday.
+- 2026-01-16 03:28: diagnosed head manager 500 as task_panel role_filter bug and guarded filtering in `fullbox/todo/templatetags/todo_panel.py`.
+- 2026-01-16 03:30: deployed updated `fullbox/todo/templatetags/todo_panel.py` to server and restarted `fullbox` service.
+- 2026-01-16 03:43: investigated marketplace sync errors (WB DNS/endpoint, Ozon empty list), updated WB endpoint/error handling and Ozon empty-list message, deployed `fullbox/head_manager/views.py`, restarted `fullbox`.
+- 2026-01-16 03:45: checked Keizi WB credentials on server; token present but marketplace warehouses call returns 401 token scope not allowed.
+- 2026-01-16 03:46: checked Keizi Ozon credentials; API responds 200 with empty warehouse list (tokens valid, but no warehouses returned).
+- 2026-01-16 03:48: validated Ozon Keizi endpoints for warehouse/delivery-method lists; all return empty lists with 200, indicating no warehouses/delivery methods available for the credentials.
+- 2026-01-16 03:55: attempted to open Ozon seller API docs for WarehouseList; docs site returns 403/redirect loop from CLI, unable to fetch content.
+- 2026-01-16 03:58: reviewed user-provided Ozon WarehouseList doc screenshot and extracted endpoint/params/rate limit details.
+- 2026-01-16 04:00: reviewed second Ozon WarehouseList screenshot with response schema/fields and example response.
+- 2026-01-16 04:05: tested Ozon /v1/cluster/list for Keizi; requires numeric cluster_type (1/2) and returns clusters list (key `clusters`).
+- 2026-01-16 04:09: added Ozon cluster list fallback in `fullbox/head_manager/views.py` and deployed to server with restart.
+- 2026-01-16 04:14: checked all WB client tokens on server; all existing WB credentials return 401 token scope not allowed for warehouse list.
+- 2026-01-16 04:25: traced /orders/processing/directions route usage in processing templates and views to explain the link purpose.
+- 2026-01-16 04:35: added "Нераспределенный товар" column, remaining-qty logic, and spinnerless numeric inputs in `fullbox/processing_app/templates/processing/processing_directions.html`, deployed and restarted `fullbox`.
+- 2026-01-16 12:18: adjusted available_printers.json reader to use utf-8-sig (BOM safe) and deployed updated \ullbox/processing_app/views.py\, restarted fullbox.
+- 2026-01-16 12:22: updated processing card layout to full width, merged sizes with per-direction shipment tables, renamed sizes block to 'Всего к обработке', simplified directions summary to cities only, removed 'Посмотреть' button, added results block with editable inputs and validation before closing, and added return-to-processing link to work form (templates + views).
+- 2026-01-16 12:22: added printers sidebar with available printers list, sync button, and server-side loader for available_printers.json; created sync_printers.ps1 to collect local printers and upload list; fixed script variable interpolation issues.
+- 2026-01-16 12:22: fixed available_printers.json BOM handling via utf-8-sig reader, deployed views.py and restarted fullbox.
+- 2026-01-18 19:35: added autosave draft when opening processing directions and JSON autosave response; updated processing templates JS to save draft before navigation.
+- 2026-01-18 19:37: deployed processing autosave changes to server and restarted fullbox service.
+- 2026-01-18 20:09: updated journal.md with entries for 2026-01-17 and 2026-01-18; uploaded journal to server.
+- 2026-01-18 20:13: revised journal entries for 2026-01-17/2026-01-18 with label app and autosave details; uploaded journal to server.
+- 2026-01-20 07:02: listed repo root; reviewed README.md, description.md, and PROJECT_CONTEXT.md to refresh project understanding.
+- 2026-01-20 07:20: tried to fetch /labels/settings in CLI (403); reviewed labels settings view, urls, and template locally for analysis.
+- 2026-01-20 07:28: restyled labels/settings template to match head manager dashboard layout and navigation.
+- 2026-01-20 07:30: uploaded labels/settings template to server and restarted fullbox service.
+- 2026-01-20 07:36: added tab buttons on labels/settings to show only one block (labels/scanners/printers) and deployed the template; restarted fullbox service.
+- 2026-01-20 07:40: laid out label preview cards in a single horizontal row with scroll and deployed the template; restarted fullbox service.
+- 2026-01-20 07:46: widened label preview cards for horizontal fit in labels/settings and deployed; restarted fullbox service.
+- 2026-01-20 08:19: switched label preview list to a single horizontal row (one card per view) with scroll-snap; deployed and restarted fullbox service.
+- 2026-01-20 08:23: added label size tabs (item/box/pallet) to show only the selected preview card on labels/settings; deployed and restarted fullbox service.
+- 2026-01-20 08:28: removed per-label preview scaling in labels/settings to keep previews at real size; deployed and restarted fullbox service.
+- 2026-01-20 08:31: moved the labels/settings header panel (title + tabs) from main column to the right rail; deployed and restarted fullbox service.
+- 2026-01-20 08:38: compacted labels tab header/fields to free vertical space for the preview area; deployed and restarted fullbox service.
+- 2026-01-20 08:45: enforced 1:1 label preview scale in labels/settings to prevent shifted previews; deployed and restarted fullbox service.
+- 2026-01-20 08:53: stopped label preview card from stretching to full height on labels/settings; deployed and restarted fullbox service.
+- 2026-01-20 08:58: resized label preview cards to shrink-to-fit and avoid stretching inside labels/settings; deployed and restarted fullbox service.
+- 2026-01-20 09:05: doubled label preview scale and compacted label inputs/buttons for labels/settings; deployed and restarted fullbox service.
+- 2026-01-20 09:10: further compacted label inputs and enlarged label preview scale for labels/settings; deployed and restarted fullbox service.
+- 2026-01-20 09:19: replaced label input grid with a table that controls text and font size, and wired live font-size updates in label previews; deployed and restarted fullbox service.
+- 2026-01-20 09:21: made labels settings table shrink-to-fit instead of full-width; deployed and restarted fullbox service.
+- 2026-01-20 09:23: constrained labels settings table to max-content width and fixed input widths; deployed and restarted fullbox service.
+- 2026-01-20 09:45: added label settings save/refresh flow with per-size persistence and applied saved font sizes in SKU/processing label previews; deployed and restarted fullbox service.
+- 2026-01-20 10:17: ensured labels settings table always triggers live preview updates on input/change; deployed and restarted fullbox service.
+- 2026-01-20 10:31: forced font-size overrides in label previews to apply immediately; deployed and restarted fullbox service.
+- 2026-01-20 12:44: switched label font-size updates to CSS variables (labels/settings, SKU, processing), updated font-size inputs, deployed templates, and restarted fullbox service.
+- 2026-01-20 13:09: added inline font-size fallback updates in labels settings preview to reflect changes instantly; deployed and restarted fullbox service.
+- 2026-01-20 13:24: added style-tag fallback with !important for label font sizes in settings preview to ensure live updates; deployed and restarted fullbox service.
+- 2026-01-20 13:48: removed early return and added label preview selector fallback in labels settings JS; deployed and restarted fullbox service.
+- 2026-01-20 14:18: added a separate labels settings preview binder script (table -> preview) to force live updates; deployed and restarted fullbox service.
+- 2026-01-20 14:31: switched live preview font-size application to px (from mm) to force visible size changes; deployed and restarted fullbox service.
+- 2026-01-20 14:45: disabled legacy label settings JS and rebuilt label preview binding (table->preview, size/mode/save/refresh) with a new script; deployed and restarted fullbox service.
+- 2026-01-20 16:21: added font-size transform scaling fallback in labels settings preview (to force visible size changes), deployed and restarted fullbox service.
+- 2026-01-20 16:39: switched labels settings preview font-size updates to CSS variables on the label preview root to reflect live mm sizing; pending deploy.
+- 2026-01-20 16:41: deployed label preview CSS-variable font-size binding update in labels/settings and restarted fullbox service.
+- 2026-01-20 17:12: forced labels settings preview font sizes to apply via CSS variables and inline font-size (px) per field for immediate visual updates; pending deploy.
+- 2026-01-20 17:13: deployed labels settings preview inline font-size enforcement and restarted fullbox service.
+- 2026-01-20 17:26: moved label preview font sizing into setInfoLine/setNoCzLine and applied inline font-size per field to force immediate updates; pending deploy.
+- 2026-01-20 17:26: deployed inline per-line font sizing for labels settings preview and restarted fullbox service.
+- 2026-01-20 18:06: added inline font-size application to the active labels settings preview script (setInfoLine/setNoCzLine) to fix font size updates; pending deploy.
+- 2026-01-20 18:07: deployed active-script inline font sizing fix for labels settings preview and restarted fullbox service.
+- 2026-01-20 18:14: self-hosted JsBarcode for labels settings preview (added ullbox/static/vendor/jsbarcode.min.js and switched script tags to local static); deployed and restarted fullbox service.
+- 2026-01-20 18:20: increased the 4th (bottom) no-CZ label row by 5mm and reduced the country/size row by 5mm via new --no-cz-row-base grid sizing; pending deploy.
+- 2026-01-20 18:21: deployed no-CZ label row height adjustment (+5mm to bottom row) and restarted fullbox service.
+- 2026-01-20 18:24: anchored no-CZ barcode block to the bottom of the 4th row so it renders in the lower label area; pending deploy.
+- 2026-01-20 18:26: deployed no-CZ bottom barcode alignment changes and restarted fullbox service.
+- 2026-01-20 18:30: copied jsbarcode/qrcode assets into /opt/fullbox/staticfiles/vendor to ensure /static loads them; restarted fullbox service.
+- 2026-01-20 18:34: switched labels/settings script tags to Django static URLs (load static) for jsbarcode/qrcode assets; pending deploy.
+- 2026-01-20 18:35: deployed Django static-tag script URLs for jsbarcode/qrcode in labels settings and restarted fullbox service.
+- 2026-01-21 10:36: moved static assets into /opt/fullbox/fullbox/staticfiles/vendor and switched labels/settings script tags back to absolute /static URLs; restarted fullbox service.
+- 2026-01-21 10:47: added EAN13 checksum validation with CODE128 fallback in labels settings barcode rendering to prevent JsBarcode failures; deployed and restarted fullbox service.
+- 2026-01-21 10:53: narrowed barcode block by adding 3mm left/right padding in CZ and no-CZ barcode containers; pending deploy.
+- 2026-01-21 10:54: deployed barcode left/right padding (3mm) update in label preview and restarted fullbox service.
+- 2026-01-21 11:13: added print button overlay on label preview cards and simple print popup rendering current preview HTML; pending deploy.
+- 2026-01-21 11:14: deployed label preview print button and restarted fullbox service.
+- 2026-01-21 11:17: positioned label stage relative and raised print button z-index so the preview print button is visible; pending deploy.
+- 2026-01-21 11:18: deployed label stage positioning fix for print button visibility and restarted fullbox service.
+- 2026-01-21 11:25: moved label print button into the card header row (next to title) and removed overlay placement; pending deploy.
+- 2026-01-21 11:26: deployed label print button position change and restarted fullbox service.
+- 2026-01-21 11:34: added printers mini-card to labels tab and synced printer inputs/sync buttons via data attributes; pending deploy.
+- 2026-01-21 11:35: deployed labels tab printers mini-card and input sync changes; restarted fullbox service.
+- 2026-01-21 11:39: moved the printers mini-card into the labels card grid, enabled flex-wrap for label cards, and added a warm highlight background for the labels panel; pending deploy.
+- 2026-01-21 11:40: deployed labels panel color highlight and responsive card wrapping updates; restarted fullbox service.
+- 2026-01-21 11:44: added print status and agent availability rows to the labels-tab printers card; pending deploy.
+- 2026-01-21 11:45: deployed print status/agent lines in labels printers card and restarted fullbox service.
+- 2026-01-21 11:56: added real print agent status tracking (heartbeat file updated on print-agent poll), surfaced queue/error info in labels printers card, and deployed/restarted fullbox service.
+- 2026-01-21 12:00: fixed labels settings print button to inject CSS inside <style> and trigger print on window load with fallback timeout; pending deploy.
+- 2026-01-21 12:01: deployed labels settings print button timing/CSS fix and restarted fullbox service.
+- 2026-01-21 12:24: added html2canvas vendor, switched labels settings font-size updates to CSS variables, and wired labels print button to enqueue real print jobs with immediate status UI updates; pending deploy.
+- 2026-01-21 12:33: copied html2canvas.min.js to /opt/fullbox/fullbox/staticfiles/vendor and uploaded labels/settings.html to the server.
+- 2026-01-21 12:58: updated journal.md with detailed entries for 2026-01-18 through 2026-01-21.
+- 2026-01-21 13:00: uploaded journal.md to /opt/fullbox/journal.md on the server.
+- 2026-01-21 13:11: improved labels/settings print queue error/status feedback (status line updates, CSRF fallback, image build failure handling) and uploaded settings.html to the server.
+- 2026-01-21 13:28: fixed missing applyFontSizes in labels/settings print script (prevented JS errors and print handler execution) and uploaded settings.html to the server.
+- 2026-01-21 13:40: removed dead JS block (duplicate handlers) from labels/settings to avoid script parsing issues and uploaded settings.html to the server.
+- 2026-01-22 13:35: reviewed README.md, PROJECT_CONTEXT.md, description.md, and app directory list to refresh project overview.
+- 2026-01-22 13:45: reviewed labels app (urls.py, views.py, utils.py, templates) to summarize label settings, preview, and printing flow.
+- 2026-01-22 16:10: inspected labels settings JS and processing_app print job endpoints to investigate print button no-op reports.
+- 2026-01-22 16:20: switched labels settings JSON embedding to Django json_script to avoid script breakage from unsafe label settings content.
+- 2026-01-22 17:13: added print agent logging for selected printer resolution per job.
+- 2026-01-22 17:15: added print agent logging for label image pixel size, embedded DPI, and target size at printer DPI.
+- 2026-01-22 17:23: reviewed screenshot showing /orders/processing/print-agent/script/ invalid token response and confirmed direct script link requires token.
+- 2026-01-22 17:42: checked server .env and confirmed PRINT_AGENT_TOKEN is present (masked in output) while diagnosing print agent 403 errors.
+- 2026-01-22 17:51: adjusted labels settings html2canvas print scale to ~203 DPI to reduce downscaling on TE200.
+- 2026-01-22 18:00: raised no-CZ barcode block by 3mm via bottom padding adjustment in label styles.
+- 2026-01-22 18:20: added label field enable checkboxes with 30-char truncation and propagated settings to SKU/processing label previews.
+- 2026-01-23 12:21: reviewed README.md, description.md, requirements.txt, PROJECT_CONTEXT.md, and app directory list to study project structure.
+- 2026-01-23 12:23: reviewed labels module (urls, views, utils, templates) to understand label settings and printing flow.
+- 2026-01-23 12:26: removed label mode toggle and refresh button from labels settings header, leaving only Save.
+- 2026-01-23 12:40: made labels settings table values per-label size (draft caching per size, preview updates only active label).
+- 2026-01-23 13:32: изучил структуру репозитория и основные документы (README.md, description.md, PROJECT_CONTEXT.md), просмотрел настройки Django в fullbox/fullbox/settings.py.
+- 2026-01-23 13:57: посмотрел processing_app/models.py и processing_app/views.py, чтобы понять текущую обработку заявок и наличие учета ЧЗ (учета кодов пока нет).
+- 2026-01-23 14:17: добавил приложение marking для учета кодов ЧЗ, API сканирования/импорта/сводки и интеграцию с processing_work (UI + подсчет), создал миграцию.
+- 2026-01-24 10:39: обновил journal.md записью за 2026-01-23 (учет ЧЗ и деплой).
+- 2026-01-24 10:41: добавил запись в journal.md за 2026-01-22 и подготовил обновление на сервере.
+- 2026-01-24 10:59: обновил дизайн этикетки "Товар 58x40 ЧЗ" (бейдж ЧЗ и настройки QR-зоны).
+- 2026-01-24 11:13: переработал макет "Товар 58x40 ЧЗ" под образец (новая разметка строк, префиксы, QR-код с подписью).
+- 2026-01-24 11:36: залил обновления этикетки "Товар 58x40 ЧЗ" на сервер и перезапустил fullbox.
+- 2026-01-24 11:43: очистил макет "Товар 58x40 ЧЗ" и оставил сетку 6x6 для нового дизайна.
+- 2026-01-24 11:45: залил очищенный макет "Товар 58x40 ЧЗ" (сетка 6x6) на сервер и перезапустил fullbox.
+- 2026-01-24 11:47: поменял сетку "Товар 58x40 ЧЗ" на 10x10.
+- 2026-01-24 11:49: настроил сетку "Товар 58x40 ЧЗ" как 6 по горизонтали и 10 по вертикали.
+- 2026-01-24 11:51: переключил сетку "Товар 58x40 ЧЗ" на 10 по горизонтали и 6 по вертикали.
+- 2026-01-24 11:59: добавил разметку под образец (блок ШК слева и QR/ЧЗ справа) поверх сетки 10x6.
+- 2026-01-24 12:06: заменил красные зоны на реальные элементы (вертикальный штрихкод и QR ЧЗ) для "Товар 58x40 ЧЗ".
+- 2026-01-24 12:15: расширил зону QR на одну клетку вправо для "Товар 58x40 ЧЗ".
+- 2026-01-24 12:17: сделал QR в зоне ЧЗ квадратным и вписал в доступную область.
+- 2026-01-24 12:24: добавил строку "Код ЧЗ" в таблицу настроек (только для item_cz) и связал QR с этим значением.
+- 2026-01-25 07:53: привязал размер цифр штрихкода к настройке шрифта ШК для "Товар 58x40 ЧЗ".
+- 2026-01-25 07:57: вывел текст "Код ЧЗ" под QR в выделенной зоне и связал с настройками шрифта.
+- 2026-01-25 08:03: добавил поле "Код ЧЗ" в список сохраняемых полей таблицы настроек.
+- 2026-01-25 08:07: включил перенос "Код ЧЗ" внутри своей зоны под QR (без выхода за границы).
+- 2026-01-25 08:12: увеличил зону "Код ЧЗ" до 4 строк под QR (QR сократил до 2 строк) для полного отображения кода.
+- 2026-01-25 08:15: вернул размеры зоны QR/Код ЧЗ к предыдущим (QR 3 строки, код 1 строка).
+- 2026-01-25 08:17: снял обрезку текста "Код ЧЗ" в зоне под QR.
+- 2026-01-25 08:22: убрал лимит 30 символов для поля "Код ЧЗ" при сохранении настроек.
+- 2026-01-25 08:28: добавил EAC PNG в правый нижний угол (зона 2x2) для "Товар 58x40 ЧЗ".
+- 2026-01-25 08:31: увеличил EAC на 40% и прижал к правому нижнему углу зоны.
+- 2026-01-25 08:37: заменил EAC PNG на предоставленный файл.
+- 2026-01-25 08:39: уменьшил EAC на 40% (scale 0.84) и сохранил привязку к правому нижнему углу.
+- 2026-01-25 08:42: добавил строку "Арт." в верхние 6 клеток слева и связал с размером шрифта артикула.
+- 2026-01-25 08:52: разложил поля бренд/название/цвет/состав/поставщик по зонам и включил префикс "Арт." только для item_cz.
+- 2026-01-25 08:58: сделал перенос до 2 строк с обрезкой и прижал текст полей к верхней линии; добавил префиксы "Бренд:" и "Поставщик:" для item_cz.
+- 2026-01-25 08:02: изучил структуру проекта (README.md, description.md, requirements.txt, DEPLOY.md, PROJECT_CONTEXT.md) и список приложений в `fullbox/`.
+- 2026-01-25 09:16: очистил шаблон "Короб · 58x60" и развернул предпросмотр горизонтально (swap width/height в CSS).
+- 2026-01-25 09:19: добавил подписи размеров вдоль сторон для этикетки "Короб · 58x60" (60 мм по горизонтали, 58 мм по вертикали).
+- 2026-01-25 09:21: вынес подписи размеров "Короб · 58x60" за пределы рамки.
+- 2026-01-25 09:28: добавил сетку 10x10 для "Короб · 58x60" и отключил ее при печати.
+- 2026-01-25 09:36: добавил поля таблицы для "Короб · 58x60" (Клиент, Основание, Номер короба на палете) и показ только коробных строк в таблице.
+- 2026-01-25 09:48: добавил колонки "Основание" и "Клиент" на этикетке короба с поворотом текста на 90 градусов.
+- 2026-01-25 09:51: развернул текст колонок "Основание" и "Клиент" на 180 градусов.
+- 2026-01-25 09:56: выровнял текст колонок короба по правой границе, включил перенос на 2 строки с обрезкой.
+- 2026-01-25 09:59: исправил отображение текста в колонках короба (корректный размер и обрезка до 2 строк без пропажи).
+- 2026-01-25 10:03: переработал разметку колонок короба, чтобы текст отображался и обрезался до 2 строк при правом выравнивании.
+- 2026-01-25 10:10: пересобрал позиционирование повернутого текста в колонках короба (прижим к правой линии, перенос до 2 строк, обрезка).
+- 2026-01-25 11:03: упростил позиционирование повернутого текста в колонках короба (убрал translate), чтобы текст отображался.
+- 2026-01-25 11:06: снял обрезку текста в колонках короба и разрешил переполнение.
+- 2026-01-25 11:10: перевел текст колонок короба в vertical-rl с поворотом 180°, ограничением до 2 колонок и обрезкой.
+- 2026-01-25 13:15: вернул поворот текста на 90° с фиксированным блоком и clamp до 2 строк, чтобы текст был видим внутри колонок короба.
+- 2026-01-25 13:19: очистил макет короба и оставил только 1-й столбец (Основание) и 2-й столбец (Клиент) без доп. элементов.
+- 2026-01-25 13:24: повернул текст в двух столбцах короба на 90°.
+- 2026-01-25 13:27: вернул сетку 10x10 для короба и перевел текст столбцов в vertical-rl на всю высоту колонки.
+- 2026-01-25 13:28: выровнял текст в столбцах короба по вертикальному центру.
+- 2026-01-25 13:31: поменял text-orientation на sideways для поворота всех символов (включая №) в столбцах короба.
+- 2026-01-25 13:41: добавил заголовок "Короб - ШК для короба" в верхнюю строку с 3-й клетки для этикетки короба.
+- 2026-01-25 13:44: связал заголовок короба с полем ШК (текст "Короб - {ШК}") и размером шрифта ШК.
+- 2026-01-25 13:47: выровнял заголовок короба по центру верхней зоны.
+- 2026-01-25 14:50: добавил зону QR и номер короба в правом нижнем углу, включил показ QR для короба.
+- 2026-01-25 14:52: убрал префикс "№" у номера короба, теперь выводится только цифра.
+- 2026-01-25 15:03: развернул этикетку паллеты (swap width/height) и добавил сетку 10x10, скрываемую при печати.
+- 2026-01-25 15:09: перенес блок "Принтеры" рядом с таблицей настроек этикетки.
+- 2026-01-25 15:11: очистил макет паллеты, оставил только сетку 10x10.
+- 2026-01-25 15:14: развернул блок паллеты (stage/print) через swap ширины/высоты для корректного отображения.
+- 2026-01-25 15:46: убрал двойной swap размеров паллеты, чтобы сетка не выходила за блок.
+- 2026-01-25 09:18: обновил `journal.md` записями за 2026-01-24 и 2026-01-25.
+- 2026-01-25 09:20: дополнил `journal.md` подробным списком изменений за 2026-01-25.
+- 2026-01-25 09:20: добавил в `journal.md` пункт про подписи размеров для этикетки "Короб · 58x60".
+- 2026-01-25 09:21: закоммитил изменения и отправил их в GitHub (commit 962913e).
+- 2026-01-25 10:07: дополнил `journal.md` пунктами по изменениям этикетки короба (сетка, поля, колонки, выравнивание).
+- 2026-01-25 10:10: закоммитил изменения по этикетке короба и журналу (commit a991bca) и отправил в GitHub.
+- 2026-01-25 10:10: задеплоил обновления на сервер через scp (шаблоны/утилиты labels, `journal.md`, `PROJECT_CONTEXT.md`), перезапустил `fullbox`.
+- 2026-01-25 11:04: начал исследование синхронизации маркетплейсов (market-sync).
+- 2026-01-25 11:06: изучил `market_sync` (dashboard/настройки/эндпоинты WB/Ozon), проверил страницу `/market-sync/?client=2951` через curl.
+- 2026-01-25 11:18: добавил отчеты по синхронизации маркетплейсов (модель, endpoint отчета, вывод на страницах market-sync).
+- 2026-01-25 11:20: задеплоил обновления market-sync (модели/вью/шаблоны), применил миграции (market_sync, marking, processing_app, sklad) и перезапустил `fullbox`.
+- 2026-01-25 13:17: исправил 500 на `/market-sync/` — применил миграцию `market_sync` в prod с `.env` (Postgres), перезапустил `fullbox`, проверил 200.
+- 2026-01-25 13:24: добавил на dashboard market-sync синхронизацию и отчет для Ozon (отдельная карточка + запуск), обновил JS на запуск всех настроенных маркетплейсов.
+- 2026-01-25 13:26: задеплоил обновления market-sync dashboard (WB+Ozon) на сервер, перезапустил `fullbox`, проверил 200.
+- 2026-01-25 19:27: проверил HTML страницы market-sync (клиент 2951) на сервере, подтвердил наличие карточки Ozon.
+- 2026-01-26 01:01: проверил наличие приложения `marking` (Честный знак) и его маршруты в коде.
+- 2026-01-26 01:02: проверил интеграцию `marking` в processing_app (API/шаблоны/роуты).
+- 2026-01-25 17:23: уменьшил карточку паллеты 75x120 на 30% (scale 1.4).
+- 2026-01-25 17:30: сделал макет паллеты как у короба (таблица/расположение, QR, заголовок).
+- 2026-01-25 17:39: для паллеты копирование настроек из короба при первом открытии и QR по ШК.
+- 2026-01-25 17:52: сделал QR квадратным через авторазмер и центрирование, добавил fallback копирования полей короба для паллеты.
+- 2026-01-25 18:02: уменьшил и зафиксировал квадратный QR (85% от меньшей стороны зоны).
+- 2026-01-25 19:12: добавил проверку наличия ЧЗ для маркировки 58/40 (шт/чз) в заявке на обработку, файл импорта ЧЗ и API проверки.
+- 2026-01-25 19:26: исправил импорт ЧЗ: первая строка всегда заголовок, импорт работает и в черновике.
+- 2026-01-25 19:35: изменил импорт ЧЗ для сохранения всех кодов в базе, даже вне текущей заявки.
+- 2026-01-26 20:41: исследовал проект (структура репозитория, список приложений), просмотрел `README.md`, `description.md`, `PROJECT_CONTEXT.md`, `fullbox/fullbox/settings.py`, `fullbox/fullbox/urls.py`.
+- 2026-01-26 20:41: обновил `journal.md` записью за 2026-01-26.
+- 2026-01-26 20:42: задеплоил `journal.md` и `PROJECT_CONTEXT.md` на сервер через scp и перезапустил сервис `fullbox`.
+- 2026-01-26 20:48: исследовал кабинет руководителя обработки: `processing_head` (views/urls, шаблон), `todo_panel`, доступы/маршруты в `processing_app`, `orders`, `reachtruck`, `employees`.
+- 2026-01-26 20:48: обновил `journal.md` записью за 2026-01-26 (кабинет руководителя обработки).
+- 2026-01-26 20:49: задеплоил `journal.md` и `PROJECT_CONTEXT.md` на сервер через scp и перезапустил сервис `fullbox`.
+- 2026-01-26 20:51: проверил страницу обработки заказа №6 в режиме работы на проде — без авторизации возвращает "Доступ запрещен".
+- 2026-01-26 20:51: обновил `journal.md` записью за 2026-01-26 (проверка прод-страницы обработки).
+- 2026-01-26 20:52: задеплоил `journal.md` и `PROJECT_CONTEXT.md` на сервер через scp и перезапустил сервис `fullbox`.
+- 2026-01-26 20:53: проверил наличие шаблона `processing_work.html` на сервере (`/opt/fullbox/fullbox/processing_app/templates/processing/processing_work.html`).
+- 2026-01-26 20:53: обновил `journal.md` записью за 2026-01-26 (проверка шаблона на сервере).
+- 2026-01-26 20:54: задеплоил `journal.md` и `PROJECT_CONTEXT.md` на сервер через scp и перезапустил сервис `fullbox`.
+- 2026-01-26 21:19: удалил блок "Коды ЧЗ" со страницы обработки товара (`processing_work.html`), включая стили и JS.
+- 2026-01-26 21:19: обновил `journal.md` записью за 2026-01-26 (удаление блока ЧЗ).
+- 2026-01-26 21:20: задеплоил `processing_work.html`, `journal.md`, `PROJECT_CONTEXT.md` на сервер, синхронизировал `PROJECT_CONTEXT.md` и перезапустил сервис `fullbox`.
+- 2026-01-27 06:49: перезалил `processing_work.html` в правильный путь `/opt/fullbox/fullbox/processing_app/templates/processing/processing_work.html`, перезапустил `fullbox`, проверил удаление блока "Коды ЧЗ".
+- 2026-01-27 06:49: обновил `journal.md` записью за 2026-01-27 (исправление деплоя `processing_work.html`).
+- 2026-01-27 06:50: задеплоил `journal.md` и `PROJECT_CONTEXT.md` на сервер и перезапустил сервис `fullbox`.
+- 2026-01-27 07:03: добавил кнопку "Переместить в зону обработки" на карточках обработки, модал с предзаполнением кода паллеты и отправкой задания ричтраку через `/reachtruck/` без ухода со страницы (`processing_work.html`).
+- 2026-01-27 07:03: обновил `journal.md` записью за 2026-01-27 (кнопка перемещения в обработку).
+- 2026-01-27 07:04: задеплоил `processing_work.html`, `journal.md`, `PROJECT_CONTEXT.md` на сервер и перезапустил сервис `fullbox`.
+- 2026-01-27 07:05: синхронизировал `PROJECT_CONTEXT.md` на сервере и перезапустил `fullbox`.
+- 2026-01-27 07:15: расширил модал перемещения в обработку — таблица паллет (паллета/текущее место/назначение), поддержка нескольких заданий, добавлен lookup эндпоинт `/reachtruck/lookup/` для отображения текущего места (`processing_work.html`, `reachtruck/views.py`, `reachtruck/urls.py`).
+- 2026-01-27 07:15: обновил `journal.md` записью за 2026-01-27 (расширение модала перемещения).
+- 2026-01-27 07:16: задеплоил `processing_work.html`, `reachtruck/views.py`, `reachtruck/urls.py`, `journal.md`, `PROJECT_CONTEXT.md` на сервер и перезапустил `fullbox`.
+- 2026-01-27 07:17: синхронизировал `journal.md` и `PROJECT_CONTEXT.md` на сервере и перезапустил `fullbox`.
+- 2026-01-27 07:43: проверил карту склада (`stockmap.html`, `stockmap_row.html`): используются зоны PR/OTG/MR/OS, отдельной зоны обработки нет.
+- 2026-01-27 07:43: обновил `journal.md` записью за 2026-01-27 (карта склада/зоны).
+- 2026-01-27 07:44: задеплоил `journal.md` и `PROJECT_CONTEXT.md` на сервер и перезапустил `fullbox`.
+- 2026-01-27 09:13: добавил зону обработки OBR (20 паллет) в карту склада и учёт занятости, расширил нормализацию/ярлыки зон (reachtruck/stockmap/placement act), добавил OBR в селект размещения и ричтрака, изменил назначение перемещений из обработки на OBR.
+- 2026-01-27 09:13: обновил `journal.md` записью за 2026-01-27 (добавление зоны OBR).
+- 2026-01-27 09:14: задеплоил изменения по зоне OBR (`processing_work.html`, `reachtruck` app, `stockmap/views.py`, `orders/placement_act.html`, `journal.md`, `PROJECT_CONTEXT.md`) и перезапустил `fullbox`.
+- 2026-01-27 09:23: в прод БД найдено размещение товара по ШК 4660406800169 на палете `КЗИ-2601-361835-op` (PR · Зона приемки), заявка приемки №12, количество 1000.
+- 2026-01-27 09:23: обновил `journal.md` записью за 2026-01-27 (поиск паллет по ШК).
+- 2026-01-27 09:23: задеплоил `journal.md` и `PROJECT_CONTEXT.md` на сервер и перезапустил `fullbox`.
+- 2026-01-27 09:27: добавил поиск паллет по товару в модалке перемещения (эндпоинт `/reachtruck/lookup-item/`), теперь в таблице подставляются найденные паллеты и места вместо ШК товара (`processing_work.html`, `reachtruck/views.py`, `reachtruck/urls.py`).
+- 2026-01-27 09:27: обновил `journal.md` записью за 2026-01-27 (поиск паллет в модалке).
+- 2026-01-27 09:28: задеплоил `processing_work.html`, `reachtruck` обновления, `journal.md`, `PROJECT_CONTEXT.md` на сервер и перезапустил `fullbox`.
+- 2026-01-27 09:31: обновил поиск паллет в модалке — отправляются все ШК товара, а результат дедуплицируется по паллетам (`processing_work.html`, `reachtruck/views.py`).
+- 2026-01-27 09:31: обновил `journal.md` записью за 2026-01-27 (поиск по всем ШК).
+- 2026-01-27 09:35: убрал автозаполнение поля паллеты ШК товара в модалке перемещения; при отсутствии паллет добавляется пустая строка с подсказкой (`processing_work.html`).
+- 2026-01-27 09:40: в поиске паллет по товару добавил совместное использование ШК и артикула (передаётся `sku` даже при наличии ШК), чтобы подтягивались все паллеты (`processing_work.html`).
+- 2026-01-27 10:42: на карточке обработки скрываю кнопку перемещения при наличии заданий на OBR и показываю статусы перемещения; добавил выдачу статусов по паллете в `/reachtruck/lookup-item/` (`processing_work.html`, `reachtruck/views.py`).
+- 2026-01-27 11:14: при доставке в OBR удаляю паллету и короба из размещения, расширил инвентаризацию на акты размещения из обработки; добавил акт размещения после обработки для заявок processing и требование закрытого акта перед завершением (`reachtruck/views.py`, `processing_app/views.py`, `orders/views.py`, `orders/placement_act.html`, `processing_app/urls.py`).
+- 2026-01-27 11:24: добавил кнопку перехода в акт размещения обработки в блоке параметров на странице обработки (`processing_work.html`).
+- 2026-01-27 12:10: добавил фиксацию завершения обработки по каждой карте товара (processed_at/processed_by, список processed_cards) и кнопку "Обработка завершена" в карте (`processing_app/views.py`, `processing_card.html`).
+- 2026-01-27 12:10: ограничил размещение после обработки только обработанными картами и отмечаю placed_cards/placed_at при закрытии акта (`orders/views.py`).
+- 2026-01-27 12:10: включил режим ЧЗ-размещения: при маркировке 58/40 (шт/чз) размещение доступно только через сканирование ЧЗ с привязкой к коробу, ручной ввод отключён (`orders/placement_act.html`).
+- 2026-01-27 12:10: кнопка размещения обработанного товара на странице обработки активна только при наличии обработанных карт (`processing_work.html`).
+- 2026-01-27 13:30: добавил кнопки печати этикеток (обычные/ЧЗ) в карте обработки и модалку со списком размеров; открытие по `?label_print=1&label_mode=...` (`processing_app/views.py`, `processing_card.html`).
+- 2026-01-27 13:32: задеплоил изменения печати этикеток (`processing_app/views.py`, `processing_card.html`) вместе с `journal.md` и `PROJECT_CONTEXT.md`, перезапустил `fullbox`.
+- 2026-02-01 07:59: просмотрел `README.md`, `description.md`, список приложений в `fullbox/` для изучения проекта; изменений в коде не вносил, деплой не требовался.
+- 2026-02-01 08:02: просмотрел скриншот C:\Users\user\YandexDisk\Скриншоты\2026-02-01_08-02-07.png, перечислил отображаемые тестовые логины сотрудников и клиентов со страницы входа.
+- 2026-02-01 08:01: проверил пароли для тестовых логинов через локальную БД (django auth); у eachtruck_ilya пароль '1' совпал, у eachtruck_driver — нет, остальные логины не найдены в локальной базе (вероятно другая БД).
+- 2026-02-01 08:02: проверил на сервере (prod БД) пароли '1' для тестовых логинов через Django; подтвердил результаты (True у всех, кроме eachtruck_driver).
+- 2026-02-01 08:03: на сервере установил пароль '5' для тестовых логинов (accountant/director/head/manager/picker/reachtruck_driver/reachtruck_ilya/storekeeper/client2638/client2763/client2951).
+- 2026-02-01 08:04: проверил на сервере пароль '5' для всех тестовых логинов — у всех True.
+- 2026-02-01 08:25: в processing_work.html добавил фильтрацию строк параметров обработки — скрываются пустые/нулевые значения и значения вроде 'Отсутствует', чтобы в кабинете разработчика показывались только используемые параметры.
+- 2026-02-01 08:26: задеплоил ullbox/processing_app/templates/processing/processing_work.html на сервер и перезапустил сервис ullbox.
+- 2026-02-01 08:33: добавил кнопку «Распечатать этикетки» в строках маркировки на карточке обработки (processing_card.html), задеплоил на сервер и перезапустил ullbox.
+- 2026-02-01 09:26: увеличил модалку печати этикеток в карточке обработки и добавил превью этикетки прямо в меню (processing_card.html), задеплоил и перезапустил ullbox.
+- 2026-02-01 10:22: синхронизировал параметры/превью печати этикеток в карточке обработки с приложением этикеток: добавил размеры из LABEL_SIZES, масштаб превью, сохранение принтера, печать в масштабе 2.12; обновил меню печати и превью (processing_card.html, processing_app/views.py).
+- 2026-02-01 10:22: задеплоил processing_card.html и processing_app/views.py на сервер и перезапустил fullbox.
+- 2026-02-01 11:00: добавил новую страницу печати этикеток для обработки на базе шаблона labels (processing_label_print.html), автозаполнение таблицы данными текущего товара и строками ШК; добавил ProcessingLabelPrintView, маршрут /orders/processing/<order>/card/<card>/labels/, обновил ссылки печати на новый шаблон (processing_app/views.py, processing_app/urls.py).
+- 2026-02-01 11:00: задеплоил processing_app/views.py, processing_app/urls.py и processing_label_print.html на сервер и перезапустил fullbox.
+- 2026-02-01 11:13: на странице печати этикеток для обработки убрал перезапись текстовых полей из сохранённых шаблонов — теперь таблица остаётся заполненной данными текущего товара (processing_label_print.html).
+- 2026-02-01 11:13: задеплоил processing_label_print.html на сервер и перезапустил fullbox.
+- 2026-02-01 11:25: добавил вывод/использование кодов ЧЗ на странице печати обработки: подтягиваю список кодов по заказу/ШК, для превью беру первый, при печати в режиме ЧЗ отправляю по одному коду на каждую единицу (processing_app/views.py, processing_label_print.html).
+- 2026-02-01 11:25: задеплоил processing_app/views.py и processing_label_print.html на сервер и перезапустил fullbox.
+- 2026-02-01 11:48: исправил передачу списка ЧЗ в data-атрибут (заменил escapejs на escape), чтобы JSON корректно парсился на странице печати обработки (processing_label_print.html).
+- 2026-02-01 11:48: задеплоил processing_label_print.html на сервер и перезапустил fullbox.
+- 2026-02-01 12:03: добавил скачиваемый пакет синхронизации принтеров (zip с sync_printers.ps1 + sync_printers.cmd), эндпоинт /orders/processing/print-agent/sync-printers/, обновил кнопки синхронизации в настройках этикеток и печати (processing_app/views.py, processing_app/urls.py, labels/settings.html, processing_card.html, processing_label_print.html).
+- 2026-02-01 12:03: задеплоил изменения синхронизации принтеров на сервер и перезапустил fullbox.
+- 2026-02-01 12:08: исправил синтаксическую ошибку в processing_app/views.py (cmd_content для пакета синхронизации) и задеплоил фикс, перезапустил fullbox.
+- 2026-02-01 12:10: задеплоил sync_printers.ps1 в /opt/fullbox/ для скачиваемого пакета синхронизации принтеров.
+- 2026-02-01 12:15: добавил нормализацию названий для этикеток/таблицы — заменяю 'общество с ограниченной ответственностью' на 'ООО' при формировании label_base и карточки (processing_app/views.py), задеплоил и перезапустил fullbox.
+- 2026-02-01 12:19: переименовал запускаемый cmd в пакете синхронизации на run_printer_sync.cmd и обновил подсказку (processing_app/views.py, labels/settings.html), задеплоил и перезапустил fullbox.
+- 2026-02-01 12:21: в пакете синхронизации переименовал скрипт на printer_sync.ps1, добавил README и уточнил подсказку (processing_app/views.py, labels/settings.html), задеплоил и перезапустил fullbox.
+- 2026-02-01 12:27: переделал run_printer_sync.cmd на запуск через EncodedCommand (без выполнения ps1-файла), чтобы обходить политику подписи; обновил генерацию пакета и задеплоил, перезапустил fullbox.
+- 2026-02-01 13:40: добавил генерацию единого PDF при выборе PDF-принтера на странице печати этикеток (один файл с страницами размера этикетки); подключил jsPDF и обновил processing_label_print.html.
+- 2026-02-01 13:54: добавил на странице печати этикеток поле количества и прогресс (напечатано/из/осталось), учёл лимит печати и обновил логику печати/PDF, задеплоил processing_label_print.html и перезапустил fullbox.
+- 2026-02-02 07:26: просмотрел README.md, PROJECT_CONTEXT.md, description.md, fullbox/fullbox/settings.py и fullbox/fullbox/urls.py для изучения структуры проекта; изменений в коде не вносил, деплой не требовался.
+- 2026-02-02 07:34: изучил кабинет обработки: processing_app urls/views и шаблоны (processing.html, processing_work.html, processing_card.html, processing_label_print.html), а также processing_head dashboard и маппинг кабинета в employees/access.py; изменений в коде не вносил, деплой не требовался.
+- 2026-02-02 07:37: добавил в journal.md запись за 2026-02-01 (обработка/этикетки/печать/синхронизация принтеров), загрузил journal.md на сервер через scp; изменений в коде не вносил, перезапуск не требовался.
+- 2026-02-02 07:41: изучил кабинет разработчика (developer.html), карточку товара SKU и печать этикеток (sku_form.html, sku/views.py), а также печать этикеток в карте обработки (processing_card.html, processing_app/views.py); изменений в коде не вносил, деплой не требовался.
+- 2026-02-02 07:50: разобрал причину зависания печати этикеток: просмотрел labels/settings.html, processing_app/views.py (очередь печати и агент), print_agent.ps1, labels/utils.py (статус агента); изменений в коде не вносил.
+- 2026-02-02 07:54: по просьбе пользователя очистил очередь печати этикеток на проде (удалены 1980 pending в ProcessingPrintJob) через manage.py shell; изменений в коде не вносил.
+- 2026-02-02 08:08: добавил управление очередью печати (pause/resume/clear) и учёт паузы, вывел счётчики очереди в labels/settings, добавил кнопки управления и скачивания агента; обновил labels/utils.py, labels/views.py, processing_app/views.py, processing_app/urls.py и labels/settings.html.
+- 2026-02-02 08:13: проверил на сервере: в labels/settings.html присутствуют строки очереди (data-print-queue-pending), в processing_app/views.py и urls.py есть обработчики pause; деплой подтверждён.
+- 2026-02-02 08:19: связал страницу печати этикеток обработки (processing_label_print.html) с управлением очередью: добавил строки счётчиков очереди и кнопки pause/clear/скачать агента, обновил JS; задеплоил шаблон и перезапустил fullbox.
+- 2026-02-02 08:20: разрешил управление очередью печати (pause/clear) для ролей storekeeper и processing_head в processing_app/views.py; задеплоил и перезапустил fullbox.
+- 2026-02-02 08:28: добавил сброс статуса "в печати" в очередь (print-jobs/reset) и кнопки "Сбросить печать" в labels/settings и processing_label_print; обновил processing_app/views.py, processing_app/urls.py, labels/settings.html, processing_label_print.html.
+- 2026-02-02 08:36: для страницы печати обработки включил обновление прогресса "Напечатано" и для режима ЧЗ (processing_label_print.html), задеплоил и перезапустил fullbox.
+- 2026-02-02 08:47: добавил сброс напечатанных кодов ЧЗ для обработки: эндпоинт /marking/processing/<order>/print/reset/ и кнопку «Сбросить ЧЗ» на странице печати, обновил JS (marking/urls.py, processing_label_print.html).
+- 2026-02-02 08:48: задеплоил marking/urls.py и processing_label_print.html (сброс ЧЗ), обновил PROJECT_CONTEXT.md на сервере и перезапустил fullbox.
+- 2026-02-02 08:50: исправил Internal Server Error: задеплоил marking/views.py (не хватало processing_marking_reset_printed) и перезапустил fullbox.
+- 2026-02-02 12:59: в карте обработки добавил вывод количества напечатанных этикеток в блоке параметров обработки (Маркировка 58/40 / 58/40 ЧЗ) и синхронизацию счётчика с localStorage; при печати из карты увеличиваю счётчик (processing_card.html).
+- 2026-02-02 12:59: задеплоил processing_card.html (счётчик напечатанных этикеток в параметрах обработки) и перезапустил fullbox.
+- 2026-02-02 13:06: в карте обработки скрываю «Распределение по направлениям», если для товара нет распределения; также не показываю блоки направлений с нулевыми количествами (processing_app/views.py, processing_card.html).
+- 2026-02-02 13:06: задеплоил processing_app/views.py и processing_card.html (скрытие распределения по направлениям без данных) и перезапустил fullbox.
+- 2026-02-02 13:15: отключил завершение обработки из карточки товара, добавил автосохранение результатов при переходе «К обработке» (return_to в save_results, JS submit), обновил processing_card.html и processing_app/views.py.
+- 2026-02-02 13:15: задеплоил processing_app/views.py и processing_card.html (автосохранение результатов при «К обработке», убрано завершение из карточки) и перезапустил fullbox.
+- 2026-02-02 13:23: включил кнопку «Разместить обработанный товар» в обработке, если есть сохранённые результаты с processed > shipped (processing_app/views.py).
+- 2026-02-02 13:23: задеплоил processing_app/views.py (условие доступности кнопки размещения) и перезапустил fullbox.
+- 2026-02-02 14:13: починил переход «К обработке» из карты: добавил action return_to_processing, автосохранение результатов (если есть права) и отметку карты как обработанной для включения размещения; обновил processing_card.html и processing_app/views.py.
+- 2026-02-02 14:13: задеплоил processing_app/views.py и processing_card.html (return_to_processing + отметка обработанной карты) и перезапустил fullbox.
+- 2026-02-02 14:33: сделал отдельный шаблон размещения для обработки: processing_placement_act.html (копия placement_act с пометками «обработка») и подключил его через новый ProcessingPlacementActView в processing_app/views.py и urls.py.
+- 2026-02-02 14:33: задеплоил processing_placement_act.html, processing_app/views.py и processing_app/urls.py, перезапустил fullbox.
+- 2026-02-02 14:41: усилил отличия шаблона размещения обработки (заголовки/кнопки «Размещение после обработки») в processing_placement_act.html.
+- 2026-02-02 14:41: задеплоил обновлённый processing_placement_act.html (видимый заголовок «Размещение после обработки») и перезапустил fullbox.
+- 2026-02-02 15:20: добавил размещение после обработки потоком: новый маршрут /orders/processing/<id>/flow/ и box-action, шаблон processing_flow.html, серверная логика закрытия и черновика; обновил переход в processing_work.html.
+- 2026-02-07 11:05: изучил структуру репозитория, README/description, AGENT.md, DEPLOY.md, LABEL_PRINT.md, fullbox_agent README, настройки/urls Django; note.txt содержит чувствительные данные (без публикации).
+- 2026-02-07 11:28: added diagnostics output for running Tray/Service processes in Fullbox.Agent.Tray DiagnosticsForm (PID list).
+- 2026-02-07 11:34: добавил строку процессов (Tray/Service) вверху окна диагностики (DiagnosticsForm.cs); сборка build.ps1 не запустилась из-за отсутствия dotnet.
+- 2026-02-07 11:43: собрал fullbox_agent через DOTNET_ROOT/PATH (build.ps1); новые бинарники в fullbox_agent/out и bundle; есть предупреждение CS8602 в PrintJobRunner.cs.
+- 2026-02-07 12:01: добавил отображение версии в окне установщика (title/header) и пересобрал fullbox_agent.
+- 2026-02-07 12:16: поднял версии Fullbox.Agent Service/Tray/Setup до 1.0.9 и пересобрал инсталлятор и бинарники.
+- 2026-02-07 12:22: создал копии инсталлятора с версией в имени: Fullbox.Agent.Setup-1.0.9.exe (out/setup и dist).
+- 2026-02-07 12:41: добавил окно/лог сканов в диагностику, записываю last_scan_value; поднял версии агента до 1.0.10, пересобрал и создал инсталлятор Fullbox.Agent.Setup-1.0.10.exe.
+- 2026-02-07 13:10: изучил кабинет руководителя обработки (processing_head) и потоковую страницу обработки (processing_flow: views/urls/template, сканер/агент/Web Serial блок, права).
+- 2026-02-07 13:26: уточнил путь данных сканера в обработке: agent events flow (agent/views.py, processing_flow.html JS polling).
+- 2026-02-07 13:52: в processing_flow снял зависимость списка агентов/COM-портов от наличия placement_entry (агенты грузятся всегда).
+- 2026-02-07 14:12: добавил индикатор агента в processing_flow (UI+JS), обновил AGENT_VERSION до 1.0.10, обновил static/agents инсталлятор и bundle; задеплоил на сервер и перезапустил fullbox.
+- 2026-02-07 14:32: починил прием agent event_type (добавил eventType/type) и задеплоил agent/views.py, перезапустил fullbox.
+- 2026-02-07 14:45: выяснил 403 на /orders/processing/<id>/flow/scan/; расширил доступ для обработки ЧЗ (processing_head/head_manager/director/admin/manager), вернул JSON-ошибку, задеплоил и перезапустил fullbox.
+- 2026-02-08 09:43: уменьшил блок сканера в processing_flow (оставил только базовые поля), задеплоил шаблон и перезапустил fullbox.
+- 2026-02-08 17:24: убрал блок агента (селект/ID/статусы) из сканера в processing_flow, оставил только кнопку «Скачать агента», задеплоил и перезапустил fullbox.
+- 2026-02-08 17:30: убрал блок Web Serial (COM) из сканера в processing_flow, вернул статус/индикатор агента, задеплоил и перезапустил fullbox.
+- 2026-02-08 18:03: добавил серверный контекст/лок агента (AgentContext), привязку событий к контексту, polling по context_id и claim/keepalive в processing_flow; подготовлены миграции и изменения в agent/views.py/urls.py/models.py.
+- 2026-02-08 18:05: задеплоил agent context (модели/вьюхи/шаблон), применил миграцию agent.0003 и перезапустил fullbox.
+- 2026-02-08 18:08: добавил кнопку «Перехватить сканер» (force claim контекста агента) в processing_flow, обновил логику контекста и задеплоил.
+- 2026-02-08 18:20: повторно применил миграцию agent.0003 с загрузкой .env (PostgreSQL), перезапустил fullbox — исправление 500 на /agent/contexts/claim/.
+- 2026-02-09 09:53: добавил в claim контекста статус онлайн агента и обновление статуса сканера на фронте без перезагрузки, задеплоил и перезапустил fullbox.
+- 2026-02-09 10:54: синхронизировал состояние сканера с агентом (com_health из ping), обновил фронт статуса/индикатора и задеплоил.
+- 2026-02-09 11:02: добавил polling /agent/status/ для live-статуса сканера без перезагрузки, обновил фронт отображения.
+- 2026-02-10 14:35: вернул выбор агента в processing_flow (селект/ID/инфо), добавил авто-выбор единственного/онлайн агента и уточнил подсказку про ID.
+- 2026-02-10 14:38: задеплоил processing_flow.html (выбор агента/auto-pick) на сервер и перезапустил сервис fullbox.
+- 2026-02-10 14:52: разделил статусы в processing_flow: добавил строку 'Контекст', перенес busy/ошибка туда, переименовал статус сканирования; задеплоил и перезапустил fullbox.
+- 2026-02-10 19:05: добавил общий просмотр коробов между пользователями в processing_flow (shared state + polling), owner-поля у коробов/палет, запрет редактировать чужие; добавил endpoint /flow/shared/, обновил views.py/urls.py/processing_flow.html; задеплоил и перезапустил fullbox.
+- 2026-02-10 19:16: убрал из processing_flow блок выбора/ID агента и строки статуса сканера (последний код/время/скан), оставил кнопки; добавил scanner-agents-data для авто-выбора; задеплоил и перезапустил fullbox.
+- 2026-02-10 19:22: вернул в processing_flow строки: статус агента, контекст (кем занят), индикатор и последний скан; задеплоил и перезапустил fullbox.
+- 2026-02-10 19:32: ограничил завершение размещения только для processing_head (серверная проверка и UI: disabled/alert), задеплоил views.py и processing_flow.html, перезапустил fullbox.
+- 2026-02-10 19:37: исправил проверку роли завершения размещения: разрешаю processing_head, даже если у пользователя несколько записей ролей; обновил can_finish_flow; задеплоил views.py и перезапустил fullbox.
+- 2026-02-10 19:48: исправил серверную проверку завершения размещения в ProcessingFlowView.post (processing_head), задеплоил views.py и перезапустил fullbox.
+- 2026-02-11 10:20: добавил drag-and-drop для перемещения коробов между палетами (только свои/открытые), визуальный курсор grab/grabbing и подсветку drop-зоны (processing_flow.html); задеплоил и перезапустил fullbox.
+- 2026-02-11 10:45: разрешил drag-and-drop между любыми открытыми палетами (в т.ч. чужими) с автокопированием палет в локальную сессию и сортировкой merged-состояния по updated_at, чтобы последние правки отображались всем (processing_flow.html, processing_app/views.py); задеплоил и перезапустил fullbox.
+- 2026-02-11 11:20: увеличил значки коробов в палетах, добавил номер короба с инициалами упаковщика в левом верхнем углу и количество единиц внизу, и этот же номер вывожу на этикетке короба (processing_flow.html); задеплоил и перезапустил fullbox.
+- 2026-02-11 11:35: поправил drag-and-drop между чужими палетами: при переносе подтягиваю чужие короба в локальную сессию, чтобы они не исчезали после сохранения (processing_flow.html); задеплоил и перезапустил fullbox.
+- 2026-02-11 12:00: синхронизировал локальные палеты/короба с общим состоянием при polling (shared state теперь обновляет локальную сессию после короткого окна локальных правок), чтобы содержимое палет было одинаковым у всех (processing_flow.html); задеплоил и перезапустил fullbox.
+- 2026-02-11 12:25: в синхронизации shared state отдаю приоритет локальным палетам/коробам (если код совпал), чтобы закрытие палеты не перезаписывалось чужими данными при polling (processing_flow.html); задеплоил и перезапустил fullbox.
+- 2026-02-11 12:45: добавил выбор активной палеты кликом по карточке (подсветка активной), чтобы кнопка «Закрыть палету» закрывала выбранную палету (processing_flow.html); задеплоил и перезапустил fullbox.
+- 2026-02-11 13:10: улучшил карточку палеты: добавил инициалы кто открыл/закрыл, зелёную подсветку активной палеты; при закрытии сохраняю closed_by_* и сохраняю их через нормализацию (processing_flow.html, processing_app/views.py); задеплоил и перезапустил fullbox.
+- 2026-02-11 13:30: ограничил одну открытую палету на пользователя (автозакрытие остальных при выборе/синхронизации/создании), закрытие пустой палеты теперь сохраняет ее в закрытых; добавил выбор активной палеты кликом и зелёную подсветку (processing_flow.html); задеплоил и перезапустил fullbox.
+- 2026-02-11 13:45: исправил инициализацию palet sync: сделал enforceSingleOpenPalletForUser hoisted, чтобы скрипт не падал до отрисовки (processing_flow.html); задеплоил и перезапустил fullbox.
+- 2026-02-11 13:55: исправил isOwnedByCurrentUser на function declaration, чтобы скрипт не падал при раннем вызове enforceSingleOpenPalletForUser (processing_flow.html); задеплоил и перезапустил fullbox.
+- 2026-02-11 14:05: исправил closePalletByCode на function declaration (hoisting), чтобы enforceSingleOpenPalletForUser не падал при раннем вызове и палеты не исчезали (processing_flow.html); задеплоил и перезапустил fullbox.
+- 2026-02-11 14:15: исправил getBoxItemsCount на function declaration, чтобы enforceSingleOpenPalletForUser не падал при раннем вызове (processing_flow.html); задеплоил и перезапустил fullbox.
+- 2026-02-11 14:30: убрал ранний вызов enforceSingleOpenPalletForUser до инициализации функций, чтобы скрипт не падал при множестве открытых палет (processing_flow.html); задеплоил и перезапустил fullbox.
+- 2026-05-05 03:45: перевёл runtime-остатки, журнал склада, резервы обработки/отгрузки, размещение, перемещения и карту склада на единый складской центр правды (WarehouseStockSnapshot/WarehouseReserve/WarehouseWritePathService); старые StockPalletState/InventoryState/ShippingReserve больше не читаются в runtime-коде, прод проверен и перезапущен.
+- 2026-05-19 13:00: вынес список подходящих коробов на мобильный экран ричтрака прямо под форму сканирования для гибкого коробочного отбора; задеплоил task_commands.py и reachtruck/dashboard.html, проверил manage.py check и перезапустил fullbox.
+- 2026-05-19 13:29: исправил закрытие зависших OTG-задач ричтрака, когда коробочная схема уже физически находится в OTG/погрузке: backend закрывает задачу без повторного перемещения, dashboard показывает "Короба уже в OTG"; задеплоил task_commands.py, ui_flows.py, reachtruck/dashboard.html, перезапустил fullbox и закрыл прод-задачу №26.
+- 2026-07-22 15:31: добавил в ЛК бухгалтера удаление наших компаний FullBox с запретом удаления, если компания связана с клиентами/договорами/начислениями; в уведомлении выводятся причины. Задеплоил `accountant/views.py`, `accountant/urls.py`, `accountant/templates/accountant/own_companies.html`, `accountant/templates/accountant/own_company_form.html`, `accountant/tests.py` на `93.123.255.241`; backup `/opt/fullbox/_deploy_backups/accountant_own_company_delete_20260722_153129`, server `manage.py check` OK, `fullbox` active, public smoke: `/` 200, `/login/` 302.
+- 2026-07-22 15:37: добавил в ЛК бухгалтера удаление черновиков прайсов клиента из списка тарифов и карточки тарифа. Удаляются только `ClientTariffVersion` в статусе `draft`; опубликованные/активные версии остаются через архивирование, а связанные с расчётами черновики блокируются с уведомлением причины. Задеплоил `accountant/services.py`, `accountant/views.py`, `accountant/urls.py`, `accountant/templates/accountant/tariffs.html`, `accountant/templates/accountant/tariff_detail.html`, `accountant/tests.py` на `93.123.255.241`; backup `/opt/fullbox/_deploy_backups/accountant_tariff_delete_20260722_153756`, server `manage.py check` OK, `fullbox` active, public smoke: `/` 200, `/login/` 302.
+- 2026-07-22 15:42: сделал так, чтобы новый клиент после добавления сразу появлялся в разделе менеджера `/team-manager/clients/`, если у него есть `ClientLifecycle`, даже в статусе `draft`. При этом заявки и биллинг остаются защищены отдельной проверкой `is_client_billing_ready`, где требуется `active`. Задеплоил `accountant/selectors.py`, `client_cabinet/web_ui.py`, `accountant/tests.py`, `teammanager/tests.py` на `93.123.255.241`; backup `/opt/fullbox/_deploy_backups/manager_clients_draft_visible_20260722_154218`, server `manage.py check` OK, `fullbox` active, public smoke: `/` 200, `/login/` 302.
+- 2026-07-22 16:04: запретил повторное создание/редактирование клиента на уже занятый ИНН. В `accountant/api_views.py` добавлены нормализация ИНН до цифр, проверка допустимой длины и guard уникальности с сообщением о найденном клиенте; существующий manager-flow через `AgencyForm` покрыт отдельным regression-тестом. Задеплоил `accountant/api_views.py`, `accountant/tests.py`, `teammanager/tests.py` на `93.123.255.241`; backup `/opt/fullbox/_deploy_backups/client_inn_unique_20260722_160444`, локально 22 точечных теста OK, server `manage.py check` OK, `fullbox` active, public smoke: `/` 200, `/login/` 302.
+- 2026-07-22 16:14: расширил редактирование черновика прайса клиента в ЛК бухгалтера: в таблице тарифа теперь можно выбрать другую услугу из активного справочника биллинга и задать индивидуальное `service_name`/наименование строки для клиента. Глобальный `BillingService.name` при этом не меняется; при смене услуги строка прайса подтягивает категорию и единицу расчёта выбранной услуги. Задеплоил `accountant/api_views.py`, `accountant/views.py`, `accountant/templates/accountant/tariff_detail.html`, `accountant/tests.py` на `93.123.255.241`; backup `/opt/fullbox/_deploy_backups/accountant_tariff_item_edit_20260722_161405`, локально `test accountant` 21 тест OK, server `manage.py check` OK, `fullbox` active, public smoke: `/` 200, `/login/` 302.
+- 2026-07-22 17:38: добавил тип клиента `Акционерное общество` (`ao`) в бухгалтерский lifecycle и форму создания клиента. `accountant/clients.html` теперь рендерит варианты из `ClientLifecycle.TYPE_CHOICES`, а не из жёсткого списка, поэтому список типов един для создания и редактирования карточки. Задеплоил `accountant/models.py`, `accountant/views.py`, `accountant/templates/accountant/clients.html`, `accountant/migrations/0003_client_type_ao.py`, `accountant/tests.py` на `93.123.255.241`; backup `/opt/fullbox/_deploy_backups/accountant_client_type_ao_20260722_173846`, migration `accountant.0003_client_type_ao` OK, локально `test accountant` 22 теста OK, server `manage.py check` OK, `fullbox` active, public smoke: `/` 200, `/login/` 302.
+- 2026-07-24 15:52: добавил управление доступом клиента в ЛК бухгалтера. В `/accountant/clients/` теперь виден логин/статус доступа ЛК, при создании клиента бухгалтер может задать `portal_login` и `portal_password`, а в `/accountant/clients/<id>/` можно изменить логин и задать новый пароль. Пароль не раскрывается в интерфейсе, только перезаписывается через `set_password`; создание клиента с занятым логином откатывается транзакцией. Задеплоил `accountant/api_views.py`, `accountant/templates/accountant/clients.html`, `accountant/templates/accountant/client_detail.html`, `accountant/tests.py` на `93.123.255.241`; backup `/opt/fullbox/_deploy_backups/accountant_client_portal_access_20260724_155209`, локально `test accountant` 25 тестов OK, `manage.py check`/`py_compile` OK, server `manage.py check` OK, `fullbox` active, public smoke: `/` 200, `/login/` 302.
+- 2026-07-25 13:45: добавил безопасное редактирование опубликованной редакции тарифа клиента в ЛК бухгалтера. `ClientTariffVersion.can_edit_directly()` разрешает правку неархивной редакции, если она ещё не связана с начислениями `ApplicationCharge`; если тариф уже используется, `edit_block_reason()` показывает бухгалтеру причину и количества строк/актов/счетов, а редактирование через API и модельные `ClientTariffItem`/`ClientTariffCondition` блокируется. В карточке клиента кнопка редактирования открывает текущую редакцию напрямую, если можно, иначе создаёт новую копию. В том же deploy добавлена кнопка `Сгенерировать пароль` в форме создания клиента и карточке доступа ЛК: пароль генерируется на фронте, временно раскрывается для копирования, затем сохраняется только через `set_password`. Задеплоил `billing/models.py`, `accountant/views.py`, `accountant/api_views.py`, `accountant/templates/accountant/client_detail.html`, `accountant/templates/accountant/clients.html`, `accountant/templates/accountant/tariff_detail.html`, `accountant/tests.py` на `93.123.255.241`; backup `/opt/fullbox/_deploy_backups/accountant_tariff_edit_password_gen_20260725_134546`, локально `test accountant` 27 тестов OK, `manage.py check`/`py_compile` OK, server `manage.py check` OK, `fullbox` active, public smoke: `/` 200, `/login/` 302.

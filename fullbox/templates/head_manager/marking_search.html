@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Поиск ЧЗ | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/head_manager/cabinet.css" rel="stylesheet">
+  <style>
+    :root {
+      --font-body: "Manrope", system-ui, sans-serif;
+      --font-display: "Bricolage Grotesque", "Manrope", system-ui, sans-serif;
+      --bg: #f6f8f7;
+      --surface: #ffffff;
+      --surface-soft: #f8faf9;
+      --ink: #303030;
+      --muted: #70665f;
+      --accent: #f89000;
+      --accent-strong: #f86800;
+      --accent-sun: #f8b800;
+      --accent-soft: rgba(248, 144, 0, 0.13);
+      --stroke: rgba(23, 33, 29, 0.1);
+      --shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: var(--font-body); color: var(--ink); background: var(--bg); }
+    a { color: inherit; text-decoration: none; }
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 250px minmax(0, 1fr); }
+    .shell.nav-collapsed { grid-template-columns: 82px minmax(0, 1fr); }
+    .side { position: sticky; top: 0; height: 100vh; overflow: auto; padding: 22px 18px; background: #fff; border-right: 1px solid var(--stroke); display: grid; grid-template-rows: auto auto 1fr auto; gap: 22px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 900; font-family: var(--font-display); font-size: 20px; letter-spacing: 0; }
+    .fullbox-brand-mark { display: inline-flex; align-items: center; min-width: 0; }
+    .fullbox-brand-img { display: block; width: auto; height: 42px; max-width: 132px; object-fit: contain; }
+    .profile { padding: 12px; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--surface); box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04); }
+    .profile-label, .nav-heading { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+    .profile-name { margin-top: 4px; font-weight: 800; line-height: 1.35; }
+    .nav { display: grid; align-content: start; gap: 18px; }
+    .nav-section { display: grid; gap: 7px; }
+    .nav-link { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 42px; padding: 10px 12px; border-radius: var(--radius); color: #2b3531; border: 1px solid transparent; }
+    .nav-link:hover, .nav-link.primary { color: #fff; background: linear-gradient(135deg, var(--accent-strong), var(--accent-sun)); border-color: rgba(248, 144, 0, 0.32); box-shadow: 0 10px 24px rgba(248, 144, 0, 0.16); }
+    .nav-link.primary { position: relative; }
+    .nav-link.primary::before { content: ""; position: absolute; left: -18px; top: 8px; bottom: 8px; width: 3px; border-radius: 999px; background: var(--accent); }
+    .nav-icon { width: 20px; height: 20px; display: grid; place-items: center; color: currentColor; }
+    .nav-title { font-size: 14px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+    .nav-drilldown { display: grid; gap: 6px; }
+    .nav-drilldown summary { list-style: none; cursor: pointer; }
+    .nav-drilldown summary::-webkit-details-marker { display: none; }
+    .nav-submenu { display: grid; gap: 4px; padding: 2px 0 4px 44px; }
+    .nav-submenu a { color: var(--muted); font-size: 13px; font-weight: 800; line-height: 1.35; padding: 5px 0; }
+    .nav-submenu a:hover { color: var(--accent); }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 9px 13px; border-radius: 10px; border: 1px solid var(--stroke); background: var(--surface); font-weight: 800; font-size: 13px; cursor: pointer; }
+    .btn.primary { border-color: transparent; background: linear-gradient(135deg, var(--accent-strong), var(--accent-sun)); color: #fff; box-shadow: 0 10px 22px rgba(248, 144, 0, 0.18); }
+    .btn.ghost { background: rgba(255, 255, 255, 0.64); }
+    .collapse-btn { width: 100%; }
+    .sidebar-actions { display: grid; gap: 8px; }
+    .logout-btn { color: var(--ink); background: #fff; }
+    .shell.nav-collapsed .side { padding-inline: 14px; }
+    .shell.nav-collapsed .profile, .shell.nav-collapsed .nav-heading, .shell.nav-collapsed .nav-title, .shell.nav-collapsed .nav-submenu, .shell.nav-collapsed .btn-label { display: none; }
+    .shell.nav-collapsed .brand, .shell.nav-collapsed .nav-link { justify-content: center; }
+    .shell.nav-collapsed .fullbox-brand-img { height: 34px; max-width: 42px; }
+    .shell.nav-collapsed .nav-link { grid-template-columns: 22px; padding-inline: 10px; }
+    .shell.nav-collapsed .nav-link.primary::before { left: -14px; }
+    .content { min-width: 0; padding: 0 28px 34px; display: grid; gap: 18px; align-content: start; }
+    .topbar { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin: 0 -28px 6px; padding: 22px 28px 20px; background: rgba(255,255,255,.92); border-bottom: 1px solid var(--stroke); box-shadow: 0 8px 24px rgba(15,23,42,.04); backdrop-filter: blur(10px); }
+    h1, h2, p { margin: 0; }
+    h1 { font-family: var(--font-display); font-size: 30px; line-height: 1.15; letter-spacing: 0; }
+    h2 { font-size: 18px; line-height: 1.25; }
+    .subtitle { margin-top: 6px; color: var(--muted); font-size: 13px; line-height: 1.4; }
+    .panel { border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
+    .panel-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding: 16px; border-bottom: 1px solid var(--stroke); }
+    .search-grid { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(260px, .64fr); gap: 12px; padding: 16px; align-items: stretch; }
+    .field { display: grid; gap: 6px; }
+    .field label { color: var(--muted); font-size: 11px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+    input, textarea { width: 100%; min-height: 42px; padding: 10px 12px; border: 1px solid var(--stroke); border-radius: 10px; background: #fff; color: var(--ink); font: inherit; font-size: 13px; }
+    textarea { min-height: 108px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .scan-template { display: grid; gap: 10px; padding: 14px; border: 1px solid rgba(248, 144, 0, 0.2); border-radius: var(--radius); background: linear-gradient(135deg, rgba(248, 144, 0, 0.1), rgba(248, 184, 0, 0.08)); }
+    .code-sample { padding: 10px 12px; border-radius: 10px; background: #fff; border: 1px solid var(--stroke); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; overflow-wrap: anywhere; }
+    .summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .metric { padding: 14px; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--surface); box-shadow: 0 10px 24px rgba(15,23,42,.05); }
+    .metric-label { color: var(--muted); font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+    .metric-value { margin-top: 8px; font-size: 22px; font-weight: 900; line-height: 1.15; overflow-wrap: anywhere; }
+    .table-wrap { width: 100%; overflow: auto; border-top: 1px solid var(--stroke); }
+    table { width: 100%; min-width: 1540px; border-collapse: collapse; }
+    th, td { padding: 12px; border-bottom: 1px solid var(--stroke); text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-size: 12px; font-weight: 900; text-transform: uppercase; background: var(--surface-soft); }
+    tbody tr:hover { background: rgba(248, 144, 0, 0.05); }
+    .muted { color: var(--muted); }
+    .pill { display: inline-flex; align-items: center; min-height: 30px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--stroke); background: #fff; color: var(--muted); font-size: 12px; font-weight: 900; }
+    .pill.accent { color: var(--accent-strong); background: var(--accent-soft); border-color: rgba(248, 144, 0, 0.26); }
+    .marking-code { max-width: 360px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; overflow-wrap: anywhere; }
+    .empty { padding: 24px 16px; color: var(--muted); }
+    @media (max-width: 1100px) {
+      .search-grid, .summary { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      .side { position: static; height: auto; grid-template-rows: auto; }
+      .content { padding: 18px; }
+      .topbar { display: grid; margin: -18px -18px 0; padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" id="dashboard-shell">
+    {% include "head_manager/_main_sidebar.html" with active="references" %}
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <h1>Поиск Честного знака</h1>
+          <div class="subtitle">Сканирование или вставка кода ЧЗ с показом клиента, короба, документа приемки, даты приемки, сотрудника и текущего места хранения.</div>
+        </div>
+        <div class="actions">
+          <span class="pill accent">Справочники</span>
+          <a class="btn" href="/head-manager/">Назад</a>
+        </div>
+      </header>
+
+      <section class="panel" aria-label="Поиск ЧЗ">
+        <div class="panel-head">
+          <div>
+            <h2>Сканирование</h2>
+            <p class="subtitle">Поиск сравнивает ЧЗ с учетом GS/FNC1: живой символ, &lt;GS&gt;, _x001D_ и вариант без разделителей сопоставляются как один код.</p>
+          </div>
+          {% if total_count %}
+            <span class="pill accent">Найдено: {{ total_count }}</span>
+          {% endif %}
+        </div>
+        <div class="search-grid">
+          <form method="get" class="field">
+            <label for="q">Честный знак</label>
+            <textarea id="q" name="q" autofocus placeholder="Отсканируйте ЧЗ или вставьте код">{{ query }}</textarea>
+            <div class="actions">
+              <button class="btn primary" type="submit">Найти</button>
+              <a class="btn ghost" href="/head-manager/marking-search/">Сброс</a>
+            </div>
+          </form>
+          <div class="scan-template">
+            <div>
+              <strong>Шаблон ЧЗ для сканера</strong>
+              <p class="subtitle">Сканер должен передавать код целиком. Разделитель GS/FNC1 допустим живым символом или как &lt;GS&gt;.</p>
+            </div>
+            <div class="code-sample">01GTIN14 21SERIAL&lt;GS&gt;91KEY&lt;GS&gt;92CRYPTO</div>
+            <div class="muted">Если сканер не передает GS, поиск все равно попробует сопоставить код без разделителей.</div>
+          </div>
+        </div>
+      </section>
+
+      {% if query %}
+        <section class="summary" aria-label="Сводка поиска">
+          <div class="metric">
+            <div class="metric-label">Найдено записей</div>
+            <div class="metric-value">{{ total_count }}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Нормализованный ЧЗ</div>
+            <div class="metric-value marking-code">{{ normalized_query }}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Ключ сопоставления</div>
+            <div class="metric-value marking-code">{{ compact_query }}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Источник места</div>
+            <div class="metric-value">warehouse</div>
+          </div>
+        </section>
+
+        <section class="panel" aria-label="Результаты поиска">
+          <div class="panel-head">
+            <div>
+              <h2>Где находится ЧЗ</h2>
+              <p class="subtitle">Приемочные данные берутся из принятой приемки ЧЗ, текущее место берется из складского остатка или по коробу/паллете.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Источник</th>
+                  <th>Город</th>
+                  <th>Склад</th>
+                  <th>Зона</th>
+                  <th>Ячейка / место</th>
+                  <th>Клиент</th>
+                  <th>Документ приемки</th>
+                  <th>Дата приемки</th>
+                  <th>Кем принят</th>
+                  <th>SKU / товар</th>
+                  <th>Короб / паллета</th>
+                  <th>Кол-во</th>
+                  <th>Доступно / резерв</th>
+                  <th>Текущий документ</th>
+                  <th>Статус</th>
+                  <th>Обновлено</th>
+                  <th>ЧЗ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                  <tr>
+                    <td><span class="pill">{{ row.source }}</span></td>
+                    <td><strong>{{ row.city }}</strong></td>
+                    <td>{{ row.warehouse }}</td>
+                    <td>{{ row.zone }}</td>
+                    <td>{{ row.location }}</td>
+                    <td>{{ row.client }}</td>
+                    <td><strong>{{ row.receiving_document }}</strong></td>
+                    <td>{% if row.accepted_at %}{{ row.accepted_at|date:"d.m.Y H:i" }}{% else %}-{% endif %}</td>
+                    <td>{{ row.accepted_by }}</td>
+                    <td>
+                      <strong>{{ row.sku }}</strong>
+                      <div class="muted">{{ row.name }}</div>
+                      <div class="muted">{{ row.size }} · {{ row.barcode }}</div>
+                    </td>
+                    <td>
+                      <div>Короб: {{ row.box }}</div>
+                      <div class="muted">Паллета: {{ row.pallet }}</div>
+                    </td>
+                    <td>{{ row.qty }}</td>
+                    <td>{{ row.available_qty }} / {{ row.reserved_qty }}</td>
+                    <td>{{ row.order }}</td>
+                    <td>{{ row.status }}</td>
+                    <td>{{ row.updated_at|date:"d.m.Y H:i" }}</td>
+                    <td class="marking-code">{{ row.marking_code }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="17" class="empty">ЧЗ не найден в текущих складских остатках, приемке ЧЗ и реестре маркировки.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {% endif %}
+    </main>
+  </div>
+  <script>
+    (function () {
+      var shell = document.getElementById("dashboard-shell");
+      var button = document.getElementById("sidebar-collapse");
+      if (!shell || !button) return;
+      var storageKey = "head-manager-sidebar-collapsed";
+      var collapsed = localStorage.getItem(storageKey) === "1";
+      function render() {
+        shell.classList.toggle("nav-collapsed", collapsed);
+        button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      }
+      button.addEventListener("click", function () {
+        collapsed = !collapsed;
+        localStorage.setItem(storageKey, collapsed ? "1" : "0");
+        render();
+      });
+      render();
+    })();
+  </script>
+</body>
+</html>

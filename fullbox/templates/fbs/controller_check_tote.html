@@ -1,0 +1,713 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}{% if check_tote.tote_id %}Тара проверки {{ check_tote.tote.name }}{% else %}{% if check_tote.handover_batch_id %}Отгрузка №{{ check_tote.handover_batch_id }}{% else %}Проверка заказов{% endif %}{% endif %}{% endblock %}
+{% block page_class %}tsd-page-controller controller-check-tote-page{% endblock %}
+
+{% block content %}
+<style>
+  .check-shell{display:grid;gap:10px}
+  .check-head,.check-panel{padding:11px 12px;border:1px solid #ddd;border-radius:6px;background:#fff}
+  .check-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .check-head small,.check-row small{display:block;color:#666}
+  .check-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+  .check-kpis div{padding:8px 10px;border:1px solid #ddd;border-radius:5px;background:#fff}
+  .check-kpis span{display:block;color:#666;font-size:11px}.check-kpis strong{font-size:20px}
+  .check-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(260px,.7fr);gap:10px;align-items:start}
+  .check-layout>aside{grid-column:2;grid-row:1}.check-layout>main{grid-column:1;grid-row:1}
+  .check-scan{display:grid;grid-template-columns:1fr auto;gap:8px}
+  .check-scan input{min-height:48px}.check-scan .button{min-height:48px}
+  .check-table-wrap{max-height:58vh;overflow:auto}
+  .check-table{width:100%;border-collapse:collapse;font-size:13px}
+  .check-table th,.check-table td{padding:8px;border-bottom:1px solid #eee;text-align:left;vertical-align:top}
+  .check-table th{position:sticky;top:0;background:#fff;z-index:1}
+  .check-table td[data-work-primary],.check-table td[data-work-composition]{min-width:170px;max-width:230px;overflow-wrap:anywhere;line-height:1.45}
+  .check-table td[data-order-box-code]{max-width:220px;overflow-wrap:anywhere}
+  .check-table tr.is-passed{background:#edf9f2}
+  .check-table tr.is-problem{background:#fff0ee}
+  .check-table tr.is-waiting{background:#fff8e9}
+  .check-sticker{display:block;color:#303030;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:16px;line-height:1.25;overflow-wrap:anywhere}
+  .check-reasons{display:grid;gap:5px;margin:0;padding-left:18px}
+  .check-actions{display:grid;gap:8px}.check-actions .button{width:100%}
+  .scan-stage[hidden]{display:none!important}
+  .scan-stage{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:24px;background:rgba(48,48,48,.82)}
+  .scan-stage.is-pending{background:rgba(117,72,0,.88)}
+  .scan-stage.is-success{background:rgba(9,105,65,.92)}
+  .scan-stage.is-blocking{background:rgba(172,20,20,.96)}
+  .scan-stage.is-duplicate{background:rgba(172,20,20,.96)}
+  .scan-stage.is-duplicate .scan-stage-spinner,
+  .scan-stage.is-duplicate .scan-stage-message,
+  .scan-stage.is-duplicate .scan-stage-details,
+  .scan-stage.is-duplicate .scan-stage-instruction,
+  .scan-stage.is-duplicate .scan-stage-dismiss{display:none!important}
+  .scan-stage-card{width:min(720px,100%);padding:34px;border:3px solid #fff;border-radius:8px;background:#fff;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.35)}
+  .scan-stage-kicker{margin:0 0 8px;color:#666;font-size:15px;font-weight:800;text-transform:uppercase}
+  .scan-stage-title{margin:0;color:#303030;font-size:44px;line-height:1.02}
+  .scan-stage-message{margin:18px 0 0;font-size:20px;line-height:1.4}
+  .scan-stage-details{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:20px}
+  .scan-stage-detail{min-width:180px;padding:12px;border:1px solid #ddd;border-radius:6px;background:#f7f7f7}
+  .scan-stage-detail span{display:block;color:#666;font-size:12px;text-transform:uppercase}
+  .scan-stage-detail strong{display:block;margin-top:4px;font-size:22px}
+  .scan-stage-instruction{margin:22px 0 0;padding:14px;border-radius:6px;background:#ffe4e4;color:#8d1111;font-size:20px;font-weight:800}
+  .scan-stage-dismiss{min-height:56px;margin-top:22px;padding:0 24px;border:0;border-radius:6px;background:#303030;color:#fff;font-size:20px;font-weight:800;cursor:pointer}
+  .scan-stage-spinner{width:64px;height:64px;margin:0 auto 18px;border:7px solid rgba(248,144,0,.25);border-top-color:#f89000;border-radius:50%;animation:scan-stage-spin .7s linear infinite}
+  .check-table tr.is-just-scanned{background:#e7f8ef}
+  @keyframes scan-stage-spin{to{transform:rotate(360deg)}}
+  @media(max-width:850px){.check-layout{grid-template-columns:1fr}.check-layout>aside{grid-column:1;grid-row:1}.check-layout>main{grid-column:1;grid-row:2}.check-kpis{grid-template-columns:1fr 1fr}.scan-stage-title{font-size:34px}}
+</style>
+
+<div class="check-shell" data-composition-ready="{{ readiness.ready|yesno:'1,0' }}" data-wb-auto-close="{% if check_tote.profile.marketplace == 'wb' %}1{% else %}0{% endif %}" data-metadata-status-url="{% if check_tote.profile.marketplace == 'wb' %}{{ request.path }}?metadata_status=1{% endif %}" data-scanned-count="{{ scanned_label_count }}" data-order-count="{{ orders|length }}"{% if check_tote.session.workstation.device_agent_id %} data-agent-scan-poll-url="{% url 'fbs:controller_scan_events' %}" data-agent-scan-since="{{ controller_scan_event_id }}"{% endif %}>
+  <section class="check-head">
+    <div><small>{% if check_tote.tote_id %}Тара на проверку{% else %}Проверка поставки{% endif %}</small><strong>{% if check_tote.tote_id %}{{ check_tote.tote.name }} · {{ check_tote.tote.barcode }}{% else %}{% if check_tote.handover_batch_id %}Отгрузка №{{ check_tote.handover_batch_id }}{% else %}Проверка заказов{% endif %}{% endif %}</strong><small>{% if check_tote.profile %}{{ check_tote.profile.get_marketplace_display }} · склад {{ check_tote.profile.external_warehouse_id }}{% else %}Кабинет еще не назначен{% endif %}</small></div>
+    <span class="status {% if readiness.ready %}status-done{% elif readiness.status == 'waiting_kiz' %}status-warning{% else %}status-verification{% endif %}" data-check-tote-status>{{ readiness.display_label }}</span>
+  </section>
+
+  <section class="check-kpis">
+    <div><span>Прошли первый контроль</span><strong>{{ orders|length }}</strong></div>
+    <div><span>Товаров в проверке</span><strong>{{ active_unit_count }}</strong></div>
+    <div><span>Этикеток отсканировано</span><strong data-scanned-label-count>{{ scanned_label_count }}</strong></div>
+    <div><span>Отгрузка</span><strong>{% if check_tote.handover_batch_id %}#{{ check_tote.handover_batch_id }}{% else %}-{% endif %}</strong></div>
+  </section>
+
+  <div class="check-layout">
+    <aside class="check-shell check-next-step">
+      <section class="check-panel" data-controller-next-step>
+        <h2>Что осталось сделать</h2>
+        <p>Заказов в поставке: <strong>{{ controller_total_orders }}</strong>. Прошли первый контроль: <strong>{{ orders|length }}</strong>.</p>
+        {% if controller_remaining_orders %}<p>Ожидают обработки: <strong>{{ controller_remaining_orders }}</strong>.</p>{% endif %}
+        {% for tote in controller_pending_pick_totes %}
+          <p><strong>{{ tote.name }}</strong> · {{ tote.barcode }}<br>{% if tote.empty_confirmation %}Нужно подтвердить, что тара пуста.{% elif tote.remaining %}Осталось обработать: {{ tote.remaining }} шт.{% else %}Нужно завершить обработку тары.{% endif %}</p>
+          <a class="button button-primary" href="{{ tote.url }}">{% if tote.empty_confirmation %}Подтвердить пустоту тары{% else %}Продолжить обработку{% endif %}</a>
+        {% endfor %}
+      </section>
+      <section class="check-panel">
+        <div class="section-heading"><h2>Готовность</h2></div>
+        <div data-check-tote-readiness>
+          {% if readiness.ready %}
+            <div class="notice notice-ok">КИЗ, сроки и поставка подтверждены.</div>
+          {% else %}
+            <ul class="check-reasons">{% for reason in readiness.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+      </section>
+      <section class="check-panel check-actions">
+        {% if check_tote.handover_batch_id %}<a class="button button-secondary" href="{% url 'fbs:tsd_handover_detail' batch_id=check_tote.handover_batch_id %}">Открыть отгрузку</a>{% endif %}
+        {% if check_tote.profile.marketplace == 'wb' %}
+          <div class="notice notice-ok">После завершения обработки тар, проверки состава и подтверждения обязательных данных программа автоматически продолжит отправку WB.</div>
+          <form method="post" data-auto-close-check-form hidden>
+            {% csrf_token %}<input type="hidden" name="action" value="close_check_tote">
+          </form>
+        {% else %}
+          <form method="post" data-submit-once>
+            {% csrf_token %}<input type="hidden" name="action" value="close_check_tote">
+            <button class="button button-primary" type="submit" data-close-check-button{% if not readiness.ready or scanned_label_count != orders|length %} disabled{% endif %}>Закрыть проверку и отгрузку</button>
+          </form>
+        {% endif %}
+      </section>
+    </aside>
+    <main class="check-shell">
+      {% if pending_ozon_canceled_returns %}
+        <section class="check-panel">
+          <div class="section-heading"><div><h2>Отмененные заказы Ozon</h2><small>Уберите указанный заказ из транспортного короба, положите его в назначенную тару отмененных заказов и подтвердите оба QR.</small></div><span class="count">{{ pending_ozon_canceled_returns|length }}</span></div>
+          {% if canceled_tote %}
+            {% for restock in pending_ozon_canceled_returns %}
+              <form method="post" data-submit-once data-scan-feedback data-scan-focus-lock>
+                {% csrf_token %}<input type="hidden" name="action" value="confirm_ozon_canceled_return"><input type="hidden" name="order_id" value="{{ restock.order_id }}">
+                <div class="notice notice-warning"><strong>Заказ {{ restock.order.external_order_id }}</strong> · {{ restock.planned_qty }} шт. · тара {{ canceled_tote.name }} ({{ canceled_tote.barcode }})</div>
+                <label for="canceled-order-scan-{{ restock.id }}">QR отмененного заказа
+                  <input id="canceled-order-scan-{{ restock.id }}" name="order_scan" required{% if forloop.first %} autofocus{% endif %} autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-agent-scan-kind="order-label" data-scan-next="#canceled-tote-scan-{{ restock.id }}" data-scan-expected-value="{{ restock.order_label_barcode }}" data-scan-expected-message="Отсканирован другой заказ. Нужен {{ restock.order.external_order_id }}.">
+                </label>
+                <label for="canceled-tote-scan-{{ restock.id }}">QR тары отмененных заказов
+                  <input id="canceled-tote-scan-{{ restock.id }}" name="canceled_tote_scan" required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-agent-scan-kind="service-tote" data-scan-autosubmit="250" data-scan-expected-value="{{ canceled_tote.barcode }}" data-scan-expected-message="Отсканирована другая тара. Нужна {{ canceled_tote.barcode }}." placeholder="{{ canceled_tote.barcode }}">
+                </label>
+                <button class="button button-danger" type="submit">Подтвердить возврат отмененного заказа</button>
+              </form>
+            {% endfor %}
+          {% else %}
+            <div class="notice notice-error">У текущей смены не назначена тара отмененных заказов. Закройте смену и откройте новую с привязанной служебной тарой.</div>
+          {% endif %}
+        </section>
+      {% endif %}
+      <section class="check-panel">
+        <div class="section-heading"><div><h2>Проверка состава короба</h2><small>Счётчик справа — только заказы, прошедшие первый контроль.</small><small>1. Отсканируйте стикер ещё раз. 2. Положите товар в короб. Повторный скан подтверждает, что товар с этим стикером действительно лежит в коробе.</small></div><span class="count" data-composition-progress>{{ scanned_label_count }} / {{ orders|length }}</span></div>
+        {% if problem_route_scan %}
+          <div class="notice notice-warning">Подтвердите помещение товара: отсканируйте проблемную тару {{ problem_route_tote_barcode }}.</div>
+          <form class="check-scan" method="post" data-submit-once data-scan-feedback data-scan-focus-lock>
+            {% csrf_token %}<input type="hidden" name="action" value="confirm_problem_tote">
+            <input type="hidden" name="label_scan" value="{{ problem_route_scan }}">
+            <input name="problem_tote_scan" required autofocus autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-scan-autosubmit="250" placeholder="QR проблемной тары {{ problem_route_tote_barcode }}">
+            <button class="button button-primary" type="submit">Подтвердить проблемную тару</button>
+          </form>
+          <a class="button button-secondary" href="{{ request.path }}">Отсканировать этикетку заново</a>
+        {% elif readiness.composition_ready %}
+          {% if not readiness.ready %}
+            <div class="notice notice-warning">Доступна частичная укладка: сканируйте и кладите в короб только уже прошедшие проверку заказы. Заказы, ожидающие КИЗ, подтверждения маркетплейса или завершения тары подбора, система не примет. Закрытие отгрузки станет доступно после полной готовности.</div>
+          {% endif %}
+          <form class="check-scan" method="post" data-submit-once data-scan-feedback data-scan-focus-lock data-fast-composition-scan>
+            {% csrf_token %}<input type="hidden" name="action" value="scan_composition">
+            <input name="label_scan" required autofocus autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-scan-autosubmit="100" placeholder="QR стикера заказа">
+            <button class="button button-primary" type="submit">Подтвердить состав</button>
+          </form>
+        {% else %}
+          <div class="notice notice-warning">Сначала завершите обработку и подтвердите пустоту всех тар подбора.</div>
+        {% endif %}
+      </section>
+
+      <section class="check-panel check-table-wrap">
+        <div class="section-heading"><div><h2>Кто и когда выполнил контроль</h2><small>Время московское. Исполнители взяты из сохранённых операций, а не из текущей смены.</small></div><button type="button" class="button button-secondary" data-open-work-history>История</button></div>
+        <table class="check-table">
+          <thead><tr><th>Номер стикера</th><th>Заказ</th><th>КИЗ / срок</th><th>Статус контроля</th><th>Первый контроль: кто / когда</th><th>Состав короба: кто / когда</th><th>Короб</th></tr></thead>
+          <tbody>
+            {% for row in orders %}
+              <tr class="{% if row.metadata_state == 'problem' %}is-problem{% elif row.label_scanned %}is-passed{% else %}is-waiting{% endif %}" data-tote-order-id="{{ row.id }}">
+                <td><strong class="check-sticker">{{ row.label.external_label_id|default:row.label.barcode }}</strong><small data-order-control-label>{% if row.label_scanned %}Прошёл контроль{% elif row.metadata_state == 'problem' %}Не прошёл контроль{% else %}Ожидает контроля{% endif %}</small></td>
+                <td><strong>{{ row.order.external_order_id }}</strong><small>Из {{ row.pick_tote.tote.name }}</small></td>
+                <td><span class="status {{ row.metadata_css_class }}" data-order-metadata-state="{{ row.metadata_state }}">{{ row.metadata_label }}</span></td>
+                <td data-order-scan-state><span class="status {% if row.label_scanned %}status-done{% else %}status-verification{% endif %}">{% if row.label_scanned %}Отсканирован{% else %}Не отсканирован{% endif %}</span></td>
+                <td data-work-primary>{{ row.work_history.primary|default:"Не записано" }}</td>
+                <td data-work-composition>{{ row.work_history.composition|default:"Не подтверждено" }}</td>
+                <td data-order-box-code>{% if row.transport_box %}{{ row.transport_box.qr_code }}{% else %}-{% endif %}</td>
+              </tr>
+            {% empty %}<tr><td colspan="7">В потоке пока нет заказов.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+
+  </div>
+</div>
+
+<dialog data-work-history-dialog aria-labelledby="work-history-title" style="width:min(1000px,90vw);max-height:85vh;border:1px solid #ddd;border-radius:8px;padding:20px">
+  <div class="section-heading"><h2 id="work-history-title">История контроля{% if check_tote.handover_batch_id %} отгрузки №{{ check_tote.handover_batch_id }}{% endif %}</h2><form method="dialog"><button class="button button-secondary">Закрыть</button></form></div>
+  <p>Сохранённые этапы текущего потока, включая исключённые заказы. Это не журнал всех повторных сканирований. Время московское.</p>
+  <p data-work-history-status role="status"></p>
+  <div style="overflow:auto"><table class="check-table"><thead><tr><th>Когда</th><th>Заказ</th><th>Этап</th><th>Сотрудник</th></tr></thead><tbody data-work-history-body></tbody></table></div>
+</dialog>
+<script>
+(() => {
+  const dialog = document.querySelector('[data-work-history-dialog]');
+  const status = dialog.querySelector('[data-work-history-status]');
+  const body = dialog.querySelector('[data-work-history-body]');
+  let pending = null;
+  async function refresh() {
+    if (pending) return pending;
+    pending = (async () => {
+      const url = new URL(window.location.href); url.search = ''; url.searchParams.set('work_history', '1');
+      const response = await fetch(url, {credentials:'same-origin', cache:'no-store'});
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error('История недоступна. Повторно откройте её.');
+      document.querySelectorAll('[data-tote-order-id]').forEach(row => {
+        const facts = data.rows[row.dataset.toteOrderId];
+        if (!facts) return;
+        row.querySelector('[data-work-primary]').textContent = facts.primary;
+        row.querySelector('[data-work-composition]').textContent = facts.composition;
+      });
+      body.replaceChildren();
+      data.events.forEach(event => {
+        const tr = document.createElement('tr');
+        ['when','order','stage','actor'].forEach(key => {const td=document.createElement('td');td.textContent=event[key];tr.append(td);});
+        body.append(tr);
+      });
+      status.textContent = data.total ? `Показано ${data.events.length} из ${data.total} событий` : 'События пока не записаны.';
+    })();
+    try { await pending; } catch (_) { status.textContent='Не удалось обновить историю. Повторно откройте её.'; }
+    finally { pending=null; }
+  }
+  document.querySelector('[data-open-work-history]').addEventListener('click', () => {dialog.showModal();status.textContent='Загружаем историю…';refresh();});
+  document.addEventListener('fbs-work-history-refresh', refresh);
+})();
+</script>
+
+<div class="scan-stage" data-scan-stage hidden role="dialog" aria-modal="true" aria-live="assertive">
+  <div class="scan-stage-card">
+    <div class="scan-stage-spinner" data-scan-stage-spinner></div>
+    <p class="scan-stage-kicker" data-scan-stage-kicker>FBS-контроль · проверка стикера</p>
+    <h2 class="scan-stage-title" data-scan-stage-title>ПРОВЕРЯЮ</h2>
+    <p class="scan-stage-message" data-scan-stage-message>Сверяю заказ с текущей отгрузкой.</p>
+    <div class="scan-stage-details" data-scan-stage-details hidden>
+      <div class="scan-stage-detail" data-scan-stage-sticker-detail><span>Номер стикера</span><strong data-scan-stage-sticker>-</strong></div>
+      <div class="scan-stage-detail" data-scan-stage-order-detail><span>Заказ</span><strong data-scan-stage-order>-</strong></div>
+      <div class="scan-stage-detail" data-scan-stage-box-detail><span>Короб</span><strong data-scan-stage-box>-</strong></div>
+    </div>
+    <p class="scan-stage-instruction" data-scan-stage-instruction hidden></p>
+    <button class="scan-stage-dismiss" type="button" data-scan-stage-dismiss hidden>Убрал товар, продолжить</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const form = document.querySelector("form[data-fast-composition-scan]");
+  const stage = document.querySelector("[data-scan-stage]");
+  if (!form || !stage) return;
+
+  const input = form.querySelector('input[name="label_scan"]');
+  const submitButton = form.querySelector('button[type="submit"]');
+  const dismissButton = stage.querySelector("[data-scan-stage-dismiss]");
+  const spinner = stage.querySelector("[data-scan-stage-spinner]");
+  const details = stage.querySelector("[data-scan-stage-details]");
+  const instruction = stage.querySelector("[data-scan-stage-instruction]");
+  const root = document.querySelector("[data-composition-ready]");
+  const closeForm = document.querySelector("[data-auto-close-check-form]");
+  const wbAutoClose = root?.dataset.wbAutoClose === "1";
+  let stageTimer = null;
+  let shipmentFinishing = false;
+  let shipmentCompletionAnnounced = false;
+  let closeUncertain = false;
+  let pendingScan = null;
+  const receiptKey = `fbs-composition:{{ request.user.pk }}:${window.location.pathname}`;
+  try { pendingScan = JSON.parse(sessionStorage.getItem(receiptKey) || "null"); } catch (_) {}
+  const savePending = (value) => {
+    pendingScan = value;
+    try {
+      if (value) sessionStorage.setItem(receiptKey, JSON.stringify(value));
+      else sessionStorage.removeItem(receiptKey);
+    } catch (_) {}
+  };
+  const newOperationId = () => {
+    if (window.crypto.randomUUID) return window.crypto.randomUUID();
+    const bytes = window.crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 15) | 64;
+    bytes[8] = (bytes[8] & 63) | 128;
+    const h = Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
+    return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+  };
+  const fetchConfirmed = async (url, options = {}) => {
+    const abort = new AbortController();
+    const timer = window.setTimeout(() => abort.abort(), 15000);
+    try {
+      const response = await window.fetch(url, { ...options, signal: abort.signal,
+        cache: "no-store", credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } });
+      const responseUrl = new URL(response.url || window.location.href, window.location.href);
+      if (response.redirected && responseUrl.pathname.includes("/login/")) {
+        window.location.assign(responseUrl.href);
+        throw new Error("login_required");
+      }
+      if (response.status >= 500 || !(response.headers.get("content-type") || "").includes("application/json")) {
+        throw new Error("unknown_result");
+      }
+      return { response, payload: await response.json() };
+    } finally { window.clearTimeout(timer); }
+  };
+
+  const playTone = (kind) => {
+    if (typeof playScanTone === "function") playScanTone(kind);
+  };
+
+  const setText = (selector, value) => {
+    const node = stage.querySelector(selector);
+    if (node) node.textContent = value || "-";
+  };
+
+  const showStage = (kind, payload = {}) => {
+    window.clearTimeout(stageTimer);
+    stage.className = `scan-stage is-${kind}`;
+    stage.hidden = false;
+    spinner.hidden = kind !== "pending" && !payload.loading;
+    dismissButton.hidden = kind !== "blocking";
+    dismissButton.textContent = pendingScan || closeUncertain ? "Проверить результат" : "Продолжить сканирование";
+    setText("[data-scan-stage-kicker]", payload.kicker || "FBS-контроль · проверка стикера");
+    setText("[data-scan-stage-title]", payload.title || "ПРОВЕРЯЮ");
+    setText(
+      "[data-scan-stage-message]",
+      payload.message || "Сверяю заказ с текущей отгрузкой."
+    );
+    const stickerDetail = stage.querySelector("[data-scan-stage-sticker-detail]");
+    const orderDetail = stage.querySelector("[data-scan-stage-order-detail]");
+    const boxDetail = stage.querySelector("[data-scan-stage-box-detail]");
+    if (stickerDetail) stickerDetail.hidden = !payload.sticker_number;
+    if (orderDetail) orderDetail.hidden = !payload.order_number;
+    if (boxDetail) boxDetail.hidden = !payload.box_code;
+    const hasDetails = Boolean(
+      payload.sticker_number || payload.order_number || payload.box_code
+    );
+    details.hidden = !hasDetails;
+    setText("[data-scan-stage-sticker]", payload.sticker_number);
+    setText("[data-scan-stage-order]", payload.order_number);
+    setText("[data-scan-stage-box]", payload.box_code);
+    instruction.hidden = !payload.instruction;
+    instruction.textContent = payload.instruction || "";
+    if (kind === "blocking") dismissButton.focus({ preventScroll: true });
+  };
+
+  const clearInput = () => {
+    input.value = "";
+    input.dataset.scanWatchedValue = "";
+    delete input.dataset.scanFresh;
+    delete input.dataset.scanFreshSource;
+    delete input.dataset.scanFreshAt;
+  };
+
+  const resumeScanning = () => {
+    window.clearTimeout(stageTimer);
+    stage.hidden = true;
+    unlockScanning();
+  };
+
+  const unlockScanning = () => {
+    input.readOnly = false;
+    submitButton.disabled = false;
+    delete form.dataset.scanSubmitting;
+    input.focus({ preventScroll: true });
+  };
+
+  const updateProgress = (payload) => {
+    const scanned = Number(payload.scanned_count || 0);
+    const total = Number(payload.total_count || 0);
+    const kpi = document.querySelector("[data-scanned-label-count]");
+    const progress = document.querySelector("[data-composition-progress]");
+    if (kpi) kpi.textContent = String(scanned);
+    if (progress) progress.textContent = `${scanned} / ${total}`;
+    if (root) {
+      root.dataset.scannedCount = String(scanned);
+      root.dataset.orderCount = String(total);
+    }
+
+    const row = document.querySelector(
+      `[data-tote-order-id="${String(payload.tote_order_id || "")}"]`
+    );
+    if (row) {
+      const stateCell = row.querySelector("[data-order-scan-state]");
+      const boxCell = row.querySelector("[data-order-box-code]");
+      const controlLabel = row.querySelector("[data-order-control-label]");
+      if (stateCell) {
+        stateCell.innerHTML = '<span class="status status-done">Отсканирован</span>';
+      }
+      if (boxCell) boxCell.textContent = payload.box_code || "-";
+      if (controlLabel) controlLabel.textContent = "Прошёл контроль";
+      row.classList.remove("is-waiting", "is-problem");
+      row.classList.add("is-passed");
+      row.classList.add("is-just-scanned");
+      document.dispatchEvent(new Event('fbs-work-history-refresh'));
+    }
+
+    const closeButton = document.querySelector("[data-close-check-button]");
+    if (
+      closeButton &&
+      payload.all_scanned &&
+      root?.dataset.compositionReady === "1"
+    ) {
+      closeButton.disabled = false;
+    }
+  };
+
+  const blockScan = (payload) => {
+    clearInput();
+    playTone("error");
+    showStage("blocking", {
+      kicker: "Сканирование остановлено",
+      title: payload.title || "СКАН ОТКЛОНЕН",
+      message: payload.error || "Этот заказ нельзя добавить в текущую отгрузку.",
+      instruction: payload.instruction || "Уберите товар и продолжите сканирование.",
+      sticker_number: payload.sticker_number,
+      order_number: payload.order_number,
+      box_code: payload.box_code,
+    });
+  };
+
+  const notifyDuplicate = (payload) => {
+    clearInput();
+    playTone("error");
+    showStage("duplicate", {
+      kicker: "ПОВТОР ЗАКАЗА",
+      title: payload.title || "ПОВТОР ТОВАРА",
+    });
+    unlockScanning();
+    stageTimer = window.setTimeout(() => {
+      if (stage.classList.contains("is-duplicate")) stage.hidden = true;
+    }, 1000);
+  };
+
+  dismissButton.addEventListener("click", () => {
+    if (pendingScan) return sendPendingScan(true);
+    if (closeUncertain) return finishShipment();
+    resumeScanning();
+  });
+
+  const finishShipment = async () => {
+    if (!wbAutoClose || !closeForm || shipmentFinishing || document.querySelector("[data-controller-problems][open]")) return;
+    shipmentFinishing = true;
+    window.clearTimeout(stageTimer);
+    input.readOnly = true;
+    submitButton.disabled = true;
+    form.dataset.scanSubmitting = "1";
+    showStage("pending", {
+      kicker: "Последний скан принят",
+      title: "ЗАВЕРШАЮ ПОСТАВКУ",
+      message: "Закрываю проверку и автоматически передаю поставку в доставку WB.",
+    });
+    try {
+      const { response, payload } = await fetchConfirmed(
+        closeForm.getAttribute("action") || window.location.href,
+        { method: "POST", body: new FormData(closeForm) }
+      );
+      closeUncertain = false;
+      if (!response.ok || !payload.ok) {
+        shipmentFinishing = false;
+        showStage("blocking", {
+          title: "ПРОВЕРКУ ПОКА НЕЛЬЗЯ ЗАКРЫТЬ",
+          message: payload.error || "Проверьте оставшиеся действия в отгрузке.",
+          instruction: "Принятые сканы сохранены. Устраните указанную причину или продолжите другой поток.",
+        });
+        return;
+      }
+      if (!shipmentCompletionAnnounced) {
+        playTone("success");
+        shipmentCompletionAnnounced = true;
+      }
+      showStage("success", {
+        kicker: "Проверка завершена",
+        title: payload.title || "ВСЯ ПОСТАВКА ПРОВЕРЕНА",
+        message: payload.message || "Статус отправки: загружается в доставку WB.",
+        loading: false,
+      });
+      stageTimer = window.setTimeout(() => {
+        window.location.assign(payload.redirect_url || "{% url 'fbs:controller_home' %}");
+      }, 1800);
+    } catch (error) {
+      shipmentFinishing = false;
+      closeUncertain = true;
+      showStage("blocking", {
+        kicker: "Ответ сервера не получен",
+        title: "УТОЧНИТЕ ЗАВЕРШЕНИЕ ПРОВЕРКИ",
+        message: "Сканы сохранены. Результат закрытия пока неизвестен.",
+        instruction: "Нажмите кнопку, чтобы безопасно повторить проверку результата.",
+      });
+    }
+  };
+
+  window.addEventListener("fbs:metadata-ready", () => {
+    if (
+      wbAutoClose && !pendingScan && !resolvingScan &&
+      Number(root?.dataset.orderCount || 0) > 0 &&
+      Number(root?.dataset.scannedCount || 0) ===
+        Number(root?.dataset.orderCount || 0)
+    ) {
+      finishShipment();
+    }
+  });
+
+  const applyScanResult = async (response, payload) => {
+    const confirmedScan = pendingScan?.scan;
+    savePending(null);
+    if (payload.fallback_submit) {
+      input.value = confirmedScan || input.value;
+      input.readOnly = false;
+      HTMLFormElement.prototype.submit.call(form);
+      return;
+    }
+    if (!response.ok || !payload.ok) {
+      if (payload.scan_state === "duplicate") notifyDuplicate(payload);
+      else blockScan(payload);
+      return;
+    }
+    clearInput();
+    updateProgress(payload);
+    if (payload.all_scanned && wbAutoClose) {
+      playTone("success");
+      await finishShipment();
+      return;
+    }
+    playTone("success");
+    showStage("success", {
+      kicker: "Скан принят", title: payload.title || "СТИКЕР ПРИНЯТ",
+      message: "Положите товар в указанный короб.",
+      sticker_number: payload.sticker_number, order_number: payload.order_number,
+      box_code: payload.box_code,
+    });
+    stageTimer = window.setTimeout(resumeScanning, 900);
+  };
+
+  let resolvingScan = false;
+  const sendPendingScan = async (readFirst = false) => {
+    if (!pendingScan || resolvingScan) return;
+    resolvingScan = true;
+    form.dataset.scanSubmitting = "1";
+    input.readOnly = true;
+    submitButton.disabled = true;
+    showStage("pending", { title: readFirst ? "УТОЧНЯЮ РЕЗУЛЬТАТ СКАНА" : "ПРОВЕРЯЮ" });
+    try {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          if (readFirst || attempt > 0) {
+            const url = new URL(form.getAttribute("action") || window.location.href, window.location.href);
+            url.searchParams.set("operation_status", pendingScan.id);
+            const result = await fetchConfirmed(url.href);
+            if (result.payload.operation_found) {
+              await applyScanResult(result.response, result.payload);
+              return;
+            }
+            if (!result.response.ok || !result.payload.ok) throw new Error("readback_failed");
+          }
+          const body = new FormData(form);
+          body.set("label_scan", pendingScan.scan);
+          body.set("operation_id", pendingScan.id);
+          const result = await fetchConfirmed(form.getAttribute("action") || window.location.href,
+            { method: "POST", body });
+          await applyScanResult(result.response, result.payload);
+          return;
+        } catch (error) {
+          if (attempt === 1 || !pendingScan) throw error;
+        }
+      }
+    } catch (error) {
+      showStage("blocking", {
+        title: "РЕЗУЛЬТАТ СКАНА УТОЧНЯЕТСЯ",
+        message: "Связь прервалась. Сервер мог сохранить скан.",
+        instruction: "Оставьте товар перед собой. Нажмите кнопку для проверки результата; повторно сканировать товар не нужно.",
+      });
+    } finally { resolvingScan = false; }
+  };
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (form.dataset.scanSubmitting === "1") return;
+    if (pendingScan) return sendPendingScan(true);
+    const scanValue = input.value.trim();
+    if (!scanValue || input.dataset.scanFresh !== "1") {
+      input.readOnly = true;
+      submitButton.disabled = true;
+      form.dataset.scanSubmitting = "1";
+      blockScan({ title: "НЕТ НОВОГО СКАНА",
+        error: "Отсканируйте физическую этикетку заказа ещё раз.",
+        instruction: "Уберите товар из зоны сканирования и повторите скан." });
+      return;
+    }
+    savePending({ id: newOperationId(), scan: scanValue });
+    await sendPendingScan();
+  }, true);
+
+  if (pendingScan) {
+    sendPendingScan(true);
+    return;
+  }
+
+  if (
+    wbAutoClose &&
+    root?.dataset.compositionReady === "1" &&
+    Number(root.dataset.orderCount || 0) > 0 &&
+    Number(root.dataset.scannedCount || 0) === Number(root.dataset.orderCount || 0)
+  ) {
+    window.setTimeout(finishShipment, 200);
+  }
+})();
+</script>
+<script>
+(() => {
+  const root = document.querySelector("[data-composition-ready]");
+  const statusUrl = root?.dataset.metadataStatusUrl || "";
+  if (!root || !statusUrl) return;
+
+  const statusBadge = document.querySelector("[data-check-tote-status]");
+  const readinessBody = document.querySelector("[data-check-tote-readiness]");
+  const statusClasses = [
+    "status-done",
+    "status-warning",
+    "status-verification",
+    "status-problem",
+  ];
+  let pollTimer = null;
+
+  const replaceStatusClass = (node, cssClass) => {
+    if (!node) return;
+    statusClasses.forEach((className) => node.classList.remove(className));
+    node.classList.add(cssClass || "status-warning");
+  };
+
+  const waitingAgeLabel = (payload) => {
+    if (!payload.waiting_since) return "";
+    const minutes = Number(payload.waiting_minutes || 0);
+    return minutes >= 1 ? `${Math.floor(minutes)} мин` : "менее минуты";
+  };
+
+  const renderReadiness = (payload) => {
+    if (!readinessBody) return;
+    readinessBody.replaceChildren();
+    if (payload.ready) {
+      const notice = document.createElement("div");
+      notice.className = "notice notice-ok";
+      notice.textContent = "КИЗ, сроки и поставка подтверждены.";
+      readinessBody.appendChild(notice);
+      return;
+    }
+    const reasons = document.createElement("ul");
+    reasons.className = "check-reasons";
+    (payload.reasons || []).forEach((reason) => {
+      const item = document.createElement("li");
+      item.textContent = String(reason || "");
+      reasons.appendChild(item);
+    });
+    const waitingAge = waitingAgeLabel(payload);
+    if (waitingAge) {
+      const item = document.createElement("li");
+      item.textContent = `Ожидает КИЗ уже ${waitingAge}.`;
+      reasons.appendChild(item);
+    }
+    readinessBody.appendChild(reasons);
+  };
+
+  const applyPayload = (payload) => {
+    const becameReady = root.dataset.compositionReady !== "1" && payload.ready;
+    root.dataset.compositionReady = payload.ready ? "1" : "0";
+    if (statusBadge) {
+      const statusLabel = payload.status_label || "Ожидает подтверждения";
+      const waitingAge = waitingAgeLabel(payload);
+      statusBadge.textContent = waitingAge
+        ? `${statusLabel} · ${waitingAge}`
+        : statusLabel;
+      replaceStatusClass(statusBadge, payload.status_css_class);
+    }
+    (payload.orders || []).forEach((order) => {
+      const row = document.querySelector(
+        `[data-tote-order-id="${String(order.id || "")}"]`
+      );
+      const badge = row?.querySelector("[data-order-metadata-state]");
+      if (!badge) return;
+      badge.dataset.orderMetadataState = order.state || "waiting";
+      badge.textContent = order.label || "Ожидает подтверждения WB";
+      replaceStatusClass(badge, order.css_class);
+      if (order.state === "problem") {
+        const controlLabel = row.querySelector("[data-order-control-label]");
+        if (controlLabel) controlLabel.textContent = "Не прошёл контроль";
+        row.classList.remove("is-passed", "is-waiting");
+        row.classList.add("is-problem");
+      }
+    });
+    renderReadiness(payload);
+    if (becameReady) window.dispatchEvent(new CustomEvent("fbs:metadata-ready"));
+  };
+
+  const schedulePoll = (delayMs) => {
+    window.clearTimeout(pollTimer);
+    if (delayMs > 0) pollTimer = window.setTimeout(pollMetadata, delayMs);
+  };
+
+  const pollMetadata = async () => {
+    if (document.hidden) {
+      schedulePoll(10000);
+      return;
+    }
+    try {
+      const response = await window.fetch(statusUrl, {
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      });
+      const contentType = response.headers.get("content-type") || "";
+      if (!response.ok || !contentType.includes("application/json")) {
+        throw new Error("invalid_response");
+      }
+      const payload = await response.json();
+      if (!payload.ok) throw new Error("invalid_payload");
+      applyPayload(payload);
+      schedulePoll(Number(payload.poll_after_ms || 0));
+    } catch (error) {
+      schedulePoll(5000);
+    }
+  };
+
+  schedulePoll(300);
+})();
+</script>
+{% include "fbs/_controller_problems.html" %}
+{% endblock %}

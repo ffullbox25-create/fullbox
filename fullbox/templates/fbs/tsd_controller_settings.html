@@ -1,0 +1,182 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}FBS-контроллеры{% endblock %}
+{% block workspace_page_class %}tsd-page-controller-settings{% endblock %}
+
+{% block workspace_body %}
+  <style>
+    .controller-session-grid { display: grid; grid-template-columns: repeat(4, minmax(210px, 1fr)); gap: 10px; }
+    .controller-session-card { display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line, #e8e1d6); border-left: 4px solid var(--warning, #d89a19); border-radius: 12px; background: #fff; }
+    .controller-session-card.is-live { border-left-color: var(--success, #237a4b); }
+    .controller-session-state { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .controller-session-state strong { flex: 0 0 auto; font-size: 13px; }
+    .controller-session-card span, .controller-session-card small { color: var(--muted, #7a746b); }
+    .controller-session-card strong { overflow-wrap: anywhere; }
+    .controller-filter-row { align-items: end; }
+    .controller-filter-row .operator-filters { flex: 1; }
+    .controller-table .state-stack { display: grid; gap: 4px; }
+    .controller-state { display: inline-flex; width: fit-content; padding: 4px 8px; border-radius: 999px; background: #f0ede8; color: var(--muted, #7a746b); font-size: 12px; font-weight: 800; }
+    .controller-state.is-active { background: #fff3dc; color: #9a5b00; }
+    .controller-state.is-problem { background: #fde7e5; color: #a92d25; }
+    .controller-table .controller-transfer-form { display: grid; grid-template-columns: minmax(190px, 1fr) auto; gap: 7px; align-items: end; min-width: 360px; }
+    .controller-table .controller-transfer-form label { display: grid; gap: 4px; margin: 0; }
+    .controller-table .controller-transfer-form select { width: 100%; min-width: 0; }
+    .controller-progress { min-width: 120px; }
+    .controller-progress-bar { display: block; height: 7px; margin-top: 6px; overflow: hidden; border-radius: 999px; background: #eee9e1; }
+    .controller-progress-bar i { display: block; width: var(--progress); max-width: 100%; height: 100%; background: var(--accent, #f89000); }
+    .controller-history { display: grid; gap: 8px; }
+    .controller-history-row { display: grid; grid-template-columns: 150px minmax(220px, 1fr) minmax(250px, 1.2fr) minmax(180px, .8fr); gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line, #e8e1d6); }
+    .controller-history-row:last-child { border-bottom: 0; }
+    .controller-history-row span, .controller-history-row small { display: block; color: var(--muted, #7a746b); }
+    @media (max-width: 1250px) { .controller-session-grid { grid-template-columns: repeat(2, minmax(210px, 1fr)); } }
+    @media (max-width: 900px) {
+      .controller-session-grid, .controller-history-row { grid-template-columns: 1fr; }
+      .controller-table .controller-transfer-form { grid-template-columns: 1fr; min-width: 240px; }
+    }
+  </style>
+
+  <div class="notice notice-info" role="status">
+    Передача доступна только для незавершённой проверки и только на стол с активным контроллером. Вместе с тарой передаются волна и сохранённый прогресс; служебная тара стола остаётся на месте.
+  </div>
+
+  <section class="operator-summary" aria-label="Сводка FBS-контроля">
+    <div><span>Контроллеры в сети</span><strong>{{ live_session_count }}</strong></div>
+    <div><span>Тара в работе</span><strong>{{ tote_summary.active }}</strong></div>
+    <div><span>Проверки завершены</span><strong>{{ tote_summary.closed }}</strong></div>
+    <div class="{% if tote_summary.problem %}summary-problem{% endif %}"><span>Проблемные</span><strong>{{ tote_summary.problem }}</strong></div>
+  </section>
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading">
+      <div><span class="section-kicker">Текущая смена</span><h2>Активные контроллеры и столы</h2></div>
+      <strong>{{ active_sessions|length }}</strong>
+    </div>
+    <div class="controller-session-grid">
+      {% for session in active_sessions %}
+        <article class="controller-session-card{% if session.is_live %} is-live{% endif %}">
+          <div class="controller-session-state">
+            <span>{% if session.is_live %}В сети{% else %}Смена неактивна{% endif %}</span>
+            <strong>Телег закреплено: {{ session.active_tote_count }}</strong>
+          </div>
+          <strong>{{ session.controller_name }}</strong>
+          <small>{{ session.workstation.name }} · {{ session.workstation.barcode }}</small>
+          <small>Служебная тара: {{ session.unknown_tote.barcode }}</small>
+          <small>Смена открыта {{ session.started_at|date:"d.m.Y H:i" }}</small>
+        </article>
+      {% empty %}
+        <div class="empty-state">Активных смен контроллеров нет.</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="operator-command-row controller-filter-row" id="controller-work">
+    <form class="operator-filters operator-filters-compact" method="get">
+      <label>
+        <span>Волна, тара, сотрудник или стол</span>
+        <input type="search" name="q" value="{{ query }}" placeholder="Номер волны, QR или ФИО">
+      </label>
+      <label>
+        <span>Состояние</span>
+        <select name="status">
+          <option value="all"{% if selected_status == 'all' %} selected{% endif %}>Все</option>
+          <option value="active"{% if selected_status == 'active' %} selected{% endif %}>В работе</option>
+          <option value="closed"{% if selected_status == 'closed' %} selected{% endif %}>Завершены</option>
+          <option value="problem"{% if selected_status == 'problem' %} selected{% endif %}>Проблемные</option>
+        </select>
+      </label>
+      <label>
+        <span>На странице</span>
+        <select name="page_size">{% for size in page_sizes %}<option value="{{ size }}"{% if size == page_size %} selected{% endif %}>{{ size }}</option>{% endfor %}</select>
+      </label>
+      <div class="filter-actions">
+        <button class="button button-secondary button-compact" type="submit">Показать</button>
+        <a class="button button-secondary button-compact" href="{% url 'fbs:tsd_controller_settings' %}">Сбросить</a>
+      </div>
+    </form>
+  </section>
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading"><div><span class="section-kicker">Тары у столов</span><h2>Ожидают приема контролером</h2></div><strong>{{ waiting_tote_rows|length }}</strong></div>
+    <div class="operator-table-scroll"><table class="operator-table controller-table">
+      <thead><tr><th>Волна и клиент</th><th>Сборщик</th><th>Текущий стол</th><th>Тара</th><th>Состояние</th><th>Передача</th></tr></thead>
+      <tbody>{% for row in waiting_tote_rows %}<tr>
+        <td><a class="table-main-link" href="{% url 'fbs:operator_wave_detail' batch_id=row.pick_batch_id %}">Волна #{{ row.pick_batch_id }}</a><small>{{ row.pick_batch.agency }}</small></td>
+        <td>{{ row.picker_name }}</td><td>{{ row.workstation.name }}</td>
+        <td><strong>{{ row.tote.name }}</strong><small>{{ row.tote.barcode }}</small></td>
+        <td>Ожидает контролера</td><td>{% if row.transfer_targets %}
+          <form class="controller-transfer-form" method="post" data-submit-once>
+            {% csrf_token %}<input type="hidden" name="action" value="transfer_waiting_controller_tote">
+            <input type="hidden" name="binding_id" value="{{ row.id }}">
+            <input type="hidden" name="source_workstation_id" value="{{ row.workstation_id }}">
+            <label><span>Новый контроллер</span><select name="target_session_id" required><option value="">Выберите</option>{% for session in row.transfer_targets %}<option value="{{ session.id }}">{{ session.controller_name }} · {{ session.workstation.name }}</option>{% endfor %}</select></label>
+            <button class="button button-primary button-compact" type="submit"{% if not warehouse_writes_enabled %} disabled{% endif %}>Передать</button>
+          </form>{% else %}<small>Нет другого стола с активным контролером</small>{% endif %}</td>
+      </tr>{% empty %}<tr><td colspan="6" class="empty-row">Ожидающих тар по выбранному фильтру нет.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading">
+      <div><span class="section-kicker">Связи контроля</span><h2>Волна → сборщик → контроллер → тара</h2></div>
+      <strong>{{ tote_page.paginator.count }}</strong>
+    </div>
+    <div class="operator-table-scroll">
+      <table class="operator-table controller-table">
+        <thead><tr><th>Волна и клиент</th><th>Создание и сборка</th><th>FBS-контроллер</th><th>Тара</th><th>Проверка</th><th>Состояние</th><th>Передача</th></tr></thead>
+        <tbody>
+          {% for row in tote_rows %}
+            <tr>
+              <td><a class="table-main-link" href="{% url 'fbs:operator_wave_detail' batch_id=row.pick_batch_id %}">Волна #{{ row.pick_batch_id }}</a><small>{{ row.pick_batch.agency }}</small></td>
+              <td><strong>Создал: {{ row.created_by_name }}</strong><small>Сборщик: {{ row.picker_name }}</small></td>
+              <td><strong>{{ row.controller_name }}</strong><small>{{ row.session.workstation.name }}</small></td>
+              <td><strong>{{ row.tote.name }}</strong><small>{{ row.tote.barcode }}</small></td>
+              <td class="controller-progress"><strong>{{ row.processed_qty }} из {{ row.planned_qty }}</strong><span class="controller-progress-bar" style="--progress: {% widthratio row.processed_qty row.planned_qty 100 %}%"><i></i></span></td>
+              <td><div class="state-stack"><span class="controller-state{% if row.is_active %} is-active{% elif row.status == 'problem' %} is-problem{% endif %}">{{ row.get_status_display }}</span><small>{{ row.updated_at|date:"d.m.Y H:i" }}</small></div></td>
+              <td>
+                {% if row.transfer_targets %}
+                  <form class="controller-transfer-form" method="post" data-submit-once data-confirm-submit="Передать эту тару другому контроллеру? Волна и прогресс проверки будут перенесены на выбранный стол.">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="transfer_controller_tote">
+                    <input type="hidden" name="pick_tote_id" value="{{ row.id }}">
+                    <label><span>Новый контроллер</span><select name="target_session_id" required><option value="">Выберите</option>{% for session in row.transfer_targets %}<option value="{{ session.id }}">{{ session.controller_name }} · {{ session.workstation.name }}</option>{% endfor %}</select></label>
+                    <button class="button button-primary button-compact" type="submit"{% if not warehouse_writes_enabled %} disabled{% endif %}>Передать</button>
+                  </form>
+                {% elif row.is_active %}
+                  <small class="text-muted">Нет другого активного контроллера</small>
+                {% else %}
+                  <small class="text-muted">Проверка завершена</small>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-row" colspan="7">Записи контроля не найдены.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if tote_page.paginator.num_pages > 1 %}
+    <nav class="operator-pagination" aria-label="Страницы журнала контроллеров">
+      {% if tote_page.has_previous %}<a class="button button-secondary button-compact" href="?{{ filter_query }}&amp;page={{ tote_page.previous_page_number }}#controller-work">Назад</a>{% endif %}
+      <span>Страница {{ tote_page.number }} из {{ tote_page.paginator.num_pages }}</span>
+      {% if tote_page.has_next %}<a class="button button-secondary button-compact" href="?{{ filter_query }}&amp;page={{ tote_page.next_page_number }}#controller-work">Далее</a>{% endif %}
+    </nav>
+  {% endif %}
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading"><div><span class="section-kicker">Аудит</span><h2>Последние передачи между контроллерами</h2></div><strong>{{ transfer_events|length }}</strong></div>
+    <div class="controller-history">
+      {% for event in transfer_events %}
+        <div class="controller-history-row">
+          <div><strong>{{ event.created_at|date:"d.m.Y H:i" }}</strong><small>Волна #{{ event.pick_batch_id }}</small></div>
+          <div><strong>{{ event.tote.name }}</strong><small>{{ event.tote.barcode }}</small></div>
+          <div><span>{{ event.source_controller_name }} → {{ event.target_controller_name }}</span><small>{{ event.source_code|default:"—" }} → {{ event.target_code|default:"—" }}</small></div>
+          <div><span>Передал: {{ event.performed_by_name }}</span></div>
+        </div>
+      {% empty %}
+        <div class="empty-state empty-state-ok">Передач между контроллерами ещё не было.</div>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

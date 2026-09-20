@@ -1,0 +1,398 @@
+<style>
+  .request-journal { min-width: 0; display: grid; gap: 16px; }
+  .request-journal__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .request-journal__title { margin: 0; font: 700 28px/1.2 "Bricolage Grotesque", "Manrope", sans-serif; letter-spacing: 0; }
+  .request-journal__actions { display: flex; gap: 8px; }
+  .request-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+  .request-tab { min-height: 38px; padding: 8px 16px; border: 1px solid var(--stroke); border-radius: 8px; background: #fff; color: var(--ink); font: 700 13px/1 "Manrope", sans-serif; cursor: pointer; }
+  .request-tab.active { border-color: var(--accent); background: var(--accent); color: #fff; }
+  .request-tab__count { margin-left: 8px; opacity: .75; }
+  .request-filters { display: grid; grid-template-columns: minmax(180px, 240px) minmax(190px, 250px) minmax(280px, 1fr) auto auto; gap: 10px; }
+  .request-field { width: 100%; min-width: 0; min-height: 42px; padding: 9px 12px; border: 1px solid var(--stroke); border-radius: 8px; background: #fff; color: var(--ink); font: 500 13px/1.2 "Manrope", sans-serif; }
+  .request-field:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .identifier-results { display: grid; gap: 10px; padding: 14px; border: 1px solid rgba(248, 144, 0, .28); border-radius: 8px; background: rgba(248, 144, 0, .055); }
+  .identifier-results__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .identifier-results__title { margin: 0; font-size: 15px; font-weight: 800; }
+  .identifier-results__count { color: var(--muted); font-size: 12px; font-weight: 700; }
+  .identifier-results__list { display: grid; gap: 8px; }
+  .identifier-result { min-width: 0; display: grid; grid-template-columns: minmax(170px, .8fr) minmax(260px, 1.6fr) minmax(140px, .7fr) auto; align-items: center; gap: 14px; padding: 12px; border: 1px solid var(--stroke); border-radius: 8px; background: #fff; }
+  .identifier-result__number { color: var(--ink); font-size: 14px; font-weight: 800; text-decoration: none; }
+  .identifier-result__number:hover { color: var(--accent-strong); }
+  .identifier-result__meta { margin-top: 3px; color: var(--muted); font-size: 11px; }
+  .identifier-result__matches { min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  .identifier-match { max-width: 100%; display: inline-flex; gap: 5px; padding: 5px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--ink); font-size: 11px; line-height: 1.25; }
+  .identifier-match strong { color: var(--accent-strong); }
+  .identifier-result__status { justify-self: start; }
+  .identifier-results__empty { padding: 12px; border: 1px dashed var(--stroke); border-radius: 8px; background: #fff; color: var(--muted); font-size: 12px; }
+  .request-stats { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 10px; }
+  .request-stat { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border: 1px solid var(--stroke); border-radius: 8px; background: #fff; color: inherit; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; }
+  .request-stat:hover { box-shadow: 0 2px 8px rgba(48, 48, 48, .1); }
+  .request-stat:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .request-stat.active { box-shadow: inset 0 0 0 2px currentColor; }
+  .request-stat.backlog { border-color: rgba(220, 38, 38, .24); color: #b42318; background: rgba(220, 38, 38, .06); }
+  .request-stat.in_progress { border-color: rgba(217, 119, 6, .24); color: #8b5a00; background: rgba(248, 184, 0, .08); }
+  .request-stat.blocked { border-color: rgba(248, 104, 0, .24); color: #b64d00; background: rgba(248, 104, 0, .06); }
+  .request-stat.done { border-color: rgba(34, 197, 94, .22); color: #187744; background: rgba(34, 197, 94, .06); }
+  .request-table-shell { min-width: 0; overflow: hidden; border: 1px solid var(--stroke); border-radius: 8px; background: #fff; }
+  .request-table-scroll { width: 100%; overflow-x: auto; }
+  .request-table { width: 100%; min-width: 1210px; margin: 0; border-collapse: collapse; table-layout: fixed; }
+  .request-table th, .request-table td { padding: 12px 10px; border-bottom: 1px solid var(--stroke); vertical-align: middle; text-align: left; font-size: 12px; }
+  .request-table th { height: 44px; background: #fafafa; color: var(--muted); font-weight: 800; white-space: nowrap; }
+  .request-table tbody tr:last-child td { border-bottom: 0; }
+  .request-table tbody tr:hover td { background: rgba(248, 144, 0, .045); }
+  .request-table__check { width: 40px; text-align: center !important; }
+  .request-table__number { width: 110px; font-weight: 800; }
+  .request-table__type { width: 85px; }
+  .request-table__client { width: 155px; }
+  .request-table__date { width: 125px; }
+  .request-table__deadline { width: 185px; }
+  .request-table__warehouse { width: 120px; }
+  .request-table__responsible { width: 145px; }
+  .request-table__status { width: 155px; }
+  .request-table__actions { width: 85px; }
+  .request-table input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+  .request-number { display: inline-flex; color: var(--ink); font-weight: 800; text-decoration: none; }
+  a.request-number:hover { color: var(--accent-strong); text-decoration: underline; text-underline-offset: 3px; }
+  a.request-number:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+  .trip-otg-preview-trigger { display: inline-flex; }
+  .trip-otg-tooltip { position: fixed; z-index: 10000; width: min(360px, calc(100vw - 24px)); padding: 12px; border: 1px solid rgba(248, 144, 0, .34); border-radius: 10px; background: #fff; color: var(--ink); box-shadow: 0 14px 34px rgba(15, 23, 42, .18); pointer-events: none; }
+  .trip-otg-tooltip__title { margin-bottom: 8px; color: var(--ink); font-size: 12px; font-weight: 800; }
+  .trip-otg-tooltip__list { display: grid; gap: 6px; }
+  .trip-otg-tooltip__row { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 9px; padding: 7px 8px; border-radius: 7px; background: rgba(248, 144, 0, .065); }
+  .trip-otg-tooltip__number { color: var(--accent-strong); font-size: 12px; font-weight: 800; white-space: nowrap; }
+  .trip-otg-tooltip__meta { min-width: 0; color: var(--muted); font-size: 10px; line-height: 1.35; }
+  .trip-otg-tooltip__empty { color: var(--muted); font-size: 11px; }
+  .request-row-title { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .request-deadline { min-width: 0; display: grid; gap: 3px; }
+  .request-deadline__timer { font-size: 12px; color: #9a5a00; line-height: 1.3; }
+  .request-deadline__timer.done { color: #187744; }
+  .request-deadline__timer.overdue { color: #b42318; }
+  .request-deadline__timer.none { color: var(--muted); font-weight: 700; }
+  .request-deadline span { color: var(--muted); font-size: 10px; line-height: 1.3; }
+  .request-status { display: inline-flex; max-width: 100%; min-height: 26px; align-items: center; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; line-height: 1.25; white-space: normal; }
+  .request-status.neutral { color: #475569; background: rgba(100, 116, 139, .12); }
+  .request-status.pending { color: #9a5a00; background: rgba(217, 119, 6, .14); }
+  .request-status.moving { color: #1d4ed8; background: rgba(37, 99, 235, .13); }
+  .request-status.active { color: #1d4ed8; background: rgba(37, 99, 235, .13); }
+  .request-status.done { color: #187744; background: rgba(34, 197, 94, .13); }
+  .request-status.danger { color: #b42318; background: rgba(220, 38, 38, .13); }
+  .request-open { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 6px 11px; border: 1px solid var(--accent); border-radius: 8px; color: var(--accent-strong); background: #fff; font-size: 11px; font-weight: 800; }
+  .request-open:hover { background: var(--accent-soft); }
+  .request-empty { padding: 32px 16px !important; color: var(--muted); text-align: center !important; }
+  .request-table-footer { min-height: 52px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; padding: 10px 12px; border-top: 1px solid var(--stroke); font-size: 12px; }
+  .request-pagination { display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .request-page { min-width: 32px; height: 32px; display: inline-grid; place-items: center; border: 1px solid var(--stroke); border-radius: 8px; background: #fff; font-weight: 700; }
+  .request-page.current { border-color: var(--accent); background: var(--accent); color: #fff; }
+  .request-page.disabled { color: #a0a0a0; pointer-events: none; }
+  .request-page-size { justify-self: end; display: flex; align-items: center; gap: 8px; }
+  .request-page-size .request-field { width: auto; min-height: 34px; padding: 6px 28px 6px 9px; }
+  @media (max-width: 1180px) {
+    .request-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .request-filters .request-search { grid-column: 1 / -1; }
+    .request-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .identifier-result { grid-template-columns: minmax(160px, .8fr) minmax(220px, 1.5fr) auto; }
+    .identifier-result__status { display: none; }
+  }
+  @media (max-width: 720px) {
+    .request-journal__header { align-items: flex-start; flex-direction: column; }
+    .request-filters, .request-stats { grid-template-columns: 1fr; }
+    .request-filters .request-search { grid-column: auto; }
+    .request-table-footer { grid-template-columns: 1fr; }
+    .request-pagination { justify-content: flex-start; overflow-x: auto; }
+    .request-page-size { justify-self: start; }
+    .identifier-results__header { align-items: flex-start; flex-direction: column; }
+    .identifier-result { grid-template-columns: 1fr; }
+    .identifier-result__status { display: inline-flex; }
+    .identifier-result .request-open { justify-self: start; }
+  }
+</style>
+
+<section class="request-journal" aria-labelledby="request-journal-title">
+  <div class="request-journal__header">
+    <h1 class="request-journal__title" id="request-journal-title">Журнал заявок</h1>
+    <div class="request-journal__actions">
+      <a class="btn" href="/fbs/operator/movements/">FBS перемещения</a>
+      <a class="btn" href="{{ task_panel_list_url }}">Все задачи</a>
+    </div>
+  </div>
+
+  <form class="request-journal__controls" method="get">
+    <input type="hidden" name="todo_filters_applied" value="1">
+    <input type="hidden" name="todo_page_size" value="{{ request_page_size }}">
+    <div class="request-tabs" role="group" aria-label="Тип заявки">
+      {% for tab in task_panel_filter_tabs %}
+        <button type="submit" name="todo_filter_type" value="{{ tab.value }}" class="request-tab{% if tab.active %} active{% endif %}">
+          {{ tab.label }} <span class="request-tab__count">{{ tab.count }}</span>
+        </button>
+      {% endfor %}
+    </div>
+    <div class="request-filters">
+      <select class="request-field" name="todo_filter_client" aria-label="Клиент">
+        <option value="">Все клиенты</option>
+        {% for option in task_panel_client_options %}
+          <option value="{{ option.id }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>
+        {% endfor %}
+      </select>
+      <select class="request-field" name="todo_filter_document_status" aria-label="Статус">
+        <option value="">Все статусы</option>
+        {% for option in task_panel_document_status_options %}
+          <option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>
+        {% endfor %}
+      </select>
+      <input class="request-field request-search" type="search" name="todo_filter_query" value="{{ task_panel_search_query }}" placeholder="Заявка/FBS, клиент, ИНН, артикул, ШК или короб">
+      <button class="btn primary" type="submit" name="todo_filter_type" value="{{ task_panel_active_filter_type }}">Применить</button>
+      <a class="btn" href="?todo_filters_reset=1">Сбросить</a>
+    </div>
+  </form>
+
+  {% if identifier_search_performed %}
+    <section class="identifier-results" aria-label="Результаты поиска по реквизитам поставки">
+      <div class="identifier-results__header">
+        <h2 class="identifier-results__title">Найдено в заявках</h2>
+        <span class="identifier-results__count">Запрос: {{ identifier_search_query }} · результатов: {{ identifier_search_result_count }}</span>
+      </div>
+      {% if identifier_search_results %}
+        <div class="identifier-results__list">
+          {% for result in identifier_search_results %}
+            <article class="identifier-result">
+              <div>
+                <a class="identifier-result__number" href="{{ result.detail_url }}">Заявка №{{ result.number }}</a>
+                <div class="identifier-result__meta">{{ result.client_label }} · {{ result.marketplace_label }} · {{ result.destination_label }}</div>
+              </div>
+              <div class="identifier-result__matches">
+                {% for match in result.matches %}<span class="identifier-match"><strong>{{ match.label }}:</strong> {{ match.value }}</span>{% endfor %}
+              </div>
+              <span class="request-status {{ result.status_tone }} identifier-result__status">{{ result.status_label }}</span>
+              <a class="request-open" href="{{ result.detail_url }}">Открыть</a>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="identifier-results__empty">По номеру поставки, ШК ГМ и коду короба заявка не найдена.</div>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  <div class="request-stats">
+    {% for stat in task_panel_stats %}
+      <a class="request-stat {{ stat.status }}{% if stat.active %} active{% endif %}" href="{{ stat.filter_url }}"{% if stat.active %} aria-current="true"{% endif %}><span>{{ stat.label }}</span><strong>{{ stat.count }}</strong></a>
+    {% endfor %}
+  </div>
+
+  <div class="request-table-shell">
+    <div class="request-table-scroll">
+      <table class="request-table">
+        <thead>
+          <tr>
+            <th class="request-table__check"><input id="request-select-all" type="checkbox" aria-label="Выбрать все строки"></th>
+            <th class="request-table__number">№ заявки</th>
+            <th class="request-table__type">Тип</th>
+            <th class="request-table__client">Клиент</th>
+            <th class="request-table__date">Поступила</th>
+            <th class="request-table__deadline">Срок выполнения</th>
+            <th class="request-table__warehouse">Склад</th>
+            <th class="request-table__responsible">Ответственный</th>
+            <th class="request-table__status">Статус</th>
+            <th class="request-table__actions">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in request_rows %}
+            <tr data-request-row="{{ row.task_id }}">
+              <td class="request-table__check"><input class="request-row-check" type="checkbox" value="{{ row.task_id }}" aria-label="Выбрать {{ row.number }}"></td>
+              <td class="request-table__number">
+                {% if row.is_trip %}<span class="trip-otg-preview-trigger" data-trip-otg-preview data-trip-preview-id="{{ row.task_id }}">{% endif %}
+                {% if row.detail_url %}<a class="request-number" href="{{ row.detail_url }}">№{{ row.number }}</a>{% else %}<span class="request-number"{% if row.is_trip %} tabindex="0"{% endif %}>№{{ row.number }}</span>{% endif %}
+                {% if row.is_trip %}
+                  <template data-trip-otg-preview-source>
+                    <div class="trip-otg-tooltip" role="tooltip">
+                      <div class="trip-otg-tooltip__title">Заявки OTG в рейсе · {{ row.trip_otg_orders|length }}</div>
+                      {% if row.trip_otg_orders %}
+                        <div class="trip-otg-tooltip__list">
+                          {% for otg in row.trip_otg_orders %}
+                            <div class="trip-otg-tooltip__row">
+                              <span class="trip-otg-tooltip__number">{{ otg.number }}</span>
+                              <span class="trip-otg-tooltip__meta">{{ otg.client_label }} · {{ otg.status_label }}</span>
+                            </div>
+                          {% endfor %}
+                        </div>
+                      {% else %}
+                        <div class="trip-otg-tooltip__empty">В рейсе пока нет заявок OTG.</div>
+                      {% endif %}
+                    </div>
+                  </template>
+                </span>{% endif %}
+                {% if row.title %}<span class="request-row-title" title="{{ row.title }}">{{ row.title }}</span>{% endif %}
+              </td>
+              <td class="request-table__type">{{ row.type_label }}</td>
+              <td class="request-table__client">{{ row.client_label }}</td>
+              <td class="request-table__date">{{ row.date_label }}</td>
+              <td class="request-table__deadline">
+                <div class="request-deadline" data-request-deadline data-deadline="{{ row.due_date_iso }}" data-deadline-state="{{ row.deadline_state }}">
+                  <strong class="request-deadline__timer {{ row.deadline_state }}" data-deadline-timer>
+                    {% if row.deadline_state == "done" %}Выполнено{% elif row.due_date_iso %}Рассчитываем срок…{% else %}Срок не задан{% endif %}
+                  </strong>
+                  {% if row.due_date_iso %}<span>до {{ row.due_date_label }}</span>{% endif %}
+                  {% if row.deadline_change_count %}
+                    <span title="{{ row.deadline_reason }}{% if row.deadline_author %} · {{ row.deadline_author }}{% endif %}">Переносов: {{ row.deadline_change_count }} · {{ row.deadline_reason }}</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="request-table__warehouse">{{ row.warehouse_label }}</td>
+              <td class="request-table__responsible">{{ row.responsible_label }}</td>
+              <td class="request-table__status"><span class="request-status {{ row.status_tone }}">{{ row.status_label }}</span></td>
+              <td class="request-table__actions">{% if row.detail_url %}<a class="request-open" href="{{ row.detail_url }}">Открыть</a>{% else %}-{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td class="request-empty" colspan="10">Заявки по выбранным фильтрам не найдены.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="request-table-footer">
+      <div>Показано {{ request_start_index }}–{{ request_end_index }} из {{ request_total }}</div>
+      <nav class="request-pagination" aria-label="Пагинация">
+        {% if request_page_obj.has_previous %}<a class="request-page" href="?{{ request_page_query_prefix }}todo_page={{ request_page_obj.previous_page_number }}" aria-label="Предыдущая страница">‹</a>{% else %}<span class="request-page disabled">‹</span>{% endif %}
+        {% for link in request_page_links %}
+          {% if link.ellipsis %}<span>…</span>{% elif link.current %}<span class="request-page current">{{ link.number }}</span>{% else %}<a class="request-page" href="?{{ request_page_query_prefix }}todo_page={{ link.number }}">{{ link.number }}</a>{% endif %}
+        {% endfor %}
+        {% if request_page_obj.has_next %}<a class="request-page" href="?{{ request_page_query_prefix }}todo_page={{ request_page_obj.next_page_number }}" aria-label="Следующая страница">›</a>{% else %}<span class="request-page disabled">›</span>{% endif %}
+      </nav>
+      <form class="request-page-size" method="get">
+        {% for item in request_hidden_query %}<input type="hidden" name="{{ item.name }}" value="{{ item.value }}">{% endfor %}
+        <label for="request-page-size">Строк</label>
+        <select class="request-field" id="request-page-size" name="todo_page_size" onchange="this.form.submit()">
+          {% for size in request_page_sizes %}<option value="{{ size }}"{% if size == request_page_size %} selected{% endif %}>{{ size }}</option>{% endfor %}
+        </select>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script>
+  (() => {
+    const deadlines = Array.from(document.querySelectorAll('[data-request-deadline]'));
+    if (!deadlines.length) return;
+
+    const durationLabel = (milliseconds) => {
+      const totalMinutes = Math.max(0, Math.floor(milliseconds / 60000));
+      if (totalMinutes < 1) return 'меньше минуты';
+      const days = Math.floor(totalMinutes / 1440);
+      const hours = Math.floor((totalMinutes % 1440) / 60);
+      const minutes = totalMinutes % 60;
+      if (days > 0) return `${days} д. ${hours} ч.`;
+      if (hours > 0) return `${hours} ч. ${minutes} мин.`;
+      return `${minutes} мин.`;
+    };
+
+    const updateDeadlines = () => {
+      const now = Date.now();
+      deadlines.forEach((deadline) => {
+        const timer = deadline.querySelector('[data-deadline-timer]');
+        if (!timer) return;
+        const state = deadline.dataset.deadlineState || 'none';
+        const deadlineAt = Date.parse(deadline.dataset.deadline || '');
+        timer.classList.remove('done', 'overdue', 'none');
+        if (state === 'done') {
+          timer.textContent = 'Выполнено';
+          timer.classList.add('done');
+        } else if (!Number.isFinite(deadlineAt)) {
+          timer.textContent = 'Срок не задан';
+          timer.classList.add('none');
+        } else if (deadlineAt <= now) {
+          timer.textContent = `Просрочено на ${durationLabel(now - deadlineAt)}`;
+          timer.classList.add('overdue');
+        } else {
+          timer.textContent = `Осталось ${durationLabel(deadlineAt - now)}`;
+        }
+      });
+    };
+
+    updateDeadlines();
+    window.setInterval(updateDeadlines, 30000);
+  })();
+</script>
+
+<script>
+  (() => {
+    const selectAll = document.getElementById('request-select-all');
+    const rows = Array.from(document.querySelectorAll('.request-row-check'));
+    if (!selectAll) return;
+    const sync = () => {
+      const selected = rows.filter((item) => item.checked).length;
+      selectAll.checked = rows.length > 0 && selected === rows.length;
+      selectAll.indeterminate = selected > 0 && selected < rows.length;
+    };
+    selectAll.addEventListener('change', () => {
+      rows.forEach((item) => { item.checked = selectAll.checked; });
+      sync();
+    });
+    rows.forEach((item) => item.addEventListener('change', sync));
+  })();
+</script>
+
+<script>
+  (() => {
+    const triggers = Array.from(document.querySelectorAll('[data-trip-otg-preview]'));
+    if (!triggers.length) return;
+
+    let activeTooltip = null;
+    let activeTrigger = null;
+
+    const hideTooltip = () => {
+      if (activeTooltip) activeTooltip.remove();
+      if (activeTrigger) {
+        activeTrigger.querySelector('.request-number')?.removeAttribute('aria-describedby');
+      }
+      activeTooltip = null;
+      activeTrigger = null;
+    };
+
+    const positionTooltip = () => {
+      if (!activeTooltip || !activeTrigger) return;
+      const triggerRect = activeTrigger.getBoundingClientRect();
+      const tooltipRect = activeTooltip.getBoundingClientRect();
+      const gap = 8;
+      const viewportGap = 12;
+      let left = triggerRect.left;
+      left = Math.min(left, window.innerWidth - tooltipRect.width - viewportGap);
+      left = Math.max(viewportGap, left);
+      let top = triggerRect.bottom + gap;
+      if (top + tooltipRect.height > window.innerHeight - viewportGap) {
+        top = Math.max(viewportGap, triggerRect.top - tooltipRect.height - gap);
+      }
+      activeTooltip.style.left = `${Math.round(left)}px`;
+      activeTooltip.style.top = `${Math.round(top)}px`;
+      activeTooltip.style.visibility = 'visible';
+    };
+
+    const showTooltip = (trigger) => {
+      const source = trigger.querySelector('template[data-trip-otg-preview-source]');
+      if (!source) return;
+      hideTooltip();
+      const fragment = source.content.cloneNode(true);
+      const tooltip = fragment.querySelector('.trip-otg-tooltip');
+      if (!tooltip) return;
+      const tooltipId = `trip-otg-tooltip-${trigger.dataset.tripPreviewId || 'current'}`;
+      tooltip.id = tooltipId;
+      tooltip.style.visibility = 'hidden';
+      document.body.appendChild(tooltip);
+      activeTooltip = tooltip;
+      activeTrigger = trigger;
+      trigger.querySelector('.request-number')?.setAttribute('aria-describedby', tooltipId);
+      positionTooltip();
+    };
+
+    triggers.forEach((trigger) => {
+      trigger.addEventListener('mouseenter', () => showTooltip(trigger));
+      trigger.addEventListener('mouseleave', hideTooltip);
+      trigger.addEventListener('focusin', () => showTooltip(trigger));
+      trigger.addEventListener('focusout', hideTooltip);
+      trigger.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') hideTooltip();
+      });
+    });
+    window.addEventListener('resize', hideTooltip);
+    window.addEventListener('scroll', hideTooltip, true);
+  })();
+</script>

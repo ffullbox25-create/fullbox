@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FULLBOX | Задачи</title>
+  <link href="/static/vendor/space-grotesk.css" rel="stylesheet">
+  <style>
+    :root { --bg:#f6f4ed; --card:#ffffff; --card-soft:#f8f6f1; --stroke:rgba(31,35,40,0.12); --text:#1f2328; --muted:#6b7280; --gold:#c79a1c; --gold-soft:#f2d48c; --green:#1f9d55; --red:#d14343; --orange:#f59e0b; --blue:#3b82f6; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:'Space Grotesk',system-ui,sans-serif; }
+    a { color:inherit; text-decoration:none; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 20px 64px; }
+    .card { background:var(--card); border:1px solid var(--stroke); border-radius:18px; padding:20px; box-shadow:0 18px 45px rgba(15,23,42,0.08); }
+    .header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    h1 { margin:0; letter-spacing:-0.5px; }
+    .muted { color:var(--muted); }
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:12px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); color:var(--text); font-weight:600; transition:all .2s ease; }
+    .btn:hover { border-color:var(--gold); box-shadow:0 12px 30px rgba(199,154,32,0.2); transform:translateY(-2px); }
+    .btn.primary { background: linear-gradient(120deg,var(--gold),var(--gold-soft)); color:#1f2328; border-color: transparent; }
+    .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap:10px; margin:18px 0; }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid var(--stroke); font-weight:600; background:rgba(15,23,42,0.04); }
+    .pill.backlog { color:var(--muted); }
+    .pill.in_progress { color:var(--blue); }
+    .pill.done { color:var(--green); }
+    .pill.blocked { color:var(--red); }
+    table { width:100%; border-collapse:collapse; margin-top:12px; }
+    th, td { padding:10px 8px; border-bottom:1px solid var(--stroke); text-align:left; }
+    th { color:var(--muted); font-weight:600; font-size:14px; }
+    td { font-size:15px; }
+    .actions { display:flex; gap:8px; justify-content:flex-end; }
+    .badge { padding:4px 8px; border-radius:8px; border:1px solid var(--stroke); font-size:12px; text-transform:uppercase; letter-spacing:0.3px; background:rgba(15,23,42,0.04); }
+    .badge.low { color:var(--muted); }
+    .badge.normal { color:var(--blue); }
+    .badge.high { color:var(--orange); }
+    .badge.urgent { color:var(--red); }
+    .task-row-attention { background:rgba(220,38,38,.09); animation:taskRowPulse 1.4s ease-in-out infinite; }
+    .task-row-attention td:first-child { border-left:4px solid #dc2626; }
+    .new-badge { display:inline-flex; margin-left:7px; padding:2px 7px; border-radius:999px; background:#dc2626; color:#fff; font-size:10px; font-weight:900; text-transform:uppercase; }
+    @keyframes taskRowPulse { 0%,100%{box-shadow:inset 0 0 0 0 rgba(220,38,38,.08)} 50%{box-shadow:inset 0 0 0 3px rgba(220,38,38,.18)} }
+    @media (prefers-reduced-motion:reduce) { .task-row-attention { animation:none; } }
+    .empty { padding:16px; text-align:center; color:var(--muted); border:1px dashed var(--stroke); border-radius:12px; margin-top:12px; background:rgba(15,23,42,0.03); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <div>
+          <h1>Задачи</h1>
+          <div class="muted">Задачи с исполнителями и сроками.</div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <a class="btn" href="/dev/">Кабинет разработчика</a>
+          <a class="btn primary" href="{% url 'todo:create' %}?next=%2Ftodo%2F">Создать задачу</a>
+        </div>
+      </div>
+
+      {% if tasks %}
+        <table>
+          <thead>
+            <tr>
+              <th>Задача</th>
+              <th>Приоритет</th>
+              <th>Дедлайн</th>
+              <th style="text-align:right;">Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for task in tasks %}
+              <tr{% if task.is_unread_for_employee %} class="task-row-attention"{% endif %}>
+                <td>
+                  <div style="font-weight:600;">
+                    <a href="{{ task.open_url }}">{{ task.display_title }}</a>
+                    {% if task.is_unread_for_employee %}<span class="new-badge">Новая</span>{% endif %}
+                  </div>
+                  {% if task.description %}
+                    <div class="muted" style="font-size:13px; margin-top:2px;">{{ task.description|truncatechars:140 }}</div>
+                  {% endif %}
+                  <div class="muted" style="font-size:13px; margin-top:4px;">
+                    Исполнитель:
+                    {% if task.assigned_to %}
+                      {{ task.assigned_to.full_name }}
+                    {% else %}
+                      <span class="muted">не назначен</span>
+                    {% endif %}
+                    · Постановщик: {{ task.created_by|default:"-" }}
+                  </div>
+                  <div class="muted" style="font-size:13px;">
+                    Наблюдатель:
+                    {% if task.observer %}
+                      {{ task.observer.full_name }}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </div>
+                </td>
+                <td><span class="badge {{ task.priority }}">{{ task.get_priority_display }}</span></td>
+                <td>{% if task.due_date %}{{ task.due_date|date:'d.m.y H:i' }}{% else %}<span class="muted">-</span>{% endif %}</td>
+                <td>
+                  <div class="actions">
+                    <a class="btn" style="padding:8px 10px;" href="{{ task.open_url }}">Подробнее</a>
+                    {% if request.user.is_authenticated and task.created_by_id == request.user.id %}
+                      <a class="btn" style="padding:8px 10px;" href="{% url 'todo:update' task.id %}">Редактировать</a>
+                    {% endif %}
+                    <form method="post" action="{% url 'todo:delete' task.id %}" onsubmit="return confirm('Удалить задачу?');">
+                      {% csrf_token %}
+                      <button class="btn" style="padding:8px 10px; border-color:rgba(225,92,100,0.4); color:var(--red);" type="submit">Удалить</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty">Пока нет задач. Создайте первую.</div>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>
+

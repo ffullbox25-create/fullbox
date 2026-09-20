@@ -1,0 +1,355 @@
+{% extends "teammanager/_base.html" %}
+{% load billing_tags %}
+
+{% block title %}Хранение — Биллинг{% endblock %}
+
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.summary-strip { display:flex; gap:12px; flex-wrap:wrap; }
+.stat-pill {
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:12px 18px; min-width:120px;
+}
+.stat-pill .sp-label { font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; }
+.stat-pill .sp-value { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:20px; font-weight:900; margin-top:2px; }
+.stat-pill .sp-value.red { color:var(--red); }
+.filter-card {
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:12px;
+  display:flex; gap:10px; flex-wrap:wrap; align-items:end;
+}
+.storage-filter-main { display:grid; grid-template-columns:minmax(240px,420px) 160px 160px auto minmax(300px,1fr); gap:10px; width:100%; align-items:end; }
+.storage-filter-main .field { width:100%; box-sizing:border-box; }
+.storage-show-action { display:flex; align-items:flex-end; }
+.storage-period-total { padding:9px 12px; border:1px solid rgba(248,144,0,.35); border-radius:10px; background:rgba(248,144,0,.13); display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.storage-period-copy { min-width:0; }
+.storage-period-total output { display:block; margin-top:3px; font-size:20px; font-weight:900; }
+.storage-period-invoice { flex:0 0 auto; white-space:nowrap; }
+.storage-filter-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:end; width:100%; }
+@media (max-width:1250px){ .storage-filter-main { grid-template-columns:repeat(2,minmax(0,1fr)); } .storage-period-total { grid-column:1 / -1; } }
+@media (max-width:600px){ .storage-filter-main { grid-template-columns:minmax(0,1fr); } .storage-period-total { grid-column:auto; align-items:stretch; flex-direction:column; } .storage-period-invoice { width:100%; text-align:center; } }
+.field {
+  border:1px solid var(--line); border-radius:10px; background:#fff;
+  padding:9px 12px; font:inherit; font-size:13px;
+}
+.table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:980px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:2px solid var(--line); }
+td { padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+tbody tr:hover td { background:#f6faf8; }
+.row-main { font-weight:800; }
+.row-sub { color:var(--muted); font-size:11px; margin-top:2px; }
+.money { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-weight:800; }
+.badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900; }
+.badge.green { background:var(--green-soft); color:var(--green-strong); }
+.badge.blue { background:#eff6ff; color:var(--blue); }
+.badge.orange { background:var(--orange-soft); color:#b45309; }
+.badge.red { background:#fff0f0; color:var(--red); }
+.badge.gray { background:var(--surface-2); color:var(--muted); }
+.warn-box { background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; padding:12px 14px; font-size:13px; }
+.num { text-align:right; white-space:nowrap; }
+.calc-note { display:block; color:var(--muted); font-size:10px; font-weight:700; margin-top:2px; }
+.sku-check-grid { display:grid; grid-template-columns:repeat(4,minmax(120px,1fr)); gap:8px; margin-top:10px; }
+.sku-check-item { border:1px solid var(--line); border-radius:8px; background:#fff; padding:8px; }
+.sku-check-item span { display:block; color:var(--muted); font-size:10px; font-weight:800; text-transform:uppercase; }
+.sku-check-item strong { display:block; margin-top:3px; font-size:14px; }
+@media (max-width:900px){ .sku-check-grid { grid-template-columns:repeat(2,minmax(120px,1fr)); } }
+{% endblock %}
+
+{% block content %}
+{% include "billing/_billing_nav.html" %}
+
+<div>
+  <h1 class="page-title">Хранение</h1>
+  <div class="page-sub">Снимки по дням. Период цены задаётся в тарифе клиента у бухгалтера.</div>
+</div>
+
+<div class="summary-strip">
+  <div class="stat-pill"><div class="sp-label">Дней</div><div class="sp-value">{{ storage_kpi_days }}</div></div>
+  <div class="stat-pill"><div class="sp-label">Палет</div><div class="sp-value">{{ storage_kpi_pallets }}</div></div>
+  <div class="stat-pill"><div class="sp-label">Сумма</div><div class="sp-value">{{ storage_kpi_amount|money_fmt }}</div></div>
+  <div class="stat-pill"><div class="sp-label">На проверке</div><div class="sp-value {% if storage_kpi_review %}red{% endif %}">{{ storage_kpi_review }}</div></div>
+</div>
+
+{% if storage_open_errors %}
+<div class="warn-box">
+  <div style="font-weight:900;margin-bottom:8px">Открытые ошибки хранения · {{ storage_open_errors|length }}</div>
+  {% for err in storage_open_errors %}
+    <div style="margin-bottom:4px">
+      <span class="badge {% if err.severity == 'error' %}red{% else %}orange{% endif %}">{{ err.get_error_type_display }}</span>
+      {{ err.client.short_name|default:err.client.agn_name }}
+      {% if err.day %} · {{ err.day|date:"d.m.Y" }}{% endif %}
+      — {{ err.message|truncatechars:80 }}
+    </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<form class="filter-card" method="get" id="storage-filters">
+  <div class="storage-filter-main">
+  <div>
+    <label class="row-sub" for="storage-client">Клиент</label>
+    <select class="field" name="client" id="storage-client">
+      <option value="">Все</option>
+      {% for c in clients %}
+        <option value="{{ c.id }}" {% if filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="row-sub" for="storage-date-from">Дата с</label>
+    <input class="field" type="date" name="date_from" id="storage-date-from" value="{{ storage_filter_date_from }}">
+  </div>
+  <div>
+    <label class="row-sub" for="storage-date-to">Дата по</label>
+    <input class="field" type="date" name="date_to" id="storage-date-to" value="{{ storage_filter_date_to }}">
+  </div>
+  <div class="storage-show-action">
+    <button class="btn primary" type="submit">Показать</button>
+  </div>
+  <div class="storage-period-total" aria-live="polite">
+    <div class="storage-period-copy">
+      <div class="row-sub">Итоговая сумма за выбранный период</div>
+      <output id="storage-period-amount" for="storage-client storage-date-from storage-date-to">{% if request.GET.date_from or request.GET.date_to or request.GET.client %}{{ storage_kpi_amount|rub_fmt }}{% else %}—{% endif %}</output>
+      <div class="row-sub" id="storage-period-note">{% if request.GET.date_from or request.GET.date_to or request.GET.client %}По применённым фильтрам{% else %}Выберите фильтры и нажмите «Показать»{% endif %}</div>
+    </div>
+    {% if filter_client %}
+      <a class="btn primary storage-period-invoice" href="/team-manager/billing/invoices/create/?client={{ filter_client }}&amp;application_type=storage">Сформировать счёт</a>
+    {% else %}
+      <button class="btn storage-period-invoice" type="button" title="Сначала выберите клиента" onclick="alert('Для формирования счёта выберите одного клиента.')">Сформировать счёт</button>
+    {% endif %}
+  </div>
+  </div>
+  <div class="storage-filter-actions">
+  <div style="min-width:160px">
+    <div class="row-sub">Статус</div>
+    <select class="field" name="status" style="width:100%">
+      <option value="">Все</option>
+      {% for code, label in storage_status_choices %}
+        <option value="{{ code }}" {% if filter_status == code %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <label style="display:inline-flex;gap:6px;align-items:center;font-size:12px;font-weight:700;padding-bottom:8px">
+    <input type="checkbox" name="needs_review" value="1" {% if request.GET.needs_review %}checked{% endif %}> На проверке
+  </label>
+  {% if filter_client %}
+    <a class="btn" href="/team-manager/billing/api/storage/export.xlsx?date_from={{ storage_filter_date_from }}&date_to={{ storage_filter_date_to }}&client={{ filter_client }}{% if filter_status %}&status={{ filter_status|urlencode }}{% endif %}{% if request.GET.needs_review %}&needs_review=1{% endif %}">Excel-отчёт</a>
+  {% else %}
+    <button class="btn" type="button" title="Сначала выберите клиента" onclick="alert('Для выгрузки выберите одного клиента.')">Excel-отчёт</button>
+  {% endif %}
+  <button class="btn" type="button" id="js-recalc-open-storage">Пересчитать неотправленные</button>
+  </div>
+</form>
+
+<div class="table-card">
+  <table>
+    <thead>
+      <tr>
+        <th>Дата</th>
+        <th>Клиент</th>
+        <th>Режим</th>
+        <th class="num">Палет</th>
+        <th class="num">Вес всего дня, кг</th>
+        <th class="num">Физ. объём дня, м³</th>
+        <th class="num">Весовой объём дня, м³</th>
+        <th class="num">К начислению за день</th>
+        <th>Сумма</th>
+        <th>Тариф</th>
+        <th>Статус</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in storage_days %}
+        <tr class="js-storage-day" data-day-id="{{ d.id }}" style="cursor:pointer">
+          <td><div class="row-main">{{ d.day|date:"d.m.Y" }}</div></td>
+          <td>{{ d.client.short_name|default:d.client.agn_name|truncatechars:28 }}</td>
+          <td>{{ d.billing_mode|default:"—" }}</td>
+          <td class="num">{{ d.pallet_count }}<span class="calc-note">справочно</span></td>
+          <td class="num">{{ d.payload.total_weight_kg|default:"—" }}</td>
+          <td class="num">{{ d.physical_volume_m3 }}</td>
+          <td class="num">{{ d.payload.weight_volume_m3|default:"—" }}</td>
+          <td class="num">
+            {% if d.billing_mode|slice:":3" == "m3_" %}
+              {{ d.billable_volume_m3 }}<span class="calc-note">м³</span>
+            {% elif d.billing_mode|slice:":7" == "pallet_" or d.billing_mode == "custom" %}
+              {{ d.pallet_count }}<span class="calc-note">пал.</span>
+            {% else %}
+              {{ d.billable_volume_l }}<span class="calc-note">л</span>
+            {% endif %}
+          </td>
+          <td><span class="money">{{ d.amount|money_fmt }}</span></td>
+          <td>
+            {% if d.tariff_version_id %}
+              <a href="/team-manager/billing/tariff-versions/{{ d.tariff_version_id }}/download/" style="font-size:11px;font-weight:800">v{{ d.tariff_version.version_number }}</a>
+            {% else %}<span class="muted">—</span>{% endif %}
+          </td>
+          <td>
+            {% if d.charge.is_included_in_invoice %}<span class="badge green">Счёт сформирован</span>
+            {% elif d.status == "needs_review" %}<span class="badge orange">{{ d.get_status_display }}</span>
+            {% elif d.status == "calculated" or d.status == "confirmed" %}<span class="badge blue">{{ d.get_status_display }}</span>
+            {% else %}<span class="badge gray">{{ d.get_status_display }}</span>{% endif %}
+          </td>
+          <td>
+            {% if d.application_id %}
+              <a href="/team-manager/billing/applications/{{ d.application_id }}/" style="font-size:11px;font-weight:800">Заявка</a>
+            {% endif %}
+            {% if d.charge_id %}
+              <a href="/team-manager/billing/charges/?q={{ d.client.short_name|default:d.client.agn_name|urlencode }}" style="font-size:11px;font-weight:800;margin-left:6px">Начисл.</a>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="12" style="padding:28px;text-align:center;color:var(--muted);font-weight:700">Нет данных за период</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div id="storage-day-detail" hidden class="table-card" style="padding:16px">
+  <h2 style="margin:0 0 12px;font-size:16px" id="storage-day-detail-title">Детализация дня</h2>
+  <div id="storage-day-detail-summary" class="warn-box" style="margin-bottom:12px" hidden></div>
+  <div style="overflow:auto">
+    <table>
+      <thead>
+        <tr>
+          <th>Артикул</th>
+          <th>Товар / палета</th>
+          <th>Зона</th>
+          <th>Кол-во</th>
+          <th>Габариты</th>
+          <th>Физ. объём строки, м³</th>
+          <th>Статус</th>
+        </tr>
+      </thead>
+      <tbody id="storage-lines-body"></tbody>
+    </table>
+  </div>
+  <p class="muted" id="storage-lines-empty" hidden style="margin:12px 0 0">Нет строк детализации.</p>
+</div>
+
+<script>
+(function(){
+  var filters = document.getElementById("storage-filters");
+  var periodAmount = document.getElementById("storage-period-amount");
+  var periodNote = document.getElementById("storage-period-note");
+  if(filters && periodAmount && periodNote){
+    var appliedFilters = new URLSearchParams(new FormData(filters)).toString();
+    var appliedAmount = periodAmount.textContent;
+    var appliedNote = periodNote.textContent;
+    function updatePeriodHint(){
+      var changed = new URLSearchParams(new FormData(filters)).toString() !== appliedFilters;
+      periodAmount.textContent = changed ? "—" : appliedAmount;
+      periodNote.textContent = changed ? "Фильтры изменены — нажмите «Показать»" : appliedNote;
+    }
+    filters.addEventListener("input", updatePeriodHint);
+    filters.addEventListener("change", updatePeriodHint);
+  }
+  function esc(v){
+    return String(v == null ? "" : v)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+  document.querySelectorAll(".js-storage-day").forEach(function(row){
+    row.addEventListener("click", async function(e){
+      if(e.target.closest("a")) return;
+      var id = row.getAttribute("data-day-id");
+      if(!id) return;
+      try {
+        var r = await fetch("/team-manager/billing/api/storage/days/" + id + "/", {credentials:"same-origin"});
+        var d = await r.json();
+        if(!d.ok) { alert(d.error||"Ошибка"); return; }
+        var data = d.data || {};
+        var box = document.getElementById("storage-day-detail");
+        var title = document.getElementById("storage-day-detail-title");
+        var summary = document.getElementById("storage-day-detail-summary");
+        var body = document.getElementById("storage-lines-body");
+        var empty = document.getElementById("storage-lines-empty");
+        if(title) title.textContent = "Детализация за " + (data.day || "");
+        var report = data.storage_report || {};
+        if(summary){
+          summary.hidden = false;
+          var basis = report.is_pallet_mode
+            ? ("паллеты: " + esc(report.pallet_count || "0") + " пал. · кубы не являются базой начисления")
+            : ("остаток клиента за день: вес " + esc(report.total_weight_kg || "—") + " кг · весовой объём " + esc(report.weight_volume_m3 || "—") + " м³ · физический объём " + esc(report.physical_volume_m3 || "—") + " м³ · к начислению " + esc(report.billable_volume_m3 || "—") + " м³");
+          summary.innerHTML = (report.charge_excluded ? "<strong>Начисление исключено — сумма не включается в биллинг</strong><br>" : "<strong>Дневное начисление хранения</strong><br>") +
+            basis + "<br>" +
+          "<span class='row-sub'>Строки ниже — расшифровка состава, а не отдельные начисления. Итог считается по дневному остатку клиента целиком.</span><br>" +
+          "Тариф: " + esc(report.tariff || "—") + " ₽/" + esc(report.unit || "м³") + " · " +
+          "без НДС: " + esc(report.amount || "—") + " ₽ · НДС: " + esc(report.vat_amount || "—") + " ₽ · " +
+          "итого: " + esc(report.total_amount || "—") + " ₽" +
+          (report.formula ? "<br><span class='row-sub'>" + esc(report.formula) + "</span>" : "");
+          var skuCheck = report.sku_check || {};
+          if(Object.keys(skuCheck).length){
+            var attention = Number(skuCheck.box_sku_severe_mismatch_rows || 0) > 0 || Number(skuCheck.missing_sku_dims_rows || 0) > 0;
+            summary.innerHTML +=
+              "<div class='sku-check-grid'>" +
+              "<div class='sku-check-item'><span>SKU объём</span><strong>" + esc(skuCheck.sku_physical_volume_m3 || "0") + " м³</strong></div>" +
+              "<div class='sku-check-item'><span>SKU по весу</span><strong>" + esc(skuCheck.sku_weight_volume_m3 || "0") + " м³</strong></div>" +
+              "<div class='sku-check-item'><span>SKU контроль</span><strong>" + esc(skuCheck.sku_billable_volume_m3 || "0") + " м³</strong></div>" +
+              "<div class='sku-check-item'><span>Проверка</span><strong>" + (attention ? "Есть расхождения" : "Без критичных расхождений") + "</strong></div>" +
+              "</div>" +
+              "<span class='row-sub'>Справочно: SKU-контроль не меняет сумму. Расхождений короб/SKU: " + esc(skuCheck.box_sku_severe_mismatch_rows || "0") +
+              ", без SKU-габаритов: " + esc(skuCheck.missing_sku_dims_rows || "0") + ".</span>";
+          }
+        }
+        var lines = data.lines || [];
+        if(body){
+          body.innerHTML = lines.map(function(line){
+            var name = line.name || line.pallet_code || line.box_code || "—";
+            var dims = (line.length_mm && line.width_mm && line.height_mm)
+              ? (line.length_mm + "×" + line.width_mm + "×" + line.height_mm)
+              : "—";
+            return "<tr><td>" + esc(line.sku_code || line.barcode || "—") + "</td><td>" + esc(name) +
+              "</td><td>" + esc(line.zone_code || "—") + "</td><td>" + esc(line.quantity) +
+              "</td><td>" + esc(dims) + "</td><td>" + esc(line.total_volume_m3 || "0") +
+              "</td><td>" + esc(line.status || "—") + "</td></tr>";
+          }).join("");
+        }
+        if(empty) empty.hidden = lines.length > 0;
+        if(box){ box.hidden = false; box.scrollIntoView({behavior:"smooth", block:"nearest"}); }
+      } catch(err) { alert("Не удалось загрузить детализацию"); }
+    });
+  });
+  var recalcBtn = document.getElementById("js-recalc-open-storage");
+  if(recalcBtn){
+    recalcBtn.addEventListener("click", async function(){
+      var form = recalcBtn.closest("form");
+      var dateFrom = form && form.querySelector('[name="date_from"]') ? form.querySelector('[name="date_from"]').value : "";
+      var parts = dateFrom ? dateFrom.split("-") : [];
+      var year = parts.length === 3 ? parts[0] : "{{ year }}";
+      var month = parts.length === 3 ? String(Number(parts[1])) : "{{ month }}";
+      var client = form && form.querySelector('[name="client"]') ? form.querySelector('[name="client"]').value : "";
+      if(!confirm("Пересчитать тарифы хранения за месяц выбранной начальной даты? Отправленные и оплаченные счета будут пропущены.")) return;
+      recalcBtn.disabled = true;
+      var oldText = recalcBtn.textContent;
+      recalcBtn.textContent = "Пересчёт...";
+      try {
+        var r = await fetch("/team-manager/billing/api/storage/recalculate-open/", {
+          method:"POST",
+          credentials:"same-origin",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({year:year, month:month, client_id:client})
+        });
+        var d = await r.json();
+        if(!d.ok){ alert(d.error || "Ошибка пересчёта"); return; }
+        var s = d.data || {};
+        alert(
+          "Пересчёт завершён.\n" +
+          "Пересчитано дней: " + (s.recalculated || 0) + "\n" +
+          "Пропущено из-за отправленного счёта: " + (s.skipped_sent_invoice || 0) + "\n" +
+          "Ошибок: " + (s.errors || 0)
+        );
+        window.location.reload();
+      } catch(err) {
+        alert("Не удалось выполнить пересчёт");
+      } finally {
+        recalcBtn.disabled = false;
+        recalcBtn.textContent = oldText;
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

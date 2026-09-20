@@ -1,0 +1,27 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Короб → ячейка{% endblock %}
+{% block page_class %}tsd-page-picker-tool{% endblock %}
+{% block page_title %}Короб → ячейка{% endblock %}
+
+{% block content %}
+  {% include "fbs/_tsd_picker_move_styles.html" %}
+  <section class="picker-move-card" aria-label="Перемещение товара из короба в ячейку PR">
+    <p class="picker-move-hint" id="move-hint">По порядку · один скан ШК товара = 1 шт. КИЗ для размещения не требуется.</p>
+    <form method="post" class="picker-move-form" data-scan-sequence aria-describedby="move-hint">
+      {% csrf_token %}
+      <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
+      <label>1. Короб
+        <input name="source_box_scan" value="{{ selected_source_box }}" data-scan-field autocomplete="off" autocapitalize="characters" enterkeyhint="next" spellcheck="false" required placeholder="QR FBS-короба">
+      </label>
+      <label>2. Ячейка PR
+        <input name="target_cell_scan" value="{{ selected_target_cell }}" data-scan-field autocomplete="off" autocapitalize="characters" enterkeyhint="next" spellcheck="false" required placeholder="QR ячейки">
+      </label>
+      <label>3. Штрихкод товара
+        <input name="item_scan" data-scan-field autocomplete="off" enterkeyhint="done" spellcheck="false" required placeholder="ШК товара">
+      </label>
+      <button class="button button-primary" type="submit">Переместить 1 шт.</button>
+    </form>
+  </section>
+  {% include "fbs/_tsd_picker_move_scan_script.html" %}
+{% endblock %}

@@ -1,0 +1,1131 @@
+from django import template
+import re
+from datetime import datetime
+from urllib.parse import quote
+
+from django.db.models import Q
+from django.urls import reverse
+from django.utils import timezone
+
+from employees.models import Employee
+from employees.access import get_employee_for_user
+from fullbox.order_numbers import format_order_number, replace_order_number_in_title
+from logistics.models import LogisticsTrip
+from processing_app.stages import processing_is_done, processing_stage_from_payload, processing_stage_label
+from reachtruck.models import MoveTask
+from shipping.models import ShippingOrder
+from shipping.selectors import shipping_ui_status_label
+
+from audit.models import OrderAuditEntry
+from sklad.services.warehouse_state import WarehouseGoodsStateResolver
+from ..models import Task, build_receiving_display_context
+
+register = template.Library()
+
+ROLE_LABELS = dict(Employee.ROLE_CHOICES)
+ALL_ROLES_KEY = "__all__"
+STATUS_ORDER = ["backlog", "in_progress", "blocked", "done"]
+STATUS_LABELS = dict(Task.STATUS_CHOICES)
+_RECEIVING_ROUTE_RE = re.compile(r"/orders/receiving/([^/]+)/")
+_PROCESSING_ROUTE_RE = re.compile(r"/orders/processing/([^/]+)/")
+_SHIPPING_ROUTE_RE = re.compile(r"/shipping/(\d+)/")
+_LOGISTICS_TRIP_ROUTE_RE = re.compile(r"/logistics/trips/(\d+)/")
+_IP_PREFIX_RE = re.compile(r"\bиндивидуальный предприниматель\b", re.IGNORECASE)
+FILTER_DEFS_BY_ROLE = {
+    "manager": [
+        ("all", "Все"),
+        ("receiving", "Приемка"),
+        ("processing", "Обработка"),
+        ("shipping", "Отгрузки"),
+    ],
+    "storekeeper": [
+        ("all", "Все"),
+        ("receiving", "Приемка"),
+        ("processing", "Обработка"),
+        ("shipping", "Отгрузки"),
+        ("logistics", "Рейсы"),
+    ],
+    "processing_head": [
+        ("all", "Все"),
+        ("processing", "Обработка"),
+    ],
+    "processing_worker": [
+        ("all", "Все"),
+        ("processing", "Обработка"),
+    ],
+    "head_manager": [
+        ("all", "Все"),
+        ("processing", "Обработка"),
+        ("shipping", "Отгрузки"),
+        ("logistics", "Рейсы"),
+    ],
+}
+DEFAULT_FILTER_DEFS = [
+    ("all", "Все"),
+    ("receiving", "Приемка"),
+    ("processing", "Обработка"),
+    ("shipping", "Отгрузки"),
+    ("logistics", "Рейсы"),
+]
+
+
+def _shorten_ip_name(name: str) -> str:
+    if not name:
+        return "-"
+    normalized = _IP_PREFIX_RE.sub("ИП", name)
+    return " ".join(normalized.split()) or "-"
+
+
+def _format_panel_datetime(value) -> str:
+    if not value:
+        return ""
+    dt_value = value
+    if timezone.is_naive(dt_value):
+        dt_value = timezone.make_aware(dt_value, timezone.get_current_timezone())
+    return timezone.localtime(dt_value).strftime("%d.%m.%Y %H:%M")
+
+
+@register.filter
+def short_name(full_name: str) -> str:
+    if not full_name:
+        return "-"
+    parts = [part for part in full_name.split() if part]
+    if not parts:
+        return "-"
+    surname = parts[0]
+    initials = "".join(f"{part[0].upper()}." for part in parts[1:3] if part)
+    return f"{surname} {initials}".strip()
+
+
+def _resolve_role(context, role):
+    if role in ("all", "*", "any"):
+        return ALL_ROLES_KEY
+    if role:
+        return role
+    if context.get("role"):
+        return context["role"]
+    request = context.get("request")
+    request_user = getattr(request, "user", None) if request else None
+    if request_user and request_user.is_authenticated:
+        return request.user.username
+    return None
+
+
+def _views():
+    from todo import views as todo_views
+
+    return todo_views
+
+
+def _resolve_attention_employee(context):
+    request = context.get("request")
+    if not request:
+        return None
+    request_user = getattr(request, "user", None)
+    employee = get_employee_for_user(request_user) if request_user else None
+    if employee:
+        return employee
+    name = request.session.get("employee_name") if hasattr(request, "session") else None
+    if name:
+        return Employee.objects.filter(full_name=name, is_active=True).first()
+    return None
+
+
+def _normalize_limit(limit, default=6):
+    try:
+        return int(limit)
+    except (TypeError, ValueError):
+        return default
+
+
+def _to_int(value) -> int:
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return 0
+
+
+def _status_tone_from_label(label: str | None) -> str:
+    normalized = str(label or "").strip().lower()
+    if not normalized:
+        return "neutral"
+    if any(token in normalized for token in ("ошиб", "отмен", "разноглас", "спор", "просроч", "невер", "заблок")):
+        return "danger"
+    if any(
+        token in normalized
+        for token in (
+            "доставка",
+            "ричтрак",
+            "создано перемещение",
+            "отправлено обратно на склад",
+            "подготовка к рейсу",
+            "загружено",
+            "передано ричтраку",
+            "в пути",
+        )
+    ):
+        return "moving"
+    if any(
+        token in normalized
+        for token in (
+            "в работе",
+            "взята в работу",
+            "взято в обработку",
+            "товар прибыл в obr",
+            "в обработке",
+            "начать обработку",
+            "размещение открыто",
+            "раскороб",
+            "паллетизац",
+        )
+    ):
+        return "active"
+    if any(
+        token in normalized
+        for token in (
+            "ждет",
+            "ожидает",
+            "в ожидании",
+            "на согласовании",
+            "черновик",
+            "подтверждени",
+            "утверждено менеджером",
+        )
+    ):
+        return "pending"
+    if any(
+        token in normalized
+        for token in (
+            "выполн",
+            "заверш",
+            "готов",
+            "размещен",
+            "размещение завершено",
+            "возвращено на склад",
+            "заявка завершена",
+            "возвращен на склад",
+            "отгруж",
+            "принято складом",
+            "акт отправлен клиенту",
+        )
+    ):
+        return "done"
+    return "neutral"
+
+
+def _extract_receiving_order_id(route: str | None) -> str | None:
+    if not route:
+        return None
+    match = _RECEIVING_ROUTE_RE.search(route)
+    if not match:
+        return None
+    return match.group(1)
+
+
+def _extract_processing_order_id(route: str | None) -> str | None:
+    if not route:
+        return None
+    match = _PROCESSING_ROUTE_RE.search(route)
+    if not match:
+        return None
+    return match.group(1)
+
+
+def _extract_shipping_order_pk(route: str | None) -> int | None:
+    if not route:
+        return None
+    match = _SHIPPING_ROUTE_RE.search(route)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_logistics_trip_pk(route: str | None) -> int | None:
+    if not route:
+        return None
+    match = _LOGISTICS_TRIP_ROUTE_RE.search(route)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_receiving_sign_task(route: str | None) -> bool:
+    return bool(route and "/orders/receiving/" in route and "/act/print" in route)
+
+
+def _is_status_entry(entry) -> bool:
+    if entry.action == "status":
+        return True
+    payload = entry.payload or {}
+    return bool(payload.get("status") or payload.get("status_label") or payload.get("submit_action") or payload.get("act"))
+
+
+def _status_label_from_entry(entry) -> str:
+    payload = entry.payload or {}
+    act = (payload.get("act") or "").lower()
+    act_state = (payload.get("act_state") or "").lower()
+    if act == "placement":
+        if getattr(entry, "order_type", "") == "receiving":
+            return WarehouseGoodsStateResolver.resolve_for_receiving_order(
+                order_id=str(getattr(entry, "order_id", "") or ""),
+                agency=getattr(entry, "agency", None),
+                payload=payload,
+            ).label_for("default")
+        if act_state == "closed":
+            return "Товар принят и размещен на складе"
+        return "Размещение на складе"
+    client_response = (payload.get("act_client_response") or "").lower()
+    if client_response == "confirmed":
+        return "Акт приемки подтвержден клиентом"
+    if client_response == "dispute":
+        return "Клиент заявил разногласия по акту приемки"
+    if payload.get("act_sent"):
+        return "Акт отправлен клиенту" if not payload.get("act_viewed") else "Выполнена"
+    if payload.get("act_storekeeper_signed") and not payload.get("act_manager_signed"):
+        return "Принято складом, акт приемки отправлен менеджеру"
+    if getattr(entry, "order_type", "") == "receiving":
+        return WarehouseGoodsStateResolver.resolve_for_receiving_order(
+            order_id=str(getattr(entry, "order_id", "") or ""),
+            agency=getattr(entry, "agency", None),
+            payload=payload,
+        ).label_for("default")
+    if getattr(entry, "order_type", "") == "processing":
+        return processing_stage_label(payload, fallback=payload.get("status_label") or payload.get("status") or "-")
+    status_value = (payload.get("status") or payload.get("submit_action") or "").lower()
+    status_label = (payload.get("status_label") or "").lower()
+    if "взята в работу" in status_label:
+        return "Взята в работу"
+    if status_value in {"sent_unconfirmed", "send", "submitted"} or "подтверждени" in status_label:
+        return "Ждет подтверждения"
+    if status_value in {"warehouse", "on_warehouse"} or "ожидании поставки" in status_label or "на складе" in status_label:
+        return "В ожидании поставки товара"
+    return payload.get("status_label") or payload.get("status") or "-"
+
+
+def _processing_status_audience_for_role(role_key: str | None) -> str:
+    if role_key in {"processing_head", "processing_worker"}:
+        return "processing"
+    if role_key == "storekeeper":
+        return "storekeeper"
+    return "default"
+
+
+def _receiving_status_audience_for_role(role_key: str | None) -> str:
+    if role_key == "storekeeper":
+        return "storekeeper"
+    return "default"
+
+
+def _processing_status_label_from_entry(entry, *, audience: str = "default") -> str:
+    payload = entry.payload or {}
+    stage_label = processing_stage_label(payload)
+    if stage_label:
+        return stage_label
+    warehouse_label = WarehouseGoodsStateResolver.resolve_for_processing_order(
+        order_id=str(getattr(entry, "order_id", "") or ""),
+        agency=getattr(entry, "agency", None),
+        payload=payload,
+    ).label_for(audience)
+    if warehouse_label and warehouse_label != "-":
+        return warehouse_label
+    return payload.get("status_label") or payload.get("status") or "-"
+
+
+def _next_step_tone_from_label(label: str | None) -> str:
+    normalized = str(label or "").strip().lower()
+    if not normalized:
+        return ""
+    if normalized == "выдай задание ричтракеру":
+        return "danger"
+    if normalized == "ожидаем ричтракер":
+        return "pending"
+    return ""
+
+
+def _existing_receiving_order_ids(order_ids) -> set[str]:
+    normalized_ids = [
+        str(order_id).strip()
+        for order_id in (order_ids or [])
+        if str(order_id or "").strip()
+    ]
+    if not normalized_ids:
+        return set()
+    return set(
+        OrderAuditEntry.objects.filter(
+            order_type="receiving",
+            order_id__in=normalized_ids,
+        ).values_list("order_id", flat=True)
+    )
+
+
+def _is_shipping_act_task(route: str | None) -> bool:
+    return bool(route and "/shipping/" in route and "/act/" in route)
+
+
+def _task_filter_type(task: Task) -> str:
+    route = getattr(task, "route", None)
+    if _extract_logistics_trip_pk(route) is not None:
+        return "logistics"
+    if _extract_shipping_order_pk(route) is not None:
+        return "shipping"
+    if _extract_processing_order_id(route):
+        return "processing"
+    if _extract_receiving_order_id(route):
+        return "receiving"
+    return "other"
+
+
+def _panel_title_for_task(task: Task, order_type: str, order_id: str) -> str:
+    default_title = task.display_title()
+    if order_type == "receiving" and not _is_receiving_sign_task(getattr(task, "route", None)):
+        return default_title
+    raw_title = str(getattr(task, "title", "") or "").strip()
+    if not raw_title:
+        return default_title
+    display_id = format_order_number(order_type, order_id)
+    normalized = replace_order_number_in_title(
+        raw_title,
+        order_type,
+        order_id,
+        default_title=default_title,
+    )
+    if display_id and display_id in normalized:
+        return normalized
+    return default_title
+
+
+def _filter_defs_for_role(role_key: str | None) -> list[tuple[str, str]]:
+    return list(FILTER_DEFS_BY_ROLE.get(role_key, DEFAULT_FILTER_DEFS))
+
+
+def _normalize_filter_query(value: str | None) -> str:
+    return " ".join(str(value or "").strip().split())
+
+
+def _task_matches_search(task: Task, query: str) -> bool:
+    normalized_query = _normalize_filter_query(query).lower()
+    if not normalized_query:
+        return True
+    haystack_parts = [
+        getattr(task, "panel_title", ""),
+        getattr(task, "title", ""),
+        getattr(task, "description", ""),
+        getattr(task, "order_client_label", ""),
+        getattr(task, "order_status_label", ""),
+        getattr(task, "order_notice_label", ""),
+        getattr(task, "executor_label", ""),
+        getattr(task, "processing_packers_label", ""),
+        getattr(task, "panel_updated_at_label", ""),
+        getattr(task, "route", ""),
+    ]
+    haystack = " ".join(_normalize_filter_query(part).lower() for part in haystack_parts if part)
+    return all(token in haystack for token in normalized_query.split())
+
+
+def _shipping_reachtruck_notice_label(move_tasks) -> str:
+    tasks = list(move_tasks or [])
+    if not tasks:
+        return ""
+    in_progress = [task for task in tasks if task.status == MoveTask.STATUS_IN_PROGRESS]
+    created = [task for task in tasks if task.status == MoveTask.STATUS_CREATED]
+    done = [task for task in tasks if task.status == MoveTask.STATUS_DONE]
+    if in_progress:
+        driver_names = []
+        for task in in_progress:
+            name = str(task.assigned_to_name or "").strip()
+            if name and name not in driver_names:
+                driver_names.append(name)
+        if driver_names:
+            suffix = ", ".join(driver_names[:2])
+            if len(driver_names) > 2:
+                suffix += ", ..."
+            return f"Ричтрак в работе: {suffix}"
+        return "Ричтрак в работе"
+    if created:
+        return "Передано ричтраку"
+    if done and len(done) == len(tasks):
+        return "Ричтрак доставил в OTG"
+    if done:
+        return "Ричтрак частично доставил в OTG"
+    return ""
+
+
+def _panel_filter_state(request, role_key: str | None) -> tuple[str, str, str]:
+    selected_type = "all"
+    selected_client = ""
+    selected_query = ""
+    if not request:
+        return selected_type, selected_client, selected_query
+    session = getattr(request, "session", None)
+    session_key = f"todo_panel_filters:{request.path}"
+    if request.GET.get("todo_filters_reset"):
+        if session is not None:
+            session.pop(session_key, None)
+        return selected_type, selected_client, selected_query
+    if request.GET.get("todo_filters_applied"):
+        selected_type = str(request.GET.get("todo_filter_type") or "all").strip() or "all"
+        selected_client = str(request.GET.get("todo_filter_client") or "").strip()
+        selected_query = _normalize_filter_query(request.GET.get("todo_filter_query") or "")
+        if session is not None:
+            session[session_key] = {
+                "selected_type": selected_type,
+                "selected_client": selected_client,
+                "selected_query": selected_query,
+            }
+        return selected_type, selected_client, selected_query
+    if session is not None:
+        saved = session.get(session_key) or {}
+        selected_type = str(saved.get("selected_type") or "all").strip() or "all"
+        selected_client = str(saved.get("selected_client") or "").strip()
+        selected_query = _normalize_filter_query(saved.get("selected_query") or "")
+    return selected_type, selected_client, selected_query
+
+
+@register.inclusion_tag("todo/_task_panel.html", takes_context=True)
+def task_panel(context, role=None, limit=6, show_meta=True, include_created_by=True):
+    role_key = _resolve_role(context, role)
+    request = context.get("request")
+    filter_defs = _filter_defs_for_role(role_key)
+    allowed_filter_values = {value for value, _label in filter_defs if value != "all"}
+    selected_type, selected_client, selected_query = _panel_filter_state(request, role_key)
+    if selected_type != "all" and selected_type not in allowed_filter_values:
+        selected_type = "all"
+    current_employee = None
+    request_user = getattr(request, "user", None) if request else None
+    if request_user and request_user.is_authenticated:
+        current_employee = get_employee_for_user(request_user)
+    tasks_qs = Task.objects.select_related(
+        "assigned_to",
+        "created_by",
+        "observer",
+    )
+    if role_key == "processing_worker":
+        if current_employee:
+            tasks_qs = tasks_qs.filter(assigned_to=current_employee)
+        else:
+            tasks_qs = tasks_qs.none()
+    role_filter = None
+    if role_key and role_key != ALL_ROLES_KEY:
+        role_filter = Q(assigned_to__role=role_key) | Q(observer__role=role_key)
+        if include_created_by:
+            role_filter |= Q(created_by__username=role_key)
+    if role_filter is not None:
+        tasks_qs = tasks_qs.filter(role_filter)
+    limit_value = _normalize_limit(limit)
+    today = timezone.localdate()
+    processing_status_audience = _processing_status_audience_for_role(role_key)
+
+    tasks = list(tasks_qs)
+    receiving_by_order = {}
+    processing_by_order = {}
+    shipping_by_order = {}
+    logistics_by_trip = {}
+    other_tasks = []
+
+    def _is_processing_flow_task(task):
+        return bool(task.route and "/orders/processing/" in task.route and "/flow/" in task.route)
+
+    def _prefer_open(existing_task, candidate_task):
+        if not existing_task:
+            return candidate_task
+        if existing_task.status == "done" and candidate_task.status != "done":
+            return candidate_task
+        if existing_task.status != "done" and candidate_task.status == "done":
+            return existing_task
+        if candidate_task.updated_at > existing_task.updated_at:
+            return candidate_task
+        return existing_task
+
+    def _prefer_processing_task(existing_task, candidate_task):
+        if not existing_task:
+            return candidate_task
+        existing_flow = _is_processing_flow_task(existing_task)
+        candidate_flow = _is_processing_flow_task(candidate_task)
+        if existing_flow != candidate_flow:
+            return existing_task if not existing_flow else candidate_task
+        return _prefer_open(existing_task, candidate_task)
+
+    def _prefer_receiving_task(existing_task, candidate_task):
+        if not existing_task:
+            return candidate_task
+        existing_sign = _is_receiving_sign_task(existing_task.route)
+        candidate_sign = _is_receiving_sign_task(candidate_task.route)
+        if existing_sign != candidate_sign:
+            if role_key == "manager":
+                return candidate_task if candidate_sign else existing_task
+            return existing_task if not existing_sign else candidate_task
+        return _prefer_open(existing_task, candidate_task)
+
+    def _prefer_shipping_task(existing_task, candidate_task):
+        if not existing_task:
+            return candidate_task
+        existing_act = _is_shipping_act_task(existing_task.route)
+        candidate_act = _is_shipping_act_task(candidate_task.route)
+        if existing_act != candidate_act and role_key in {"manager", "head_manager"}:
+            if candidate_act and candidate_task.status != "done":
+                return candidate_task
+            if existing_act and existing_task.status != "done":
+                return existing_task
+        return _prefer_open(existing_task, candidate_task)
+
+    if role_key == "processing_worker":
+        combined_tasks = list(tasks)
+    else:
+        for task in tasks:
+            order_id = _extract_receiving_order_id(task.route)
+            if order_id:
+                receiving_by_order[order_id] = _prefer_receiving_task(
+                    receiving_by_order.get(order_id),
+                    task,
+                )
+                continue
+            processing_id = _extract_processing_order_id(task.route)
+            if processing_id:
+                processing_by_order[processing_id] = _prefer_processing_task(
+                    processing_by_order.get(processing_id),
+                    task,
+                )
+                continue
+            shipping_pk = _extract_shipping_order_pk(task.route)
+            if shipping_pk is not None:
+                shipping_by_order[shipping_pk] = _prefer_shipping_task(
+                    shipping_by_order.get(shipping_pk),
+                    task,
+                )
+                continue
+            trip_pk = _extract_logistics_trip_pk(task.route)
+            if trip_pk is not None:
+                logistics_by_trip[trip_pk] = _prefer_open(
+                    logistics_by_trip.get(trip_pk),
+                    task,
+                )
+                continue
+            other_tasks.append(task)
+        combined_tasks = (
+            other_tasks
+            + list(receiving_by_order.values())
+            + list(processing_by_order.values())
+            + list(shipping_by_order.values())
+            + list(logistics_by_trip.values())
+        )
+
+    receiving_order_ids = {
+        order_id
+        for order_id in (
+            _extract_receiving_order_id(task.route)
+            for task in combined_tasks
+        )
+        if order_id
+    }
+    if receiving_order_ids:
+        existing_receiving_ids = _existing_receiving_order_ids(receiving_order_ids)
+        combined_tasks = [
+            task
+            for task in combined_tasks
+            if (
+                not _extract_receiving_order_id(task.route)
+                or _extract_receiving_order_id(task.route) in existing_receiving_ids
+            )
+        ]
+
+    processing_order_ids = {}
+    for task in combined_tasks:
+        order_id = _extract_processing_order_id(task.route)
+        if order_id:
+            processing_order_ids[order_id] = True
+    if processing_order_ids:
+        entries = (
+            OrderAuditEntry.objects.filter(
+                order_type="processing",
+                order_id__in=list(processing_order_ids),
+            )
+            .order_by("order_id", "-created_at")
+        )
+        status_by_order = {}
+        stage_by_order = {}
+        for entry in entries:
+            if not _is_status_entry(entry):
+                continue
+            if entry.order_id not in status_by_order:
+                status_by_order[entry.order_id] = _processing_status_label_from_entry(
+                    entry,
+                    audience=processing_status_audience,
+                )
+            if entry.order_id not in stage_by_order:
+                stage_value = processing_stage_from_payload(entry.payload or {})
+                if stage_value:
+                    stage_by_order[entry.order_id] = stage_value
+        for task in combined_tasks:
+            order_id = _extract_processing_order_id(task.route)
+            if not order_id:
+                continue
+            status_label = (status_by_order.get(order_id) or "").lower()
+            stage_value = str(stage_by_order.get(order_id) or "").strip().lower()
+            is_processing_done = processing_is_done(
+                {
+                    "status_label": status_label,
+                    "processing_stage": stage_value,
+                }
+            )
+            if is_processing_done:
+                task.status = "done"
+            if (
+                status_label in {"взято в обработку", "открыта раскоробовка", "раскоробовка завершена"}
+                or stage_value in {"taken_into_processing", "unboxing_opened", "unboxing_completed"}
+            ) and task.status == "done" and not is_processing_done:
+                task.status = "in_progress"
+            if "раскороб" in status_label or stage_value in {"unboxing_opened", "unboxing_completed"}:
+                if role_key == "processing_worker":
+                    task.route = f"/orders/processing/{order_id}/flow/"
+                else:
+                    task.route = f"/orders/processing/{order_id}/work/"
+            elif stage_value == "done":
+                task.route = f"/orders/processing/{order_id}/"
+            elif (
+                status_label in {"взято в обработку", "отправлено обратно на склад", "возвращено на склад"}
+                or stage_value in {"taken_into_processing", "return_to_stock_sent", "returned_to_stock"}
+            ):
+                task.route = f"/orders/processing/{order_id}/work/"
+
+    done_tasks = [task for task in combined_tasks if task.status == "done"]
+    open_tasks = [task for task in combined_tasks if task.status != "done"]
+    open_routes = {task.route for task in open_tasks if task.route}
+    done_tasks = [task for task in done_tasks if not task.route or task.route not in open_routes]
+    combined_tasks = open_tasks + done_tasks
+
+    tasks = list(combined_tasks)
+    receiving_order_ids = {}
+    processing_order_ids = {}
+    for task in tasks:
+        order_id = _extract_receiving_order_id(task.route)
+        if order_id:
+            receiving_order_ids[order_id] = True
+        order_id = _extract_processing_order_id(task.route)
+        if order_id:
+            processing_order_ids[order_id] = True
+    receiving_status_by_order = {}
+    receiving_next_step_by_order = {}
+    receiving_client_by_order = {}
+    receiving_client_id_by_order = {}
+    receiving_entries_by_order = {}
+    receiving_latest_entry_by_order = {}
+    receiving_status_entry_by_order = {}
+    receiving_updated_at_by_order = {}
+    if receiving_order_ids:
+        receiving_status_audience = _receiving_status_audience_for_role(role_key)
+        entries = (
+            OrderAuditEntry.objects.filter(
+                order_type="receiving",
+                order_id__in=list(receiving_order_ids),
+            )
+            .select_related("agency")
+            .order_by("order_id", "-created_at")
+        )
+        for entry in entries:
+            receiving_entries_by_order.setdefault(entry.order_id, []).append(entry)
+            if entry.order_id not in receiving_latest_entry_by_order:
+                receiving_latest_entry_by_order[entry.order_id] = entry
+            if entry.order_id not in receiving_status_entry_by_order and _is_status_entry(entry):
+                receiving_status_entry_by_order[entry.order_id] = entry
+            if entry.order_id not in receiving_client_by_order:
+                if entry.agency:
+                    name = entry.agency.agn_name or entry.agency.fio_agn or str(entry.agency)
+                    receiving_client_by_order[entry.order_id] = _shorten_ip_name(name)
+                else:
+                    receiving_client_by_order[entry.order_id] = "-"
+            if entry.order_id not in receiving_client_id_by_order:
+                receiving_client_id_by_order[entry.order_id] = int(entry.agency_id or 0) if entry.agency_id else None
+            if entry.order_id not in receiving_updated_at_by_order:
+                receiving_updated_at_by_order[entry.order_id] = entry.created_at
+        for order_id in receiving_order_ids:
+            latest_entry = receiving_status_entry_by_order.get(order_id) or receiving_latest_entry_by_order.get(order_id)
+            receiving_result = WarehouseGoodsStateResolver.resolve_for_receiving_order(
+                order_id=order_id,
+                agency=getattr(latest_entry, "agency", None),
+                payload=(latest_entry.payload or {}) if latest_entry else {},
+            )
+            receiving_status_by_order[order_id] = receiving_result.label_for(receiving_status_audience)
+            receiving_next_step_by_order[order_id] = receiving_result.next_step_for(receiving_status_audience)
+    processing_status_by_order = {}
+    processing_client_by_order = {}
+    processing_client_id_by_order = {}
+    processing_packers_by_order = {}
+    processing_updated_at_by_order = {}
+    processing_head_employee = None
+    if role_key == "processing_head":
+        processing_head_employee = (
+            Employee.objects.filter(role="processing_head", is_active=True)
+            .order_by("full_name")
+            .first()
+        )
+    if processing_order_ids:
+        entries = (
+            OrderAuditEntry.objects.filter(
+                order_type="processing",
+                order_id__in=list(processing_order_ids),
+            )
+            .select_related("agency")
+            .order_by("order_id", "-created_at")
+        )
+        for entry in entries:
+            if entry.order_id not in processing_client_by_order:
+                if entry.agency:
+                    name = entry.agency.agn_name or entry.agency.fio_agn or str(entry.agency)
+                    processing_client_by_order[entry.order_id] = _shorten_ip_name(name)
+                else:
+                    processing_client_by_order[entry.order_id] = "-"
+            if entry.order_id not in processing_client_id_by_order:
+                processing_client_id_by_order[entry.order_id] = int(entry.agency_id or 0) if entry.agency_id else None
+            if entry.order_id not in processing_updated_at_by_order:
+                processing_updated_at_by_order[entry.order_id] = entry.created_at
+            if entry.order_id in processing_status_by_order:
+                continue
+            if not _is_status_entry(entry):
+                continue
+            processing_status_by_order[entry.order_id] = _processing_status_label_from_entry(
+                entry,
+                audience=processing_status_audience,
+            )
+        processing_routes = [
+            f"/orders/processing/{order_id}/flow/" for order_id in processing_order_ids
+        ]
+        packer_tasks = (
+            Task.objects.filter(
+                route__in=processing_routes,
+                assigned_to__role="processing_worker",
+            )
+            .exclude(status="done")
+            .select_related("assigned_to")
+        )
+        for pack_task in packer_tasks:
+            pack_order_id = _extract_processing_order_id(pack_task.route)
+            if not pack_order_id or not pack_task.assigned_to:
+                continue
+            label = pack_task.assigned_to.full_name or str(pack_task.assigned_to)
+            labels = processing_packers_by_order.setdefault(pack_order_id, [])
+            if label not in labels:
+                labels.append(label)
+    shipping_order_pks = {
+        shipping_pk
+        for shipping_pk in (
+            _extract_shipping_order_pk(task.route)
+            for task in tasks
+        )
+        if shipping_pk is not None
+    }
+    shipping_orders_by_pk = {
+        order.pk: order
+        for order in ShippingOrder.objects.select_related("agency").filter(pk__in=shipping_order_pks)
+    } if shipping_order_pks else {}
+    hidden_shipping_order_pks = {
+        order_pk
+        for order_pk, order in shipping_orders_by_pk.items()
+        if order.status in {ShippingOrder.STATUS_DRAFT, ShippingOrder.STATUS_CANCELED}
+    }
+    if hidden_shipping_order_pks:
+        tasks = [
+            task
+            for task in tasks
+            if _extract_shipping_order_pk(task.route) not in hidden_shipping_order_pks
+        ]
+        shipping_orders_by_pk = {
+            order_pk: order
+            for order_pk, order in shipping_orders_by_pk.items()
+            if order_pk not in hidden_shipping_order_pks
+        }
+    shipping_status_by_pk = {
+        order_pk: shipping_ui_status_label(order)
+        for order_pk, order in shipping_orders_by_pk.items()
+    }
+    shipping_updated_at_by_pk = {
+        order_pk: getattr(order, "updated_at", None)
+        for order_pk, order in shipping_orders_by_pk.items()
+    }
+    shipping_reachtruck_tasks_by_pk = {order_pk: [] for order_pk in shipping_orders_by_pk}
+    if shipping_orders_by_pk:
+        shipping_pk_by_number = {
+            str(order.number or "").strip(): order_pk
+            for order_pk, order in shipping_orders_by_pk.items()
+            if str(order.number or "").strip()
+        }
+        agency_ids = {
+            int(order.agency_id)
+            for order in shipping_orders_by_pk.values()
+            if order.agency_id
+        }
+        move_tasks = (
+            MoveTask.objects.filter(
+                request__agency_id__in=agency_ids,
+                to_zone="OTG",
+            )
+            .select_related("request")
+            .order_by("id")
+            if agency_ids
+            else MoveTask.objects.none()
+        )
+        for move_task in move_tasks:
+            payload = move_task.payload if isinstance(move_task.payload, dict) else {}
+            shipping_pk = _to_int(payload.get("shipping_order_pk") or payload.get("order_pk"))
+            if shipping_pk not in shipping_orders_by_pk:
+                shipping_number = str(payload.get("shipping_order_id") or payload.get("order_id") or "").strip()
+                shipping_pk = shipping_pk_by_number.get(shipping_number, 0)
+            if shipping_pk in shipping_reachtruck_tasks_by_pk:
+                shipping_reachtruck_tasks_by_pk[shipping_pk].append(move_task)
+    shipping_reachtruck_notice_by_pk = {
+        order_pk: _shipping_reachtruck_notice_label(move_tasks)
+        for order_pk, move_tasks in shipping_reachtruck_tasks_by_pk.items()
+    }
+    shipping_client_by_pk = {}
+    for order_pk, order in shipping_orders_by_pk.items():
+        if order.agency:
+            name = order.agency.agn_name or order.agency.fio_agn or str(order.agency)
+            shipping_client_by_pk[order_pk] = _shorten_ip_name(name)
+        else:
+            shipping_client_by_pk[order_pk] = "-"
+    logistics_trip_pks = {
+        trip_pk
+        for trip_pk in (
+            _extract_logistics_trip_pk(task.route)
+            for task in tasks
+        )
+        if trip_pk is not None
+    }
+    logistics_status_by_pk = {}
+    logistics_updated_at_by_pk = {}
+    if logistics_trip_pks:
+        trips = LogisticsTrip.objects.filter(pk__in=logistics_trip_pks)
+        for trip in trips:
+            logistics_status_by_pk[trip.pk] = _views()._trip_status_label(trip)
+            logistics_updated_at_by_pk[trip.pk] = getattr(trip, "updated_at", None)
+    for task in tasks:
+        task.filter_type = _task_filter_type(task)
+        task.order_client_id = None
+        task.order_status_tone = "neutral"
+        task.panel_updated_at_label = _format_panel_datetime(getattr(task, "updated_at", None))
+        order_id = _extract_receiving_order_id(task.route)
+        if order_id:
+            display_context = build_receiving_display_context(
+                order_id,
+                entries=receiving_entries_by_order.get(order_id) or [],
+            )
+            task.order_status_label = receiving_status_by_order.get(order_id)
+            task.order_status_tone = _status_tone_from_label(task.order_status_label)
+            task.order_notice_label = ""
+            task.order_notice_tone = ""
+            next_step_label = receiving_next_step_by_order.get(order_id) or ""
+            next_step_tone = _next_step_tone_from_label(next_step_label)
+            if next_step_tone:
+                task.order_notice_label = next_step_label
+                task.order_notice_tone = next_step_tone
+            if str(task.order_status_label or "").strip().lower() == "выполнена":
+                task.status = "done"
+            elif task.status == "done":
+                task.status = "in_progress"
+            task.order_client_label = receiving_client_by_order.get(order_id)
+            task.order_client_id = receiving_client_id_by_order.get(order_id)
+            task.executor_label = task.assigned_to.full_name if task.assigned_to else None
+            task.panel_url = task.route
+            task.panel_title = (
+                _panel_title_for_task(task, "receiving", order_id)
+                if _is_receiving_sign_task(task.route)
+                else (display_context.get("title") or _panel_title_for_task(task, "receiving", order_id))
+            )
+            task.panel_updated_at_label = _format_panel_datetime(
+                display_context.get("updated_at") or receiving_updated_at_by_order.get(order_id) or task.updated_at
+            )
+            if role_key == "processing_worker":
+                task.worker_title = task.title
+            continue
+        order_id = _extract_processing_order_id(task.route)
+        if order_id:
+            task.order_status_label = processing_status_by_order.get(order_id)
+            task.order_status_tone = _status_tone_from_label(task.order_status_label)
+            task.order_client_label = processing_client_by_order.get(order_id)
+            task.order_client_id = processing_client_id_by_order.get(order_id)
+            packers = processing_packers_by_order.get(order_id) or []
+            task.processing_packers_label = ", ".join(packers) if packers else None
+            if role_key == "processing_head" and processing_head_employee:
+                if task.assigned_to and task.assigned_to.role == "processing_head":
+                    task.executor_label = task.assigned_to.full_name
+                else:
+                    task.executor_label = processing_head_employee.full_name
+            else:
+                task.executor_label = task.assigned_to.full_name if task.assigned_to else None
+            if role_key == "processing_worker":
+                task.worker_title = f"Задача на раскоробовку товара по заявке №{order_id}"
+            task.panel_url = task.route
+            if role_key == "processing_worker" and task.worker_title:
+                task.panel_title = task.worker_title
+            else:
+                task.panel_title = _panel_title_for_task(task, "processing", order_id)
+            task.panel_updated_at_label = _format_panel_datetime(
+                processing_updated_at_by_order.get(order_id) or task.updated_at
+            )
+            continue
+        shipping_pk = _extract_shipping_order_pk(task.route)
+        if shipping_pk is not None:
+            task.order_status_label = shipping_status_by_pk.get(shipping_pk)
+            task.order_status_tone = _status_tone_from_label(task.order_status_label)
+            task.order_notice_label = shipping_reachtruck_notice_by_pk.get(shipping_pk) or ""
+            task.order_notice_tone = _status_tone_from_label(task.order_notice_label)
+            task.order_client_label = shipping_client_by_pk.get(shipping_pk)
+            shipping_order = shipping_orders_by_pk.get(shipping_pk)
+            task.order_client_id = int(shipping_order.agency_id or 0) if shipping_order and shipping_order.agency_id else None
+            task.executor_label = task.assigned_to.full_name if task.assigned_to else None
+            task.panel_url = task.route
+            task.panel_title = _panel_title_for_task(
+                task,
+                "shipping",
+                shipping_order.number if shipping_order else str(shipping_pk),
+            )
+            task.panel_updated_at_label = _format_panel_datetime(
+                shipping_updated_at_by_pk.get(shipping_pk) or task.updated_at
+            )
+            continue
+        trip_pk = _extract_logistics_trip_pk(task.route)
+        if trip_pk is not None:
+            task.order_status_label = logistics_status_by_pk.get(trip_pk)
+            task.order_status_tone = _status_tone_from_label(task.order_status_label)
+            task.order_client_label = None
+            task.executor_label = task.assigned_to.full_name if task.assigned_to else None
+            task.panel_url = task.route
+            task.panel_title = task.display_title()
+            task.panel_updated_at_label = _format_panel_datetime(
+                logistics_updated_at_by_pk.get(trip_pk) or task.updated_at
+            )
+            continue
+        task.order_status_label = None
+        task.order_client_label = None
+        task.executor_label = task.assigned_to.full_name if task.assigned_to else None
+        task.panel_url = reverse("todo:detail", args=[task.id])
+        task.panel_title = task.display_title()
+        if role_key == "processing_worker":
+            task.worker_title = task.title
+
+    visible_tasks = [
+        task
+        for task in tasks
+        if task.filter_type == "other" or task.filter_type in allowed_filter_values
+    ]
+
+    client_options_map: dict[int, str] = {}
+    for task in visible_tasks:
+        client_id = getattr(task, "order_client_id", None)
+        client_label = getattr(task, "order_client_label", None)
+        if client_id and client_label:
+            client_options_map[int(client_id)] = client_label
+    client_options = [
+        {
+            "id": client_id,
+            "label": label,
+            "selected": str(client_id) == selected_client,
+        }
+        for client_id, label in sorted(client_options_map.items(), key=lambda item: item[1].lower())
+    ]
+
+    filter_pool = list(visible_tasks)
+    if selected_client:
+        filter_pool = [
+            task
+            for task in filter_pool
+            if str(getattr(task, "order_client_id", "") or "") == selected_client
+        ]
+    if selected_query:
+        filter_pool = [
+            task
+            for task in filter_pool
+            if _task_matches_search(task, selected_query)
+        ]
+
+    open_filter_pool = [task for task in filter_pool if task.status != "done"]
+    filter_counts = {value: 0 for value, _label in filter_defs if value != "all"}
+    for task in open_filter_pool:
+        if task.filter_type in filter_counts:
+            filter_counts[task.filter_type] += 1
+
+    filtered_tasks = list(filter_pool)
+    if selected_type != "all":
+        filtered_tasks = [
+            task
+            for task in filtered_tasks
+            if task.filter_type == selected_type
+        ]
+
+    open_tasks = [task for task in filtered_tasks if task.status != "done"]
+    done_tasks = [task for task in filtered_tasks if task.status == "done"]
+    open_routes = {task.route for task in open_tasks if task.route}
+    done_tasks = [task for task in done_tasks if not task.route or task.route not in open_routes]
+
+    def due_date_only(task):
+        return task.due_date.date() if task.due_date else None
+
+    status_map = {
+        "backlog": [task for task in open_tasks if due_date_only(task) and due_date_only(task) < today],
+        "in_progress": [task for task in open_tasks if due_date_only(task) == today],
+        "blocked": [task for task in open_tasks if due_date_only(task) and due_date_only(task) > today],
+        "done": done_tasks,
+    }
+    totals = {status: len(status_map[status]) for status in status_map}
+    columns = []
+    for status in STATUS_ORDER:
+        status_tasks = sorted(
+            status_map[status],
+            key=lambda task: (task.updated_at, task.created_at),
+            reverse=True,
+        )[:limit_value]
+        columns.append(
+            {
+                "status": status,
+                "label": STATUS_LABELS.get(status, status),
+                "count": totals.get(status, 0),
+                "tasks": status_tasks,
+            }
+        )
+    role_label = None
+    if role_key == ALL_ROLES_KEY:
+        role_label = "Все роли"
+    elif role_key:
+        role_label = ROLE_LABELS.get(role_key)
+    attention_employee = _resolve_attention_employee(context)
+    create_url = reverse("todo:create")
+    if request:
+        current_path = request.get_full_path()
+        if current_path:
+            create_url = f"{create_url}?next={quote(current_path, safe='/')}"
+    return {
+        "task_panel_columns": columns,
+        "task_panel_stats": [
+            {
+                "status": status,
+                "label": STATUS_LABELS.get(status, status),
+                "count": totals.get(status, 0),
+            }
+            for status in STATUS_ORDER
+        ],
+        "task_panel_total": sum(totals.values()),
+        "task_panel_role": role_key,
+        "task_panel_role_label": role_label,
+        "task_panel_show_meta": show_meta,
+        "task_panel_attention_employee_id": attention_employee.id if attention_employee else None,
+        "task_panel_create_url": create_url,
+        "task_panel_list_url": reverse("todo:list"),
+        "task_panel_filter_tabs": [
+            {
+                "value": value,
+                "label": label,
+                "count": len(open_filter_pool) if value == "all" else int(filter_counts.get(value, 0)),
+                "active": selected_type == value,
+            }
+            for value, label in filter_defs
+        ],
+        "task_panel_active_filter_type": selected_type,
+        "task_panel_client_options": client_options,
+        "task_panel_selected_client": selected_client,
+        "task_panel_search_query": selected_query,
+    }

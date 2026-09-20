@@ -1,0 +1,102 @@
+{% extends "fbs/metadata_control_base.html" %}
+
+{% block title %}Контроль передач FBS{% endblock %}
+
+{% block content %}
+  <section class="summary-grid" aria-label="Сводка передач">
+    <a href="?status=all{% if marketplace_filter %}&marketplace={{ marketplace_filter }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}">
+      <span>Всего заказов</span><strong>{{ summary.total }}</strong>
+    </a>
+    <a class="summary-danger" href="?status=conflict{% if marketplace_filter %}&marketplace={{ marketplace_filter }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}">
+      <span>Конфликты</span><strong>{{ summary.conflicts }}</strong>
+    </a>
+    <a class="summary-waiting" href="?status=waiting{% if marketplace_filter %}&marketplace={{ marketplace_filter }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}">
+      <span>Ожидают</span><strong>{{ summary.waiting }}</strong>
+    </a>
+    <a class="summary-warn" href="?status=unsupported{% if marketplace_filter %}&marketplace={{ marketplace_filter }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}">
+      <span>Нет контракта API</span><strong>{{ summary.unsupported }}</strong>
+    </a>
+    <a class="summary-ok" href="?status=confirmed{% if marketplace_filter %}&marketplace={{ marketplace_filter }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}">
+      <span>Подтверждены</span><strong>{{ summary.confirmed }}</strong>
+    </a>
+  </section>
+
+  <form class="filter-band" method="get">
+    <label class="search-field">
+      <span>Заказ, клиент, SKU или ошибка</span>
+      <input type="search" name="q" value="{{ query }}" autocomplete="off">
+    </label>
+    <label>
+      <span>Статус</span>
+      <select name="status">
+        <option value="open"{% if status_filter == "open" %} selected{% endif %}>Открытые</option>
+        <option value="conflict"{% if status_filter == "conflict" %} selected{% endif %}>Конфликты</option>
+        <option value="waiting"{% if status_filter == "waiting" %} selected{% endif %}>Ожидают площадку</option>
+        <option value="unsupported"{% if status_filter == "unsupported" %} selected{% endif %}>Нет контракта API</option>
+        <option value="confirmed"{% if status_filter == "confirmed" %} selected{% endif %}>Подтверждены</option>
+        <option value="all"{% if status_filter == "all" %} selected{% endif %}>Все</option>
+      </select>
+    </label>
+    <label>
+      <span>Маркетплейс</span>
+      <select name="marketplace">
+        <option value="">Все</option>
+        <option value="wb"{% if marketplace_filter == "wb" %} selected{% endif %}>Wildberries</option>
+        <option value="ozon"{% if marketplace_filter == "ozon" %} selected{% endif %}>Ozon</option>
+      </select>
+    </label>
+    <button class="button button-primary" type="submit">Показать</button>
+    <a class="button button-secondary" href="{% url 'fbs:metadata_control' %}">Сбросить</a>
+  </form>
+
+  <section class="table-band">
+    <div class="table-heading">
+      <h2>Передачи по заказам</h2>
+      <span>{{ page.paginator.count }}</span>
+    </div>
+    <div class="responsive-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Заказ</th>
+            <th>Клиент</th>
+            <th>Маркетплейс</th>
+            <th>Передачи</th>
+            <th>Состояние</th>
+            <th>Обновлено</th>
+            <th><span class="visually-hidden">Действия</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in page.object_list %}
+            <tr>
+              <td data-label="Заказ">
+                <strong>{{ order.external_order_id }}</strong>
+                <small>{{ order.get_internal_status_display }}</small>
+              </td>
+              <td data-label="Клиент">{{ order.profile.agency.agn_name }}</td>
+              <td data-label="Маркетплейс"><span class="marketplace marketplace-{{ order.profile.marketplace }}">{{ order.profile.get_marketplace_display }}</span></td>
+              <td data-label="Передачи">
+                <strong>{{ order.confirmed_count }}/{{ order.transfer_count }}</strong>
+                {% if order.conflict_count %}<small>{{ order.conflict_count }} конфликт.</small>{% elif order.unsupported_count %}<small>{{ order.unsupported_count }} без API</small>{% endif %}
+              </td>
+              <td data-label="Состояние"><span class="status status-{{ order.control_status_class }}">{{ order.control_status }}</span></td>
+              <td data-label="Обновлено">{{ order.last_transfer_at|date:"d.m.Y H:i" }}</td>
+              <td class="row-action"><a class="button button-secondary button-compact" href="{% url 'fbs:metadata_control_detail' order_id=order.id %}">Открыть</a></td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-row" colspan="7">Передач по выбранным условиям нет</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if page.paginator.num_pages > 1 %}
+    <nav class="pagination" aria-label="Страницы">
+      {% if page.has_previous %}<a class="button button-secondary button-compact" href="?page={{ page.previous_page_number }}&status={{ status_filter }}&marketplace={{ marketplace_filter }}&q={{ query|urlencode }}">Назад</a>{% endif %}
+      <span>{{ page.number }} из {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="button button-secondary button-compact" href="?page={{ page.next_page_number }}&status={{ status_filter }}&marketplace={{ marketplace_filter }}&q={{ query|urlencode }}">Далее</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

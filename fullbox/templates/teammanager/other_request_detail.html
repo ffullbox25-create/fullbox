@@ -1,0 +1,191 @@
+{% extends "teammanager/_base.html" %}
+{% block title %}Другая заявка № {{ item.public_number }}{% endblock %}
+{% block content %}
+<style>
+  .or-detail { max-width: 1520px; width: 100%; margin: 0 auto; }
+  .crumbs { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+  .crumbs a { text-decoration: underline; }
+
+  .or-header { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 16px; }
+  .or-header-main { flex: 1; min-width: 260px; }
+  .or-header-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .or-header-title h1 {
+    margin: 0; font-size: 26px; font-family: "Bricolage Grotesque", Manrope, sans-serif; line-height: 1.2; max-width: 42rem;
+  }
+  .or-header-meta { color: var(--muted); font-size: 13px; margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .or-link-chip {
+    display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-strong);
+    font-weight: 700; font-size: 12px; text-decoration: none;
+  }
+  .or-link-chip-block { display: block; margin-top: 6px; }
+
+  .or-pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--sun-soft); color: #8a5a00; }
+  .or-pill-overdue { background: var(--danger-soft); color: var(--danger); }
+  .or-pill-status-closed { background: var(--accent-soft); color: var(--accent-strong); }
+  .or-pill-status-cancelled, .or-pill-status-rejected { background: var(--surface-2); color: var(--muted); }
+
+  .or-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
+  .or-main { display: grid; gap: 14px; min-width: 0; }
+  .or-aside { display: grid; gap: 14px; position: sticky; top: 20px; }
+
+  .or-card { background: var(--card); border: 1px solid var(--stroke); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow); }
+  .or-card h2 { margin: 0 0 12px; font-size: 16px; font-family: "Bricolage Grotesque", Manrope, sans-serif; }
+  .or-card h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+
+  .or-info-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; margin-top: 10px; }
+  .or-info-label:first-of-type { margin-top: 0; }
+  .or-info-value { font-size: 14px; font-weight: 600; white-space: pre-wrap; word-break: break-word; color: var(--ink); }
+  .or-text-danger { color: var(--danger); }
+
+  .or-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 9px 14px; border-radius: 10px; border: 1px solid var(--stroke); background: var(--surface-2);
+    font-weight: 700; font-size: 13px; cursor: pointer; color: var(--ink); text-decoration: none;
+  }
+  .or-btn-sm { padding: 6px 10px; font-size: 12px; }
+  .or-btn-primary { background: linear-gradient(120deg, var(--gold), var(--gold-soft)); border-color: rgba(42,33,16,.16); color: #2a2110; }
+  .or-btn-danger { background: var(--danger-soft); border-color: rgba(212,84,60,.3); color: var(--danger); }
+  .or-btn:disabled { opacity: .55; cursor: not-allowed; }
+  .or-link-btn { background: none; border: none; color: var(--accent-strong); font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0; }
+
+  .or-action-form, .or-summary-form { display: grid; gap: 10px; }
+  .or-action-secondary { display: grid; gap: 10px; margin-top: 14px; }
+  .or-inline-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .or-inline-form input[type=text] { flex: 1; min-width: 200px; }
+  .or-more-actions summary { cursor: pointer; font-weight: 700; color: var(--muted); font-size: 13px; }
+
+  .or-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .or-form-grid label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 700; }
+  .or-hint { font-size: 12px; color: var(--danger); margin: 0; }
+
+  textarea, select, input[type=text], input[type=number], input[type=datetime-local] {
+    width: 100%; border: 1px solid var(--stroke); border-radius: 10px; padding: 9px 12px; background: var(--surface); font: inherit; box-sizing: border-box;
+  }
+
+  .or-alert { padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+  .or-alert-warning { background: var(--sun-soft); color: #8a5a00; border: 1px solid rgba(242,183,71,.4); }
+
+  .or-file-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .or-required-mark { font-size: 10px; color: var(--danger); text-transform: none; letter-spacing: 0; font-weight: 700; }
+  .or-file-card { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--stroke); border-radius: 10px; margin-bottom: 6px; background: var(--surface); }
+
+  .or-dropzone {
+    border: 2px dashed var(--stroke); border-radius: var(--radius-lg); padding: 22px; text-align: center; cursor: pointer;
+    background: var(--surface-2); transition: border-color .15s, background .15s;
+  }
+  .or-dropzone-active { border-color: var(--accent); background: var(--accent-soft); }
+  .or-dropzone-hint strong { display: block; margin-bottom: 8px; color: var(--ink); }
+  .or-dropzone-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .or-preview-list { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .or-preview-card { position: relative; width: 92px; border: 1px solid var(--stroke); border-radius: 10px; background: var(--surface); padding: 6px; text-align: center; }
+  .or-preview-card img { width: 100%; height: 60px; object-fit: cover; border-radius: 6px; }
+  .or-preview-icon { width: 100%; height: 60px; display: grid; place-items: center; font-size: 24px; }
+  .or-preview-name { font-size: 10px; margin-top: 4px; word-break: break-all; max-height: 26px; overflow: hidden; }
+  .or-preview-remove {
+    position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%;
+    border: 1px solid var(--stroke); background: var(--card); cursor: pointer; font-size: 11px; line-height: 1;
+  }
+  .or-upload-controls { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+  .or-upload-controls select { max-width: 220px; }
+
+  .or-tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .or-tab-btn {
+    border: 1px solid var(--stroke); background: var(--surface-2); border-radius: 999px; padding: 6px 12px;
+    font-size: 12px; font-weight: 700; cursor: pointer; color: var(--muted);
+  }
+  .or-tab-btn.active { background: var(--accent-soft); color: var(--accent-strong); border-color: var(--accent); }
+
+  .or-chat { display: grid; gap: 10px; max-height: 360px; overflow-y: auto; margin-bottom: 12px; }
+  .or-chat-msg { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--stroke); background: var(--surface); }
+  .or-chat-msg[data-visibility="client"] { border-left: 3px solid var(--accent); }
+  .or-chat-msg[data-visibility="internal"] { border-left: 3px solid var(--sun); }
+  .or-chat-meta { display: flex; gap: 8px; align-items: center; font-size: 12px; margin-bottom: 4px; flex-wrap: wrap; }
+  .or-chat-badge { padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+  .or-chat-badge-client { background: var(--accent-soft); color: var(--accent-strong); }
+  .or-chat-badge-internal { background: var(--sun-soft); color: #8a5a00; }
+  .or-chat-text { font-size: 13px; line-height: 1.5; }
+  .or-comment-form { display: grid; gap: 8px; }
+  .or-comment-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .or-comment-controls select { max-width: 200px; }
+
+  .or-timeline { display: grid; gap: 0; }
+  .or-timeline-item { display: grid; grid-template-columns: 14px 1fr; gap: 10px; padding-bottom: 14px; position: relative; }
+  .or-timeline-item:not(:last-child)::before {
+    content: ""; position: absolute; left: 6px; top: 16px; bottom: 0; width: 1px; background: var(--stroke);
+  }
+  .or-timeline-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); margin-top: 4px; }
+  .or-timeline-title { font-weight: 700; font-size: 13px; }
+
+  .muted { color: var(--muted); }
+
+  @media (max-width: 1180px) {
+    .or-grid { grid-template-columns: 1fr; }
+    .or-aside { position: relative; top: 0; }
+  }
+  @media (max-width: 720px) {
+    .or-header-title h1 { font-size: 21px; }
+    .or-form-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+
+<div class="or-detail">
+  {% include "teammanager/other_requests/_detail_header.html" %}
+
+  <div class="or-grid">
+    <div class="or-main">
+      <section class="or-card">
+        <h2>Описание задачи</h2>
+        <div class="or-info-label">Категория</div>
+        <div class="or-info-value">{% if item.category %}{{ item.category.title }}{% else %}{{ item.category_code|default:"Другое" }}{% endif %}</div>
+        <div class="or-info-label">Описание / ТЗ клиента</div>
+        <div class="or-info-value">{% if item.description %}{{ item.description }}{% else %}—{% endif %}</div>
+      </section>
+
+      {% include "teammanager/other_requests/_result_form.html" %}
+      {% include "teammanager/other_requests/_attachments.html" %}
+      {% include "teammanager/other_requests/_comments.html" %}
+      {% include "teammanager/other_requests/_actions.html" %}
+    </div>
+
+    <aside class="or-aside">
+      {% include "teammanager/other_requests/_summary.html" %}
+      {% include "teammanager/other_requests/_billing.html" %}
+      {% include "teammanager/other_requests/_timeline.html" %}
+    </aside>
+  </div>
+</div>
+{% include "billing/_warehouse_services_modal.html" %}
+<script>
+(function () {
+  var form = document.getElementById('other-request-primary-form');
+  if (!form) return;
+  var action = form.querySelector('input[name="action"]');
+  if (!action || action.value !== 'approve_close') return;
+  form.addEventListener('submit', function (event) {
+    if (form.dataset.servicesReady === '1') return;
+    event.preventDefault();
+    var button = event.submitter || document.getElementById('other-request-primary-submit');
+    var modal = window.FullboxWarehouseServicesModal;
+    if (!modal) return;
+    modal.open(
+      {items: Number('{{ item.result_qty|default:0|escapejs }}') || 0, boxes: 0, pallets: 0},
+      {
+        orderType: 'other',
+        orderId: '{{ wsfm_order_id|escapejs }}',
+        clientId: '{{ wsfm_client_id|escapejs }}',
+        clientName: '{{ item.agency|escapejs }}',
+        source: 'other_manual',
+        title: 'Фактически оказанные услуги',
+        itemsLabel: 'Обработано товара',
+        itemsUnit: '{{ item.result_unit|default:"шт."|escapejs }}'
+      }
+    ).then(function () {
+      form.dataset.servicesReady = '1';
+      form.requestSubmit(button);
+    }).catch(function (error) {
+      if (error && error.message !== 'cancelled') window.alert(error.message || 'Не удалось сохранить услуги.');
+    });
+  });
+})();
+</script>
+{% endblock %}

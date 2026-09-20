@@ -1,0 +1,368 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Рабочее место контролера{% endblock %}
+{% block page_class %}tsd-page-controller controller-tote-page{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+  <a class="button button-secondary" href="{% url 'fbs:controller_daily_report' %}">Мой день</a>
+  <a class="button button-secondary" href="{% url 'fbs:controller_tote_transfers' %}">Передать тару · все столы</a>
+</div>
+{% if released_tote %}
+  <section class="tote-released-banner" role="status" aria-labelledby="tote-released-title">
+    <span>Волна закрыта</span>
+    <h2 id="tote-released-title">Тара {{ released_tote.barcode }} освобождена</h2>
+    <strong>{{ released_tote.name }}</strong>
+    <p>Отвезите её в зону свободной тары. Подтверждать пустоту больше не нужно.</p>
+  </section>
+{% endif %}
+<style>
+  .controller-tote-page{--tote-shadow:0 16px 45px rgba(48,48,48,.07);--tote-soft:#fff8ee;--tote-line:#e7e1d8}
+  .controller-tote-page>.operator-nav{margin-bottom:16px}
+  .tote-released-banner{margin:0 0 16px;padding:18px 22px;border:1px solid rgba(248,104,0,.45);border-left:7px solid #f86800;border-radius:14px;background:linear-gradient(105deg,#fff 55%,#fff4df);color:#303030;box-shadow:var(--tote-shadow)}
+  .tote-released-banner span{display:block;color:#b54f00;font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.08em}
+  .tote-released-banner h2{margin:5px 0 0;font-size:28px;line-height:1.15;overflow-wrap:anywhere}
+  .tote-released-banner strong{display:block;margin-top:5px;color:#555;font-size:15px;overflow-wrap:anywhere}
+  .tote-released-banner p{margin:12px 0 0;padding:10px 12px;border-radius:8px;background:rgba(248,184,0,.16);font-size:14px;line-height:1.45}
+  .tote-shell{display:grid;gap:14px}
+  .tote-bar,.tote-panel,.tote-card{border:1px solid var(--tote-line);background:#fff;border-radius:14px}
+  .tote-bar{position:relative;display:flex;align-items:center;justify-content:space-between;gap:18px;min-height:84px;padding:18px 20px;overflow:hidden;box-shadow:0 8px 28px rgba(48,48,48,.05)}
+  .tote-bar:before{content:"";position:absolute;inset:0 auto 0 0;width:6px;background:linear-gradient(180deg,#f8b800,#f86800)}
+  .tote-bar-copy{display:grid;gap:3px;padding-left:4px}
+  .tote-bar-eyebrow{color:#a94a00!important;font-size:10px!important;font-weight:850;text-transform:uppercase;letter-spacing:.1em}
+  .tote-bar strong,.tote-card strong{display:block;overflow-wrap:anywhere}
+  .tote-bar strong{font-size:19px;line-height:1.25}
+  .tote-bar small,.tote-card small{color:#686868}
+  .tote-bar-state{display:flex;align-items:center;gap:7px;color:#666;font-size:12px;font-weight:750}
+  .tote-bar-state:before{content:"";width:8px;height:8px;border-radius:50%;background:#f89000;box-shadow:0 0 0 4px rgba(248,144,0,.14)}
+  .tote-badges{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+  .tote-badges .status{min-height:30px;display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px}
+  .tote-badges .button{min-height:34px;border-radius:9px}
+  .tote-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:0;background:transparent}
+  .tote-kpis div{min-height:78px;display:flex;flex-direction:column;justify-content:center;gap:5px;padding:14px 16px;border:1px solid var(--tote-line);border-radius:12px;background:#fff}
+  .tote-kpis span{color:#707070;font-size:11px;font-weight:750}
+  .tote-kpis strong{font-size:24px;line-height:1;color:#303030}
+  .tote-kpis div:first-child strong,.tote-kpis div:nth-child(2) strong{color:#f86800}
+  .tote-main{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(290px,.75fr);gap:14px;align-items:start}
+  .tote-panel{padding:16px;box-shadow:0 7px 24px rgba(48,48,48,.045)}
+  .tote-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:13px}
+  .tote-heading h2{margin:0;font-size:18px;line-height:1.25}
+  .tote-heading span{display:block;margin-top:3px;font-size:12px;color:#6e7074;line-height:1.4}
+  .tote-scan{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:12px;border:1px solid rgba(248,144,0,.35);border-radius:12px;background:var(--tote-soft)}
+  .tote-scan input{min-width:0;min-height:48px;border-color:#f89000;background:#fff;font-size:15px}
+  .tote-scan .button{min-height:48px;padding:9px 20px;border-radius:9px}
+  .tote-help{margin:8px 0 0;color:#6e7074;font-size:12px;line-height:1.45}
+  .tote-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .tote-card{position:relative;padding:14px 14px 13px;border-left:5px solid #f89000;color:inherit;text-decoration:none;box-shadow:none;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
+  .tote-card:hover,.tote-card:focus-visible{transform:translateY(-1px);border-color:rgba(248,144,0,.55);box-shadow:0 10px 24px rgba(48,48,48,.08);outline:0}
+  .tote-card.tote-card-has-error{border-color:#b42318;border-left-color:#b42318;background:#fff7f6}
+  .tote-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:9px;margin-bottom:8px}
+  .tote-card dl{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0 0;padding-top:10px;border-top:1px solid #eee}
+  .tote-card dt{color:#777;font-size:10px;font-weight:700}
+  .tote-card dd{margin:2px 0 0;font-size:16px;font-weight:850}
+  .tote-error-notice{display:grid;gap:8px;margin-top:11px;padding:11px;border:2px solid #b42318;border-radius:10px;background:#ffe8e5;color:#8f1d14}
+  .tote-error-notice>strong{font-size:13px;line-height:1.35;text-transform:uppercase}
+  .tote-error-item{padding-top:8px;border-top:1px solid rgba(180,35,24,.25)}
+  .tote-error-item:first-of-type{padding-top:0;border-top:0}
+  .tote-error-item b,.tote-error-item span,.tote-error-item small{display:block}
+  .tote-error-item b{font-size:13px;line-height:1.35}
+  .tote-error-item span{margin-top:3px;color:#8f1d14;font-size:11px;line-height:1.4}
+  .tote-error-item small{margin-top:4px!important;color:#6f211b!important;font-size:10px!important;line-height:1.4}
+  .tote-list{display:grid;gap:0}
+  .tote-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;min-height:58px;padding:10px 4px;border-top:1px solid #eee}
+  .tote-row:first-child{border-top:0}
+  .tote-row span,.tote-row small{display:block}
+  .tote-row small{margin-top:3px;color:#6e7074;font-size:11px}
+  .tote-row form{margin:0}
+  .tote-row .button{padding:7px 11px;min-height:36px;border-radius:8px}
+  .tote-start-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.75fr);gap:14px;align-items:stretch;max-width:1040px;margin:18px auto 0}
+  .tote-start{width:100%;padding:26px;margin:0;box-shadow:var(--tote-shadow)}
+  .tote-shell>.tote-start:not(.tote-start-primary){max-width:900px;margin:18px auto 0}
+  .tote-start-primary{position:relative;overflow:hidden;border-color:rgba(248,144,0,.42);background:linear-gradient(135deg,#fff 55%,#fff7e8)}
+  .tote-start-primary:after{content:"QR";position:absolute;right:-12px;bottom:-30px;color:rgba(248,144,0,.065);font-size:128px;font-weight:900;line-height:1;pointer-events:none}
+  .tote-step-label{display:inline-flex;align-items:center;gap:7px;margin-bottom:12px;color:#a94a00;font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.07em}
+  .tote-step-label:before{content:"";width:22px;height:3px;border-radius:999px;background:linear-gradient(90deg,#f8b800,#f86800)}
+  .tote-start .tote-heading{position:relative;z-index:1;margin-bottom:18px}
+  .tote-start .tote-heading h2{font-size:25px}
+  .tote-start form{position:relative;z-index:1;display:grid;gap:12px}
+  .tote-start label{display:grid;gap:7px;color:#4e4e4e;font-size:12px;font-weight:800}
+  .tote-start input{min-height:52px;border:2px solid #f89000;border-radius:10px;background:#fff;font-size:15px;box-shadow:0 0 0 4px rgba(248,144,0,.08)}
+  .tote-start .button{min-height:48px;border-radius:10px;font-size:14px}
+  .tote-start-note{position:relative;z-index:1;display:flex;align-items:flex-start;gap:9px;margin:14px 0 0;padding-top:13px;border-top:1px solid rgba(248,144,0,.22);color:#686868;font-size:12px;line-height:1.45}
+  .tote-start-note b{flex:0 0 auto;width:20px;height:20px;display:grid;place-items:center;border-radius:50%;color:#fff;background:#f89000;font-size:12px}
+  .tote-start-guide{padding:23px;background:#303030;color:#fff;box-shadow:var(--tote-shadow)}
+  .tote-start-guide>small{color:#f8b800;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.08em}
+  .tote-start-guide h3{margin:7px 0 17px;font-size:18px}
+  .tote-start-guide ol{display:grid;gap:16px;margin:0;padding:0;list-style:none;counter-reset:tote-guide}
+  .tote-start-guide li{position:relative;min-height:34px;padding-left:45px;color:#dedede;font-size:12px;line-height:1.45;counter-increment:tote-guide}
+  .tote-start-guide li:before{content:counter(tote-guide);position:absolute;left:0;top:0;width:30px;height:30px;display:grid;place-items:center;border:1px solid rgba(248,184,0,.55);border-radius:9px;color:#f8b800;font-weight:850}
+  .tote-start-guide li strong{display:block;margin-bottom:2px;color:#fff;font-size:13px}
+  .tote-session-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.72fr);gap:14px;align-items:start;max-width:1120px;margin:18px auto 0}
+  .tote-session-primary{padding:26px;border-color:rgba(248,144,0,.34);box-shadow:var(--tote-shadow)}
+  .tote-session-progress{display:flex;align-items:center;gap:8px;margin-bottom:18px}
+  .tote-session-progress span{min-height:29px;display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid #e4e4e4;border-radius:999px;color:#777;background:#fff;font-size:10px;font-weight:800}
+  .tote-session-progress span:first-child{color:#6d4b00;border-color:rgba(248,184,0,.42);background:rgba(248,184,0,.13)}
+  .tote-session-progress span:last-child{color:#fff;border-color:#f86800;background:#f86800}
+  .tote-session-progress i{width:15px;height:15px;display:grid;place-items:center;border-radius:50%;background:rgba(255,255,255,.24);font-style:normal;font-size:9px}
+  .tote-service-form{display:grid;gap:11px!important}
+  .tote-service-field{display:grid;grid-template-columns:38px minmax(0,1fr);gap:12px;align-items:start;padding:13px;border:1px solid #ebe5dc;border-radius:12px;background:#fffaf3}
+  .tote-service-field:focus-within{border-color:#f89000;box-shadow:0 0 0 4px rgba(248,144,0,.08)}
+  .tote-service-number{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;color:#fff;background:#303030;font-size:14px;font-weight:850}
+  .tote-service-field label{gap:4px!important}
+  .tote-service-field label>strong{font-size:13px;color:#303030}
+  .tote-service-field label>small{margin-bottom:5px;color:#747474;font-size:10px;font-weight:500;line-height:1.4}
+  .tote-service-field input{min-height:46px!important;border-width:1px!important;box-shadow:none!important}
+  .tote-session-submit{margin-top:3px}
+  .tote-previous-summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0;padding:14px;border:1px solid rgba(248,144,0,.38);border-radius:12px;background:#fffaf3;color:#303030}
+  .tote-previous-summary span{display:inline-flex;align-items:center;gap:5px;color:#606060;font-size:12px;font-weight:750}.tote-previous-summary span:before{content:"·";color:#f86800;font-weight:900}.tote-previous-summary strong{font-size:14px}
+  .tote-previous-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:12px}.tote-previous-actions form{margin:0}.tote-previous-actions .button{width:auto}
+  .tote-session-guide{display:grid;gap:14px;padding:22px;background:#303030;color:#fff;box-shadow:var(--tote-shadow)}
+  .tote-session-guide>small{color:#f8b800;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.08em}
+  .tote-session-guide h3{margin:-7px 0 0;font-size:18px}
+  .tote-device-list{display:grid;gap:8px}
+  .tote-device-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid rgba(255,255,255,.12)}
+  .tote-device-row:first-child{border-top:0}
+  .tote-device-row span{display:grid;gap:2px;color:#fff;font-size:12px;font-weight:800}
+  .tote-device-row small{color:#aaa;font-size:9px;font-weight:500}
+  .tote-device-row .status{flex:0 0 auto}
+  .tote-session-warning{margin:2px 0 0;padding:12px;border:1px solid rgba(248,184,0,.38);border-radius:10px;color:#f1f1f1;background:rgba(248,184,0,.08);font-size:11px;line-height:1.45}
+  .tote-session-warning strong{display:block;margin-bottom:3px;color:#f8b800;font-size:12px}
+  .tote-start-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tote-assigned{display:grid;gap:7px;padding:12px;border:1px solid rgba(248,144,0,.35);background:rgba(248,144,0,.08);border-radius:10px}
+  .tote-assigned span{display:flex;justify-content:space-between;gap:12px;overflow-wrap:anywhere}
+  .tote-assigned small{color:#666}
+  .tote-service{padding:0;overflow:hidden}.tote-service summary{cursor:pointer;padding:15px 16px;font-weight:800}.tote-service[open] summary{border-bottom:1px solid #eee}.tote-service .tote-list{padding:4px 16px 12px}
+  .tote-empty-line{margin:0;color:#6e7074;font-size:12px;padding:10px 0}
+  .tote-utility{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+  .tote-equipment{padding:0;overflow:hidden}
+  .tote-equipment summary{cursor:pointer;padding:15px 16px;font-weight:800;display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .tote-equipment summary small{display:block;margin-top:2px;color:#666;font-weight:400}
+  .tote-equipment-body{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 16px 16px}
+  .tote-equipment-body>div,.tote-equipment-body form{padding:12px;border:1px solid #eee;border-radius:10px}
+  .tote-equipment form{display:grid;gap:8px}
+  .tote-equipment label{display:grid;gap:5px;font-size:11px}
+  .tote-equipment input,.tote-equipment select{min-height:40px}
+  @media(max-width:900px){.tote-main,.tote-start-layout,.tote-session-layout{grid-template-columns:1fr}.tote-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:620px){.tote-bar{align-items:flex-start;flex-direction:column}.tote-badges{justify-content:flex-start}.tote-grid,.tote-start-grid,.tote-kpis{grid-template-columns:1fr}.tote-start,.tote-session-primary{padding:20px}.tote-start .tote-heading h2{font-size:21px}.tote-session-progress{align-items:stretch;flex-direction:column}.tote-session-progress span{justify-content:center}.tote-service-field{grid-template-columns:32px minmax(0,1fr);padding:11px}.tote-service-number{width:30px;height:30px}.tote-row{grid-template-columns:1fr auto}.tote-row form{grid-column:1/-1}.tote-scan{grid-template-columns:1fr}.tote-equipment-body{grid-template-columns:1fr}.tote-released-banner h2{font-size:22px}}
+</style>
+
+<div class="tote-shell"{% if workstation and workstation.device_agent_id %} data-agent-scan-poll-url="{% url 'fbs:controller_scan_events' %}" data-agent-scan-since="{{ controller_scan_event_id }}"{% endif %}>
+  <section class="tote-bar">
+    <div class="tote-bar-copy">
+      <small class="tote-bar-eyebrow">FBS · Контроль заказов</small>
+      <strong>{% if workstation %}{{ workstation.name }} · {{ workstation.barcode }}{% else %}Рабочее место не настроено или не подключено{% endif %}</strong>
+      {% if not workstation %}<span class="tote-bar-state">Ожидается QR-код рабочего места</span>{% endif %}
+    </div>
+    <div class="tote-badges">
+      {% if workstation %}
+        <span id="controller-device-mode" class="status {% if controller_equipment.agent.online %}status-done{% else %}status-problem{% endif %}">Agent</span>
+        <span id="controller-printer-state" class="status {% if controller_equipment.printer.severity == 'ok' %}status-done{% else %}status-warning{% endif %}">Принтер</span>
+        <span id="controller-scanner-state" class="status {% if controller_equipment.scanner.ready %}status-done{% else %}status-problem{% endif %}">Сканер</span>
+      {% endif %}
+      {% if workstation %}<a class="button button-secondary button-compact" href="#controller-equipment">Настройки оборудования</a>{% endif %}
+    </div>
+  </section>
+
+  {% if not workstation %}
+    <div class="tote-start-layout">
+      <section class="tote-panel tote-start tote-start-primary">
+        <span class="tote-step-label">Шаг 1 · Подключение</span>
+        <div class="tote-heading"><div><h2>Отсканируйте QR рабочего места</h2><span>Код расположен на столе контроллера. После сканирования система подключит принтер и сканер.</span></div></div>
+        <form method="post" data-submit-once data-scan-feedback data-scan-focus-lock>
+          {% csrf_token %}<input type="hidden" name="action" value="bind_workstation">
+          <label>QR-код стола<input name="workstation_scan" required autofocus autocomplete="off" inputmode="none" data-scanner-only data-scan-autosubmit="250" placeholder="Сканируйте QR рабочего места"></label>
+          <button class="button button-primary" type="submit">Подключить рабочее место</button>
+        </form>
+        <p class="tote-start-note"><b>i</b><span>Поле заполняется сканером автоматически. Если сканирование не сработало, проверьте подключение Fullbox Desktop.</span></p>
+      </section>
+      <aside class="tote-panel tote-start-guide">
+        <small>Что будет дальше</small>
+        <h3>Подготовка к сборке заказов</h3>
+        <ol>
+          <li><strong>Проверка оборудования</strong>Система покажет состояние Fullbox Desktop, принтера этикеток и сканера.</li>
+          <li><strong>Одна служебная тара</strong>Назначьте общую тару для неизвестного товара, проблемных и отменённых заказов.</li>
+          <li><strong>Начало контроля</strong>Отсканируйте тару подбора — откроется первый заказ и товар для проверки.</li>
+        </ol>
+      </aside>
+    </div>
+  {% elif not tote_session %}
+    <div class="tote-session-layout">
+      <section class="tote-panel tote-session-primary">
+        {% if previous_tote_session %}
+          <div class="tote-session-progress" aria-label="Этапы запуска смены"><span><i>✓</i>Стол подключён</span><span><i>✓</i>Тары найдены</span></div>
+          <div class="tote-heading"><div><h2>Начать с прежней тарой?</h2><span>Система повторно проверит общую служебную тару перед назначением. Если она уже занята, смена не откроется.</span></div></div>
+          <p class="tote-previous-summary"><strong>{{ workstation.name }}</strong><span>тара {{ previous_tote_session.unknown_tote.barcode }}</span><span>принтер {{ workstation.printer_name|default:"не выбран" }}</span></p>
+          <div class="tote-previous-actions">
+            <form method="post" data-submit-once>
+              {% csrf_token %}<input type="hidden" name="action" value="reuse_previous_totes"><input type="hidden" name="previous_session_id" value="{{ previous_tote_session.id }}">
+              <button class="button button-primary" type="submit">Начать с этими тарами</button>
+            </form>
+            <a class="button button-secondary" href="?change_totes=1">Не то — изменить</a>
+          </div>
+        {% else %}
+          <div class="tote-session-progress" aria-label="Этапы запуска смены"><span><i>✓</i>Стол подключён</span><span><i>2</i>Тара смены</span></div>
+          <div class="tote-heading"><div><h2>Подготовьте одну служебную тару</h2><span>Возьмите одну свободную тару. Она будет общей для неизвестного товара, проблемных и отменённых заказов.</span></div></div>
+          <form class="tote-service-form" method="post" data-submit-once data-scan-feedback data-scan-focus-lock data-service-tote-form>
+            {% csrf_token %}<input type="hidden" name="action" value="start_tote_session">
+            <div class="tote-service-field"><span class="tote-service-number">1</span><label><strong>Общая служебная тара</strong><small>Сюда помещаются неизвестный товар, проблемные и отменённые заказы, а также товар для ручной проверки Честного знака.</small><input id="unknown-tote-scan" name="unknown_tote_scan" required autofocus autocomplete="off" inputmode="none" data-scanner-only data-agent-scan-target data-service-tote-role="общей служебной тары" placeholder="Сканируйте QR свободной тары"></label></div>
+            <button class="button button-primary tote-session-submit" type="submit">Открыть смену и перейти к сборке</button>
+          </form>
+        {% endif %}
+      </section>
+      <aside class="tote-panel tote-session-guide">
+        <small>Рабочее место подключено</small>
+        <h3>{{ workstation.name }}</h3>
+        <div class="tote-device-list" aria-label="Состояние оборудования">
+          <div class="tote-device-row"><span>Fullbox Desktop<small>{{ controller_equipment.agent.last_seen|default:"нет данных" }}</small></span><b class="status {% if controller_equipment.agent.online %}status-done{% else %}status-problem{% endif %}">{{ controller_equipment.agent.text }}</b></div>
+          <div class="tote-device-row"><span>Принтер этикеток<small>{{ workstation.printer_name|default:"не выбран" }}</small></span><b class="status {% if controller_equipment.printer.severity == 'ok' %}status-done{% else %}status-warning{% endif %}">{{ controller_equipment.printer.text }}</b></div>
+          <div class="tote-device-row"><span>Сканер<small>{{ controller_equipment.scanner_hint }}</small></span><b class="status {% if controller_equipment.scanner.ready %}status-done{% else %}status-problem{% endif %}">{{ controller_equipment.scanner.text }}</b></div>
+        </div>
+        <p class="tote-session-warning"><strong>Важно</strong>На всю смену нужна только одна общая служебная тара.</p>
+        <a class="button button-secondary button-compact" href="#controller-equipment">Настроить оборудование</a>
+      </aside>
+    </div>
+  {% elif not tote_session_ready %}
+    <section class="tote-panel tote-start">
+      <div class="tote-heading"><div><h2>Восстановите служебную тару</h2><span>Сессия была открыта до обновления. Система назначит уже подключённую тару общей для всех служебных операций.</span></div></div>
+      <form method="post" data-submit-once>
+        {% csrf_token %}<input type="hidden" name="action" value="bind_service_totes"><input type="hidden" name="session_id" value="{{ tote_session.id }}">
+        <div class="tote-assigned"><strong>Общая служебная тара</strong><span><small>Неизвестный товар, проблемные и отменённые заказы, Честный знак</small><b>{{ tote_session.unknown_tote.name }} · {{ tote_session.unknown_tote.barcode }}</b></span></div>
+        <button class="button button-primary" type="submit">Назначить общей и продолжить</button>
+      </form>
+    </section>
+  {% else %}
+    <section class="tote-kpis" aria-label="Показатели смены">
+      <div><span>Отгрузок на проверке</span><strong>{{ tote_kpis.check_totes }}</strong></div>
+      <div><span>Товаров на проверке</span><strong>{{ tote_kpis.items_on_check }}</strong></div>
+      <div class="tote-kpi-secondary"><span>Обработано сегодня</span><strong>{{ tote_kpis.processed_today }}</strong></div>
+      <div class="tote-kpi-secondary"><span>Отгрузок сегодня</span><strong>{{ tote_kpis.shipments_today }}</strong></div>
+    </section>
+
+    <div class="tote-main">
+      <main class="tote-shell">
+        <section class="tote-panel">
+          <div class="tote-heading"><div><h2>Сканируйте тару подбора</h2><span>Система сразу откроет первый товар. Вторую тару сканировать не нужно.</span></div></div>
+          <form class="tote-scan" method="post" data-submit-once data-scan-feedback data-scan-focus-lock>
+            {% csrf_token %}<input type="hidden" name="action" value="scan_pick_tote">
+            <input name="pick_tote_scan" required autofocus autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-scan-autosubmit="250" placeholder="QR тары подбора">
+            <button class="button button-primary" type="submit">Начать проверку товара</button>
+          </form>
+        </section>
+
+        <section class="tote-panel">
+          <div class="tote-heading"><h2>Отгрузки в работе</h2><span>Открыто: {{ check_totes|length }}</span></div>
+          <div class="tote-grid">
+            {% for check_tote in check_totes %}
+              <a class="tote-card{% if check_tote.error_details %} tote-card-has-error{% endif %}" href="{% url 'fbs:controller_check_tote' check_tote_id=check_tote.id %}">
+                <div class="tote-card-head"><span><strong>{% if check_tote.tote_id %}{{ check_tote.tote.name }}{% else %}{% if check_tote.handover_batch_id %}Отгрузка №{{ check_tote.handover_batch_id }}{% else %}Новая отгрузка{% endif %}{% endif %}</strong><small>{% if check_tote.tote_id %}{{ check_tote.tote.barcode }}{% else %}Проверка состава короба{% endif %}</small></span><span class="status {% if check_tote.error_details %}status-problem{% elif check_tote.readiness.ready %}status-done{% elif check_tote.status == 'waiting_kiz' %}status-warning{% else %}status-verification{% endif %}">{{ check_tote.readiness.display_label }}</span></div>
+                <small>{% if check_tote.profile %}{{ check_tote.profile.get_marketplace_display }} · склад {{ check_tote.profile.external_warehouse_id }}{% else %}Клиент назначится по первой таре подбора{% endif %}</small>
+                <dl><div><dt>Заказы</dt><dd>{{ check_tote.order_count }}</dd></div><div><dt>В таре</dt><dd>{{ check_tote.labeled_qty }}</dd></div><div><dt>Состав</dt><dd>{{ check_tote.composition_qty }}</dd></div></dl>
+                {% if check_tote.error_details %}<div class="tote-error-notice" role="alert"><strong>Ошибок: {{ check_tote.error_count }} · Товаров: {{ check_tote.error_unit_count }} шт.</strong>{% for issue in check_tote.error_details %}<div class="tote-error-item"><b>{{ issue.title }}</b><span>Заказов: {{ issue.order_count }} · Количество: {{ issue.quantity }} шт.</span><span>{{ issue.instruction }}</span><small>Заказы: {{ issue.order_numbers|join:", " }}{% if issue.remaining_count %} · ещё {{ issue.remaining_count }}{% endif %}</small></div>{% endfor %}</div>{% elif check_tote.readiness.blocking_hint %}<small class="text-error">Держит поток — {{ check_tote.readiness.blocking_hint }}</small>{% endif %}
+              </a>
+            {% empty %}<p class="tote-empty-line">Нет активных потоков отгрузки.</p>{% endfor %}
+          </div>
+        </section>
+
+        {% if pending_deliveries %}
+        <section class="tote-panel" aria-label="Отправка проверенных поставок" data-pending-deliveries>
+          <div class="tote-heading"><h2>Проверены · отправка на WB</h2><span>{{ pending_deliveries|length }}</span></div>
+          <p>Проверка сохранена. Можно продолжать работу с другими тарами. Ошибки отправки остаются в журнале отгрузок.</p>
+          <div class="tote-list">{% for closed in pending_deliveries %}
+            <a class="tote-row" data-delivery-batch="{{ closed.handover_batch_id }}" href="{% url 'fbs:tsd_handover_detail' batch_id=closed.handover_batch_id %}"><span><strong>Отгрузка №{{ closed.handover_batch_id }} · {{ closed.profile.agency }}</strong><small data-delivery-message>{{ closed.delivery.message }}</small></span><span data-delivery-state class="status {% if closed.delivery.delivery_status == 'error' %}status-warning{% else %}status-verification{% endif %}">{% if closed.delivery.delivery_status == 'error' %}Нужна проверка ошибки{% else %}Ожидает WB{% endif %}</span></a>
+          {% endfor %}</div>
+        </section>
+        {% endif %}
+
+        <section class="tote-panel">
+          <div class="tote-heading"><h2>Тары подбора в обработке</h2><span>{{ pick_totes|length }}</span></div>
+          <div class="tote-list">
+            {% for pick_tote in pick_totes %}
+              <div class="tote-row">
+                <span><strong>{{ pick_tote.tote.name }} · волна #{{ pick_tote.pick_batch_id }}</strong><small>В текущую отгрузку: {{ pick_tote.processed_qty }} / {{ pick_tote.planned_qty }} шт.</small></span>
+                <span class="status {% if pick_tote.status == 'awaiting_empty' %}status-warning{% else %}status-verification{% endif %}">{{ pick_tote.get_status_display }}</span>
+                {% if pick_tote.status == 'awaiting_empty' %}
+                  <form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="confirm_pick_tote_empty"><input type="hidden" name="pick_batch_id" value="{{ pick_tote.pick_batch_id }}"><button class="button button-primary" type="submit">Подтвердить, что тара пуста</button></form>
+                {% else %}
+                  <a class="button button-primary button-compact" href="{% url 'fbs:tsd_pick_verification' batch_id=pick_tote.pick_batch_id %}">Продолжить</a>
+                {% endif %}
+              </div>
+            {% empty %}<p class="tote-empty-line">Активной обработки нет.</p>{% endfor %}
+          </div>
+        </section>
+      </main>
+
+      <aside class="tote-shell">
+        <details class="tote-panel tote-service">
+          <summary>Служебная тара смены · {{ tote_session.free_zone.name }}</summary>
+          <div class="tote-list">
+            {% if tote_session.problem_tote_id == tote_session.unknown_tote_id and tote_session.canceled_tote_id == tote_session.unknown_tote_id %}
+              <div class="tote-row"><span><strong>Общая служебная тара</strong><small>{{ tote_session.unknown_tote.name }} · {{ tote_session.unknown_tote.barcode }} · неизвестный товар, проблемы, отмены и ЧЗ</small></span></div>
+            {% else %}
+              <div class="tote-row"><span><strong>Неизвестный товар</strong><small>{{ tote_session.unknown_tote.name }} · {{ tote_session.unknown_tote.barcode }}</small></span></div>
+              <div class="tote-row"><span><strong>Проблемные заказы и Честный знак · старая смена</strong><small>{{ tote_session.problem_tote.name }} · {{ tote_session.problem_tote.barcode }}</small></span></div>
+              <div class="tote-row"><span><strong>Отменённые заказы · старая смена</strong><small>{{ tote_session.canceled_tote.name }} · {{ tote_session.canceled_tote.barcode }}</small></span></div>
+            {% endif %}
+            <div class="tote-row"><span><strong>Свободный фонд</strong><small>{{ tote_session.free_zone.name }}</small></span></div>
+          </div>
+        </details>
+        <section class="tote-panel">
+          <div class="tote-heading"><h2>Тара у стола</h2><span>{{ workstation_wave_count }} / {{ workstation_capacity }}</span></div>
+          <div class="tote-list">
+            {% for batch in waiting_waves %}<div class="tote-row"><span><strong>{{ batch.cart.name }}</strong><small>Волна #{{ batch.id }} · {{ batch.order_count }} зак. · {{ batch.picked_qty }} шт.</small></span><span class="status status-verification">Ожидает</span></div>{% empty %}<p class="tote-empty-line">Новых тар нет.</p>{% endfor %}
+          </div>
+        </section>
+        <div class="tote-utility"><a class="button button-secondary button-compact" href="{% url 'fbs:controller_daily_report' %}?close=1">Завершить смену</a></div>
+      </aside>
+    </div>
+  {% endif %}
+
+  {% if workstation %}
+    <details class="tote-panel tote-equipment" id="controller-equipment"{% if equipment_panel_open %} open{% endif %}>
+      <summary><span>Оборудование рабочего места<small data-controller-equipment-source>{{ workstation.name }} · режим Agent</small></span><span data-controller-equipment-ready class="status {% if controller_equipment.agent.online and controller_equipment.printer.severity != 'danger' and controller_equipment.scanner.ready %}status-done{% else %}status-warning{% endif %}">{% if controller_equipment.agent.online and controller_equipment.printer.severity != 'danger' and controller_equipment.scanner.ready %}Готово{% else %}Проверить{% endif %}</span></summary>
+      <div class="tote-equipment-body">
+        <div><small data-controller-source-title>Fullbox Agent</small><strong data-controller-source-state>{{ controller_equipment.agent.text }}</strong><br><small data-controller-source-detail>{{ controller_equipment.agent.last_seen|default:"нет данных" }}</small><hr><small>Принтер этикеток</small><strong data-controller-printer-detail>{{ controller_equipment.printer.text }}</strong><br><small data-controller-printer-name>{{ workstation.printer_name|default:"не выбран" }}</small><hr><small>Сканер</small><strong data-controller-scanner-detail>{{ controller_equipment.scanner.text }}</strong><br><small data-controller-scanner-last>Режим Agent · {{ controller_equipment.scanner_hint }}</small></div>
+        <form method="post" data-submit-once data-controller-printer-form>{% csrf_token %}<input type="hidden" name="action" value="save_printer"><small data-controller-printer-source>Список получен от Fullbox Agent · режим Agent.</small><label>Принтер<select id="controller-printer" name="printer_name" required>{% for printer in controller_equipment.printers %}<option value="{{ printer }}"{% if printer == workstation.printer_name %} selected{% endif %}>{{ printer }}</option>{% empty %}<option value="">Принтер не найден</option>{% endfor %}</select></label><button class="button button-secondary button-compact" type="submit">Сохранить</button></form>
+        <div class="scanner-quick"><small>Сканер</small><strong data-controller-scanner-detail>{{ controller_equipment.scanner.text }}</strong></div><form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="reconnect_scanner"><button class="button button-secondary button-compact" type="submit">Переподключить сканер</button></form><details class="scanner-advanced"><summary>Настройка сканера — для техника</summary><form method="post" data-submit-once data-controller-scanner-form>{% csrf_token %}<input type="hidden" name="action" value="apply_scanner"><small data-controller-scanner-source>Режим Agent · USB-COM связанного компьютера.</small><label>COM-порт<select id="controller-scanner-port" name="scanner_port" required>{% for port in controller_equipment.scanner_ports %}<option value="{{ port }}"{% if port == controller_equipment.scanner_config.port %} selected{% endif %}>{{ port }}</option>{% empty %}<option value="{{ controller_equipment.scanner_config.port }}">{{ controller_equipment.scanner_config.port|default:"Порты не найдены" }}</option>{% endfor %}</select></label><label>Скорость<select id="controller-scanner-baud" name="scanner_baud"><option value="9600"{% if controller_equipment.scanner_config.baud == 9600 %} selected{% endif %}>9600</option><option value="19200"{% if controller_equipment.scanner_config.baud == 19200 %} selected{% endif %}>19200</option><option value="38400"{% if controller_equipment.scanner_config.baud == 38400 %} selected{% endif %}>38400</option><option value="57600"{% if controller_equipment.scanner_config.baud == 57600 %} selected{% endif %}>57600</option><option value="115200"{% if controller_equipment.scanner_config.baud == 115200 %} selected{% endif %}>115200</option></select></label><label>Завершение<select id="controller-scanner-eol" name="scanner_eol"><option value="CrLf"{% if controller_equipment.scanner_config.eol == 'CrLf' %} selected{% endif %}>Enter (CR+LF)</option><option value="Cr"{% if controller_equipment.scanner_config.eol == 'Cr' %} selected{% endif %}>Enter (CR)</option><option value="Lf"{% if controller_equipment.scanner_config.eol == 'Lf' %} selected{% endif %}>Enter (LF)</option><option value="Tab"{% if controller_equipment.scanner_config.eol == 'Tab' %} selected{% endif %}>Tab</option><option value="None"{% if controller_equipment.scanner_config.eol == 'None' %} selected{% endif %}>Без окончания</option></select></label><label>Пауза, мс<input id="controller-scanner-idle" name="scanner_idle_ms" type="number" min="0" max="5000" value="{{ controller_equipment.scanner_config.idle_ms }}" required></label><button class="button button-secondary button-compact" type="submit">Применить</button><button class="button button-secondary button-compact" type="submit" name="action" value="reconnect_scanner">Переподключить</button></form></details>
+      </div>
+    </details>
+  {% endif %}
+</div>
+<script>
+(() => {
+  const panel = document.querySelector("[data-pending-deliveries]");
+  if (!panel) return;
+  const rows = Array.from(panel.querySelectorAll("[data-delivery-batch]"));
+  const poll = async () => {
+    let finished = false;
+    const abort = new AbortController();
+    const timeout = window.setTimeout(() => abort.abort(), 10000);
+    try {
+      if (document.hidden) return;
+      const url = new URL(window.location.href);
+      url.search = "";
+      url.searchParams.set("delivery_status", "1");
+      url.searchParams.set("batch_ids", rows.map(row => row.dataset.deliveryBatch).join(","));
+      const response = await fetch(url.href, { credentials: "same-origin", cache: "no-store", signal: abort.signal });
+      if (!response.ok) return;
+      const payload = await response.json();
+      if (!payload.ok) return;
+      for (const item of payload.deliveries) {
+        const row = rows.find(row => row.dataset.deliveryBatch === String(item.batch_id));
+        if (!row) continue;
+        row.querySelector("[data-delivery-message]").textContent = item.message;
+        const state = row.querySelector("[data-delivery-state]");
+        state.textContent = item.delivery_status === "complete" ? "Передано в доставку WB" : item.delivery_status === "error" ? "Нужна проверка ошибки" : "Ожидает WB";
+        state.className = "status " + (item.delivery_status === "complete" ? "status-done" : item.delivery_status === "error" ? "status-warning" : "status-verification");
+      }
+      finished = payload.deliveries.length === rows.length && payload.deliveries.every(item => item.delivery_status === "complete");
+    } catch (_) {
+      // Preserve the last confirmed state while the connection is unavailable.
+    } finally {
+      window.clearTimeout(timeout);
+      if (!finished) window.setTimeout(poll, 10000);
+    }
+  };
+  window.setTimeout(poll, 5000);
+})();
+</script>
+{% endblock %}

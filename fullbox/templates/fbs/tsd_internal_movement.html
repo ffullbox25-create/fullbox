@@ -1,0 +1,28 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Перемещение FBS{% endblock %}
+
+{% block content %}
+  <section class="detail-surface">
+    <div class="metric-grid">
+      <div><span>Клиент</span><strong>{{ movement.agency }}</strong></div>
+      <div><span>Режим</span><strong>{{ movement.get_mode_display }}</strong></div>
+      <div><span>Откуда</span><strong>{{ movement.source_box.box_code }}</strong></div>
+      <div><span>Куда</span><strong>{% if movement.target_box %}{{ movement.target_box.box_code }}{% else %}{{ movement.target_pallet.cell.warehouse_location_label }}{% endif %}</strong></div>
+      <div><span>Перемещено</span><strong>{{ movement.moved_qty }}/{{ movement.planned_qty }}</strong></div>
+      {% if movement.source_balance %}<div><span>Артикул</span><strong>{{ movement.source_balance.sku_code }}</strong></div>{% endif %}
+    </div>
+  </section>
+  <form class="scan-form" method="post" autocomplete="off" data-submit-once>
+    {% csrf_token %}
+    <label for="source-box-scan">QR исходного короба</label>
+    <input id="source-box-scan" type="text" name="source_box_scan" required autofocus autocomplete="off">
+    <label for="target-scan">QR ячейки, паллеты или короба назначения</label>
+    <input id="target-scan" type="text" name="target_scan" required autocomplete="off">
+    {% if movement.mode == 'item' %}
+      <label for="item-scan">Штрихкод товара или КИЗ</label>
+      <input id="item-scan" type="text" name="item_scan" required autocomplete="off">
+    {% endif %}
+    <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Подтвердить сканы</button>
+  </form>
+{% endblock %}

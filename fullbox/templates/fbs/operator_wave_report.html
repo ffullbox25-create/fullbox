@@ -1,0 +1,65 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Отчёт по волнам FBS{% endblock %}
+{% block page_class %}tsd-page-operator tsd-page-fbs-workspace{% endblock %}
+
+{% block content %}
+<div class="fbs-workspace-shell">
+  {% include "fbs/operator_workspace_sidebar.html" with workspace_section='waves' %}
+  <section class="fbs-workspace-main">
+    <header class="fbs-workspace-topbar">
+      <div><nav class="fbs-breadcrumbs" aria-label="Навигация"><a href="{% url 'fbs:tsd_storekeeper' %}">FBS</a><span>/</span><a href="{% url 'fbs:operator_waves' %}">Волны</a><span>/</span><strong>Отчёт</strong></nav><h1>Отчёт по волнам</h1></div>
+      <a class="button button-secondary" href="{% url 'fbs:operator_waves' %}">К списку волн</a>
+    </header>
+
+    <section class="fbs-list-heading">
+      <div><span class="section-kicker">FBS / Прослеживаемость сборки</span><h2>Кто, когда, что собрал и куда передал</h2><small>Каждая строка — фактически отобранный товар в конкретной волне и заказе.</small></div>
+    </section>
+
+    <form class="ts-wave-filters" method="get">
+      <label><span>Волна, заказ, арт., ШК или товар</span><input type="search" name="q" value="{{ query }}" placeholder="Например, #125 или 0152"></label>
+      <label><span>Клиент</span><select name="agency"><option value="">Все клиенты</option>{% for agency in agencies %}<option value="{{ agency.id }}"{% if agency.id|stringformat:"s" == agency_filter %} selected{% endif %}>{{ agency }}</option>{% endfor %}</select></label>
+      <label><span>Сборщик</span><select name="picker"><option value="">Все сборщики</option>{% for picker in picker_users %}<option value="{{ picker.id }}"{% if picker.id|stringformat:"s" == picker_filter %} selected{% endif %}>{{ picker.get_full_name|default:picker.username }}</option>{% endfor %}</select></label>
+      <label><span>Статус волны</span><select name="status"><option value="">Все статусы</option>{% for value, label in wave_status_choices %}<option value="{{ value }}"{% if value == status_filter %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label><span>Собрано с</span><input type="date" name="date_from" value="{{ date_from }}"></label>
+      <label><span>Собрано по</span><input type="date" name="date_to" value="{{ date_to }}"></label>
+      <label><span>На странице</span><select name="page_size">{% for value in page_sizes %}<option value="{{ value }}"{% if value == page_size %} selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+      <div class="ts-orders-filter-actions"><button class="button button-primary" type="submit">Показать</button><a class="button button-secondary" href="{% url 'fbs:operator_wave_report' %}">Сбросить</a></div>
+    </form>
+
+    <section class="operator-summary operator-summary-five" aria-label="Сводка отчёта по волнам">
+      <div><span>Волн</span><strong>{{ summary.waves }}</strong></div>
+      <div><span>Сборщиков</span><strong>{{ summary.pickers }}</strong></div>
+      <div><span>Заказов</span><strong>{{ summary.orders }}</strong></div>
+      <div><span>Собрано, шт.</span><strong>{{ summary.qty }}</strong></div>
+      <div><span>Передано водителю, шт.</span><strong>{{ summary.handed_qty }}</strong></div>
+    </section>
+
+    <section class="operator-table-band">
+      <div class="operator-table-heading"><div><span class="section-kicker">Детализация</span><h2>Движение товара по волнам</h2></div><strong>{{ page.paginator.count }}</strong></div>
+      <div class="operator-table-scroll operator-table-scroll-work">
+        <table class="operator-table">
+          <thead><tr><th>Волна</th><th>Кто собирал</th><th>Когда собрал</th><th>Что собрал</th><th>Кол-во</th><th>Откуда забрал</th><th>Заказ</th><th>Куда передал после сборки</th><th>Итоговое направление</th></tr></thead>
+          <tbody>
+            {% for row in page.object_list %}
+              <tr>
+                <td><a class="table-main-link" href="{% url 'fbs:operator_wave_detail' batch_id=row.pick_task.batch_id %}">#{{ row.pick_task.batch_id }}</a><small>{{ row.pick_task.batch.agency }}</small><span class="status status-{{ row.pick_task.batch.status }}">{{ row.pick_task.batch.get_status_display }}</span></td>
+                <td><strong>{{ row.report_picker }}</strong><small>{% if row.picked_by %}Зафиксирован отбором{% elif row.pick_task.assigned_to %}Исполнитель задания{% else %}Исполнитель волны{% endif %}</small></td>
+                <td><strong>{{ row.report_picked_at|date:"d.m.Y H:i:s" }}</strong><small>Позиция №{{ row.id }}</small></td>
+                <td><strong>{{ row.report_article }}</strong><small>{{ row.report_product_name }}</small><code>{{ row.report_barcode }}</code></td>
+                <td><strong>{{ row.qty_picked }} шт.</strong><small>из резерва {{ row.qty_reserved }}</small></td>
+                <td>{{ row.report_source }}</td>
+                <td><a class="table-main-link" href="{% url 'fbs:operator_order_detail' order_id=row.order_item.order_id %}">{{ row.order_item.order.external_order_id }}</a><small>{{ row.order_item.order.profile.get_marketplace_display }}</small></td>
+                <td><strong>{{ row.report_transfer_destination }}</strong><small>{{ row.report_transfer_detail }}</small>{% if row.report_transfer_at %}<small>{{ row.report_transfer_at|date:"d.m.Y H:i:s" }}{% if row.report_transfer_by != '—' %} · получил: {{ row.report_transfer_by }}{% endif %}</small>{% endif %}</td>
+                <td><strong>{{ row.report_final_destination }}</strong><small>{{ row.report_final_detail }}</small><small>{{ row.report_final_status }}{% if row.report_final_at %} · {{ row.report_final_at|date:"d.m.Y H:i:s" }}{% endif %}{% if row.report_final_by != '—' %} · {{ row.report_final_by }}{% endif %}</small></td>
+              </tr>
+            {% empty %}<tr><td class="empty-row" colspan="9">Собранных товаров по выбранным фильтрам нет</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {% if page.paginator.num_pages > 1 %}<nav class="operator-pagination" aria-label="Страницы отчёта по волнам">{% if page.has_previous %}<a class="button button-secondary button-compact" href="?{{ filter_query }}&page={{ page.previous_page_number }}">Назад</a>{% endif %}<span>Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>{% if page.has_next %}<a class="button button-secondary button-compact" href="?{{ filter_query }}&page={{ page.next_page_number }}">Далее</a>{% endif %}</nav>{% endif %}
+  </section>
+</div>
+{% endblock %}

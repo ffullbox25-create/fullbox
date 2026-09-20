@@ -1,0 +1,64 @@
+{% extends "ai_support/base.html" %}
+{% block title %}{{ incident.number }}{% endblock %}
+{% block content %}
+  <div class="stack">
+    <section>
+      <div style="display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; align-items:start">
+        <div>
+          <div class="muted">{{ incident.number }}</div>
+          <h1>{{ incident.object_label }}</h1>
+          <p class="muted">{{ incident.zone|default:"Зона не указана" }} · создал {{ incident.reporter.get_full_name|default:incident.reporter.username }}</p>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <span class="badge {{ incident.severity }}">{{ incident.get_severity_display }}</span>
+          <span class="badge {{ incident.status }}">{{ incident.get_status_display }}</span>
+        </div>
+      </div>
+    </section>
+    <section class="card stack">
+      <h2 style="margin-bottom:0">Контекст</h2>
+      <div class="facts">
+        <div class="fact"><small>Страница</small>{% if incident.source_url %}<a href="{{ incident.source_url }}">{{ incident.page_title|default:incident.source_url }}</a>{% else %}—{% endif %}</div>
+        <div class="fact"><small>Создано</small>{{ incident.created_at|date:"d.m.Y H:i:s" }}</div>
+        <div class="fact"><small>Можно повторить</small>{{ incident.get_reproducible_display }}</div>
+        <div class="fact"><small>Остатки изменялись</small>{% if incident.inventory_changed %}Да{% else %}Нет{% endif %}</div>
+        <div class="fact"><small>Движения изменялись</small>{% if incident.movements_changed %}Да{% else %}Нет{% endif %}</div>
+        <div class="fact"><small>Последнее обновление</small>{{ incident.updated_at|date:"d.m.Y H:i:s" }}</div>
+      </div>
+      {% if incident.expected_result %}<div><strong>Ожидаемый результат</strong><div class="muted">{{ incident.expected_result|linebreaksbr }}</div></div>{% endif %}
+      {% if can_review %}
+        <form method="post" action="{% url 'ai_support:status' incident.pk %}" style="display:flex; gap:8px; align-items:end; flex-wrap:wrap">
+          {% csrf_token %}
+          <label style="min-width:260px">Статус<select name="status">{% for value, label in status_choices %}<option value="{{ value }}"{% if incident.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+          <button class="btn" type="submit">Обновить статус</button>
+        </form>
+      {% endif %}
+    </section>
+    <div class="grid" style="align-items:start">
+      <section class="card stack">
+        <h2 style="margin-bottom:0">Переписка</h2>
+        {% for item in incident_messages %}
+          <article class="message {{ item.sender_type }}">
+            <div class="message-head"><span>{{ item.get_sender_type_display }}{% if item.author %} · {{ item.author.get_full_name|default:item.author.username }}{% endif %}</span><time>{{ item.created_at|date:"d.m.Y H:i:s" }}</time></div>
+            <div class="message-body">{{ item.body }}</div>
+          </article>
+        {% empty %}<p class="muted">Сообщений пока нет.</p>{% endfor %}
+        <form class="stack" method="post" action="{% url 'ai_support:message' incident.pk %}">
+          {% csrf_token %}{{ message_form.body }}
+          <div><button class="btn primary" type="submit">Отправить сообщение</button></div>
+        </form>
+      </section>
+      <section class="card">
+        <h2>Действия агента</h2>
+        {% for action in agent_actions %}
+          <div class="action">
+            <strong>{{ action.title }}</strong>
+            <div class="muted">{{ action.get_action_type_display }}</div>
+            <div style="margin-top:7px"><span class="badge">{{ action.get_policy_level_display }}</span> <span class="badge {{ action.status }}">{{ action.get_status_display }}</span></div>
+            <p class="muted" style="margin:8px 0 0">{{ action.policy.explanation }}</p>
+          </div>
+        {% empty %}<p class="muted">Действия ещё не сформированы.</p>{% endfor %}
+      </section>
+    </div>
+  </div>
+{% endblock %}

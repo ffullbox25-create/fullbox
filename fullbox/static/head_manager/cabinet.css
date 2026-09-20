@@ -1,0 +1,303 @@
+:root {
+  --font-body: "Manrope", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Bricolage Grotesque", "Manrope", system-ui, sans-serif;
+  --bg: #f6f8f7;
+  --surface: #ffffff;
+  --surface-soft: #f8faf9;
+  --ink: #303030;
+  --muted: #70665f;
+  --accent: #f89000;
+  --accent-strong: #f86800;
+  --accent-soft: rgba(248, 144, 0, 0.13);
+  --blue: #1f6b9c;
+  --blue-soft: rgba(31, 107, 156, 0.1);
+  --sun: #b7791f;
+  --sun-soft: rgba(183, 121, 31, 0.12);
+  --danger: #c43f4d;
+  --danger-soft: rgba(196, 63, 77, 0.1);
+  --violet: #6d56a8;
+  --violet-soft: rgba(109, 86, 168, 0.1);
+  --stroke: rgba(23, 33, 29, 0.13);
+  --shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
+  --radius: 8px;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--bg);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.brand,
+.fullbox-brand-mark {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.fullbox-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.fullbox-brand-img {
+  display: block;
+  width: auto;
+  height: 42px;
+  max-width: 132px;
+  object-fit: contain;
+}
+
+.shell.nav-collapsed .fullbox-brand-img {
+  height: 34px;
+  max-width: 42px;
+}
+
+.profile {
+  border-color: var(--stroke);
+  border-radius: var(--radius);
+}
+
+.profile-name {
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.nav-link,
+.btn,
+.pill,
+.tab,
+.request-tab,
+.filter-select,
+.select-control,
+.filters input,
+.filters select,
+.request-filter-bar input,
+.request-filter-bar select {
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+}
+
+.nav-link:hover,
+.nav-link.primary {
+  color: #ffffff;
+  background: linear-gradient(135deg, #f86800, #f8b800);
+  border-color: rgba(248, 144, 0, 0.32);
+  box-shadow: 0 10px 24px rgba(248, 144, 0, 0.16);
+}
+
+.nav-link.primary::before,
+.btn.primary,
+.tab.active,
+.request-tab.active,
+.segmented a.active {
+  background: var(--accent);
+}
+
+.btn.primary,
+.tab.active,
+.request-tab.active,
+.segmented a.active {
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+.btn:hover {
+  border-color: rgba(248, 144, 0, 0.32);
+  box-shadow: 0 10px 24px rgba(248, 144, 0, 0.12);
+}
+
+.logout-btn {
+  color: var(--danger);
+}
+
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+}
+
+.shell.nav-collapsed {
+  grid-template-columns: 82px minmax(0, 1fr);
+}
+
+.side {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: auto;
+  padding: 22px 18px;
+  background: #fff;
+  border-right: 1px solid var(--stroke);
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 22px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+}
+
+.profile {
+  padding: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--surface);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+}
+
+.profile-label,
+.nav-heading {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profile-name {
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
+.nav {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+}
+
+.nav-section {
+  display: grid;
+  gap: 7px;
+}
+
+.nav-link {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 10px 12px;
+  color: #2b3531;
+  border: 1px solid transparent;
+}
+
+.nav-link.primary {
+  position: relative;
+}
+
+.nav-link.primary::before {
+  content: "";
+  position: absolute;
+  left: -18px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: currentColor;
+}
+
+.nav-title {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.nav-drilldown {
+  display: grid;
+  gap: 6px;
+}
+
+.nav-drilldown summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.nav-drilldown summary::-webkit-details-marker {
+  display: none;
+}
+
+.nav-submenu {
+  display: grid;
+  gap: 4px;
+  padding: 2px 0 4px 44px;
+}
+
+.nav-submenu a {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+  padding: 5px 0;
+}
+
+.nav-submenu a:hover {
+  color: var(--accent);
+}
+
+.sidebar-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.collapse-btn {
+  width: 100%;
+}
+
+.shell.nav-collapsed .side {
+  padding-inline: 14px;
+}
+
+.shell.nav-collapsed .profile,
+.shell.nav-collapsed .nav-heading,
+.shell.nav-collapsed .nav-title,
+.shell.nav-collapsed .nav-submenu,
+.shell.nav-collapsed .btn-label {
+  display: none;
+}
+
+.shell.nav-collapsed .brand,
+.shell.nav-collapsed .nav-link {
+  justify-content: center;
+}
+
+.shell.nav-collapsed .nav-link {
+  grid-template-columns: 22px;
+  padding-inline: 10px;
+}
+
+.shell.nav-collapsed .nav-link.primary::before {
+  left: -14px;
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .side {
+    position: static;
+    height: auto;
+    grid-template-rows: auto;
+  }
+}

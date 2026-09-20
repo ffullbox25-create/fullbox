@@ -1,0 +1,40 @@
+{% extends "teammanager/_base.html" %}
+{% block title %}FBS перемещения{% endblock %}
+{% block content %}
+<style>
+  .wrap{max-width:1520px;width:100%;margin:0 auto}.head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}.head h1{margin:0;font:700 30px "Bricolage Grotesque",Manrope,sans-serif}.muted{color:var(--muted)}
+  .filters{display:flex;gap:10px;flex-wrap:wrap;padding:14px;background:var(--card);border:1px solid var(--stroke);border-radius:8px;margin:14px 0}.filters input,.filters select{min-height:38px;border:1px solid var(--stroke);border-radius:8px;padding:7px 10px;background:#fff}.filters input{flex:1;min-width:260px}
+  .table{overflow:auto;background:var(--card);border:1px solid var(--stroke);border-radius:8px}.table table{width:100%;min-width:980px;border-collapse:collapse}.table th,.table td{padding:11px 12px;border-bottom:1px solid var(--stroke);text-align:left;font-size:12px}.table th{background:var(--surface-2);color:var(--muted);font-size:11px}.pill{display:inline-flex;padding:4px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent-strong);font-weight:800}
+  .section-head{display:flex;justify-content:space-between;gap:12px;align-items:end;margin:24px 0 10px}.section-head h2{margin:0;font-size:21px}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions form{margin:0}.btn.danger{border-color:#d94032;color:#a42d23;background:#fff}.pending{background:#fff0ec;color:#a42d23}.basis{max-width:360px;white-space:normal}
+</style>
+<div class="wrap">
+  <div class="head"><div><h1>FBS перемещения</h1><p class="muted">Согласование клиентских заявок и подтверждение результата склада</p></div></div>
+  <form class="filters" method="get"><input type="search" name="q" value="{{ query }}" placeholder="Номер, клиент или ИНН"><select name="status"><option value="">Все статусы</option>{% for value,label in status_choices %}<option value="{{ value }}" {% if filter_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><button class="btn primary" type="submit">Показать</button></form>
+  <div class="table"><table><thead><tr><th>Заявка</th><th>Клиент</th><th>Режим</th><th>Запрошено</th><th>Перемещено</th><th>Статус</th><th>Создана</th><th></th></tr></thead><tbody>
+    {% for row in rows %}<tr><td><strong>{{ row.number }}</strong></td><td>{{ row.agency }}</td><td>{{ row.get_mode_display }}</td><td>{{ row.requested_qty }} шт.{% if row.requested_box_count %}<div class="muted">{{ row.requested_box_count }} кор.</div>{% endif %}</td><td>{{ row.actual_moved_qty|default:row.moved_qty|default:0 }}</td><td><span class="pill">{{ row.get_status_display }}</span></td><td>{{ row.created_at|date:"d.m.Y H:i" }}</td><td><a class="btn" href="{% url 'team-manager-fbs-movement-detail' request_id=row.id %}">Открыть</a></td></tr>{% empty %}<tr><td colspan="8" class="muted">Заявок нет.</td></tr>{% endfor %}
+  </tbody></table></div>
+
+  <div class="section-head"><div><h2>Вывоз товара из FBS</h2><div class="muted">Заявки клиентов: сначала решение менеджера, затем отбор кладовщиком</div></div></div>
+  <div class="table"><table><thead><tr><th>Документ</th><th>Клиент</th><th>Тип / маршрут</th><th>Параметры</th><th>Количество</th><th>Статус</th><th>Создана</th><th>Действие</th></tr></thead><tbody>
+    {% for row in external_rows %}
+      <tr>
+        <td><strong>{{ row.number }}</strong></td>
+        <td>{{ row.agency }}</td>
+        <td class="basis"><strong>{{ row.shipping_details.delivery_type_label|default:"Самовывоз" }}</strong>{% if row.shipping_details.marketplace_name %}<br>{{ row.shipping_details.marketplace_name }}{% endif %}{% if row.shipping_details.destination_warehouse %}<div class="muted">{{ row.shipping_details.destination_warehouse }}</div>{% endif %}</td>
+        <td class="basis">{% if row.shipping_details.shipping_barcode %}ШК поставки: {{ row.shipping_details.shipping_barcode }}<br>{% endif %}{% if row.shipping_details.supply_number %}Поставка: {{ row.shipping_details.supply_number }}<br>{% endif %}{% if row.shipping_details.eta_date %}Дата отгрузки: {{ row.shipping_details.eta_date }}<br>{% endif %}{% if row.shipping_details.vehicle_type_label %}{{ row.shipping_details.vehicle_type_label }}{% endif %}{% if row.shipping_details.vehicle_number %} · {{ row.shipping_details.vehicle_number }}{% endif %}<div class="muted">{{ row.basis }}</div></td>
+        <td><strong>{{ row.requested_qty_total|default:0 }} шт.</strong><div class="muted">зарезервировано для вывоза</div></td>
+        <td><span class="pill{% if row.display_status == 'awaiting_manager' %} pending{% endif %}">{{ row.display_status_label }}</span></td>
+        <td>{{ row.created_at|date:"d.m.Y H:i" }}<div class="muted">{{ row.created_by }}</div></td>
+        <td>
+          {% if row.display_status == 'awaiting_manager' %}
+            <div class="actions">
+              <form method="post">{% csrf_token %}<input type="hidden" name="action" value="approve_outbound"><input type="hidden" name="issue_id" value="{{ row.pk }}"><input type="hidden" name="request_key" value="{{ row.review_key }}"><button class="btn primary" type="submit">Подтвердить</button></form>
+              <form method="post">{% csrf_token %}<input type="hidden" name="action" value="reject_outbound"><input type="hidden" name="issue_id" value="{{ row.pk }}"><input type="hidden" name="request_key" value="{{ row.review_key }}"><button class="btn danger" type="submit">Отклонить</button></form>
+            </div>
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+    {% empty %}<tr><td colspan="8" class="muted">Заявок на вывоз нет.</td></tr>{% endfor %}
+  </tbody></table></div>
+</div>
+{% endblock %}

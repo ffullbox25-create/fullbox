@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Движение товара для счетов | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --font-body: "Manrope", system-ui, sans-serif;
+      --font-display: "Bricolage Grotesque", "Manrope", system-ui, sans-serif;
+      --bg: #f6f8f7;
+      --surface: #ffffff;
+      --surface-soft: #f8faf9;
+      --ink: #303030;
+      --muted: #70665f;
+      --accent: #f89000;
+      --accent-soft: rgba(248, 144, 0, 0.13);
+      --stroke: rgba(23, 33, 29, 0.1);
+      --shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font-body);
+      color: var(--ink);
+      background: var(--bg);
+    }
+    a { color: inherit; text-decoration: none; }
+    .page {
+      min-height: 100vh;
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+    .topbar,
+    .panel,
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+    .fullbox-brand-mark {
+      display: inline-flex;
+      align-items: center;
+      min-width: 0;
+    }
+    .fullbox-brand-img {
+      display: block;
+      width: auto;
+      height: 42px;
+      max-width: 132px;
+      object-fit: contain;
+    }
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      font-family: var(--font-display);
+      letter-spacing: 0;
+    }
+    h1 { font-size: 28px; line-height: 1.15; }
+    h2 { font-size: 17px; }
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 9px 13px;
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .btn.primary {
+      border-color: transparent;
+      background: var(--accent);
+      color: #fff;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .stat {
+      padding: 16px;
+      display: grid;
+      gap: 8px;
+    }
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .stat-value {
+      font-size: 26px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .panel {
+      padding: 16px;
+      min-width: 0;
+    }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .filter-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+    }
+    table {
+      width: 100%;
+      min-width: 2160px;
+      border-collapse: collapse;
+      background: var(--surface);
+    }
+    th,
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--stroke);
+      text-align: left;
+      font-size: 12px;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-weight: 900;
+    }
+    .column-head {
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+    .sort-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 20px;
+    }
+    .sort-link:hover,
+    .sort-link:focus-visible {
+      color: var(--ink);
+    }
+    .sort-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      color: var(--accent);
+      font-size: 13px;
+      line-height: 1;
+    }
+    .filter-row th {
+      top: 36px;
+      z-index: 3;
+      padding: 6px;
+      border-top: 1px solid var(--stroke);
+    }
+    .filter-input {
+      width: 100%;
+      min-width: 76px;
+      height: 32px;
+      padding: 6px 8px;
+      border: 1px solid var(--stroke);
+      border-radius: 6px;
+      outline: none;
+      background: var(--surface);
+      color: var(--ink);
+      font: inherit;
+    }
+    .filter-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    .col-index { width: 74px; }
+    .col-client { width: 140px; }
+    .col-pallet,
+    .col-box { width: 210px; }
+    .col-sku { width: 150px; }
+    .col-name { width: 270px; }
+    .col-barcode { width: 170px; }
+    .col-qty { width: 100px; }
+    .col-status { width: 170px; }
+    .col-location { width: 210px; }
+    .col-date { width: 145px; }
+    .col-document { width: 200px; }
+    .suggestion-popover {
+      position: fixed;
+      z-index: 50;
+      max-height: 260px;
+      overflow-y: auto;
+      padding: 4px;
+      border: 1px solid var(--stroke);
+      border-radius: 6px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .suggestion-option {
+      display: block;
+      width: 100%;
+      padding: 8px 9px;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+      text-align: left;
+      white-space: normal;
+      cursor: pointer;
+    }
+    .suggestion-option:hover,
+    .suggestion-option.is-selected {
+      background: var(--accent-soft);
+    }
+    td.name {
+      min-width: 260px;
+      white-space: normal;
+    }
+    tr.processing-source td {
+      background: rgba(31, 107, 156, 0.06);
+    }
+    .empty {
+      padding: 18px;
+      border: 1px dashed var(--stroke);
+      border-radius: var(--radius);
+      color: var(--muted);
+      text-align: center;
+    }
+    .empty-cell {
+      padding: 22px;
+      color: var(--muted);
+      text-align: center;
+    }
+    @media (max-width: 900px) {
+      .page { padding: 16px; }
+      .topbar { display: grid; }
+      .actions { justify-content: start; }
+      .stats { grid-template-columns: 1fr; }
+      .panel-head { align-items: flex-start; flex-direction: column; }
+      .filter-actions { justify-content: flex-start; }
+    }
+  </style>
+  <link href="/static/head_manager/cabinet.css" rel="stylesheet">
+</head>
+<body>
+  <main class="page">
+    <section class="topbar">
+      <div>
+        <div class="brand">{% include "partials/fullbox_brand.html" %}</div>
+        <h1>Движение товара для счетов</h1>
+        <div class="muted">Экран отчета в кабинете главного менеджера. Данные на {{ today_label }}, обновлены {{ updated_at }}.</div>
+      </div>
+      <div class="actions">
+        <a class="btn" href="/head-manager/">Назад в кабинет</a>
+        <a class="btn primary" href="{{ export_url }}">Скачать Excel</a>
+      </div>
+    </section>
+
+    <section class="stats" aria-label="Сводка отчета">
+      <div class="stat">
+        <div class="stat-label">Строк в отчете</div>
+        <div class="stat-value">{{ total_rows }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Остаток, шт.</div>
+        <div class="stat-value">{{ summary.total_qty }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Паллет</div>
+        <div class="stat-value">{{ summary.pallets }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Коробов</div>
+        <div class="stat-value">{{ summary.boxes }}</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Предпросмотр</h2>
+          <div class="muted">Найдено {{ filtered_count }} строк. Показаны первые {{ preview_rows|length }}. Excel выгружается с выбранными фильтрами.</div>
+        </div>
+        <form id="movementReportFilters" class="filter-actions" method="get">
+          {% if sort_key %}<input type="hidden" name="sort" value="{{ sort_key }}">{% endif %}
+          {% if sort_key %}<input type="hidden" name="dir" value="{{ sort_dir }}">{% endif %}
+          <button class="btn primary" type="submit">Применить</button>
+          <a class="btn" href="/head-manager/report/">Сбросить</a>
+        </form>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="column-head col-index"><a class="sort-link" href="{{ sort_urls.index }}" title="Сортировать по номеру">№ <span class="sort-icon" aria-hidden="true">{% if sort_key == "index" %}{% if sort_dir == "asc" %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span></a></th>
+              <th class="column-head col-client"><a class="sort-link" href="{{ sort_urls.client }}" title="Сортировать по клиенту">Клиент <span class="sort-icon" aria-hidden="true">{% if sort_key == "client" %}{% if sort_dir == "asc" %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span></a></th>
+              <th class="column-head col-pallet"><a class="sort-link" href="{{ sort_urls.pallet_code }}" title="Сортировать по паллете">Паллет <span class="sort-icon" aria-hidden="true">{% if sort_key == "pallet_code" %}{% if sort_dir == "asc" %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span></a></th>
+              <th class="column-head col-box"><a class="sort-link" href="{{ sort_urls.box_code }}" title="Сортировать по коробу">Короб <span class="sort-icon" aria-hidden="true">{% if sort_key == "box_code" %}{% if sort_dir == "asc" %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span></a></th>
+              <th class="column-head col-sku"><a class="sort-link" href="{{ sort_urls.sku }}" title="Сортировать по SKU">SKU <span class="sort-icon" aria-hidden="true">{% if sort_key == "sku" %}{% if sort_dir == "asc" %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span></a></th>
+              <th class="column-head col-name"><a class="sort-link" href="{{ sort_urls.name }}" title="Сортировать по номенклатуре">Номенклатура <span class="sort-icon" aria-hidden="true">{% if sort_key == "name" %}{% if sort_dir == "asc" %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span></a></th>
+              <th class="column-head col-barcode"><a class="sort-link" href="{{ sort_urls.barcode }}" title="Сортировать по штрихкоду">Штрихкод <span class="sort-icon" aria-hidden="true">{% if sort_key == "barcode" %}{% if sort_dir == "asc" %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span></a></th>
+              <th class="column-head col-qty"><a class="sort-link" href="{{ sort_urls.qty }}" title="Сортировать по количеству">Кол-во <span class="sort-icon" aria-hidden="true">{% if sort_key == "qty" %}{% if sort_dir == "asc" %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span></a></th>
+              <th class="column-head col-status"><a class="sort-link" href="{{ sort_urls.status }}" title="Сортировать по статусу">Статус <span class="sort-icon" aria-hidden="true">{% if sort_key == "status" %}{% if sort_dir == "asc" %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span></a></th>
+              <th class="column-head col-location"><a class="sort-link" href="{{ sort_urls.location }}" title="Сортировать по месту хранения">Место хранения <span class="sort-icon" aria-hidden="true">{% if sort_key == "location" %}{% if sort_dir == "asc" %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span></a></th>
+              <th class="column-head col-date"><a class="sort-link" href="{{ sort_urls.receipt_date }}" title="Сортировать по дате прихода">Приход <span class="sort-icon" aria-hidden="true">{% if sort_key == "receipt_date" %}{% if sort_dir == "asc" %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span></a></th>
+              <th class="column-head col-document"><a class="sort-link" href="{{ sort_urls.receipt_document }}" title="Сортировать по документу прихода">Документ прихода <span class="sort-icon" aria-hidden="true">{% if sort_key == "receipt_document" %}{% if sort_dir == "asc" %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span></a></th>
+              <th class="column-head col-date"><a class="sort-link" href="{{ sort_urls.expense_date }}" title="Сортировать по дате расхода">Расход <span class="sort-icon" aria-hidden="true">{% if sort_key == "expense_date" %}{% if sort_dir == "asc" %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span></a></th>
+              <th class="column-head col-document"><a class="sort-link" href="{{ sort_urls.expense_document }}" title="Сортировать по документу расхода">Документ расхода <span class="sort-icon" aria-hidden="true">{% if sort_key == "expense_document" %}{% if sort_dir == "asc" %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span></a></th>
+            </tr>
+            <tr class="filter-row">
+              <th><input class="filter-input" form="movementReportFilters" name="f_index" value="{{ filters.index }}" placeholder="№" inputmode="numeric" autocomplete="off" aria-label="Фильтр по номеру"></th>
+              <th><input class="filter-input" form="movementReportFilters" name="f_client" value="{{ filters.client }}" placeholder="Клиент" autocomplete="off" data-suggestion-key="client" aria-label="Фильтр по клиенту"></th>
+              <th><input class="filter-input" form="movementReportFilters" name="f_pallet" value="{{ filters.pallet_code }}" placeholder="Код паллеты" autocomplete="off" data-suggestion-key="pallet_code" aria-label="Фильтр по паллете"></th>
+              <th><input class="filter-input" form="movementReportFilters" name="f_box" value="{{ filters.box_code }}" placeholder="Код короба" autocomplete="off" data-suggestion-key="box_code" aria-label="Фильтр по коробу"></th>
+              <th><input class="filter-input" form="movementReportFilters" name="f_sku" value="{{ filters.sku }}" placeholder="SKU" autocomplete="off" data-suggestion-key="sku" aria-label="Фильтр по SKU"></th>
+              <th><input class="filter-input" form="movementReportFilters" name="f_name" value="{{ filters.name }}" placeholder="Название" autocomplete="off" data-suggestion-key="name" aria-label="Фильтр по номенклатуре"></th>
+              <th><input class="filter-input" form="movementReportFilters" name="f_barcode" value="{{ filters.barcode }}" placeholder="Штрихкод" inputmode="numeric" autocomplete="off" data-suggestion-key="barcode" aria-label="Фильтр по штрихкоду"></th>
+              <th><input class="filter-input" form="movementReportFilters" name="f_qty" value="{{ filters.qty }}" placeholder="шт." autocomplete="off" data-suggestion-key="qty" aria-label="Фильтр по количеству"></th>
+              <th><input class="filter-input" form="movementReportFilters" name="f_status" value="{{ filters.status }}" placeholder="Статус" autocomplete="off" data-suggestion-key="status" aria-label="Фильтр по статусу"></th>
+              <th><input class="filter-input" form="movementReportFilters" name="f_location" value="{{ filters.location }}" placeholder="Место" autocomplete="off" data-suggestion-key="location" aria-label="Фильтр по месту хранения"></th>
+              <th><input class="filter-input" form="movementReportFilters" name="f_receipt_date" value="{{ filters.receipt_date }}" placeholder="ДД.ММ.ГГГГ" autocomplete="off" data-suggestion-key="receipt_date" aria-label="Фильтр по дате прихода"></th>
+              <th><input class="filter-input" form="movementReportFilters" name="f_receipt_document" value="{{ filters.receipt_document }}" placeholder="№ PR" autocomplete="off" data-suggestion-key="receipt_document" aria-label="Фильтр по документу прихода"></th>
+              <th><input class="filter-input" form="movementReportFilters" name="f_expense_date" value="{{ filters.expense_date }}" placeholder="ДД.ММ.ГГГГ" autocomplete="off" data-suggestion-key="expense_date" aria-label="Фильтр по дате расхода"></th>
+              <th><input class="filter-input" form="movementReportFilters" name="f_expense_document" value="{{ filters.expense_document }}" placeholder="№ OBR / OTG" autocomplete="off" data-suggestion-key="expense_document" aria-label="Фильтр по документу расхода"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in preview_rows %}
+              <tr{% if row.is_processing_source %} class="processing-source"{% endif %}>
+                <td>{{ row.index }}</td>
+                <td>{{ row.client }}</td>
+                <td>{{ row.pallet_code|default:"-" }}</td>
+                <td>{{ row.box_code|default:"-" }}</td>
+                <td>{{ row.sku|default:"-" }}</td>
+                <td class="name">{{ row.name|default:"-" }}</td>
+                <td>{{ row.barcode|default:"-" }}</td>
+                <td>{{ row.qty }}</td>
+                <td>{{ row.status|default:"-" }}</td>
+                <td>{{ row.location|default:"-" }}</td>
+                <td>{{ row.receipt_date|default:"-" }}</td>
+                <td>{{ row.receipt_document|default:"-" }}</td>
+                <td>{{ row.expense_date|default:"-" }}</td>
+                <td>{{ row.expense_document|default:"-" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td class="empty-cell" colspan="14">По заданным фильтрам данных нет.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <div id="movementSuggestions" class="suggestion-popover" role="listbox" hidden></div>
+  {{ filter_suggestions|json_script:"movement-report-suggestions" }}
+  <script>
+    (() => {
+      const dataElement = document.getElementById("movement-report-suggestions");
+      const popover = document.getElementById("movementSuggestions");
+      const inputs = Array.from(document.querySelectorAll("[data-suggestion-key]"));
+      const suggestions = dataElement ? JSON.parse(dataElement.textContent || "{}") : {};
+      let activeInput = null;
+      let optionButtons = [];
+      let selectedIndex = -1;
+
+      const normalize = (value) => String(value || "").toLocaleLowerCase("ru-RU");
+
+      const closeSuggestions = () => {
+        popover.hidden = true;
+        popover.replaceChildren();
+        activeInput = null;
+        optionButtons = [];
+        selectedIndex = -1;
+      };
+
+      const selectOption = (index) => {
+        if (!optionButtons.length) return;
+        selectedIndex = Math.max(0, Math.min(index, optionButtons.length - 1));
+        optionButtons.forEach((button, buttonIndex) => {
+          button.classList.toggle("is-selected", buttonIndex === selectedIndex);
+        });
+        optionButtons[selectedIndex].scrollIntoView({ block: "nearest" });
+      };
+
+      const positionPopover = (input) => {
+        const rect = input.getBoundingClientRect();
+        const width = Math.min(Math.max(rect.width, 240), window.innerWidth - 16);
+        const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+        popover.style.width = `${width}px`;
+        popover.style.left = `${left}px`;
+        popover.style.top = `${rect.bottom + 4}px`;
+      };
+
+      const openSuggestions = (input) => {
+        const key = input.dataset.suggestionKey;
+        const values = Array.isArray(suggestions[key]) ? suggestions[key] : [];
+        const query = normalize(input.value).trim();
+        const startsWith = [];
+        const contains = [];
+        for (const value of values) {
+          const normalizedValue = normalize(value);
+          if (!query || normalizedValue.startsWith(query)) {
+            startsWith.push(value);
+          } else if (normalizedValue.includes(query)) {
+            contains.push(value);
+          }
+          if (startsWith.length + contains.length >= 12) break;
+        }
+        const matches = startsWith.concat(contains).slice(0, 12);
+        if (!matches.length) {
+          closeSuggestions();
+          return;
+        }
+
+        activeInput = input;
+        selectedIndex = -1;
+        popover.replaceChildren();
+        optionButtons = matches.map((value) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "suggestion-option";
+          button.textContent = value;
+          button.addEventListener("mousedown", (event) => event.preventDefault());
+          button.addEventListener("click", () => {
+            input.value = value;
+            closeSuggestions();
+            input.focus();
+          });
+          popover.appendChild(button);
+          return button;
+        });
+        positionPopover(input);
+        popover.hidden = false;
+      };
+
+      inputs.forEach((input) => {
+        input.addEventListener("focus", () => openSuggestions(input));
+        input.addEventListener("input", () => openSuggestions(input));
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            if (popover.hidden || activeInput !== input) openSuggestions(input);
+            selectOption(selectedIndex + 1);
+          } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            selectOption(selectedIndex <= 0 ? optionButtons.length - 1 : selectedIndex - 1);
+          } else if (event.key === "Enter" && selectedIndex >= 0) {
+            event.preventDefault();
+            input.value = optionButtons[selectedIndex].textContent;
+            closeSuggestions();
+          } else if (event.key === "Escape") {
+            closeSuggestions();
+          }
+        });
+      });
+
+      document.addEventListener("mousedown", (event) => {
+        if (!popover.contains(event.target) && event.target !== activeInput) closeSuggestions();
+      });
+      window.addEventListener("resize", closeSuggestions);
+      window.addEventListener("scroll", closeSuggestions, true);
+    })();
+  </script>
+</body>
+</html>

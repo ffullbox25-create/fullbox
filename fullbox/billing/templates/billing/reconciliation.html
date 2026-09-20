@@ -1,0 +1,174 @@
+{% extends "teammanager/_base.html" %}
+{% load billing_tags %}
+
+{% block title %}Акты сверки — Биллинг{% endblock %}
+
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.grid-2 { display:grid; grid-template-columns:minmax(0,360px) minmax(0,1fr); gap:14px; }
+.card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px; display:grid; gap:10px; }
+.card-title { margin:0; font-size:16px; font-weight:800; font-family:"Bricolage Grotesque","Manrope",sans-serif; }
+.field { width:100%; border:1px solid var(--line); border-radius:10px; background:#fff; padding:9px 12px; font:inherit; font-size:13px; box-sizing:border-box; }
+.label { font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; }
+.filter-card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+.filter-card .field { width:auto; }
+.table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:760px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:2px solid var(--line); }
+td { padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+.badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900; }
+.badge.orange { background:var(--orange-soft); color:#b45309; }
+.badge.green { background:var(--green-soft); color:var(--green-strong); }
+.badge.gray { background:var(--surface-2); color:var(--muted); }
+.badge.red { background:#fff0f0; color:var(--red); }
+.badge.blue { background:#eff6ff; color:var(--blue); }
+.hint { font-size:12px; color:var(--muted); }
+.money { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-weight:800; }
+@media (max-width:960px){ .grid-2 { grid-template-columns:1fr; } }
+{% endblock %}
+
+{% block content %}
+{% include "billing/_billing_nav.html" %}
+
+<div>
+  <h1 class="page-title">Акты сверки</h1>
+  <div class="page-sub">Менеджер создаёт запрос и передаёт бухгалтеру. Формирование акта сверки — зона бухгалтерии.</div>
+</div>
+
+<form class="filter-card" method="get">
+  <select class="field" name="client">
+    <option value="">Все клиенты</option>
+    {% for c in recon_clients %}
+      <option value="{{ c.id }}" {% if filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>
+    {% endfor %}
+  </select>
+  <select class="field" name="status">
+    <option value="">Все статусы</option>
+    <option value="draft" {% if filter_status == "draft" %}selected{% endif %}>Черновик</option>
+    <option value="submitted" {% if filter_status == "submitted" %}selected{% endif %}>Передан бухгалтеру</option>
+    <option value="formed" {% if filter_status == "formed" %}selected{% endif %}>Сформирован</option>
+    <option value="disputed" {% if filter_status == "disputed" %}selected{% endif %}>Есть расхождения</option>
+  </select>
+  <button class="btn primary" type="submit">Найти</button>
+</form>
+
+<div class="grid-2">
+  <form class="card" id="js-recon-form">
+    <h2 class="card-title">Новый запрос</h2>
+    <div>
+      <div class="label">Клиент</div>
+      <select class="field" name="client_id" required>
+        <option value="">Выберите клиента</option>
+        {% for c in recon_clients %}
+          <option value="{{ c.id }}">{{ c.short_name|default:c.agn_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <div class="label">Период с</div>
+        <input class="field" type="date" name="period_from" required>
+      </div>
+      <div>
+        <div class="label">Период по</div>
+        <input class="field" type="date" name="period_to" value="{{ today|date:'Y-m-d' }}" required>
+      </div>
+    </div>
+    <div>
+      <div class="label">Начальное сальдо (необяз.)</div>
+      <input class="field" type="number" name="opening_balance" step="0.01" value="0">
+    </div>
+    <div>
+      <div class="label">Комментарий</div>
+      <textarea class="field" name="manager_comment" rows="2"></textarea>
+    </div>
+    <label style="display:flex;gap:8px;align-items:center;font-size:13px">
+      <input type="checkbox" name="submit" value="1" checked> Сразу передать бухгалтеру
+    </label>
+    <button class="btn primary" type="submit">Создать запрос</button>
+    <div id="js-recon-msg" class="hint"></div>
+  </form>
+
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th>Клиент</th>
+          <th>Период</th>
+          <th>Сальдо</th>
+          <th>Статус</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in recon_requests %}
+          <tr>
+            <td>{{ r.client.short_name|default:r.client.agn_name|truncatechars:28 }}</td>
+            <td>{{ r.period_from|date:"d.m.Y" }} – {{ r.period_to|date:"d.m.Y" }}</td>
+            <td><span class="money">{{ r.opening_balance|money_fmt }}</span></td>
+            <td>
+              {% if r.status == "submitted" %}<span class="badge orange">{{ r.get_status_display }}</span>
+              {% elif r.status == "draft" %}<span class="badge gray">{{ r.get_status_display }}</span>
+              {% elif r.status == "disputed" %}<span class="badge red">{{ r.get_status_display }}</span>
+              {% elif r.status == "confirmed" or r.status == "signed" %}<span class="badge green">{{ r.get_status_display }}</span>
+              {% else %}<span class="badge blue">{{ r.get_status_display }}</span>{% endif %}
+            </td>
+            <td>
+              {% if r.status == "draft" or r.status == "disputed" %}
+                <button class="btn primary js-recon-submit" data-id="{{ r.id }}" type="button" style="font-size:11px;padding:5px 8px">Бухгалтеру</button>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" style="padding:28px;text-align:center;color:var(--muted);font-weight:700">Запросов пока нет</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function(){
+  const form = document.getElementById("js-recon-form");
+  const msg = document.getElementById("js-recon-msg");
+  const csrf = (document.cookie.match(/csrftoken=([^;]+)/)||[])[1] || "";
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    msg.textContent = "Сохраняю…";
+    const fd = new FormData(form);
+    const body = {
+      client_id: fd.get("client_id"),
+      period_from: fd.get("period_from"),
+      period_to: fd.get("period_to"),
+      opening_balance: fd.get("opening_balance") || "0",
+      manager_comment: fd.get("manager_comment") || "",
+      submit: !!fd.get("submit"),
+    };
+    const resp = await fetch("/team-manager/billing/api/reconciliation/", {
+      method: "POST",
+      headers: {"Content-Type":"application/json", "X-CSRFToken": csrf},
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) { msg.textContent = data.error || data.detail || "Ошибка"; return; }
+    location.reload();
+  });
+  document.querySelectorAll(".js-recon-submit").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const resp = await fetch(`/team-manager/billing/api/reconciliation/${btn.dataset.id}/submit/`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json", "X-CSRFToken": csrf},
+        body: "{}",
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        alert(data.error || data.detail || "Ошибка");
+        return;
+      }
+      location.reload();
+    });
+  });
+})();
+</script>
+{% endblock %}

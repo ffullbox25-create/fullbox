@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Telegram чатов | Панель директора</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <link href="/static/director/director-dashboard.css" rel="stylesheet">
+  <style>
+    .tg-page { max-width: 760px; }
+    .tg-page h1 {
+      margin: 0;
+      font-family: "Bricolage Grotesque", Manrope, sans-serif;
+      font-size: 28px;
+      color: var(--ink, #1c1f1a);
+    }
+    .tg-sub { color: var(--muted, #6b6f66); font-size: 13px; margin: 6px 0 16px; line-height: 1.45; }
+    .tg-card {
+      background: var(--surface, #fffdf8);
+      border: 1px solid var(--line, #e5e1d8);
+      border-radius: 14px;
+      box-shadow: var(--shadow, 0 1px 3px rgba(0,0,0,.06));
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .tg-card h2 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      font-family: "Bricolage Grotesque", Manrope, sans-serif;
+    }
+    .tg-grid { display: grid; gap: 10px; }
+    .tg-grid label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(--muted, #6b6f66); }
+    .tg-grid input[type=text], .tg-grid input[type=password], .tg-grid input[type=url] {
+      width: 100%; padding: 10px 12px; border-radius: 12px;
+      border: 1px solid var(--line, #e5e1d8); font: inherit; background: #fff; box-sizing: border-box;
+    }
+    .tg-checks { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+    .tg-checks label { display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--ink, #1c1f1a); font-size: 13px; }
+    .tg-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .tg-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 10px 14px; border-radius: 12px; border: 1px solid transparent;
+      font-weight: 800; font-size: 13px; cursor: pointer; text-decoration: none;
+      background: linear-gradient(135deg, #f2b747, #e8a93a); color: #1c1f1a;
+    }
+    .tg-btn.ghost { background: #fff; border-color: var(--line, #e5e1d8); color: var(--ink, #1c1f1a); }
+    .tg-flash { padding: 10px 12px; border-radius: 12px; font-weight: 800; font-size: 13px; margin-bottom: 12px; }
+    .tg-flash.ok { background: #e8f7ee; color: #146c36; border: 1px solid #b7e0c5; }
+    .tg-flash.err { background: #fdecee; color: #a11a2d; border: 1px solid #f0b8c0; }
+    .tg-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 800; font-size: 11px; }
+    .tg-pill.on { background: #e8f7ee; color: #146c36; }
+    .tg-pill.off { background: #f3f1ec; color: #6b6f66; }
+    .tg-pill.warn { background: #fff8e8; color: #8a6a12; }
+    .tg-code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px; padding: 10px 12px; border-radius: 12px;
+      background: var(--surface-2, #f7f2ea); border: 1px solid var(--line, #e5e1d8);
+      word-break: break-all;
+    }
+    .tg-muted { color: var(--muted, #6b6f66); font-size: 13px; line-height: 1.45; margin: 0 0 8px; }
+    .tg-soon {
+      opacity: .85; border-style: dashed;
+    }
+  </style>
+</head>
+<body class="director-body">
+  <div class="dir-app" id="js-dir-app">
+    {% include "director/partials/_sidebar.html" %}
+
+    <div class="dir-main">
+      {% include "director/partials/_topbar.html" %}
+
+      <div class="dir-content">
+        <div class="tg-page">
+          <h1>Интеграции · Telegram</h1>
+          <p class="tg-sub">
+            Сюда можно позже вписать токен бота для уведомлений по чатам.
+            Поля можно сохранить пустыми — интеграция заработает, когда заполните и включите.
+          </p>
+
+          {% if flash_ok %}<div class="tg-flash ok">{{ flash_ok }}</div>{% endif %}
+          {% if flash_err %}<div class="tg-flash err">{{ flash_err }}</div>{% endif %}
+
+          <section class="tg-card">
+            <h2>Статус</h2>
+            <p class="tg-muted">
+              Бот:
+              {% if tg_live %}
+                <span class="tg-pill on">готов к отправке</span>
+              {% else %}
+                <span class="tg-pill off">не настроен</span>
+              {% endif %}
+              {% if tg_cfg.is_enabled and tg_cfg.bot_token %}
+                · из кабинета директора
+              {% elif tg_env_fallback %}
+                · сейчас работает fallback из env сервера
+              {% endif %}
+            </p>
+            <p class="tg-muted">Webhook URL:</p>
+            <div class="tg-code">{{ tg_webhook_url }}</div>
+          </section>
+
+          <section class="tg-card">
+            <h2>Параметры бота</h2>
+            <form method="post" class="tg-grid">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="save">
+              <label>Токен бота
+                <input type="password" name="bot_token" value="" autocomplete="off"
+                       placeholder="{% if tg_token_mask %}сохранён: {{ tg_token_mask }} — введите новый, чтобы заменить{% else %}вставьте позже от @BotFather{% endif %}">
+              </label>
+              <label>Username бота (без @)
+                <input type="text" name="bot_username" value="{{ tg_cfg.bot_username }}" placeholder="например fullbox_chats_bot" autocomplete="off">
+              </label>
+              <label>Secret для webhook
+                <input type="text" name="webhook_secret" value="" autocomplete="off"
+                       placeholder="{% if tg_secret_mask %}сохранён: {{ tg_secret_mask }} — введите новый, чтобы заменить{% else %}сгенерируйте или вставьте позже{% endif %}">
+              </label>
+              <label>Общий alert chat id (опционально)
+                <input type="text" name="alert_chat_id" value="{{ tg_cfg.alert_chat_id }}" placeholder="id группы/чата для сводки" autocomplete="off">
+              </label>
+              <label>Базовый URL ЛК
+                <input type="url" name="lk_base_url" value="{{ tg_cfg.lk_base_url }}" placeholder="{{ tg_lk_base }}">
+              </label>
+              <div class="tg-checks">
+                <label>
+                  <input type="checkbox" name="is_enabled" value="1" {% if tg_cfg.is_enabled %}checked{% endif %}>
+                  Включить интеграцию (после заполнения токена)
+                </label>
+              </div>
+              <div class="tg-actions">
+                <button class="tg-btn" type="submit">Сохранить</button>
+              </div>
+            </form>
+            <div class="tg-actions">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="generate_secret">
+                <button class="tg-btn ghost" type="submit">Сгенерировать secret</button>
+              </form>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="set_webhook">
+                <button class="tg-btn ghost" type="submit">Установить webhook</button>
+              </form>
+              <form method="post" onsubmit="return confirm('Очистить токен?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="clear_token">
+                <button class="tg-btn ghost" type="submit">Очистить токен</button>
+              </form>
+              <a class="tg-btn ghost" href="/team-manager/chats/telegram/">Личная привязка менеджера →</a>
+            </div>
+          </section>
+
+          <section class="tg-card tg-soon">
+            <h2>Другие интеграции</h2>
+            <p class="tg-muted" style="margin:0">Сюда позже можно добавить email, 1С, банк и CRM — отдельными карточками. Пока только Telegram для чатов.</p>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    var app = document.getElementById('js-dir-app');
+    var collapseBtn = document.getElementById('js-dir-collapse');
+    var menuBtn = document.getElementById('js-dir-menu');
+    if (collapseBtn) {
+      collapseBtn.addEventListener('click', function(){
+        app.classList.toggle('is-collapsed');
+        collapseBtn.textContent = app.classList.contains('is-collapsed') ? '›' : '‹';
+      });
+    }
+    if (menuBtn) {
+      menuBtn.addEventListener('click', function(){
+        app.classList.toggle('menu-open');
+      });
+    }
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FULLBOX | Сотрудники</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #fff7ed;
+      --surface: #fffdf8;
+      --surface-2: #fff4e0;
+      --ink: #303030;
+      --muted: #756f68;
+      --accent: #f89000;
+      --accent-strong: #f86800;
+      --accent-soft: rgba(248, 144, 0, 0.13);
+      --sun: #f8b800;
+      --sun-soft: rgba(248,184,0,0.18);
+      --danger: #c2410c;
+      --stroke: rgba(48,48,48,0.12);
+      --shadow: 0 18px 45px rgba(48,48,48,0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background: #fff;
+      min-height: 100vh;
+    }
+    a { color:inherit; text-decoration:none; }
+    .wrap { max-width: 100%; margin: 0 auto; padding: 32px 24px 64px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .logo { display:flex; align-items:center; gap:10px; }
+    .fullbox-brand-mark { display: inline-flex; align-items: center; }
+    .fullbox-brand-img { width: 172px; height: auto; display: block; }
+    h1 { margin:0; letter-spacing:0; }
+    .muted { color:var(--muted); }
+    .btn {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid var(--stroke);
+      background:rgba(28,31,26,0.04);
+      color:var(--ink);
+      font-weight:700;
+      transition:all .2s ease;
+    }
+    .btn:hover { border-color:rgba(248,104,0,0.42); box-shadow:0 12px 30px rgba(248,104,0,0.13); transform:translateY(-2px); }
+    .btn.primary { background: var(--accent); color:#fff; border-color: var(--accent); }
+    .btn.enter { background: var(--accent); color:#fff; border-color: transparent; }
+    .filters {
+      display:grid;
+      grid-template-columns:minmax(260px, 1.4fr) minmax(190px, .8fr) minmax(190px, .8fr) auto auto;
+      gap:10px;
+      align-items:end;
+      margin:18px 0 0;
+      padding:14px;
+      border:1px solid var(--stroke);
+      border-radius:8px;
+      background:var(--surface-2);
+    }
+    .filter-field { display:grid; gap:5px; color:var(--muted); font-size:12px; font-weight:700; }
+    .filter-field input,
+    .filter-field select {
+      width:100%;
+      min-height:42px;
+      border:1px solid var(--stroke);
+      border-radius:8px;
+      background:#fff;
+      color:var(--ink);
+      padding:9px 11px;
+      font:inherit;
+      font-size:13px;
+      outline:none;
+    }
+    .filter-field input:focus,
+    .filter-field select:focus {
+      border-color:rgba(248,104,0,0.42);
+      box-shadow:0 0 0 3px var(--accent-soft);
+    }
+    .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:10px; margin:18px 0; }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid var(--stroke); font-weight:600; background: var(--surface-2); }
+    .pill.active { color:var(--accent); }
+    .pill.inactive { color:var(--danger); }
+    .pill.total { color:var(--accent-strong); }
+    table { width:100%; border-collapse:collapse; margin-top:12px; }
+    tbody tr { transition: background .15s ease; }
+    tbody tr:hover { background: var(--accent-soft); }
+    th, td { padding:10px 8px; border-bottom:1px solid var(--stroke); text-align:left; vertical-align:top; }
+    th { color:var(--muted); font-weight:600; font-size:14px; }
+    td { font-size:15px; }
+    th.actions, td.actions { text-align:right; }
+    .name { font-weight:600; }
+    .employee-link { display:block; }
+    .employee-link:hover .name { color: var(--accent-strong); text-decoration: underline; }
+    .badge { padding:4px 8px; border-radius:8px; border:1px solid var(--stroke); font-size:12px; letter-spacing:0.3px; text-transform:uppercase; background: var(--surface-2); }
+    .badge.role { color:var(--accent-strong); }
+    .status { font-weight:600; }
+    .status.active { color:var(--accent); }
+    .status.inactive { color:var(--danger); }
+    .empty { padding:16px; text-align:center; color:var(--muted); border:1px dashed var(--stroke); border-radius:12px; margin-top:12px; background: var(--surface-2); }
+    .signature-preview {
+      border: 1px dashed var(--stroke);
+      background: #fff;
+      border-radius: 10px;
+      padding: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      min-width: 120px;
+    }
+    .signature-preview img {
+      max-width: 160px;
+      max-height: 48px;
+      width: auto;
+      height: auto;
+      display: block;
+      filter: contrast(1.7) brightness(0.65);
+    }
+    @media (max-width: 1100px) {
+      .filters { grid-template-columns:1fr 1fr; }
+    }
+    @media (max-width: 720px) {
+      .filters { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <div class="logo">
+          {% include "partials/fullbox_brand.html" %}
+          <div>
+            <div style="font-weight:700; letter-spacing:0;">{% include "partials/current_user.html" %}</div>
+            <div class="muted">Сотрудники</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <a class="btn" href="{{ cabinet_url }}">В кабинет</a>
+          {% if can_edit %}
+            <a class="btn" href="/employees/export-logins/">Экспорт логинов Excel</a>
+            <a class="btn primary" href="/employees/new/">Добавить сотрудника</a>
+          {% endif %}
+        </div>
+      </div>
+
+      <form class="filters" method="get">
+        <label class="filter-field">
+          ФИО
+          <input type="search" name="q" value="{{ filter_q }}" placeholder="Найти сотрудника">
+        </label>
+        <label class="filter-field">
+          Роль
+          <select name="role">
+            <option value="">Все роли</option>
+            {% for role_key, role_title in role_choices %}
+              <option value="{{ role_key }}" {% if filter_role == role_key %}selected{% endif %}>{{ role_title }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="filter-field">
+          Статус
+          <select name="status">
+            <option value="">Все сотрудники</option>
+            <option value="active" {% if filter_status == "active" %}selected{% endif %}>Активные</option>
+            <option value="inactive" {% if filter_status == "inactive" %}selected{% endif %}>Неактивные</option>
+          </select>
+        </label>
+        <button class="btn primary" type="submit">Показать</button>
+        <a class="btn" href="/employees/">Сбросить</a>
+      </form>
+
+      <div class="stats">
+        <div class="pill total">Всего: {{ stats.total }}</div>
+        <div class="pill active">Активные: {{ stats.active }}</div>
+        <div class="pill inactive">Неактивные: {{ stats.inactive }}</div>
+      </div>
+
+      {% if employees %}
+        <table>
+          <thead>
+            <tr>
+              <th>Сотрудник</th>
+              <th>Роль</th>
+              <th>Email</th>
+              <th>Телефон</th>
+              <th>Подпись</th>
+              <th>Статус</th>
+              <th>Обновлено</th>
+              {% if can_edit or can_enter_cabinet %}
+                <th class="actions">Действия</th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for employee in employees %}
+              <tr>
+                <td>
+                  {% if can_enter_cabinet %}
+                    <a class="employee-link" href="/employees/{{ employee.id }}/enter/" title="Войти в кабинет">
+                      <div class="name">{{ employee.full_name }}</div>
+                      <div class="muted" style="font-size:12px; margin-top:2px;">ID {{ employee.id }}</div>
+                    </a>
+                  {% elif employee.can_edit_in_request %}
+                    <a class="employee-link" href="/employees/{{ employee.id }}/edit/">
+                      <div class="name">{{ employee.full_name }}</div>
+                      <div class="muted" style="font-size:12px; margin-top:2px;">ID {{ employee.id }}</div>
+                    </a>
+                  {% else %}
+                    <div class="name">{{ employee.full_name }}</div>
+                    <div class="muted" style="font-size:12px; margin-top:2px;">ID {{ employee.id }}</div>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="badge role">{{ employee.get_role_display }}</span>
+                  {% for label in employee.access_role_labels %}
+                    <div class="muted" style="font-size:11px; margin-top:4px;">+ {{ label }}</div>
+                  {% endfor %}
+                </td>
+                <td>{% if employee.email %}{{ employee.email }}{% else %}<span class="muted">-</span>{% endif %}</td>
+                <td>{% if employee.phone %}{{ employee.phone }}{% else %}<span class="muted">-</span>{% endif %}</td>
+                <td>
+                  {% if employee.facsimile %}
+                    <span class="signature-preview">
+                      <img src="{% url 'employees:facsimile' employee.pk %}" alt="Подпись {{ employee.full_name }}">
+                    </span>
+                  {% else %}
+                    <span class="muted">-</span>
+                  {% endif %}
+                </td>
+                <td class="status {% if employee.is_active %}active{% else %}inactive{% endif %}">
+                  {% if employee.is_active %}Активен{% else %}Неактивен{% endif %}
+                </td>
+                <td>{% if employee.updated_at %}{{ employee.updated_at|date:"d.m.y H:i" }}{% else %}<span class="muted">-</span>{% endif %}</td>
+                {% if can_edit or can_enter_cabinet %}
+                  <td class="actions">
+                    {% if can_enter_cabinet %}
+                      <a class="btn enter" href="/employees/{{ employee.id }}/enter/">В кабинет</a>
+                    {% endif %}
+                    {% if employee.can_edit_in_request %}
+                      <a class="btn" href="/employees/{{ employee.id }}/edit/">Редактировать</a>
+                    {% endif %}
+                  </td>
+                {% endif %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty">Пока нет сотрудников. Добавьте первого через админку.</div>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

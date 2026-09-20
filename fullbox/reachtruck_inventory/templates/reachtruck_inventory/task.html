@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Инвентаризация · {{ task.location_code }}</title>
+  <style>
+    :root { --bg:#f3efe4;--panel:#fffdf8;--ink:#201d18;--muted:#756d61;--accent:#ff7a1a;--stroke:#ddd5ca;--ok:#28764d;--bad:#b52d39;--shadow:0 12px 28px rgba(45,35,20,.08); }
+    * { box-sizing:border-box; }
+    body { margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font-family:Arial,sans-serif; }
+    a { color:inherit;text-decoration:none; }
+    .page { width:min(620px,100%);min-height:100vh;margin:0 auto;padding:10px 7px 24px; }
+    .panel { background:var(--panel);border:1px solid rgba(60,45,24,.08);border-radius:22px;padding:18px 13px;margin-bottom:14px;box-shadow:var(--shadow); }
+    .back { display:inline-flex;margin-bottom:18px;color:#4c4840;font-size:13px; }
+    h1,h2,p { margin:0; } h1 { font-size:22px; } h2 { font-size:20px; }
+    .muted { color:var(--muted);font-size:13px;line-height:1.45; }
+    .task-number { margin-top:3px;color:var(--muted);font-size:12px; }
+    .location-code { margin-top:14px;padding:18px 10px;border-radius:14px;background:#fff0e3;color:#b44c00;text-align:center;font-size:32px;font-weight:950;overflow-wrap:anywhere; }
+    .notice { margin:10px 0;padding:12px;border-radius:12px;font-size:14px;font-weight:800;line-height:1.4; }
+    .notice.ok { background:#e9f5ee;color:var(--ok); } .notice.error { background:#ffebed;color:var(--bad); }
+    .result { display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0; }
+    .result div { padding:12px;border:1px solid var(--stroke);border-radius:12px;background:#faf7f0; }
+    .result span { display:block;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase; }
+    .result strong { display:block;margin-top:4px;font-size:26px; }
+    form { display:grid;gap:10px;margin-top:14px; }
+    label { display:grid;gap:6px;color:var(--muted);font-size:13px;font-weight:800; }
+    input { width:100%;min-height:54px;border:1px solid var(--stroke);border-radius:12px;padding:10px 12px;background:#fff;color:var(--ink);font-size:22px;font-weight:900; }
+    button { width:100%;min-height:52px;border:0;border-radius:12px;padding:11px;background:var(--accent);color:#fff;font-size:17px;font-weight:900;cursor:pointer; }
+    button:disabled { opacity:.45;cursor:not-allowed; } button.secondary { background:#ece6dc;color:var(--ink); }
+    .scan-status { margin-top:9px;color:var(--muted);font-size:13px;line-height:1.45;overflow-wrap:anywhere; }
+    .divider { height:1px;margin:18px 0;background:var(--stroke); }
+    .release { margin:4px 8px 0; } .release button { min-height:42px;background:transparent;color:var(--muted);font-size:13px; }
+    @media (min-width:560px) { .page { padding:18px; }.panel { padding:22px; } }
+  </style>
+</head>
+<body{% if can_count and task.lease_expires_at %} data-lease-expires-at="{{ task.lease_expires_at|date:'c' }}"{% endif %}>
+  <main class="page">
+    <section class="panel">
+      <a class="back" href="{% url 'reachtruck_inventory:dashboard' %}">← К заданиям</a>
+      <h1>Инвентаризация</h1>
+      <div class="task-number">Задание №{{ task.inventory_id }}</div>
+      <div class="location-code">{{ task.location_code }}</div>
+      {% if messages %}{% for message in messages %}<div class="notice ok">{{ message }}</div>{% endfor %}{% endif %}
+      {% if error %}<div class="notice error">{{ error }}</div>{% endif %}
+    </section>
+
+    {% if can_take %}
+      <section class="panel"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="take"><button type="submit">Начать</button></form></section>
+    {% elif can_count and not task.location_verified_at %}
+      <section class="panel">
+        <h2>Отсканируйте место</h2>
+        <form method="post" autocomplete="off">{% csrf_token %}<input type="hidden" name="action" value="verify_location"><label>Скан места<input type="text" name="scan_value" autofocus autocomplete="off" required></label><button type="submit">Дальше</button></form>
+      </section>
+    {% elif can_count and has_saved_discrepancy %}
+      <section class="panel">
+        <h2>Не совпало</h2>
+        <div class="result"><div><span>По базе</span><strong>{{ task.planned_box_count }}</strong></div><div><span>Насчитано</span><strong>{{ task.actual_box_count }}</strong></div></div>
+        {% if is_empty_count %}
+          <div class="notice error">Место пустое, а в базе есть короба. Сканировать нечего — сразу сообщите начальнику склада.</div>
+        {% else %}
+          <p class="muted">Отсканируйте паллету и каждый найденный короб.</p>
+          <form method="post" autocomplete="off">{% csrf_token %}<input type="hidden" name="action" value="scan_discrepancy_pallet"><label>Паллета<input type="text" name="scan_code" autocomplete="off" required{% if not task.discrepancy_pallet_codes %} autofocus{% endif %}></label><button type="submit">Добавить паллету</button></form>
+          {% if task.discrepancy_pallet_codes %}<div class="scan-status">Паллеты: {{ task.discrepancy_pallet_codes|join:", " }}</div>{% endif %}
+          <div class="divider"></div>
+          <form method="post" autocomplete="off">{% csrf_token %}<input type="hidden" name="action" value="scan_discrepancy_box"><label>Короб ({{ scanned_box_count }} из {{ task.actual_box_count }})<input type="text" name="scan_code" autocomplete="off" required{% if task.discrepancy_pallet_codes %} autofocus{% endif %}></label><button type="submit">Добавить короб</button></form>
+          {% if task.discrepancy_box_codes %}<div class="scan-status">Короба: {{ task.discrepancy_box_codes|join:", " }}</div>{% endif %}
+          {% if task.discrepancy_pallet_codes or task.discrepancy_box_codes %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="clear_discrepancy_containers"><button class="secondary" type="submit">Очистить сканы</button></form>{% endif %}
+        {% endif %}
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="submit_discrepancy"><button type="submit"{% if not can_submit_discrepancy %} disabled{% endif %}>Сообщить начальнику склада</button></form>
+      </section>
+    {% elif can_count %}
+      <section class="panel">
+        <h2>Сколько там коробов?</h2>
+        <form method="post" autocomplete="off">{% csrf_token %}<input type="hidden" name="action" value="complete"><label>Количество коробов<input type="number" min="0" inputmode="numeric" name="box_count" autofocus required></label><button type="submit">Проверить</button></form>
+      </section>
+    {% elif is_done %}
+      <section class="panel">
+        {% if task.discrepancy_reported_at %}<div class="notice error">Не совпало. Вся информация отправлена начальнику склада.</div>{% else %}<div class="notice ok">Совпало. Задание завершено.</div>{% endif %}
+        <a href="{% url 'reachtruck_inventory:dashboard' %}"><button type="button">К следующим заданиям</button></a>
+      </section>
+    {% endif %}
+
+    {% if can_count %}<form class="release" method="post">{% csrf_token %}<input type="hidden" name="action" value="release"><button type="submit">Освободить задание</button></form>{% endif %}
+  </main>
+  <script>
+    (function () {
+      var input=document.querySelector('input[autofocus],input[name="scan_value"],input[name="box_count"],input[name="scan_code"]');if(input)window.setTimeout(function(){try{input.focus();}catch(e){}},50);
+      var rawExpiry=document.body.dataset.leaseExpiresAt;if(!rawExpiry)return;var leaseExpiresAt=Date.parse(rawExpiry),lastHeartbeatAt=Date.now(),pendingActivity=false,expiryTimer=null,csrfInput=document.querySelector('input[name="csrfmiddlewaretoken"]');
+      function scheduleExpiry(){if(expiryTimer)window.clearTimeout(expiryTimer);expiryTimer=window.setTimeout(function(){window.location.replace("{% url 'reachtruck_inventory:dashboard' %}?expired=1");},Math.max(leaseExpiresAt-Date.now(),0)+500);}
+      function sendHeartbeat(){if(!csrfInput)return;pendingActivity=false;lastHeartbeatAt=Date.now();var body=new FormData();body.append("action","heartbeat");body.append("csrfmiddlewaretoken",csrfInput.value);window.fetch(window.location.pathname,{method:"POST",credentials:"same-origin",headers:{"X-Requested-With":"XMLHttpRequest"},body:body}).then(function(r){if(!r.ok)throw new Error();return r.json();}).then(function(p){leaseExpiresAt=Date.parse(p.lease_expires_at);scheduleExpiry();}).catch(function(){window.location.replace("{% url 'reachtruck_inventory:dashboard' %}?expired=1");});}
+      function activity(){pendingActivity=true;var now=Date.now();if(now-lastHeartbeatAt>=60000||leaseExpiresAt-now<120000)sendHeartbeat();}
+      document.addEventListener("input",activity,{passive:true});document.addEventListener("keydown",activity,{passive:true});document.addEventListener("pointerdown",activity,{passive:true});window.setInterval(function(){if(pendingActivity)sendHeartbeat();},60000);scheduleExpiry();
+    })();
+  </script>
+</body>
+</html>

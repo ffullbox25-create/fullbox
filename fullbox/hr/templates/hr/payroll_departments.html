@@ -1,0 +1,48 @@
+{% extends "hr/base.html" %}
+
+{% block title %}Отделы для отчёта{% endblock %}
+
+{% block content %}
+  <header class="page-head">
+    <div>
+      <div class="breadcrumbs"><a href="{% url 'hr:monthly-payroll-report' %}">Месячный отчёт</a><span>›</span><span>Отделы</span></div>
+      <h1>Отделы для отчёта</h1>
+      <div class="muted">Справочник группировки сотрудников в месячном отчёте.</div>
+    </div>
+  </header>
+
+  <section class="panel">
+    <h2>{% if edited_department %}Изменить отдел{% else %}Новый отдел{% endif %}</h2>
+    <form method="post">
+      {% csrf_token %}
+      {% if edited_department %}<input type="hidden" name="department_id" value="{{ edited_department.pk }}">{% endif %}
+      <div class="form-grid">
+        {% include "hr/_form_fields.html" with form=form %}
+        <div class="form-actions">
+          <button class="btn primary" type="submit">Сохранить</button>
+          {% if edited_department %}<a class="btn" href="{% url 'hr:payroll-departments' %}">Отмена</a>{% endif %}
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Справочник отделов</h2>
+    <div class="compact-table-wrap">
+      <table>
+        <thead><tr><th>Название</th><th>Код</th><th>Сотрудников</th><th>Статус</th><th></th></tr></thead>
+        <tbody>
+          {% for department in departments %}
+            <tr>
+              <td><strong>{{ department.name }}</strong></td>
+              <td>{{ department.code }}</td>
+              <td>{{ department.employee_count }}</td>
+              <td><span class="status {% if department.is_active %}ok{% else %}off{% endif %}">{% if department.is_active %}Активен{% else %}Отключён{% endif %}</span></td>
+              <td><a class="row-link" href="?edit={{ department.pk }}">Изменить</a></td>
+            </tr>
+          {% empty %}<tr><td colspan="5" class="empty-state">Добавьте первый отдел.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

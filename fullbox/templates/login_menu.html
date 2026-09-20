@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FULLBOX | Вход разработчика</title>
+  <link href="/static/vendor/space-grotesk.css" rel="stylesheet">
+  <style>
+    :root { --bg: #0b0b0f; --card:#14141f; --gold:#d6a300; --gold-soft:#e7c34a; --text:#e8e8ed; --muted:#9aa0b3; --stroke: rgba(255,255,255,0.08); }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:'Space Grotesk',system-ui,sans-serif; }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 32px 18px 64px; }
+    .card { background:var(--card); border:1px solid var(--stroke); border-radius:18px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,0.4); }
+    h1 { margin:0 0 12px; letter-spacing:-0.5px; }
+    .muted { color: var(--muted); }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:12px; margin-top:16px; }
+    .btn { display:block; text-align:center; padding:12px; border-radius:12px; border:1px solid var(--stroke); background: rgba(255,255,255,0.03); color:var(--text); font-weight:600; text-decoration:none; transition: all .2s ease; }
+    .btn:hover { border-color: var(--gold); box-shadow:0 10px 25px rgba(214,163,0,0.25); transform: translateY(-2px); }
+    .btn.primary { background: linear-gradient(120deg,var(--gold),var(--gold-soft)); color: var(--bg); border-color: transparent; }
+    .btn.disabled { pointer-events:none; filter: grayscale(1); opacity:0.5; }
+    .header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .logo { display:flex; align-items:center; gap:10px; }
+    .logo-mark { width:44px; height:44px; border-radius:12px; border:1px solid var(--stroke); display:grid; place-items:center; background:linear-gradient(135deg, rgba(214,163,0,0.2), rgba(20,20,31,0.8)); color:var(--gold); font-weight:700; }
+    .client-select {
+      padding:9px 12px;
+      background:#1a1b26;
+      color:var(--text);
+      border-radius:10px;
+      border:1px solid var(--stroke);
+      min-width:260px;
+      font-weight:600;
+    }
+    .client-select:focus {
+      outline:none;
+      border-color:var(--gold);
+      box-shadow:0 0 0 2px rgba(214,163,0,0.15);
+    }
+    .client-select option {
+      color:#111;
+      background:#fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <div class="logo">
+          <div class="logo-mark">FX</div>
+          <div>
+            <div style="font-weight:700; letter-spacing:1px;">FULLBOX · {% include "partials/current_user.html" %}</div>
+            <div class="muted">Вход для разработки</div>
+          </div>
+        </div>
+        <a class="btn" href="/logout/">Выход</a>
+      </div>
+      <h1>Быстрый вход</h1>
+      <p class="muted">Кнопки авторизуют соответствующим пользователем (для разработки).</p>
+      <div class="grid">
+        {% for user in users %}
+          {% if user.username == "head_manager" %}
+            <a class="btn" href="/dev-login/head_manager/?next=/head-manager/">{{ user.label }}</a>
+          {% elif user.username == "processing_head" %}
+            <a class="btn" href="/dev-login/processing_head/?next=/processing-head/">{{ user.label }}</a>
+          {% elif user.username == "processing_worker" %}
+            <a class="btn" href="/dev-login/processing_worker/?next=/processing-worker/">{{ user.label }}</a>
+          {% elif user.username == "processing_worker2" %}
+            <a class="btn" href="/dev-login/processing_worker2/?next=/processing-worker/">{{ user.label }}</a>
+          {% elif user.username == "manager" %}
+            <a class="btn" href="/dev-login/manager/?next=/team-manager/">{{ user.label }}</a>
+          {% elif user.username == "storekeeper" %}
+            <a class="btn" href="/dev-login/storekeeper/?next=/sklad/">{{ user.label }}</a>
+          {% elif user.username == "logistician" %}
+            <a class="btn" href="/dev-login/logistician/?next=/logistics/">{{ user.label }}</a>
+          {% elif user.username == "reachtruck_driver" %}
+            <a class="btn" href="/dev-login/reachtruck_driver/?next=/reachtruck/">{{ user.label }}</a>
+          {% else %}
+            <a class="btn" href="/dev-login/{{ user.username }}/">{{ user.label }}</a>
+          {% endif %}
+        {% empty %}
+          <div class="muted">Пользователи не найдены</div>
+        {% endfor %}
+      </div>
+
+      <div style="margin-top:16px; padding:12px; border:1px solid var(--stroke); border-radius:14px; background:rgba(255,255,255,0.02);">
+        <div class="muted" style="margin-bottom:8px; font-weight:600;">Личный кабинет клиента (dev)</div>
+        <form method="get" action="/client/dashboard/" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <a class="btn" href="/client/dashboard/">Открыть кабинет без выбора</a>
+          <select name="client" class="client-select">
+            <option value="">Выбрать клиента (dev)</option>
+            {% for agency in agencies %}
+              <option value="{{ agency.id }}">{{ agency.agn_name|default:agency.inn|default:"Клиент" }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn primary" type="submit">Открыть выбранный</button>
+        </form>
+      </div>
+      <div style="margin-top:16px;">
+        <a class="btn primary" href="/admin/">Открыть админку</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+

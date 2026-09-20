@@ -1,0 +1,81 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Волны FBS{% endblock %}
+{% block workspace_page_class %}tsd-page-waves{% endblock %}
+{% block workspace_actions %}<a class="button button-primary" href="{% url 'fbs:operator_queue' %}">Запустить волну</a>{% endblock %}
+
+{% block workspace_body %}
+  <section class="fbs-list-heading">
+    <div><span class="section-kicker">FBS / Волны</span><h2>Волны сборки</h2><small>Одна волна содержит заказы только одного клиента.</small></div>
+    <div class="fbs-list-actions"><a class="button button-secondary" href="{% url 'fbs:operator_queue' %}">Открыть очередь</a></div>
+  </section>
+
+  <section class="operator-summary operator-summary-five operator-summary-compact" aria-label="Сводка волн">
+    <a href="?status=queued"><span>В очереди</span><strong>{{ summary.queued }}</strong></a>
+    <a href="?status=in_progress"><span>В работе</span><strong>{{ summary.in_progress }}</strong></a>
+    <a class="{% if summary.waiting_controller %}summary-problem{% endif %}" href="?status=waiting_controller" title="Собранные тары, которые контролёр ещё не взял в работу"><span>Тары ждут контролёра</span><strong>{{ summary.waiting_controller }}</strong></a>
+    <a href="?status=verification"><span>На проверке</span><strong>{{ summary.verification }}</strong></a>
+    <a class="summary-problem" href="{% url 'fbs:operator_problems' %}#pick-problems"><span>Проблемы</span><strong>{{ summary.problems }}</strong></a>
+  </section>
+
+  <form class="ts-wave-filters" method="get">
+    <label><span>Статус</span><select name="status"><option value="active"{% if status_filter == 'active' %} selected{% endif %}>Активные</option><option value="waiting_controller"{% if status_filter == 'waiting_controller' %} selected{% endif %}>Тары ждут контролёра</option>{% for value, label in wave_status_choices %}<option value="{{ value }}"{% if value == status_filter %} selected{% endif %}>{{ label }}</option>{% endfor %}<option value="all"{% if status_filter == 'all' %} selected{% endif %}>Все</option></select></label>
+    <label><span>Клиент</span><select name="agency"><option value="">Все клиенты</option>{% for agency in agencies %}<option value="{{ agency.id }}"{% if agency.id|stringformat:"s" == agency_filter %} selected{% endif %}>{{ agency }}</option>{% endfor %}</select></label>
+    <label><span>Создавший сотрудник</span><select name="user"><option value="">Все сотрудники</option>{% for user in wave_users %}<option value="{{ user.id }}"{% if user.id|stringformat:"s" == user_filter %} selected{% endif %}>{{ user.employee_profile.full_name|default:user.get_full_name|default:user.username }}</option>{% endfor %}</select></label>
+    <label><span>Дата</span><select name="date_field"><option value="created"{% if wave_date_field == 'created' %} selected{% endif %}>Дата создания</option><option value="started"{% if wave_date_field == 'started' %} selected{% endif %}>Дата старта</option><option value="completed"{% if wave_date_field == 'completed' %} selected{% endif %}>Дата завершения</option></select></label>
+    <label><span>С</span><input type="date" name="date_from" value="{{ wave_date_from }}"></label>
+    <label><span>По</span><input type="date" name="date_to" value="{{ wave_date_to }}"></label>
+    <label><span>На странице</span><select name="page_size">{% for value in page_sizes %}<option value="{{ value }}"{% if value == page_size %} selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+    <div class="ts-orders-filter-actions"><button class="button button-primary" type="submit">Найти</button><a class="button button-secondary" href="{% url 'fbs:operator_waves' %}">Очистить</a></div>
+  </form>
+
+  <section class="operator-table-band ts-wave-table-band">
+    <div class="operator-table-heading"><div><span class="section-kicker">Результат</span><h2>Волны</h2></div><strong>{{ page.paginator.count }}</strong></div>
+    <div class="operator-table-scroll operator-table-scroll-work">
+      <table class="operator-table ts-wave-table">
+        <thead><tr><th>ID</th><th>Маркетплейс</th><th>Статус</th><th>Создана</th><th>Начало</th><th>Завершение</th><th>Создал</th><th>Сборщик</th><th>Место / тара</th><th>Заказы</th><th>Товары</th><th>Прогресс</th><th>Очередь</th></tr></thead>
+        <tbody>
+          {% for batch in page.object_list %}
+            <tr class="ts-order-row" data-row-link="{% url 'fbs:operator_wave_detail' batch_id=batch.id %}" tabindex="0">
+              <td><a class="table-main-link" href="{% url 'fbs:operator_wave_detail' batch_id=batch.id %}">#{{ batch.id }}</a><small>{{ batch.agency }}</small></td>
+              <td>
+                {% if batch.wb_order_count %}<strong>Wildberries</strong>{% endif %}
+                {% if batch.ozon_order_count %}<strong>Ozon</strong>{% endif %}
+                {% if not batch.wb_order_count and not batch.ozon_order_count %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              <td><span class="status status-{{ batch.status }}">{{ batch.get_status_display }}</span></td>
+              <td><strong>{{ batch.created_at|date:"d.m.Y" }}</strong><small>{{ batch.created_at|date:"H:i:s" }}</small></td>
+              <td>{{ batch.started_at|date:"d.m.Y H:i:s"|default:"-" }}</td>
+              <td>{{ batch.completed_at|date:"d.m.Y H:i:s"|default:"-" }}</td>
+              <td>{% if batch.created_by %}{{ batch.created_by.employee_profile.full_name|default:batch.created_by.get_full_name|default:batch.created_by.username }}{% else %}Система{% endif %}</td>
+              <td>{% if batch.assigned_to %}{{ batch.assigned_to.employee_profile.full_name|default:batch.assigned_to.get_full_name|default:batch.assigned_to.username }}{% else %}<span class="text-muted">Свободна</span>{% endif %}</td>
+              <td>{% if batch.workstation %}<strong>{{ batch.workstation.name }}</strong><small>{{ batch.cart.name|default:"Тара не привязана" }}</small>{% else %}<span class="text-muted">Не привязаны</span>{% endif %}</td>
+              <td><strong>{{ batch.order_count }}</strong></td>
+              <td><strong>{{ batch.planned_qty }}</strong></td>
+              <td><strong>{{ batch.picked_qty }}/{{ batch.planned_qty }}</strong><small>{{ batch.duration_label }}</small>{% if batch.problem_count %}<small class="text-error">Проблем: {{ batch.problem_count }}</small>{% endif %}</td>
+              <td>
+                {% if batch.queue_position %}
+                  <strong>№{{ batch.queue_position }} · {{ batch.queue_marketplace_label }}</strong>
+                  <small>{{ batch.queue_priority_label }}</small>
+                  <form method="post" action="{% url 'fbs:operator_reorder_wave' batch_id=batch.id %}" class="row-actions">
+                    {% csrf_token %}
+                    <button class="button button-secondary button-compact" type="submit" name="direction" value="top" title="В начало">⇈</button>
+                    <button class="button button-secondary button-compact" type="submit" name="direction" value="up" title="Выше">↑</button>
+                    <button class="button button-secondary button-compact" type="submit" name="direction" value="down" title="Ниже">↓</button>
+                    <button class="button button-secondary button-compact" type="submit" name="direction" value="bottom" title="В конец">⇊</button>
+                  </form>
+                {% else %}
+                  <span class="text-muted">Не переставляется</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-row" colspan="13">Волн по выбранным условиям нет</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if page.paginator.num_pages > 1 %}<nav class="operator-pagination" aria-label="Страницы волн">{% if page.has_previous %}<a class="button button-secondary button-compact" href="?{{ filter_query }}&page={{ page.previous_page_number }}">Назад</a>{% endif %}<span>Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>{% if page.has_next %}<a class="button button-secondary button-compact" href="?{{ filter_query }}&page={{ page.next_page_number }}">Далее</a>{% endif %}</nav>{% endif %}
+{% endblock %}

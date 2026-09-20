@@ -1,0 +1,2419 @@
+{% load order_display %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Акт размещения · заявка № {{ order_id|display_order_number:"receiving" }}</title>
+  <style>
+    :root { --bg:#f6f4ed; --card:#ffffff; --card-soft:#f8f6f1; --gold:#c79a1c; --gold-soft:#f2d48c; --muted:#6b7280; --stroke: rgba(31,35,40,0.12); --text:#1f2328; --danger:#d14343; --success:#1f9d55; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:'Space Grotesk',system-ui,sans-serif; cursor: default; }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: none; margin: 0; padding: 24px 18px 64px; min-height: 100vh; }
+    .detail-layout { display:grid; grid-template-columns: 280px minmax(0, 1fr); gap:16px; align-items:start; }
+    .detail-side { display:grid; gap:12px; }
+    .detail-main { display:grid; gap:12px; }
+    .tab { padding:10px 14px; border-radius:10px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); color:var(--text); font-weight:600; }
+    .tab:hover { background:rgba(15,23,42,0.1); }
+    .tab:focus-visible { outline:2px solid rgba(199,154,32,0.6); outline-offset:2px; }
+    .tab[disabled], .tab.is-disabled { opacity:0.5; cursor:not-allowed; pointer-events:none; }
+    .tab.primary { border-color: var(--gold); color:#1f2328; background: linear-gradient(120deg,var(--gold),var(--gold-soft)); box-shadow:0 10px 30px rgba(199,154,32,0.2); }
+    .card { background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:16px; box-shadow:0 20px 40px rgba(15,23,42,0.12); }
+    h1 { margin:0 0 6px; letter-spacing:-0.5px; }
+    .muted { color: var(--muted); }
+    .notice { border:1px solid rgba(31,157,85,0.35); background:rgba(31,157,85,0.12); color:#166534; border-radius:12px; padding:10px 12px; margin:10px 0; }
+    .error { border:1px solid rgba(209,67,67,0.35); background:rgba(209,67,67,0.12); color:#7f1d1d; border-radius:12px; padding:10px 12px; margin:10px 0; }
+    .side-card { background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:14px; box-shadow:0 16px 30px rgba(15,23,42,0.12); }
+    .side-title { font-weight:600; margin:0 0 8px; }
+    .side-actions { display:grid; gap:8px; }
+    .side-actions .tab { width:100%; display:inline-flex; justify-content:center; align-items:center; }
+    .info-list { display:grid; gap:10px; }
+    .info-item { display:grid; gap:4px; }
+    .info-label { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
+    .info-value { font-weight:600; word-break:break-word; }
+    .mini-list { display:grid; gap:6px; max-height:220px; overflow:auto; padding-right:4px; }
+    .mini-item { border:1px dashed var(--stroke); border-radius:10px; padding:6px 8px; font-size:12px; display:flex; justify-content:space-between; gap:8px; align-items:center; }
+    .mini-content { display:flex; flex-direction:column; gap:4px; }
+    .mini-action { padding:4px 10px; border-radius:999px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); color:var(--text); font-size:11px; font-weight:600; cursor:pointer; }
+    .mini-action[disabled] { opacity:0.5; cursor:not-allowed; }
+    .table-wrap { overflow:auto; border-radius:12px; border:1px solid var(--stroke); margin-top:12px; max-height: calc(100vh - 320px); }
+    .table-wrap table { margin-top:0; }
+    .table-wrap thead th { position: sticky; top: 0; background: #f3e6b8; z-index: 1; box-shadow: 0 2px 0 rgba(31,35,40,0.08); }
+    .table-wrap tbody tr:nth-child(even) { background: #fbf6e3; }
+    .table-filter th { background: #f7edc6; }
+    .table-filter select { width:100%; padding:6px 8px; border-radius:8px; border:1px solid var(--stroke); background:#fff; font-size:12px; }
+    table { width:100%; border-collapse:collapse; min-width:0; table-layout:fixed; }
+    th, td { border-bottom:1px solid var(--stroke); border-right:1px solid var(--stroke); padding:10px; text-align:left; vertical-align:top; word-break:break-word; }
+    th:last-child, td:last-child { border-right:none; }
+    th { color: var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:1px; background:rgba(15,23,42,0.04); }
+    .split-grid { display:grid; grid-template-columns: minmax(0, 1fr) 280px; gap:16px; }
+    .split-col { display:grid; gap:12px; align-content:start; }
+    input[type="number"], input[type="text"], select.loc-input { width:100%; padding:8px 10px; border-radius:10px; border:1px solid var(--stroke); background:#fff; color:var(--text); font-size:14px; }
+    .action-bar { display:flex; justify-content:space-between; gap:10px; margin-top:6px; flex-wrap:wrap; align-items:center; }
+    .action-left { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .section-title { font-weight:600; margin:18px 0 8px; }
+    .btn { padding:10px 14px; border-radius:10px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); color:var(--text); font-weight:600; cursor:pointer; }
+    .btn.primary { background: linear-gradient(120deg,var(--gold),var(--gold-soft)); color:#1f2328; border-color: transparent; }
+    .btn[disabled] { opacity:0.6; cursor:not-allowed; }
+    .btn.small { padding:6px 10px; font-size:11px; }
+    .active-target { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:8px 12px; border-radius:12px; border:1px dashed var(--stroke); background:var(--card-soft); }
+    .active-target-name { font-weight:600; }
+    .status-pill { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); font-size:11px; font-weight:600; }
+    .status-pill.open { border-color: rgba(31,157,85,0.4); color:#166534; background:rgba(31,157,85,0.12); }
+    .status-pill.closed { border-color: rgba(209,67,67,0.3); color:#7f1d1d; background:rgba(209,67,67,0.08); }
+    .table-actions { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+    .table-actions .btn { white-space:nowrap; }
+    .scanner-panel { display:grid; gap:8px; margin:12px 0 4px; padding:12px; border:1px dashed var(--stroke); border-radius:12px; background:var(--card-soft); }
+    .scanner-field { display:grid; gap:6px; }
+    .scanner-label { font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
+    .scanner-input { width:100%; padding:10px; border-radius:10px; border:1px solid var(--stroke); background:#fff; color:var(--text); font-size:14px; }
+    .scanner-status { font-size:12px; color:var(--muted); }
+    .scanner-status.ok { color:#166534; }
+    .scanner-status.warn { color:#7f1d1d; }
+    .scan-highlight td { background: rgba(242,183,71,0.25); }
+    .pallet-details td { background: #fbf6e3; }
+    .pallet-details-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+    .pallet-details-card { background:#fff; border:1px dashed var(--stroke); border-radius:10px; padding:10px; }
+    .pallet-details-title { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:8px; }
+    .is-active-row { outline:2px solid rgba(199,154,32,0.5); outline-offset:-2px; }
+    .loc-input { min-width:120px; }
+    .zone-grid { display:grid; gap:6px; }
+    .zone-details { display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:6px; }
+    .zone-details.is-hidden { display:none; }
+    .zone-detail.is-hidden { display:none; }
+    .is-hidden { display: none; }
+    @media (max-width: 1100px) {
+      .detail-layout { grid-template-columns: 1fr; }
+      .split-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="detail-layout">
+      <aside class="detail-side">
+        <div class="side-card">
+          <div class="muted">FULLBOX · {% include "partials/current_user.html" %}</div>
+          <h3>Акт размещения · заявка № {{ order_id|display_order_number:"receiving" }}</h3>
+          <div class="muted">Статус: {{ status_label }}</div>
+        </div>
+
+        <div class="side-card">
+          <h4 class="side-title">Действия</h4>
+          <div class="side-actions">
+            <a class="tab" href="{{ order_detail_url }}">К заявке</a>
+            <a class="tab" href="{{ cabinet_url }}">В кабинет</a>
+            <a class="tab" href="/logout/">Выход</a>
+          </div>
+        </div>
+
+        <div class="side-card">
+          <h4 class="side-title">Информация</h4>
+          <div class="info-list">
+            <div class="info-item">
+              <div class="info-label">Клиент</div>
+              <div class="info-value">{{ client_label }}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Итог</div>
+              <div class="info-value" id="info-summary">
+                По заявке № {{ order_id|display_order_number:"receiving" }} принято и размещено 0 товаров, в 0 коробах, на 0 палете
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="detail-main">
+        <div class="card">
+          {% if error %}
+            {% if error == "signed" %}
+              <div class="error">Акт приемки подписан. Открывать акт размещения запрещено.</div>
+            {% else %}
+              <div class="error">Не удалось закрыть акт. Проверьте размещение.</div>
+            {% endif %}
+          {% endif %}
+          <div class="action-bar">
+            <div class="action-left">
+              {% if can_submit %}
+                {% if act_state == "closed" %}
+                  <form method="post" id="open-act-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="open">
+                  </form>
+                  {% if can_open_act %}
+                    <button class="btn primary" type="submit" form="open-act-form">Открыть акт</button>
+                  {% else %}
+                    <button class="btn primary" type="button" disabled>Открыть акт</button>
+                    {% if signed_by_storekeeper %}
+                      <span class="muted">Акт приемки подписан, повторное открытие запрещено.</span>
+                    {% endif %}
+                  {% endif %}
+                {% else %}
+                  <button class="btn primary" type="submit" form="placement-form" id="close-act-btn">Закрыть акт размещения</button>
+                {% endif %}
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="scanner-panel">
+            {% if cz_only %}
+              <div class="scanner-field">
+                <div class="scanner-label">Позиция для ЧЗ</div>
+                <select id="cz-item-select" class="scanner-input">
+                  {% for item in remaining_items %}
+                    <option value="{{ item.sku_code|default:'' }}|{{ item.size|default:'' }}">{{ item.name|default:"-" }} · {{ item.sku_code|default:"-" }}{% if item.size %} · {{ item.size }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            {% endif %}
+            <div class="scanner-field">
+              <div class="scanner-label">Сканер</div>
+              <input id="scan-input" class="scanner-input" placeholder="{% if cz_only %}Сканируйте ЧЗ (Enter в конце){% else %}Сканируйте штрихкод (Enter в конце){% endif %}">
+            </div>
+            <div class="scanner-status" id="scan-status">
+              {% if cz_only %}
+                Готов к сканированию ЧЗ. Код закрепляется за выбранной позицией и коробом.
+              {% else %}
+                Готов к сканированию. По штрихкоду добавляется 1 шт. в короб.
+              {% endif %}
+            </div>
+          </div>
+
+          <form method="post" id="placement-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="close">
+            <input type="hidden" name="boxes_json" id="boxes-json">
+            <input type="hidden" name="pallets_json" id="pallets-json">
+            <input type="hidden" name="act_state" value="closed">
+
+            <div class="split-grid">
+              <div class="split-col">
+                <div class="section-title">Неразмещенные товары</div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th style="width:38%;">Наименование</th>
+                        <th style="width:14%;">Артикул</th>
+                        <th style="width:12%;">Размер</th>
+                        <th>Остаток</th>
+                        <th style="width:160px;"><span id="add-target-label">Выберите контейнер</span></th>
+                      </tr>
+                    </thead>
+                    <tbody id="remaining-items">
+                      {% for item in remaining_items %}
+                        <tr>
+                          <td>{{ item.name|default:"-" }}</td>
+                          <td>{{ item.sku_code|default:"-" }}</td>
+                          <td>{{ item.size|default:"-" }}</td>
+                          <td>{{ item.actual_qty|default:0 }}</td>
+                          <td>-</td>
+                        </tr>
+                      {% empty %}
+                        <tr><td colspan="5" class="muted">Нет данных.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="section-title">Неразмещенные короба</div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th style="width:24%;">Короб</th>
+                        <th style="width:14%;">Статус</th>
+                        <th style="width:12%;">Товаров</th>
+                        <th style="width:18%;">Палета</th>
+                        <th>Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody id="boxes-table"></tbody>
+                  </table>
+                </div>
+
+                <div class="section-title">Палеты</div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th style="width:20%;">Палета</th>
+                        <th style="width:12%;">Статус</th>
+                        <th style="width:16%;">Содержимое</th>
+                        <th style="width:32%;">Зона</th>
+                        <th>Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody id="pallets-table"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="split-col">
+                <div class="section-title">Контейнеры в работе</div>
+                <div class="mini-list" id="open-containers"></div>
+
+                <div class="section-title">Действия</div>
+                <div class="side-actions">
+                  <button type="button" class="tab" id="add-box-btn">Добавить короб</button>
+                  <button type="button" class="tab" id="add-pallet-btn">Добавить палету</button>
+                </div>
+
+              </div>
+            </div>
+          </form>
+
+          {% if act_state == "closed" %}
+            <div class="section-title">Размещенный товар</div>
+            <div class="action-left" style="margin-bottom:10px;">
+              <button type="button" class="btn" id="toggle-placed-btn">Посмотреть размещенный товар</button>
+            </div>
+            <div class="table-wrap is-hidden" id="placed-summary">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:36%;">Наименование</th>
+                    <th style="width:10%;">Размер</th>
+                    <th style="width:10%;">Кол-во</th>
+                    <th style="width:14%;">Короб</th>
+                    <th style="width:12%;">Палета</th>
+                    <th>Зона</th>
+                  </tr>
+                  <tr class="table-filter">
+                    <th><select data-filter-col="0"><option value="">Все</option></select></th>
+                    <th><select data-filter-col="1"><option value="">Все</option></select></th>
+                    <th><select data-filter-col="2"><option value="">Все</option></select></th>
+                    <th><select data-filter-col="3"><option value="">Все</option></select></th>
+                    <th><select data-filter-col="4"><option value="">Все</option></select></th>
+                    <th><select data-filter-col="5"><option value="">Все</option></select></th>
+                  </tr>
+                </thead>
+                <tbody id="placed-summary-body"></tbody>
+              </table>
+            </div>
+          {% endif %}
+        </div>
+      </main>
+    </div>
+  </div>
+
+  {{ remaining_items|json_script:"remaining-data" }}
+  {{ barcode_map|json_script:"barcode-map" }}
+  {{ boxes_data|json_script:"boxes-data" }}
+  {{ pallets_data|json_script:"pallets-data" }}
+  {{ os_config|json_script:"os-config" }}
+  {{ occupied_cells|json_script:"occupied-cells" }}
+  {{ current_agency_id|json_script:"current-agency-id" }}
+
+  <script src="/static/vendor/qrcode.min.js"></script>
+  <script>
+    (() => {
+      const remainingData = JSON.parse(document.getElementById('remaining-data').textContent || '[]');
+      const boxesData = JSON.parse(document.getElementById('boxes-data').textContent || '[]');
+      const palletsData = JSON.parse(document.getElementById('pallets-data').textContent || '[]');
+      const osConfig = JSON.parse(document.getElementById('os-config').textContent || '{}');
+      const occupiedCellsData = JSON.parse(document.getElementById('occupied-cells').textContent || '[]');
+      const currentAgencyId = Number(JSON.parse(document.getElementById('current-agency-id').textContent || '0') || 0);
+      const canSubmit = {{ can_submit|yesno:"true,false" }};
+      const actState = "{{ act_state|escapejs }}";
+      const actClosed = actState === 'closed';
+      const orderId = "{{ order_id|escapejs }}";
+      const displayOrderId = "{{ order_id|display_order_number:'receiving'|escapejs }}";
+      const goodsType = String("{{ goods_type|escapejs }}").trim().toLowerCase();
+      const goodsTypeSuffix = goodsType ? `-${goodsType}` : '';
+      const clientPrefixRaw = String("{{ client_prefix|escapejs }}").trim();
+      const containerCodeUrl = String("{{ container_code_url|escapejs }}").trim();
+
+      const remainingBody = document.getElementById('remaining-items');
+      const boxesBody = document.getElementById('boxes-table');
+      const palletsBody = document.getElementById('pallets-table');
+      const addTargetLabel = document.getElementById('add-target-label');
+      const activeTargetName = document.getElementById('active-target-name');
+      const activeTargetStatus = document.getElementById('active-target-status');
+      const openContainersEl = document.getElementById('open-containers');
+      const addBoxBtn = document.getElementById('add-box-btn');
+      const addPalletBtn = document.getElementById('add-pallet-btn');
+      const boxesInput = document.getElementById('boxes-json');
+      const palletsInput = document.getElementById('pallets-json');
+      const closeActBtn = document.getElementById('close-act-btn');
+      const actStateText = document.getElementById('act-state-text');
+      const formEl = document.getElementById('placement-form');
+      const placedSummary = document.getElementById('placed-summary');
+      const placedSummaryBody = document.getElementById('placed-summary-body');
+      const togglePlacedBtn = document.getElementById('toggle-placed-btn');
+      const placedFilterInputs = placedSummary ? placedSummary.querySelectorAll('select[data-filter-col]') : [];
+      const scanInput = document.getElementById('scan-input');
+      const scanStatus = document.getElementById('scan-status');
+      const czItemSelect = document.getElementById('cz-item-select');
+      const czOnly = {{ cz_only|yesno:"true,false" }};
+      const markingScanUrl = "{{ marking_scan_url|escapejs }}";
+      const csrfToken = (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || '';
+      const barcodeMapEl = document.getElementById('barcode-map');
+      const barcodeMap = barcodeMapEl ? JSON.parse(barcodeMapEl.textContent || '{}') : {};
+
+      const isEditable = canSubmit && !actClosed;
+      if (actStateText) {
+        actStateText.textContent = actClosed
+          ? 'Акт закрыт. Для изменений откройте акт.'
+          : 'Акт открыт для редактирования. Пока открыт - товар скрыт со склада.';
+      }
+
+      const DEFAULT_LOCATION = 'PR';
+      const zoneLabels = {
+        PR: 'Зона приемки',
+        OBR: 'Зона обработки',
+        OTG: 'Зона отгрузки',
+        MR: 'Между рядами',
+        OS: 'Основной склад',
+      };
+      const osRowSections = osConfig.row_sections || {};
+      const osTiers = Number(osConfig.tiers || 0);
+      const osCellsPerTier = Number(osConfig.cells_per_tier || 0);
+      const mrRows = Array.isArray(osConfig.mr_rows) ? osConfig.mr_rows : [];
+      const occupiedCellKeys = new Set(
+        (occupiedCellsData || []).map((item) => {
+          const row = item && item.row ? String(item.row).trim() : '';
+          const section = item && item.section ? String(item.section).trim() : '';
+          const tier = item && item.tier ? String(item.tier).trim() : '';
+          const cell = item && item.cell ? String(item.cell).trim() : '';
+          return `${row}|${section}|${tier}|${cell}`;
+        })
+      );
+      const baseSectionAgencyMap = new Map();
+      (occupiedCellsData || []).forEach((item) => {
+        const row = item && item.row ? String(item.row).trim() : '';
+        const section = item && item.section ? String(item.section).trim() : '';
+        if (!(row && section)) {
+          return;
+        }
+        const key = `${row}|${section}`;
+        if (!baseSectionAgencyMap.has(key)) {
+          baseSectionAgencyMap.set(key, new Set());
+        }
+        const agencies = Array.isArray(item?.agency_ids) ? item.agency_ids : [item?.agency_id];
+        agencies.forEach((value) => {
+          const agency = Number(value || 0);
+          if (agency > 0) {
+            baseSectionAgencyMap.get(key).add(String(agency));
+          }
+        });
+      });
+
+      const normalizeBox = (box, index) => {
+        const code = (box || {}).code || `BOX-${index + 1}`;
+        return {
+          code,
+          items: Array.isArray(box.items) ? box.items : [],
+          sealed: box.sealed !== undefined ? !!box.sealed : true,
+        };
+      };
+
+      const normalizeZone = (value) => {
+        const text = String(value || '').trim();
+        if (!text) {
+          return '';
+        }
+        if (/^pr$/i.test(text) || /зона приемки|поле приемки/i.test(text)) {
+          return 'PR';
+        }
+        if (/^obr$/i.test(text) || /зона обработк|обработк/i.test(text)) {
+          return 'OBR';
+        }
+        if (/^otg?$/i.test(text) || /зона отгрузки|отгрузк/i.test(text)) {
+          return 'OTG';
+        }
+        if (/^mr$/i.test(text) || /между ряд/i.test(text)) {
+          return 'MR';
+        }
+        if (/^so$/i.test(text) || /^os$/i.test(text) || /основн|стеллаж|ряд|полк|секци|ярус|ячейк/i.test(text)) {
+          return 'OS';
+        }
+        return text.toUpperCase();
+      };
+
+      const normalizeLocationValue = (pallet) => {
+        const raw = pallet && pallet.location !== undefined ? pallet.location : pallet;
+        const result = { zone: DEFAULT_LOCATION, row: '', section: '', tier: '', cell: '' };
+        if (typeof raw === 'string') {
+          const zone = normalizeZone(raw);
+          result.zone = zone || DEFAULT_LOCATION;
+          return result;
+        }
+        const obj = raw && typeof raw === 'object' ? raw : {};
+        const zone = normalizeZone(obj.zone || (pallet || {}).zone || '');
+        result.zone = zone || DEFAULT_LOCATION;
+        const row = obj.row ?? (pallet || {}).row ?? '';
+        const section = obj.section ?? (pallet || {}).section ?? '';
+        const tier = obj.tier ?? (pallet || {}).tier ?? '';
+        const cell = obj.cell ?? (pallet || {}).cell ?? '';
+        result.row = row ? String(row).trim() : '';
+        result.section = section ? String(section).trim() : '';
+        result.tier = tier ? String(tier).trim() : '';
+        result.cell = cell ? String(cell).trim() : '';
+        if (result.zone === 'PR' || result.zone === 'OBR' || result.zone === 'OTG') {
+          result.row = '';
+          result.section = '';
+          result.tier = '';
+          result.cell = '';
+        } else if (result.zone === 'MR') {
+          result.section = '';
+          result.tier = '';
+          result.cell = '';
+        }
+        return result;
+      };
+
+      const normalizePallet = (pallet, index) => {
+        const code = (pallet || {}).code || `PALLET-${index + 1}`;
+        const locationValue = normalizeLocationValue(pallet);
+        return {
+          code,
+          items: Array.isArray(pallet.items) ? pallet.items : [],
+          boxes: Array.isArray(pallet.boxes) ? pallet.boxes : [],
+          sealed: pallet.sealed !== undefined ? !!pallet.sealed : true,
+          location: locationValue,
+        };
+      };
+
+      const findSuggestedWarehouseLocation = (palletCode = '') => {
+        const usedKeys = new Set();
+        const sectionAgencyMap = new Map();
+        baseSectionAgencyMap.forEach((values, key) => {
+          sectionAgencyMap.set(key, new Set(values));
+        });
+        state.pallets.forEach((item) => {
+          if (!item || item.code === palletCode) {
+            return;
+          }
+          const loc = normalizeLocationValue(item);
+          if (loc.zone !== 'OS') {
+            return;
+          }
+          if (!(loc.row && loc.section && loc.tier && loc.cell)) {
+            return;
+          }
+          usedKeys.add(`${loc.row}|${loc.section}|${loc.tier}|${loc.cell}`);
+          if (currentAgencyId > 0) {
+            const sectionKey = `${loc.row}|${loc.section}`;
+            if (!sectionAgencyMap.has(sectionKey)) {
+              sectionAgencyMap.set(sectionKey, new Set());
+            }
+            sectionAgencyMap.get(sectionKey).add(String(currentAgencyId));
+          }
+        });
+        const osRows = Object.keys(osRowSections)
+          .map((value) => String(value))
+          .sort((left, right) => Number(left) - Number(right));
+        const sectionBuckets = { same: [], empty: [], other: [] };
+        osRows.forEach((row) => {
+          const sections = Number(osRowSections[row] || 0);
+          for (let section = 1; section <= sections; section += 1) {
+            const sectionKey = `${row}|${section}`;
+            const agencies = sectionAgencyMap.get(sectionKey) || new Set();
+            if (currentAgencyId > 0 && agencies.has(String(currentAgencyId))) {
+              sectionBuckets.same.push({ row, section: String(section) });
+            } else if (!agencies.size) {
+              sectionBuckets.empty.push({ row, section: String(section) });
+            } else {
+              sectionBuckets.other.push({ row, section: String(section) });
+            }
+          }
+        });
+        for (const bucket of ['same', 'empty', 'other']) {
+          for (const candidate of sectionBuckets[bucket]) {
+            for (let tier = 1; tier <= osTiers; tier += 1) {
+              for (let cell = 1; cell <= osCellsPerTier; cell += 1) {
+                const key = `${candidate.row}|${candidate.section}|${tier}|${cell}`;
+                if (occupiedCellKeys.has(key) || usedKeys.has(key)) {
+                  continue;
+                }
+                return {
+                  zone: 'OS',
+                  row: candidate.row,
+                  section: candidate.section,
+                  tier: String(tier),
+                  cell: String(cell),
+                };
+              }
+            }
+          }
+        }
+        if (mrRows.length) {
+          return {
+            zone: 'MR',
+            row: String(mrRows[0]),
+            section: '',
+            tier: '',
+            cell: '',
+          };
+        }
+        return { zone: DEFAULT_LOCATION, row: '', section: '', tier: '', cell: '' };
+      };
+
+      const ensureSuggestedWarehouseLocation = (pallet) => {
+        if (!pallet || typeof pallet !== 'object') {
+          return;
+        }
+        const location = normalizeLocationValue(pallet);
+        if (location.zone && location.zone !== 'PR') {
+          pallet.location = location;
+          return;
+        }
+        pallet.location = findSuggestedWarehouseLocation(pallet.code || '');
+      };
+
+      const state = {
+        boxes: boxesData.map(normalizeBox),
+        pallets: palletsData.map(normalizePallet),
+        active: { type: '', code: '' },
+      };
+
+      const baseByKey = {};
+      remainingData.forEach((item) => {
+        const sku = item.sku_code || item.sku || '';
+        const name = item.name || '';
+        const size = item.size || '';
+        const qty = Number(item.actual_qty || item.qty || 0);
+        const key = `${sku}|${name}|${size}`.toLowerCase();
+        if (!baseByKey[key]) {
+          baseByKey[key] = { sku, name, size, qty };
+        }
+      });
+
+      const makeKey = (sku, name, size) => {
+        return `${(sku || '').trim()}|${(name || '').trim()}|${(size || '').trim()}`.toLowerCase();
+      };
+
+      const sumItemQty = (items) => {
+        return (items || []).reduce((sum, item) => sum + Number(item.qty || 0), 0);
+      };
+
+      const containerQty = (container) => {
+        return sumItemQty((container || {}).items || []);
+      };
+
+      const palletTotalQty = (pallet) => {
+        if (!pallet) {
+          return 0;
+        }
+        const boxMap = new Map(state.boxes.map((box) => [box.code, box]));
+        const directQty = containerQty(pallet);
+        const boxQty = (pallet.boxes || []).reduce((sum, code) => {
+          const box = boxMap.get(code);
+          if (!box) {
+            return sum;
+          }
+          return sum + containerQty(box);
+        }, 0);
+        return directQty + boxQty;
+      };
+
+      const getActiveContainer = () => {
+        if (!state.active.type || !state.active.code) {
+          return null;
+        }
+        const list = state.active.type === 'pallet' ? state.pallets : state.boxes;
+        return list.find((item) => item.code === state.active.code) || null;
+      };
+
+      const findOpenPallet = () => {
+        return state.pallets.find((pallet) => !pallet.sealed);
+      };
+
+      const ensureActiveContainer = () => {
+        const active = getActiveContainer();
+        if (active && active.sealed) {
+          state.active = { type: '', code: '' };
+        }
+        if (isEditable && (!state.active.type || !state.active.code)) {
+          const openPallet = findOpenPallet();
+          if (openPallet) {
+            state.active = { type: 'pallet', code: openPallet.code || '' };
+          }
+        }
+      };
+
+      const setActiveContainer = (container, type) => {
+        if (!container) {
+          state.active = { type: '', code: '' };
+        } else {
+          state.active = { type, code: container.code || '' };
+        }
+        renderActiveTarget();
+        renderRemaining();
+      };
+
+      const setActiveByCode = (type, code) => {
+        const list = type === 'pallet' ? state.pallets : state.boxes;
+        const target = list.find((item) => item.code === code);
+        if (!target) {
+          return;
+        }
+        setActiveContainer(target, type);
+      };
+
+      const getBoxToPallet = () => {
+        const map = new Map();
+        state.pallets.forEach((pallet) => {
+          (pallet.boxes || []).forEach((code) => {
+            if (!map.has(code)) {
+              map.set(code, pallet.code);
+            }
+          });
+        });
+        return map;
+      };
+
+      const formatLocation = (pallet) => {
+        const location = normalizeLocationValue(pallet);
+        const zone = location.zone || DEFAULT_LOCATION;
+        const label = zoneLabels[zone] || zone;
+        if (zone === 'MR') {
+          return location.row ? `${zone} · ${label} · Ряд ${location.row}` : `${zone} · ${label}`;
+        }
+        if (zone === 'OS') {
+          if (location.row && location.section && location.tier && location.cell) {
+            return `${zone} · Ряд ${location.row} · Секция ${location.section} · Ярус ${location.tier} · Ячейка ${location.cell}`;
+          }
+          if (location.row) {
+            return `${zone} · Ряд ${location.row}`;
+          }
+          return `${zone} · ${label}`;
+        }
+        return `${zone} · ${label}`;
+      };
+
+      const buildPlacementSummary = () => {
+        if (!placedSummaryBody) {
+          return;
+        }
+        placedSummaryBody.innerHTML = '';
+        const rows = [];
+        const boxToPallet = getBoxToPallet();
+
+        state.boxes.forEach((box) => {
+          (box.items || []).forEach((item) => {
+            const palletCode = boxToPallet.get(box.code) || '-';
+            const pallet = state.pallets.find((entry) => entry.code === palletCode);
+            rows.push({
+              name: item.name || item.sku || '-',
+              size: item.size || '-',
+              qty: Number(item.qty || 0),
+              boxLabel: box.code || '-',
+              palletLabel: palletCode,
+              location: pallet ? formatLocation(pallet) : '-',
+            });
+          });
+        });
+
+        state.pallets.forEach((pallet) => {
+          (pallet.items || []).forEach((item) => {
+            rows.push({
+              name: item.name || item.sku || '-',
+              size: item.size || '-',
+              qty: Number(item.qty || 0),
+              boxLabel: '-',
+              palletLabel: pallet.code || '-',
+              location: formatLocation(pallet),
+            });
+          });
+        });
+
+        if (!rows.length) {
+          const row = document.createElement('tr');
+          row.innerHTML = '<td colspan="6" class="muted">Нет данных.</td>';
+          placedSummaryBody.appendChild(row);
+          return;
+        }
+
+        rows.forEach((rowData) => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${rowData.name}</td>
+            <td>${rowData.size}</td>
+            <td>${rowData.qty}</td>
+            <td>${rowData.boxLabel}</td>
+            <td>${rowData.palletLabel}</td>
+            <td>${rowData.location}</td>
+          `;
+          placedSummaryBody.appendChild(row);
+        });
+        populatePlacedFilters(rows);
+        applyPlacedFilters();
+      };
+
+      const populatePlacedFilters = (rows) => {
+        if (!placedFilterInputs.length) {
+          return;
+        }
+        const selections = {};
+        placedFilterInputs.forEach((select) => {
+          selections[select.dataset.filterCol] = select.value || '';
+        });
+        const valueSets = Array.from({ length: 6 }, () => new Set());
+        rows.forEach((row) => {
+          valueSets[0].add(String(row.name || '-'));
+          valueSets[1].add(String(row.size || '-'));
+          valueSets[2].add(String(row.qty || '0'));
+          valueSets[3].add(String(row.boxLabel || '-'));
+          valueSets[4].add(String(row.palletLabel || '-'));
+          valueSets[5].add(String(row.location || '-'));
+        });
+        const sortValues = (values, index) => {
+          if (index === 2) {
+            return values.sort((a, b) => Number(a) - Number(b));
+          }
+          return values.sort((a, b) => a.localeCompare(b, 'ru', { numeric: true, sensitivity: 'base' }));
+        };
+        placedFilterInputs.forEach((select) => {
+          const index = Number(select.dataset.filterCol || 0);
+          const values = sortValues(Array.from(valueSets[index]), index);
+          select.innerHTML = '<option value="">Все</option>';
+          values.forEach((value) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            select.appendChild(option);
+          });
+          const selected = selections[select.dataset.filterCol] || '';
+          if (selected) {
+            select.value = selected;
+          }
+        });
+      };
+
+      const applyPlacedFilters = () => {
+        if (!placedSummaryBody || !placedFilterInputs.length) {
+          return;
+        }
+        const filters = [];
+        placedFilterInputs.forEach((input) => {
+          const index = Number(input.dataset.filterCol || 0);
+          filters[index] = (input.value || '').trim().toLowerCase();
+        });
+        const rows = Array.from(placedSummaryBody.querySelectorAll('tr'));
+        rows.forEach((row) => {
+          const cells = Array.from(row.children);
+          let visible = true;
+          filters.forEach((value, index) => {
+            if (!value) {
+              return;
+            }
+            const text = (cells[index]?.textContent || '').toLowerCase();
+            if (text !== value) {
+              visible = false;
+            }
+          });
+          row.style.display = visible ? '' : 'none';
+        });
+      };
+
+      const addTargetLabelText = (container) => {
+        if (!addTargetLabel) {
+          return;
+        }
+        if (!container) {
+          addTargetLabel.textContent = 'Выберите контейнер';
+          return;
+        }
+        addTargetLabel.textContent = container.type === 'pallet' ? 'Добавить в палету' : 'Добавить в короб';
+      };
+
+      const renderActiveTarget = () => {
+        const active = getActiveContainer();
+        if (!activeTargetName || !activeTargetStatus) {
+          return;
+        }
+        if (!active) {
+          activeTargetName.textContent = 'не выбран';
+          activeTargetStatus.classList.add('is-hidden');
+          return;
+        }
+        activeTargetName.textContent = `${state.active.type === 'pallet' ? 'Палета' : 'Короб'} ${active.code}`;
+        const isOpen = !active.sealed;
+        activeTargetStatus.textContent = isOpen ? 'Открыт' : 'Закрыт';
+        activeTargetStatus.classList.remove('open', 'closed', 'is-hidden');
+        activeTargetStatus.classList.add(isOpen ? 'open' : 'closed');
+      };
+
+      const makeCode = (kind = 'box') => {
+        const entityLabel = kind === 'pallet' ? 'палеты' : 'короба';
+        if (!containerCodeUrl) {
+          alert(`Не настроена выдача номера ${entityLabel}.`);
+          return '';
+        }
+        const request = new XMLHttpRequest();
+        try {
+          request.open('POST', containerCodeUrl, false);
+          request.setRequestHeader('Content-Type', 'application/json');
+          if (csrfToken) {
+            request.setRequestHeader('X-CSRFToken', csrfToken);
+          }
+          request.send(JSON.stringify({ goods_type: goodsType || 'na', kind }));
+        } catch (error) {
+          alert(`Не удалось получить номер ${entityLabel}.`);
+          return '';
+        }
+        let payload = {};
+        try {
+          payload = JSON.parse(request.responseText || '{}');
+        } catch (error) {
+          payload = {};
+        }
+        const code = String(payload.code || '').trim();
+        if (request.status < 200 || request.status >= 300 || !payload.ok || !code) {
+          alert(payload.error || `Не удалось получить номер ${entityLabel}.`);
+          return '';
+        }
+        return code;
+      };
+
+      const addBox = () => {
+        const code = makeCode('box');
+        if (!code) {
+          return null;
+        }
+        const box = { code, items: [], sealed: false };
+        state.boxes.push(box);
+        setActiveContainer(box, 'box');
+        renderAll();
+        return box;
+      };
+
+      const addPallet = () => {
+        const code = makeCode('pallet');
+        if (!code) {
+          return null;
+        }
+        const pallet = { code, items: [], boxes: [], sealed: false, location: { zone: DEFAULT_LOCATION } };
+        state.pallets.push(pallet);
+        setActiveContainer(pallet, 'pallet');
+        renderAll();
+        return pallet;
+      };
+
+      const allocationTotals = () => {
+        const totals = {};
+        const add = (item) => {
+          const key = makeKey(item.sku, item.name, item.size);
+          if (!key) {
+            return;
+          }
+          totals[key] = (totals[key] || 0) + Number(item.qty || 0);
+        };
+        state.boxes.forEach((box) => (box.items || []).forEach(add));
+        state.pallets.forEach((pallet) => (pallet.items || []).forEach(add));
+        return totals;
+      };
+
+      const getRemainingRows = () => {
+        const totals = allocationTotals();
+        return Object.values(baseByKey).map((item) => {
+          const key = makeKey(item.sku, item.name, item.size);
+          const allocated = totals[key] || 0;
+          return { ...item, key, remaining: Math.max(0, item.qty - allocated) };
+        });
+      };
+
+      const updateAddBoxAvailability = (rows) => {
+        if (!addBoxBtn) {
+          return;
+        }
+        const source = Array.isArray(rows) ? rows : getRemainingRows();
+        const hasRemaining = source.some((row) => row.remaining > 0);
+        let visibleRemaining = false;
+        if (remainingBody) {
+          remainingBody.querySelectorAll('tr[data-key]').forEach((row) => {
+            if (row.style.display === 'none') {
+              return;
+            }
+            const cell = row.querySelector('.remaining-cell');
+            if (cell && Number(cell.textContent || 0) > 0) {
+              visibleRemaining = true;
+            }
+          });
+        }
+        const shouldDisable = !isEditable || (!hasRemaining && !visibleRemaining);
+        addBoxBtn.disabled = shouldDisable;
+        addBoxBtn.classList.toggle('is-disabled', shouldDisable);
+      };
+
+      const updateRemainingDisplay = (activeContainer) => {
+        const totals = allocationTotals();
+        remainingBody.querySelectorAll('tr[data-key]').forEach((row) => {
+          const key = row.dataset.key;
+          const base = baseByKey[key];
+          if (!base) {
+            return;
+          }
+          const currentEntry = activeContainer
+            ? (activeContainer.items || []).find((entry) => makeKey(entry.sku, entry.name, entry.size) === key)
+            : null;
+          const currentQty = currentEntry ? Number(currentEntry.qty || 0) : 0;
+          const usedElsewhere = Math.max(0, (totals[key] || 0) - currentQty);
+          const remaining = Math.max(0, base.qty - (usedElsewhere + currentQty));
+          const remainingCell = row.querySelector('.remaining-cell');
+          if (remainingCell) {
+            remainingCell.textContent = remaining;
+          }
+          row.style.display = remaining > 0 || currentQty > 0 ? '' : 'none';
+        });
+      };
+
+      const renderRemaining = () => {
+        if (!remainingBody) {
+          return;
+        }
+        remainingBody.innerHTML = '';
+        const activeContainer = getActiveContainer();
+        addTargetLabelText(activeContainer ? { type: state.active.type } : null);
+        const allowInput = isEditable && activeContainer && !activeContainer.sealed && !czOnly;
+        const rows = getRemainingRows();
+        if (!rows.length) {
+          const row = document.createElement('tr');
+          row.innerHTML = '<td colspan="5" class="muted">Нет данных.</td>';
+          remainingBody.appendChild(row);
+          updateAddBoxAvailability(rows);
+          return;
+        }
+        rows.forEach((item) => {
+          const row = document.createElement('tr');
+          row.dataset.key = item.key;
+          row.innerHTML = `
+            <td>${item.name || '-'}</td>
+            <td>${item.sku || '-'}</td>
+            <td>${item.size || '-'}</td>
+            <td class="remaining-cell">${item.remaining}</td>
+          `;
+          const inputCell = document.createElement('td');
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.min = '0';
+          input.step = '1';
+          input.value = '';
+          if (activeContainer) {
+            const currentEntry = (activeContainer.items || []).find((entry) => makeKey(entry.sku, entry.name, entry.size) === item.key);
+            const currentQty = currentEntry ? Number(currentEntry.qty || 0) : 0;
+            input.value = currentQty > 0 ? currentQty : '';
+          }
+          input.disabled = !allowInput;
+          input.addEventListener('input', () => {
+            if (!activeContainer) {
+              return;
+            }
+            let nextValue = parseInt(input.value || '0', 10);
+            if (Number.isNaN(nextValue) || nextValue < 0) {
+              nextValue = 0;
+            }
+            const totals = allocationTotals();
+            const currentEntry = (activeContainer.items || []).find((entry) => makeKey(entry.sku, entry.name, entry.size) === item.key);
+            const currentQty = currentEntry ? Number(currentEntry.qty || 0) : 0;
+            const usedElsewhere = Math.max(0, (totals[item.key] || 0) - currentQty);
+            const baseQty = Number(item.qty || 0);
+            const maxQty = Math.max(0, baseQty - usedElsewhere);
+            if (nextValue > maxQty) {
+              nextValue = maxQty;
+            }
+            input.value = nextValue > 0 ? nextValue : '';
+            if (!activeContainer.items) {
+              activeContainer.items = [];
+            }
+            const idx = activeContainer.items.findIndex((entry) => makeKey(entry.sku, entry.name, entry.size) === item.key);
+            if (nextValue === 0) {
+              if (idx >= 0) {
+                activeContainer.items.splice(idx, 1);
+              }
+            } else if (idx >= 0) {
+              activeContainer.items[idx].qty = nextValue;
+            } else {
+              activeContainer.items.push({
+                sku: item.sku || '',
+                name: item.name || '',
+                size: item.size || '',
+                qty: nextValue,
+              });
+            }
+              updateRemainingDisplay(activeContainer);
+              renderBoxesTable();
+              renderPalletsTable();
+              renderOpenContainers();
+              updateHidden();
+              updateAddBoxAvailability();
+            });
+            if (allowInput) {
+              inputCell.appendChild(input);
+            } else {
+              inputCell.textContent = czOnly ? 'Сканируйте ЧЗ' : '-';
+            }
+            row.appendChild(inputCell);
+            remainingBody.appendChild(row);
+          });
+          updateRemainingDisplay(activeContainer);
+          updateAddBoxAvailability(rows);
+        };
+
+      const openContainer = (container) => {
+        if (!container) {
+          return;
+        }
+        container.sealed = false;
+      };
+
+      const closeBox = (box) => {
+        if (!box) {
+          return;
+        }
+        if (!box.items || !box.items.length) {
+          const idx = state.boxes.indexOf(box);
+          if (idx >= 0) {
+            state.boxes.splice(idx, 1);
+          }
+        } else {
+          box.sealed = true;
+        }
+      };
+
+      const closePallet = (pallet) => {
+        if (!pallet) {
+          return;
+        }
+        const boxMap = new Map(state.boxes.map((box) => [box.code, box]));
+        const openBoxes = (pallet.boxes || []).filter((code) => {
+          const box = boxMap.get(code);
+          return box && !box.sealed;
+        });
+        if (openBoxes.length) {
+          alert('В палете есть открытые короба. Закройте их перед закрытием палеты.');
+          return;
+        }
+        if ((!pallet.items || !pallet.items.length) && (!pallet.boxes || !pallet.boxes.length)) {
+          const idx = state.pallets.indexOf(pallet);
+          if (idx >= 0) {
+            state.pallets.splice(idx, 1);
+          }
+        } else {
+          pallet.sealed = true;
+        }
+      };
+
+      const addBoxToPallet = (pallet, box) => {
+        if (!pallet || !box) {
+          return;
+        }
+        const used = getBoxToPallet();
+        const existing = used.get(box.code);
+        if (existing && existing !== pallet.code) {
+          alert('Короб уже добавлен в другую палету.');
+          return;
+        }
+        pallet.boxes = Array.isArray(pallet.boxes) ? pallet.boxes : [];
+        if (!pallet.boxes.includes(box.code)) {
+          pallet.boxes.push(box.code);
+        }
+      };
+
+      const removeBoxFromPallet = (pallet, code) => {
+        if (!pallet || !code) {
+          return;
+        }
+        pallet.boxes = (pallet.boxes || []).filter((item) => item !== code);
+      };
+
+      const renderBoxesTable = () => {
+        if (!boxesBody) {
+          return;
+        }
+        boxesBody.innerHTML = '';
+        const boxToPallet = getBoxToPallet();
+        const activePallet = getActiveContainer() && state.active.type === 'pallet' ? getActiveContainer() : null;
+        const displayedBoxes = state.boxes.filter((box) => !boxToPallet.has(box.code));
+
+        if (!displayedBoxes.length) {
+          const row = document.createElement('tr');
+          row.innerHTML = '<td colspan="5" class="muted">Неразмещенных коробов нет.</td>';
+          boxesBody.appendChild(row);
+          return;
+        }
+
+        displayedBoxes.forEach((box) => {
+          const palletCode = boxToPallet.get(box.code) || '-';
+          const pallet = state.pallets.find((item) => item.code === palletCode);
+          const isBoxInClosedPallet = pallet && pallet.sealed;
+          const isActive = state.active.type === 'box' && state.active.code === box.code;
+          const row = document.createElement('tr');
+          if (isActive) {
+            row.classList.add('is-active-row');
+          }
+          row.innerHTML = `
+            <td>${box.code || '-'}</td>
+            <td><span class="status-pill ${box.sealed ? 'closed' : 'open'}">${box.sealed ? 'Закрыт' : 'Открыт'}</span></td>
+            <td>${containerQty(box)}</td>
+            <td>${palletCode}</td>
+            <td>
+              <div class="table-actions">
+                <button type="button" class="btn small" data-action="qr" data-code="${box.code}">QR</button>
+                <button type="button" class="btn small" data-action="edit" data-code="${box.code}" ${(!isEditable || isBoxInClosedPallet) ? 'disabled' : ''}>${box.sealed ? 'Открыть' : 'Редактировать'}</button>
+                <button type="button" class="btn small" data-action="close" data-code="${box.code}" ${(!isEditable || box.sealed) ? 'disabled' : ''}>Закрыть</button>
+                <button type="button" class="btn small" data-action="add" data-code="${box.code}" ${(!isEditable || !activePallet || activePallet.sealed || boxToPallet.has(box.code)) ? 'disabled' : ''}>В палету</button>
+                <button type="button" class="btn small" data-action="remove" data-code="${box.code}" ${(!isEditable || !pallet || pallet.sealed) ? 'disabled' : ''}>Убрать</button>
+                <button type="button" class="btn small" data-action="delete" data-code="${box.code}" ${(!isEditable || isBoxInClosedPallet) ? 'disabled' : ''}>Удалить</button>
+              </div>
+            </td>
+          `;
+          boxesBody.appendChild(row);
+        });
+
+        boxesBody.querySelectorAll('button[data-action]')?.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const action = btn.dataset.action;
+            const code = btn.dataset.code;
+            const box = state.boxes.find((item) => item.code === code);
+            if (!box) {
+              return;
+            }
+            if (action === 'qr') {
+              printQr(box.code || '');
+              return;
+            }
+            if (!isEditable) {
+              return;
+            }
+            if (action === 'edit') {
+              openContainer(box);
+              setActiveContainer(box, 'box');
+              renderAll();
+              return;
+            }
+            if (action === 'close') {
+              closeBox(box);
+              if (state.active.code === box.code) {
+                setActiveContainer(null, '');
+              }
+              renderAll();
+              return;
+            }
+            if (action === 'add') {
+              const active = getActiveContainer();
+              if (!active || state.active.type !== 'pallet') {
+                return;
+              }
+              addBoxToPallet(active, box);
+              renderAll();
+              return;
+            }
+            if (action === 'remove') {
+              const palletCode = getBoxToPallet().get(box.code);
+              const pallet = state.pallets.find((item) => item.code === palletCode);
+              if (!pallet || pallet.sealed) {
+                return;
+              }
+              removeBoxFromPallet(pallet, box.code);
+              renderAll();
+              return;
+            }
+            if (action === 'delete') {
+              if (!confirm('Удалить короб? Товар вернется в неразмещенные.')) {
+                return;
+              }
+              state.boxes = state.boxes.filter((item) => item.code !== box.code);
+              state.pallets.forEach((pallet) => {
+                pallet.boxes = (pallet.boxes || []).filter((item) => item !== box.code);
+              });
+              if (state.active.code === box.code) {
+                setActiveContainer(null, '');
+              }
+              renderAll();
+            }
+          });
+        });
+      };
+
+      const renderPalletsTable = () => {
+        if (!palletsBody) {
+          return;
+        }
+        palletsBody.innerHTML = '';
+        if (!state.pallets.length) {
+          const row = document.createElement('tr');
+          row.innerHTML = '<td colspan="5" class="muted">Нет палет.</td>';
+          palletsBody.appendChild(row);
+          return;
+        }
+        const boxMap = new Map(state.boxes.map((box) => [box.code, box]));
+        state.pallets.forEach((pallet) => {
+          ensureSuggestedWarehouseLocation(pallet);
+          const isActive = state.active.type === 'pallet' && state.active.code === pallet.code;
+          const locationValue = normalizeLocationValue(pallet);
+          const zoneValue = locationValue.zone || DEFAULT_LOCATION;
+          const locationOptions = ['PR', 'OTG', 'MR', 'OS'];
+          const customLocationOption = locationOptions.includes(zoneValue)
+            ? ''
+            : `<option value="${zoneValue}">${zoneValue}</option>`;
+          const row = document.createElement('tr');
+          if (isActive) {
+            row.classList.add('is-active-row');
+          }
+          const boxCount = (pallet.boxes || []).length;
+          const itemCount = palletTotalQty(pallet);
+          row.innerHTML = `
+            <td>${pallet.code || '-'}</td>
+            <td><span class="status-pill ${pallet.sealed ? 'closed' : 'open'}">${pallet.sealed ? 'Закрыта' : 'Открыта'}</span></td>
+            <td>Коробов: ${boxCount} · Товаров: ${itemCount}</td>
+            <td>
+              <div class="zone-grid">
+                <select class="loc-input" data-field="zone">
+                ${customLocationOption}
+                  <option value="PR">PR · Зона приемки</option>
+                  <option value="OBR">OBR · Зона обработки</option>
+                  <option value="OTG">OTG · Зона отгрузки</option>
+                  <option value="MR">MR · Между рядами</option>
+                  <option value="OS">OS · Основной склад</option>
+                </select>
+                <div class="zone-details" data-zone-details>
+                  <select class="loc-input zone-detail" data-field="row"></select>
+                  <select class="loc-input zone-detail" data-field="section"></select>
+                  <select class="loc-input zone-detail" data-field="tier"></select>
+                  <select class="loc-input zone-detail" data-field="cell"></select>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="table-actions">
+                <button type="button" class="btn small" data-action="qr" data-code="${pallet.code}">QR</button>
+                <button type="button" class="btn small" data-action="edit" data-code="${pallet.code}" ${!isEditable ? 'disabled' : ''}>${pallet.sealed ? 'Открыть' : 'Редактировать'}</button>
+                <button type="button" class="btn small" data-action="close" data-code="${pallet.code}" ${(!isEditable || pallet.sealed) ? 'disabled' : ''}>Закрыть</button>
+                <button type="button" class="btn small" data-action="delete" data-code="${pallet.code}" ${!isEditable ? 'disabled' : ''}>Удалить</button>
+              </div>
+            </td>
+          `;
+          palletsBody.appendChild(row);
+          const zoneSelect = row.querySelector('select[data-field="zone"]');
+          const detailsWrap = row.querySelector('[data-zone-details]');
+          const rowSelect = row.querySelector('select[data-field="row"]');
+          const sectionSelect = row.querySelector('select[data-field="section"]');
+          const tierSelect = row.querySelector('select[data-field="tier"]');
+          const cellSelect = row.querySelector('select[data-field="cell"]');
+          if (zoneSelect) {
+            zoneSelect.value = zoneValue;
+          }
+          const buildSelectOptions = (select, values, placeholder) => {
+            if (!select) {
+              return;
+            }
+            select.innerHTML = '';
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = placeholder;
+            select.appendChild(placeholderOption);
+            values.forEach((value) => {
+              const option = document.createElement('option');
+              option.value = value;
+              option.textContent = value;
+              select.appendChild(option);
+            });
+          };
+          const osRows = Object.keys(osRowSections).map((value) => String(value));
+          const populateRowOptions = (zone) => {
+            if (zone === 'MR') {
+              buildSelectOptions(rowSelect, mrRows.map((value) => String(value)), 'Ряд');
+            } else if (zone === 'OS') {
+              buildSelectOptions(rowSelect, osRows, 'Ряд');
+            } else {
+              buildSelectOptions(rowSelect, [], 'Ряд');
+            }
+          };
+          const populateSectionOptions = (rowValue) => {
+            const count = Number(osRowSections[rowValue] || 0);
+            const values = count ? Array.from({ length: count }, (_, idx) => String(idx + 1)) : [];
+            buildSelectOptions(sectionSelect, values, 'Секция');
+          };
+          const populateTierOptions = () => {
+            const values = osTiers ? Array.from({ length: osTiers }, (_, idx) => String(idx + 1)) : [];
+            buildSelectOptions(tierSelect, values, 'Ярус');
+          };
+          const populateCellOptions = (rowValue, sectionValue, tierValue, cellValue) => {
+            const values = osCellsPerTier
+              ? Array.from({ length: osCellsPerTier }, (_, idx) => String(idx + 1))
+              : [];
+            buildSelectOptions(cellSelect, values, 'Ячейка');
+            const usedKeys = new Set();
+            state.pallets.forEach((item) => {
+              if (item.code === pallet.code) {
+                return;
+              }
+              const loc = normalizeLocationValue(item);
+              if (loc.zone !== 'OS') {
+                return;
+              }
+              if (!(loc.row && loc.section && loc.tier && loc.cell)) {
+                return;
+              }
+              usedKeys.add(`${loc.row}|${loc.section}|${loc.tier}|${loc.cell}`);
+            });
+            if (cellSelect) {
+              Array.from(cellSelect.options).forEach((option) => {
+                if (!option.value) {
+                  return;
+                }
+                const key = `${rowValue}|${sectionValue}|${tierValue}|${option.value}`;
+                option.disabled = (occupiedCellKeys.has(key) || usedKeys.has(key))
+                  && option.value !== String(cellValue || '');
+              });
+            }
+          };
+          const updateZoneVisibility = (zone) => {
+            if (!detailsWrap) {
+              return;
+            }
+            const showDetails = zone === 'MR' || zone === 'OS';
+            detailsWrap.classList.toggle('is-hidden', !showDetails);
+            const detailFields = detailsWrap.querySelectorAll('.zone-detail');
+            detailFields.forEach((field) => {
+              if (zone === 'OS') {
+                field.classList.remove('is-hidden');
+              } else if (zone === 'MR') {
+                field.classList.toggle('is-hidden', field.dataset.field !== 'row');
+              } else {
+                field.classList.add('is-hidden');
+              }
+            });
+          };
+          const applyLocationValues = (zone, location) => {
+            populateRowOptions(zone);
+            if (rowSelect) {
+              rowSelect.value = location.row || '';
+            }
+            if (zone === 'OS') {
+              populateSectionOptions(rowSelect ? rowSelect.value : '');
+              if (sectionSelect) {
+                sectionSelect.value = location.section || '';
+              }
+              populateTierOptions();
+              if (tierSelect) {
+                tierSelect.value = location.tier || '';
+              }
+              populateCellOptions(
+                rowSelect ? rowSelect.value : '',
+                sectionSelect ? sectionSelect.value : '',
+                tierSelect ? tierSelect.value : '',
+                location.cell || ''
+              );
+              if (cellSelect) {
+                cellSelect.value = location.cell || '';
+              }
+            } else if (zone === 'MR') {
+              if (rowSelect) {
+                rowSelect.value = location.row || '';
+              }
+            }
+          };
+          const syncLocation = () => {
+            const zone = normalizeZone(zoneSelect ? zoneSelect.value : '') || DEFAULT_LOCATION;
+            const next = {
+              zone,
+              row: rowSelect ? rowSelect.value : '',
+              section: sectionSelect ? sectionSelect.value : '',
+              tier: tierSelect ? tierSelect.value : '',
+              cell: cellSelect ? cellSelect.value : '',
+            };
+            if (zone === 'PR' || zone === 'OBR' || zone === 'OTG') {
+              next.row = '';
+              next.section = '';
+              next.tier = '';
+              next.cell = '';
+            } else if (zone === 'MR') {
+              next.section = '';
+              next.tier = '';
+              next.cell = '';
+            }
+            pallet.location = next;
+          };
+          updateZoneVisibility(zoneValue);
+          applyLocationValues(zoneValue, locationValue);
+          syncLocation();
+
+          if (!pallet.sealed) {
+            const detailsRow = document.createElement('tr');
+            detailsRow.className = 'pallet-details';
+            const cell = document.createElement('td');
+            cell.colSpan = 5;
+            const grid = document.createElement('div');
+            grid.className = 'pallet-details-grid';
+
+            const addCard = (title, listEl) => {
+              const card = document.createElement('div');
+              card.className = 'pallet-details-card';
+              const titleEl = document.createElement('div');
+              titleEl.className = 'pallet-details-title';
+              titleEl.textContent = title;
+              card.appendChild(titleEl);
+              card.appendChild(listEl);
+              grid.appendChild(card);
+            };
+
+            const boxList = document.createElement('div');
+            boxList.className = 'mini-list';
+            if (!(pallet.boxes || []).length) {
+              const empty = document.createElement('div');
+              empty.className = 'muted';
+              empty.textContent = 'Короба не добавлены.';
+              boxList.appendChild(empty);
+            } else {
+              pallet.boxes.forEach((code) => {
+                const box = boxMap.get(code);
+                const item = document.createElement('div');
+                item.className = 'mini-item';
+                const qty = box ? containerQty(box) : 0;
+                item.innerHTML = `
+                  <div class="mini-content">
+                    <span>${code}</span>
+                    <span class="muted">${qty} товаров</span>
+                  </div>
+                `;
+                const actions = document.createElement('div');
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'mini-action';
+                removeBtn.textContent = 'Извлечь';
+                removeBtn.disabled = !isEditable;
+                removeBtn.addEventListener('click', () => {
+                  removeBoxFromPallet(pallet, code);
+                  renderAll();
+                });
+                actions.appendChild(removeBtn);
+                item.appendChild(actions);
+                boxList.appendChild(item);
+              });
+            }
+            addCard('Короба в палете', boxList);
+
+            const directItems = Array.isArray(pallet.items) ? pallet.items : [];
+            const directList = document.createElement('div');
+            directList.className = 'mini-list';
+            if (!directItems.length) {
+              const empty = document.createElement('div');
+              empty.className = 'muted';
+              empty.textContent = 'Товаров на палете нет.';
+              directList.appendChild(empty);
+            } else {
+              directItems.forEach((item) => {
+                const sku = item.sku || item.sku_code || '';
+                const nameRaw = item.name || '';
+                const sizeRaw = item.size || '';
+                const name = nameRaw || sku || '-';
+                const size = sizeRaw || '-';
+                const qty = Number(item.qty || 0);
+                const rowItem = document.createElement('div');
+                rowItem.className = 'mini-item';
+                rowItem.innerHTML = `
+                  <div class="mini-content">
+                    <span>${name}</span>
+                    <span class="muted">Размер: ${size} · ${qty} шт.</span>
+                  </div>
+                `;
+                const editBtn = document.createElement('button');
+                editBtn.type = 'button';
+                editBtn.className = 'mini-action';
+                editBtn.textContent = 'Редактировать';
+                editBtn.disabled = !isEditable;
+                editBtn.addEventListener('click', () => {
+                  setActiveContainer(pallet, 'pallet');
+                  focusRemainingItem(key);
+                });
+                rowItem.appendChild(editBtn);
+                directList.appendChild(rowItem);
+              });
+            }
+            addCard('Товары на палете', directList);
+
+            const boxItems = [];
+            (pallet.boxes || []).forEach((code) => {
+              const box = boxMap.get(code);
+              if (!box) {
+                return;
+              }
+              (box.items || []).forEach((item) => {
+                boxItems.push({ box, code, item });
+              });
+            });
+            const boxItemsList = document.createElement('div');
+            boxItemsList.className = 'mini-list';
+            if (!boxItems.length) {
+              const empty = document.createElement('div');
+              empty.className = 'muted';
+              empty.textContent = 'Товаров в коробах нет.';
+              boxItemsList.appendChild(empty);
+            } else {
+              boxItems.forEach((entry) => {
+                const item = entry.item || {};
+                const sku = item.sku || item.sku_code || '';
+                const nameRaw = item.name || '';
+                const sizeRaw = item.size || '';
+                const key = makeKey(sku, nameRaw, sizeRaw);
+                const name = nameRaw || sku || '-';
+                const size = sizeRaw || '-';
+                const qty = Number(item.qty || 0);
+                const rowItem = document.createElement('div');
+                rowItem.className = 'mini-item';
+                rowItem.innerHTML = `
+                  <div class="mini-content">
+                    <span>${name}</span>
+                    <span class="muted">Размер: ${size} · ${qty} шт. · ${entry.code}</span>
+                  </div>
+                `;
+                const extractBtn = document.createElement('button');
+                extractBtn.type = 'button';
+                extractBtn.className = 'mini-action';
+                extractBtn.textContent = 'Извлечь короб';
+                extractBtn.disabled = !isEditable;
+                extractBtn.addEventListener('click', () => {
+                  removeBoxFromPallet(pallet, entry.code);
+                  renderAll();
+                });
+                rowItem.appendChild(extractBtn);
+                boxItemsList.appendChild(rowItem);
+              });
+            }
+            addCard('Товары в коробах', boxItemsList);
+
+            cell.appendChild(grid);
+            detailsRow.appendChild(cell);
+            palletsBody.appendChild(detailsRow);
+          }
+
+          [zoneSelect, rowSelect, sectionSelect, tierSelect, cellSelect].forEach((fieldEl) => {
+            if (!fieldEl) {
+              return;
+            }
+            fieldEl.disabled = !isEditable;
+            fieldEl.addEventListener('change', () => {
+              syncLocation();
+              updateHidden();
+              renderPalletsTable();
+            });
+          });
+        });
+
+        palletsBody.querySelectorAll('button[data-action]')?.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const action = btn.dataset.action;
+            const code = btn.dataset.code;
+            const pallet = state.pallets.find((item) => item.code === code);
+            if (!pallet) {
+              return;
+            }
+            if (action === 'qr') {
+              printQr(pallet.code || '');
+              return;
+            }
+            if (!isEditable) {
+              return;
+            }
+            if (action === 'edit') {
+              openContainer(pallet);
+              setActiveContainer(pallet, 'pallet');
+              renderAll();
+              return;
+            }
+            if (action === 'close') {
+              closePallet(pallet);
+              if (state.active.code === pallet.code) {
+                setActiveContainer(null, '');
+              }
+              renderAll();
+              return;
+            }
+            if (action === 'delete') {
+              if (!confirm('Удалить палету? Короба останутся без палеты.')) {
+                return;
+              }
+              state.pallets = state.pallets.filter((item) => item.code !== pallet.code);
+              if (state.active.code === pallet.code) {
+                setActiveContainer(null, '');
+              }
+              renderAll();
+            }
+          });
+        });
+      };
+
+      const renderOpenContainers = () => {
+        if (!openContainersEl) {
+          return;
+        }
+        openContainersEl.innerHTML = '';
+        const boxToPallet = getBoxToPallet();
+        const openBoxes = state.boxes.filter((box) => !box.sealed && !boxToPallet.has(box.code));
+        const openPallets = state.pallets.filter((pallet) => !pallet.sealed);
+        if (!openBoxes.length && !openPallets.length) {
+          const empty = document.createElement('div');
+          empty.className = 'muted';
+          empty.textContent = 'Нет открытых контейнеров.';
+          openContainersEl.appendChild(empty);
+          return;
+        }
+        openBoxes.forEach((box) => {
+          const item = document.createElement('div');
+          item.className = 'mini-item';
+          item.innerHTML = `
+            <div class="mini-content">
+              <span>${box.code || '-'}</span>
+              <span class="muted">Короб · ${containerQty(box)} товаров</span>
+            </div>
+          `;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'mini-action';
+          btn.textContent = 'Закрыть';
+          btn.disabled = !isEditable;
+          btn.addEventListener('click', () => {
+            closeBox(box);
+            if (state.active.code === box.code) {
+              setActiveContainer(null, '');
+            }
+            renderAll();
+          });
+          item.appendChild(btn);
+          item.addEventListener('click', () => {
+            if (!isEditable) {
+              return;
+            }
+            setActiveContainer(box, 'box');
+          });
+          openContainersEl.appendChild(item);
+        });
+        openPallets.forEach((pallet) => {
+          const item = document.createElement('div');
+          item.className = 'mini-item';
+          item.innerHTML = `
+            <div class="mini-content">
+              <span>${pallet.code || '-'}</span>
+              <span class="muted">Палета · ${palletTotalQty(pallet)} товаров</span>
+            </div>
+          `;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'mini-action';
+          btn.textContent = 'Закрыть';
+          btn.disabled = !isEditable;
+          btn.addEventListener('click', () => {
+            closePallet(pallet);
+            if (state.active.code === pallet.code) {
+              setActiveContainer(null, '');
+            }
+            renderAll();
+          });
+          item.appendChild(btn);
+          item.addEventListener('click', () => {
+            if (!isEditable) {
+              return;
+            }
+            setActiveContainer(pallet, 'pallet');
+          });
+          openContainersEl.appendChild(item);
+        });
+      };
+
+      const focusRemainingItem = (key) => {
+        if (!remainingBody || !key) {
+          return;
+        }
+        const rows = remainingBody.querySelectorAll('tr[data-key]');
+        for (const row of rows) {
+          if (row.dataset.key !== key) {
+            continue;
+          }
+          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const input = row.querySelector('input');
+          if (input) {
+            input.focus();
+            input.select();
+          }
+          break;
+        }
+      };
+
+      const normalizeBarcode = (value) => (value || '').toString().trim();
+
+      const setScanStatus = (message, tone) => {
+        if (!scanStatus) {
+          return;
+        }
+        scanStatus.textContent = message;
+        scanStatus.classList.remove('ok', 'warn');
+        if (tone) {
+          scanStatus.classList.add(tone);
+        }
+      };
+
+      const highlightRemainingRow = (key) => {
+        if (!remainingBody || !key) {
+          return;
+        }
+        const rows = remainingBody.querySelectorAll('tr[data-key]');
+        for (const row of rows) {
+          if (row.dataset.key !== key) {
+            continue;
+          }
+          row.classList.add('scan-highlight');
+          setTimeout(() => row.classList.remove('scan-highlight'), 900);
+          break;
+        }
+      };
+
+      const findItemKeyByValue = (skuValue, nameValue, sizeValue) => {
+        const sku = (skuValue || '').trim().toLowerCase();
+        const name = (nameValue || '').trim().toLowerCase();
+        const size = (sizeValue || '').trim().toLowerCase();
+        const directKey = makeKey(sku, name, size);
+        if (directKey && baseByKey[directKey]) {
+          return directKey;
+        }
+        const entries = Object.entries(baseByKey);
+        const skuMatches = sku ? entries.filter(([, item]) => (item.sku || '').trim().toLowerCase() === sku) : [];
+        const sizedSkuMatches = size
+          ? skuMatches.filter(([, item]) => (item.size || '').trim().toLowerCase() === size)
+          : skuMatches;
+        if (sizedSkuMatches.length === 1) {
+          return sizedSkuMatches[0][0];
+        }
+        if (skuMatches.length === 1) {
+          return skuMatches[0][0];
+        }
+        const nameMatches = name ? entries.filter(([, item]) => (item.name || '').trim().toLowerCase() === name) : [];
+        if (nameMatches.length === 1) {
+          return nameMatches[0][0];
+        }
+        return '';
+      };
+
+      const barcodeByKey = {};
+      Object.entries(barcodeMap || {}).forEach(([barcode, data]) => {
+        if (!data) {
+          return;
+        }
+        const key = findItemKeyByValue(data.sku, data.name, data.size);
+        if (key && !barcodeByKey[key]) {
+          barcodeByKey[key] = barcode;
+        }
+      });
+
+      const resolveScanItem = (barcode) => {
+        const normalized = normalizeBarcode(barcode);
+        if (!normalized) {
+          return null;
+        }
+        const data = barcodeMap[normalized];
+        if (data) {
+          const key = findItemKeyByValue(data.sku, data.name, data.size);
+          if (key && baseByKey[key]) {
+            return {
+              key,
+              item: baseByKey[key],
+              label: data.name || data.sku || normalized,
+            };
+          }
+        }
+        const directKey = findItemKeyByValue(normalized, '', '');
+        if (directKey && baseByKey[directKey]) {
+          return {
+            key: directKey,
+            item: baseByKey[directKey],
+            label: baseByKey[directKey].name || baseByKey[directKey].sku || normalized,
+          };
+        }
+        return null;
+      };
+
+      const ensureActiveBoxForScan = () => {
+        if (!isEditable) {
+          return null;
+        }
+        const active = getActiveContainer();
+        if (active && state.active.type === 'box' && !active.sealed) {
+          return active;
+        }
+        const openBox = state.boxes.find((box) => !box.sealed);
+        if (openBox) {
+          state.active = { type: 'box', code: openBox.code || '' };
+          return openBox;
+        }
+        const remaining = getRemainingRows();
+        if (!remaining.some((row) => row.remaining > 0)) {
+          return null;
+        }
+        const code = makeCode('pallet');
+        if (!code) {
+          return null;
+        }
+        const box = { code, items: [], sealed: false };
+        state.boxes.push(box);
+        state.active = { type: 'box', code };
+        return box;
+      };
+
+      const incrementBoxItem = (box, itemKey, item) => {
+        if (!box || !itemKey || !item) {
+          return { added: false, reason: 'invalid' };
+        }
+        const totals = allocationTotals();
+        const currentEntry = (box.items || []).find((entry) => makeKey(entry.sku, entry.name, entry.size) === itemKey);
+        const currentQty = currentEntry ? Number(currentEntry.qty || 0) : 0;
+        const usedElsewhere = Math.max(0, (totals[itemKey] || 0) - currentQty);
+        const baseQty = Number(item.qty || 0);
+        const maxQty = Math.max(0, baseQty - usedElsewhere);
+        if (maxQty <= currentQty) {
+          return { added: false, reason: 'limit' };
+        }
+        const nextQty = Math.min(currentQty + 1, maxQty);
+        box.items = Array.isArray(box.items) ? box.items : [];
+        if (currentEntry) {
+          currentEntry.qty = nextQty;
+        } else {
+          box.items.push({
+            sku: item.sku || '',
+            name: item.name || '',
+            size: item.size || '',
+            qty: nextQty,
+          });
+        }
+        return { added: true, qty: nextQty, max: maxQty };
+      };
+
+      const getCzSelection = () => {
+        if (!czItemSelect) {
+          return null;
+        }
+        const value = (czItemSelect.value || '').trim();
+        if (!value) {
+          return null;
+        }
+        const parts = value.split('|');
+        const sku = (parts[0] || '').trim();
+        const size = (parts[1] || '').trim();
+        const key = findItemKeyByValue(sku, '', size);
+        if (!key || !baseByKey[key]) {
+          return null;
+        }
+        const item = baseByKey[key];
+        return {
+          key,
+          item,
+          sku: item.sku || sku,
+          size: item.size || size,
+          barcode: barcodeByKey[key] || '',
+        };
+      };
+
+      const handleCzScan = async (code) => {
+        if (!isEditable) {
+          setScanStatus('Акт закрыт. Сканирование недоступно.', 'warn');
+          return;
+        }
+        const selection = getCzSelection();
+        if (!selection) {
+          setScanStatus('Выберите позицию для ЧЗ перед сканированием.', 'warn');
+          return;
+        }
+        const targetBox = ensureActiveBoxForScan();
+        if (!targetBox) {
+          setScanStatus('Откройте короб или создайте новый для сканирования.', 'warn');
+          return;
+        }
+        const remainingRows = getRemainingRows();
+        const remainingRow = remainingRows.find((row) => row.key === selection.key);
+        if (!remainingRow || remainingRow.remaining <= 0) {
+          setScanStatus('Остаток по выбранной позиции исчерпан.', 'warn');
+          return;
+        }
+        try {
+          const resp = await fetch(markingScanUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken,
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+              code,
+              sku_code: selection.sku,
+              size: selection.size,
+              barcode: selection.barcode,
+              box_barcode: targetBox.code || '',
+            }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.ok) {
+            const message = data.error || 'Не удалось сохранить ЧЗ.';
+            setScanStatus(message, 'warn');
+            return;
+          }
+        } catch (err) {
+          setScanStatus('Ошибка связи при сохранении ЧЗ.', 'warn');
+          return;
+        }
+        const result = incrementBoxItem(targetBox, selection.key, selection.item);
+        if (!result.added) {
+          setScanStatus('Остаток по выбранной позиции исчерпан.', 'warn');
+          return;
+        }
+        state.active = { type: 'box', code: targetBox.code || '' };
+        renderAll();
+        highlightRemainingRow(selection.key);
+        focusRemainingItem(selection.key);
+        setScanStatus(`ЧЗ учтен: ${selection.item.name || selection.item.sku} (+1) в короб ${targetBox.code}.`, 'ok');
+      };
+
+      const handleScan = (raw) => {
+        const barcode = normalizeBarcode(raw);
+        if (!barcode) {
+          return;
+        }
+        if (czOnly) {
+          handleCzScan(barcode);
+          return;
+        }
+        if (!isEditable) {
+          setScanStatus('Акт закрыт. Сканирование недоступно.', 'warn');
+          return;
+        }
+        const match = resolveScanItem(barcode);
+        if (!match) {
+          setScanStatus(`ШК ${barcode} не найден в заявке.`, 'warn');
+          return;
+        }
+        const targetBox = ensureActiveBoxForScan();
+        if (!targetBox) {
+          setScanStatus('Откройте короб или создайте новый для сканирования.', 'warn');
+          return;
+        }
+        const result = incrementBoxItem(targetBox, match.key, match.item);
+        if (!result.added) {
+          setScanStatus(`По позиции ${match.label} остаток исчерпан.`, 'warn');
+          return;
+        }
+        state.active = { type: 'box', code: targetBox.code || '' };
+        renderAll();
+        highlightRemainingRow(match.key);
+        focusRemainingItem(match.key);
+        setScanStatus(`Добавлено: ${match.label} (+1) в короб ${targetBox.code}.`, 'ok');
+      };
+
+
+      const cleanupEmptyContainers = () => {
+        const removedBoxes = new Set();
+        state.boxes = state.boxes.filter((box) => {
+          const hasItems = (box.items || []).length > 0;
+          if (!hasItems) {
+            removedBoxes.add(box.code);
+          }
+          return hasItems;
+        });
+        state.pallets.forEach((pallet) => {
+          pallet.boxes = (pallet.boxes || []).filter((code) => !removedBoxes.has(code));
+        });
+        state.pallets = state.pallets.filter((pallet) => {
+          return (pallet.items || []).length > 0 || (pallet.boxes || []).length > 0;
+        });
+      };
+
+      const validateClose = () => {
+        const errors = [];
+        const remaining = getRemainingRows();
+        if (remaining.some((item) => item.remaining > 0)) {
+          errors.push('Не весь товар размещен.');
+        }
+        const boxToPallet = getBoxToPallet();
+        const unassignedBoxes = state.boxes.filter((box) => !boxToPallet.has(box.code));
+        if (unassignedBoxes.length) {
+          errors.push('Разместите все короба на палетах.');
+        }
+        const openBoxes = state.boxes.filter((box) => !box.sealed && containerQty(box) > 0);
+        const openPallets = state.pallets.filter((pallet) => !pallet.sealed && (containerQty(pallet) > 0 || (pallet.boxes || []).length > 0));
+        if (openBoxes.length || openPallets.length) {
+          errors.push('Закройте все короба и палеты.');
+        }
+        const usedCells = new Set();
+        state.pallets.forEach((pallet) => {
+          const hasItems = (pallet.items || []).length > 0 || (pallet.boxes || []).length > 0;
+          if (!hasItems) {
+            return;
+          }
+          const location = normalizeLocationValue(pallet);
+          const zone = location.zone || DEFAULT_LOCATION;
+          if (!zone) {
+            errors.push(`Укажите зону для палеты ${pallet.code}.`);
+            return;
+          }
+          if (zone === 'MR' && !location.row) {
+            errors.push(`Укажите ряд для палеты ${pallet.code}.`);
+          }
+          if (zone === 'OS') {
+            if (!(location.row && location.section && location.tier && location.cell)) {
+              errors.push(`Укажите ряд, секцию, ярус и ячейку для палеты ${pallet.code}.`);
+            } else {
+              const key = `${location.row}|${location.section}|${location.tier}|${location.cell}`;
+              if (occupiedCellKeys.has(key)) {
+                errors.push(`Ячейка ${location.row}-${location.section}-${location.tier}-${location.cell} занята.`);
+              } else if (usedCells.has(key)) {
+                errors.push(`Ячейка ${location.row}-${location.section}-${location.tier}-${location.cell} уже выбрана.`);
+              } else {
+                usedCells.add(key);
+              }
+            }
+          }
+          pallet.location = {
+            zone,
+            row: zone === 'OS' || zone === 'MR' ? (location.row || '') : '',
+            section: zone === 'OS' ? (location.section || '') : '',
+            tier: zone === 'OS' ? (location.tier || '') : '',
+            cell: zone === 'OS' ? (location.cell || '') : '',
+          };
+        });
+        return errors;
+      };
+
+      const updateHidden = () => {
+        if (boxesInput) {
+          boxesInput.value = JSON.stringify(state.boxes);
+        }
+        if (palletsInput) {
+          palletsInput.value = JSON.stringify(state.pallets);
+        }
+        if (isEditable) {
+          saveDraft();
+        }
+      };
+
+      const updateInfoTotals = () => {
+        const summaryEl = document.getElementById('info-summary');
+        if (!summaryEl) {
+          return;
+        }
+        const totalItems = Object.values(baseByKey).reduce(
+          (sum, item) => sum + Number(item.qty || 0),
+          0
+        );
+        const totalBoxes = state.boxes.filter((box) => (box.items || []).length > 0).length;
+        const totalPallets = state.pallets.filter((pallet) => {
+          return (pallet.items || []).length > 0 || (pallet.boxes || []).length > 0;
+        }).length;
+        const pluralize = (count, one, few, many) => {
+          const value = Math.abs(Number(count)) % 100;
+          const remainder = value % 10;
+          if (value > 10 && value < 20) {
+            return many;
+          }
+          if (remainder > 1 && remainder < 5) {
+            return few;
+          }
+          if (remainder === 1) {
+            return one;
+          }
+          return many;
+        };
+        const itemsLabel = pluralize(totalItems, 'товар', 'товара', 'товаров');
+        const boxesLabel = pluralize(totalBoxes, 'коробе', 'коробах', 'коробах');
+        const palletsLabel = pluralize(totalPallets, 'палете', 'палетах', 'палетах');
+        summaryEl.textContent = `По заявке № ${displayOrderId} принято и размещено ${totalItems} ${itemsLabel}, в ${totalBoxes} ${boxesLabel}, на ${totalPallets} ${palletsLabel}`;
+      };
+
+      const renderAll = () => {
+        ensureActiveContainer();
+        renderActiveTarget();
+        renderRemaining();
+        renderBoxesTable();
+        renderPalletsTable();
+        renderOpenContainers();
+        updateInfoTotals();
+        updateHidden();
+        updateAddBoxAvailability();
+      };
+
+      const buildQrDataUrl = (value) => new Promise((resolve, reject) => {
+        if (typeof QRCode === 'undefined') {
+          reject(new Error('QRCode library is unavailable.'));
+          return;
+        }
+        const host = document.createElement('div');
+        host.style.position = 'fixed';
+        host.style.left = '-9999px';
+        host.style.top = '0';
+        document.body.appendChild(host);
+        new QRCode(host, {
+          text: value,
+          width: 360,
+          height: 360,
+          correctLevel: QRCode.CorrectLevel.M,
+        });
+        window.setTimeout(() => {
+          const canvas = host.querySelector('canvas');
+          const image = host.querySelector('img');
+          const dataUrl = canvas ? canvas.toDataURL('image/png') : (image ? image.src : '');
+          host.remove();
+          if (dataUrl) {
+            resolve(dataUrl);
+            return;
+          }
+          reject(new Error('Failed to render QR code.'));
+        }, 80);
+      });
+
+      const printQr = (code) => {
+        if (!code) {
+          return;
+        }
+        const qrCode = goodsTypeSuffix && !code.endsWith(goodsTypeSuffix) ? `${code}${goodsTypeSuffix}` : code;
+        const widthMm = 58 * 0.95;
+        const heightMm = 60 * 0.95;
+        const win = window.open('', '_blank', 'width=520,height=640');
+        if (!win) {
+          return;
+        }
+        win.document.write(`
+          <html>
+            <head>
+              <title>QR ${qrCode}</title>
+              <style>
+                body { margin:0; display:flex; align-items:center; justify-content:center; height:100vh; }
+                img { width:${widthMm}mm; height:${heightMm}mm; }
+              </style>
+            </head>
+            <body>
+              <div>Генерируем QR...</div>
+            </body>
+          </html>
+        `);
+        win.document.close();
+        buildQrDataUrl(qrCode)
+          .then((dataUrl) => {
+            win.document.body.innerHTML = `<img src="${dataUrl}" alt="QR" style="width:${widthMm}mm; height:${heightMm}mm;" />`;
+          })
+          .catch(() => {
+            win.close();
+          });
+      };
+
+      const draftKey = orderId ? `placement-act-${orderId}` : null;
+      const saveDraft = () => {
+        if (!draftKey || actClosed) {
+          return;
+        }
+        const payload = {
+          boxes: state.boxes,
+          pallets: state.pallets,
+          active: state.active,
+        };
+        try {
+          localStorage.setItem(draftKey, JSON.stringify(payload));
+        } catch (err) {
+          // ignore
+        }
+      };
+
+      const loadDraft = () => {
+        if (!draftKey || actClosed) {
+          return;
+        }
+        try {
+          const raw = localStorage.getItem(draftKey);
+          if (!raw) {
+            return;
+          }
+          if (!confirm('Найден черновик размещения. Восстановить?')) {
+            return;
+          }
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            if (Array.isArray(parsed.boxes)) {
+              state.boxes = parsed.boxes.map(normalizeBox);
+            }
+            if (Array.isArray(parsed.pallets)) {
+              state.pallets = parsed.pallets.map(normalizePallet);
+            }
+            if (parsed.active) {
+              state.active = parsed.active;
+            }
+          }
+        } catch (err) {
+          // ignore
+        }
+      };
+
+      if (actClosed && draftKey) {
+        localStorage.removeItem(draftKey);
+      }
+
+      if (addBoxBtn) {
+        updateAddBoxAvailability();
+        addBoxBtn.addEventListener('click', () => {
+          if (!isEditable || addBoxBtn.disabled) {
+            return;
+          }
+          addBox();
+        });
+      }
+      if (addPalletBtn) {
+        addPalletBtn.disabled = !isEditable;
+        addPalletBtn.addEventListener('click', () => {
+          if (!isEditable) {
+            return;
+          }
+          addPallet();
+        });
+      }
+
+      if (formEl) {
+        formEl.addEventListener('submit', (event) => {
+          if (!isEditable) {
+            event.preventDefault();
+            return;
+          }
+          cleanupEmptyContainers();
+          const errors = validateClose();
+          if (errors.length) {
+            event.preventDefault();
+            alert(errors.join('\n'));
+            return;
+          }
+          updateHidden();
+          if (draftKey) {
+            localStorage.removeItem(draftKey);
+          }
+        });
+      }
+
+      loadDraft();
+      renderAll();
+
+      const scanConfig = {
+        maxGap: 250,
+        minLength: 6,
+        maxTotal: 3500,
+        avgMax: 90,
+      };
+      let scanBuffer = '';
+      let scanStart = 0;
+      let scanLast = 0;
+      let scanSourceEl = null;
+      let scanSourceValue = '';
+
+      const resetScanBuffer = () => {
+        scanBuffer = '';
+        scanStart = 0;
+        scanLast = 0;
+        scanSourceEl = null;
+        scanSourceValue = '';
+      };
+
+      const handleManualScanInput = () => {
+        if (!scanInput) {
+          return;
+        }
+        const value = scanInput.value;
+        if (!value) {
+          return;
+        }
+        handleScan(value);
+        scanInput.value = '';
+        scanInput.focus();
+      };
+
+      document.addEventListener(
+        'keydown',
+        (event) => {
+          if (!scanInput) {
+            return;
+          }
+          if (event.ctrlKey || event.altKey || event.metaKey) {
+            resetScanBuffer();
+            return;
+          }
+          const key = event.key;
+          const target = event.target;
+          if (target === scanInput) {
+            return;
+          }
+          const isScanInput = target === scanInput;
+          const isChar = key.length === 1;
+          const isTerminator = key === 'Enter' || key === 'Tab';
+          if (isScanInput && key === 'Enter') {
+            event.preventDefault();
+            handleManualScanInput();
+            resetScanBuffer();
+            return;
+          }
+          if (!isChar && !isTerminator) {
+            if (!scanBuffer) {
+              resetScanBuffer();
+            }
+            return;
+          }
+          const now = Date.now();
+          if (!scanStart || target !== scanSourceEl || now - scanLast > scanConfig.maxGap) {
+            scanBuffer = '';
+            scanStart = now;
+            scanSourceEl = target;
+            scanSourceValue = target && typeof target.value === 'string' ? target.value : '';
+          }
+          scanLast = now;
+
+          if (isChar) {
+            scanBuffer += key;
+            return;
+          }
+
+          if (isTerminator) {
+            const total = now - scanStart;
+            const avg = scanBuffer.length ? total / scanBuffer.length : total;
+            const isScan = scanBuffer.length >= scanConfig.minLength && total <= scanConfig.maxTotal && avg <= scanConfig.avgMax;
+            if (isScan) {
+              event.preventDefault();
+              if (scanSourceEl && scanSourceEl !== scanInput && typeof scanSourceEl.value === 'string') {
+                scanSourceEl.value = scanSourceValue;
+              }
+              scanInput.value = scanBuffer;
+              handleManualScanInput();
+            }
+            resetScanBuffer();
+          }
+        },
+        true,
+      );
+
+      if (scanInput) {
+        scanInput.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter') {
+            return;
+          }
+          event.preventDefault();
+          handleManualScanInput();
+        });
+      }
+
+      if (togglePlacedBtn && placedSummary) {
+        togglePlacedBtn.addEventListener('click', () => {
+          const isHidden = placedSummary.classList.contains('is-hidden');
+          if (isHidden) {
+            buildPlacementSummary();
+            placedSummary.classList.remove('is-hidden');
+            togglePlacedBtn.textContent = 'Скрыть размещенный товар';
+          } else {
+            placedSummary.classList.add('is-hidden');
+            togglePlacedBtn.textContent = 'Посмотреть размещенный товар';
+          }
+        });
+      }
+
+      if (placedFilterInputs && placedFilterInputs.length) {
+        placedFilterInputs.forEach((input) => {
+          input.addEventListener('input', applyPlacedFilters);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

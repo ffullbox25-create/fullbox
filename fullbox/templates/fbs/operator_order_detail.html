@@ -1,0 +1,251 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Заказ {{ order.external_order_id }}{% endblock %}
+{% block workspace_crumb %}<a href="{{ back_url }}">{% if request_role == 'fbs_controller' %}Отгрузка{% else %}Заказы{% endif %}</a><span>/</span><strong>{{ order.external_order_id }}</strong>{% endblock %}
+{% block workspace_title %}Заказ {{ order.external_order_id }}{% endblock %}
+{% block workspace_actions %}<a class="button button-secondary" href="{{ back_url }}">{% if request_role == 'fbs_controller' %}К отгрузке{% else %}К списку заказов{% endif %}</a>{% endblock %}
+
+{% block workspace_body %}
+  <style>
+    .metadata-raw,
+    .scan-value {
+      display: block;
+      margin-top: 6px;
+      overflow-wrap: anywhere;
+      white-space: normal;
+      word-break: break-word;
+    }
+    .order-route-table td {
+      vertical-align: top;
+    }
+    .order-route-table .route-stage {
+      min-width: 190px;
+    }
+    .order-route-table .route-place {
+      min-width: 260px;
+    }
+    .order-route-table .route-actor {
+      min-width: 150px;
+    }
+    .order-route-table small,
+    .movement-path small {
+      display: block;
+      margin-top: 4px;
+    }
+    .movement-path {
+      min-width: 280px;
+    }
+    .route-missing-time {
+      color: #8c8174;
+    }
+    .detail-panel .passport-stack {
+      display: grid;
+      gap: 10px;
+    }
+    .detail-panel .passport-stack > div {
+      border-bottom: 1px solid rgba(48, 48, 48, 0.09);
+      padding-bottom: 10px;
+    }
+    .detail-panel .passport-stack > div:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+    .product-thumb-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      cursor: zoom-in;
+    }
+    .product-thumb-button:focus-visible {
+      outline: 3px solid rgba(248, 144, 0, 0.45);
+      outline-offset: 3px;
+    }
+    .product-thumb-button .product-thumb {
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .product-thumb-button:hover .product-thumb {
+      transform: scale(1.08);
+      box-shadow: 0 5px 16px rgba(48, 48, 48, 0.18);
+    }
+    .product-photo-viewer[hidden] {
+      display: none;
+    }
+    .product-photo-viewer {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: grid;
+      place-items: center;
+      padding: 28px;
+      background: rgba(20, 20, 20, 0.82);
+    }
+    .product-photo-viewer-card {
+      position: relative;
+      display: grid;
+      gap: 14px;
+      width: min(1100px, 94vw);
+      max-height: 94vh;
+      padding: 18px;
+      overflow: auto;
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+    }
+    .product-photo-viewer-image {
+      display: block;
+      width: 100%;
+      height: min(72vh, 780px);
+      object-fit: contain;
+      border-radius: 12px;
+      background: #f4f1ec;
+    }
+    .product-photo-viewer-details {
+      display: grid;
+      gap: 4px;
+      padding-right: 54px;
+    }
+    .product-photo-viewer-details strong {
+      font-size: 18px;
+    }
+    .product-photo-viewer-details span {
+      color: #6f675f;
+      overflow-wrap: anywhere;
+    }
+    .product-photo-viewer-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 42px;
+      height: 42px;
+      border: 0;
+      border-radius: 50%;
+      background: #303030;
+      color: #fff;
+      font-size: 28px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    @media (max-width: 700px) {
+      .product-photo-viewer {
+        padding: 10px;
+      }
+      .product-photo-viewer-card {
+        width: 96vw;
+        max-height: 96vh;
+        padding: 10px;
+      }
+      .product-photo-viewer-image {
+        height: 75vh;
+      }
+    }
+  </style>
+  <section class="detail-hero">
+    <div><span class="marketplace-tag marketplace-{{ order.profile.marketplace }}">{{ order.profile.get_marketplace_display }}</span><h2>Заказ {{ order.external_order_id }}</h2>{% if request_role == 'fbs_controller' %}<span>{{ order.profile.agency }}</span>{% else %}<a href="{% url 'fbs:operator_client_detail' agency_id=order.profile.agency_id %}">{{ order.profile.agency }}</a>{% endif %}</div>
+    <div class="detail-status"><span class="status status-{{ order.internal_status }}">Fullbox: {{ order.internal_status_label }}</span><strong>{{ unit_count }} шт.</strong><small>Площадка: {{ order.marketplace_status_label }}{% if order.marketplace_substatus_label %} · {{ order.marketplace_substatus_label }}{% endif %}</small>{% if order.cutoff_at %}<small>Срок {{ order.cutoff_at|date:"d.m.Y H:i" }}</small>{% else %}<small>Срок не передан</small>{% endif %}</div>
+  </section>
+
+  <section class="fbs-panel fbs-order-passport" aria-label="Основные данные заказа">
+    <div><span>Партнер</span><strong>{{ order.profile.agency }}</strong></div>
+    <div><span>Источник импорта</span><strong>{{ order.profile.name }}</strong></div>
+    <div><span>Интеграция</span><strong>{{ order.profile.get_marketplace_display }} FBS</strong></div>
+    <div><span>Номер партнера</span><strong>{{ order.external_order_id }}</strong></div>
+    <div><span>Создан</span><strong>{{ order.ordered_at|date:"d.m.Y H:i:s"|default:"-" }}</strong></div>
+    <div><span>Получен Fullbox</span><strong>{{ order.imported_at|date:"d.m.Y H:i:s" }}</strong></div>
+    <div><span>Срок отгрузки</span><strong>{{ order.cutoff_at|date:"d.m.Y H:i:s"|default:"Не передан" }}</strong></div>
+    <div><span>Трек-номер</span><strong>{{ order.track_number|default:"-" }}</strong></div>
+    <div><span>Количество</span><strong>{{ unit_count }} шт. / {{ items|length }} поз.</strong></div>
+    <div><span>Волна</span><strong>{% if tasks %}#{{ tasks.0.batch_id }}{% else %}Не назначена{% endif %}</strong></div>
+    <div><span>Склад маркетплейса</span><strong>{{ order.profile.external_warehouse_id|default:"Не указан" }}</strong></div>
+    <div><span>Статус площадки</span><strong>{{ order.marketplace_status_label }}</strong></div>
+  </section>
+
+  {% if order.problem_reason or order.hold_reason %}<div class="notice notice-error">{{ order.problem_reason|default:order.hold_reason }}</div>{% endif %}
+  {% if handover_check %}<div class="notice {% if handover_check.state == 'problem' %}notice-error{% elif handover_check.state == 'done' %}notice-ok{% endif %}" role="status"><strong>{{ handover_check.label }}.</strong> {{ handover_check.detail }}</div>{% endif %}
+
+  <section class="operator-table-band" aria-label="Полный маршрут заказа">
+    <div class="operator-table-heading"><div><span class="section-kicker">От склада до маркетплейса</span><h2>Полный маршрут заказа</h2></div><strong>{{ route_rows|length }} событий</strong></div>
+    <div class="operator-table-scroll"><table class="operator-table order-route-table"><thead><tr><th>#</th><th>Этап</th><th>Где произошло</th><th>Тара / короб / заказ</th><th>Кто выполнил</th><th>Дата и время</th><th>Результат</th></tr></thead><tbody>{% for row in route_rows %}<tr class="{% if row.state == 'problem' %}row-problem{% endif %}"><td>{{ forloop.counter }}</td><td class="route-stage"><strong>{{ row.stage }}</strong>{% if row.detail %}<small>{{ row.detail }}</small>{% endif %}</td><td class="route-place">{{ row.place }}</td><td><code class="scan-value">{{ row.container }}</code></td><td class="route-actor"><strong>{{ row.actor }}</strong></td><td>{% if row.at %}<strong>{{ row.at|date:"d.m.Y H:i:s" }}</strong>{% else %}<span class="route-missing-time">Ещё не выполнено</span>{% endif %}</td><td><span class="status status-{{ row.state }}">{{ row.status }}</span></td></tr>{% empty %}<tr><td class="empty-row" colspan="7">Движение по заказу ещё не зафиксировано</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+
+  <div class="detail-layout">
+    <div class="detail-main">
+      <section class="operator-table-band"><div class="operator-table-heading"><h2>Товары</h2><strong>{{ items|length }} поз.</strong></div><div class="operator-table-scroll"><table class="operator-table"><thead><tr><th>Фото</th><th>Артикул</th><th>Штрихкод</th><th>Товар</th><th>Количество</th><th>Учет</th></tr></thead><tbody>{% for item in items %}<tr><td>{% if item.photo_url %}<button class="product-thumb-button" type="button" data-product-photo-open data-photo-url="{{ item.photo_url }}" data-photo-name="{{ item.display_name }}" data-photo-meta="Артикул: {{ item.external_sku }} · ШК: {{ item.barcode|default:'не передан' }}" aria-label="Открыть крупное фото товара {{ item.display_name }}" aria-haspopup="dialog" title="Открыть крупное фото"><img class="product-thumb" src="{{ item.photo_url }}" alt="{{ item.display_name }}"></button>{% else %}<span class="product-thumb product-thumb-empty">Нет фото</span>{% endif %}</td><td>{% if request_role == 'fbs_controller' %}<strong>{{ item.external_sku }}</strong>{% else %}<strong><a class="table-main-link" href="{% url 'fbs:operator_stock_item_history' %}?agency={{ order.profile.agency_id }}&sku={% if item.sku %}{{ item.sku.sku_code|urlencode }}{% endif %}&barcode={{ item.barcode|urlencode }}">{{ item.external_sku }}</a></strong>{% endif %}{% if item.sku %}<small>{{ item.sku.sku_code }}</small>{% endif %}</td><td><code>{{ item.barcode|default:"Не передан" }}</code></td><td>{{ item.display_name }}</td><td><strong>{{ item.quantity }} шт.</strong></td><td>{% if item.sku and item.sku.honest_sign %}<span class="status status-confirmed">Честный знак</span>{% endif %}{% if item.requirements.expiry_required %}<small>Нужен срок годности</small>{% endif %}</td></tr>{% empty %}<tr><td class="empty-row" colspan="6">Состав заказа не получен</td></tr>{% endfor %}</tbody></table></div></section>
+
+      <section class="operator-table-band"><div class="operator-table-heading"><div><span class="section-kicker">Источник товара и исполнитель</span><h2>Размещение и отбор</h2></div><strong>{{ allocations|length }}</strong></div><div class="operator-table-scroll"><table class="operator-table"><thead><tr><th>Исходная ячейка</th><th>Паллета</th><th>Исходный короб</th><th>ШК</th><th>Тара подбора</th><th>Количество</th><th>Зарезервировал</th><th>Отобрал</th><th>Статус / волна</th></tr></thead><tbody>{% for allocation in allocations %}<tr><td><strong>{{ allocation.balance.box.pallet.cell.warehouse_location_label }}</strong></td><td><code>{{ allocation.balance.box.pallet.pallet_code }}</code></td><td><code>{{ allocation.balance.box.box_code }}</code></td><td><code>{{ allocation.balance.barcode }}</code></td><td>{% if allocation.pick_task and allocation.pick_task.batch.cart %}<strong>{{ allocation.pick_task.batch.cart.name }}</strong><small>{{ allocation.pick_task.batch.cart.barcode }}</small>{% else %}<span class="text-muted">Не назначена</span>{% endif %}</td><td><strong>{{ allocation.qty_picked }}/{{ allocation.qty_reserved }}</strong></td><td>{% if allocation.reserved_by %}<strong>{{ allocation.reserved_by.get_full_name|default:allocation.reserved_by.get_username }}</strong>{% else %}<strong>Система</strong>{% endif %}<small>{{ allocation.reserved_at|date:"d.m.Y H:i:s" }}</small></td><td>{% if allocation.picked_by %}<strong>{{ allocation.picked_by.get_full_name|default:allocation.picked_by.get_username }}</strong>{% elif allocation.pick_task.assigned_to %}<strong>{{ allocation.pick_task.assigned_to.get_full_name|default:allocation.pick_task.assigned_to.get_username }}</strong>{% else %}<span class="text-muted">Не указан</span>{% endif %}<small>{{ allocation.picked_at|date:"d.m.Y H:i:s"|default:"Ещё не отобран" }}</small></td><td><span class="status status-{{ allocation.status }}">{{ allocation.get_status_display }}</span>{% if allocation.pick_task %}<small>Волна {% if request_role == 'fbs_controller' %}<strong>#{{ allocation.pick_task.batch_id }}</strong>{% else %}<a href="{% url 'fbs:operator_wave_detail' batch_id=allocation.pick_task.batch_id %}">#{{ allocation.pick_task.batch_id }}</a>{% endif %}</small>{% endif %}</td></tr>{% empty %}<tr><td class="empty-row" colspan="9">FBS-резерв еще не создан</td></tr>{% endfor %}</tbody></table></div></section>
+
+      <section class="operator-table-band"><div class="operator-table-heading"><div><span class="section-kicker">Фактические действия ТСД и контролера</span><h2>История сканирования</h2></div><strong>{{ scan_events|length }}</strong></div><div class="operator-table-scroll"><table class="operator-table"><thead><tr><th>Дата и время</th><th>Этап</th><th>Отсканировано</th><th>Ожидалось</th><th>Результат</th><th>Сотрудник</th></tr></thead><tbody>{% for event in scan_events %}<tr class="{% if event.result == 'error' %}row-problem{% endif %}"><td><strong>{{ event.created_at|date:"d.m.Y H:i:s" }}</strong></td><td>{% if event.stage == 'cart' %}Тара{% else %}{{ event.get_stage_display }}{% endif %}<small>Волна #{{ event.batch_id }}</small></td><td><code class="scan-value">{{ event.scan_value|default:"Пустой скан" }}</code></td><td><code class="scan-value">{{ event.expected_value|default:"-" }}</code>{% if event.quantity_after != None %}<small>После скана: {{ event.quantity_after }} шт.</small>{% endif %}</td><td><span class="status status-{{ event.result }}">{{ event.get_result_display }}</span>{% if event.message %}<small class="{% if event.result == 'error' %}text-error{% endif %}">{{ event.message }}</small>{% endif %}</td><td>{% if event.created_by %}{{ event.created_by.get_username }}{% else %}Система{% endif %}</td></tr>{% empty %}<tr><td class="empty-row" colspan="6">Сканы по этому заказу не зафиксированы</td></tr>{% endfor %}</tbody></table></div></section>
+
+      {% if tote_movements %}<section class="operator-table-band"><div class="operator-table-heading"><div><span class="section-kicker">Только связанная с заказом и его волной тара</span><h2>Движение тары</h2></div><strong>{{ tote_movements|length }}</strong></div><div class="operator-table-scroll"><table class="operator-table"><thead><tr><th>Дата и время</th><th>Тара</th><th>Действие</th><th>Откуда → куда</th><th>Количество</th><th>Сотрудник</th><th>Связь</th></tr></thead><tbody>{% for movement in tote_movements %}<tr><td><strong>{{ movement.created_at|date:"d.m.Y H:i:s" }}</strong></td><td><strong>{{ movement.tote.name }}</strong><small>{{ movement.tote.barcode }}</small></td><td><span class="status status-done">{{ movement.get_action_display }}</span></td><td class="movement-path"><strong>{{ movement.source_display }}</strong><small>→ {{ movement.target_display }}</small></td><td>{{ movement.quantity }} шт.</td><td><strong>{{ movement.performed_by.get_full_name|default:movement.performed_by.get_username }}</strong></td><td>{% if movement.pick_batch_id %}<small>Волна #{{ movement.pick_batch_id }}</small>{% endif %}{% if movement.handover_batch_id %}<small>Отгрузка #{{ movement.handover_batch_id }}</small>{% endif %}</td></tr>{% endfor %}</tbody></table></div></section>{% endif %}
+
+      <section class="operator-table-band"><div class="operator-table-heading"><div><span class="section-kicker">Все зафиксированные действия FBS и маркетплейса</span><h2>Полная история заказа</h2></div><strong>{{ timeline|length }}</strong></div><div class="operator-table-scroll"><table class="operator-table"><thead><tr><th>Дата и время</th><th>Событие</th><th>Детали</th><th>Результат</th><th>Кто выполнил</th></tr></thead><tbody>{% for event in timeline %}<tr><td><strong>{{ event.at|date:"d.m.Y H:i:s" }}</strong></td><td>{{ event.title }}</td><td>{{ event.detail|default:"-" }}</td><td>{{ event.status|default:"-" }}</td><td><strong>{{ event.actor|default:"Система" }}</strong></td></tr>{% empty %}<tr><td class="empty-row" colspan="5">История еще не сформирована</td></tr>{% endfor %}</tbody></table></div></section>
+    </div>
+
+    <aside class="detail-side">
+      <section class="detail-panel"><h2>Участники и тара</h2><div class="passport-stack">{% for task in tasks %}<div><strong>Волна #{{ task.batch_id }}</strong><small>Сборщик: {% if task.assigned_to %}{{ task.assigned_to.get_full_name|default:task.assigned_to.get_username }}{% elif task.batch.assigned_to %}{{ task.batch.assigned_to.get_full_name|default:task.batch.assigned_to.get_username }}{% else %}не указан{% endif %}</small><small>Контролёр: {% if task.batch.verification_assigned_to %}{{ task.batch.verification_assigned_to.get_full_name|default:task.batch.verification_assigned_to.get_username }}{% else %}не назначен{% endif %}</small><small>Рабочее место: {{ task.batch.workstation|default:"-" }}</small><small>Тара подбора: {{ task.batch.cart|default:"-" }}</small></div>{% empty %}<div><span class="text-muted">Волна ещё не создана</span></div>{% endfor %}{% for tote_order in tote_orders %}<div><strong>Контроль заказа</strong><small>Из тары: {{ tote_order.pick_tote.tote }}</small><small>В тару/поток: {{ tote_order.control_destination|default:"не указан" }}</small><small>Этикетку подтвердил: {{ tote_order.label_confirmed_by.get_full_name|default:tote_order.label_confirmed_by.get_username }} · {{ tote_order.label_confirmed_at|date:"d.m.Y H:i:s" }}</small>{% if tote_order.composition_checked_at %}<small>Состав проверил: {{ tote_order.composition_checked_by.get_full_name|default:tote_order.composition_checked_by.get_username }} · {{ tote_order.composition_checked_at|date:"d.m.Y H:i:s" }}</small>{% endif %}{% if tote_order.transport_box %}<small>Транспортный короб: {{ tote_order.transport_box.qr_code }}</small>{% endif %}</div>{% endfor %}</div></section>
+      <section class="detail-panel"><h2>Площадка</h2><dl><div><dt>Внешний статус</dt><dd>{{ order.marketplace_status_label }}</dd></div><div><dt>Подстатус</dt><dd>{{ order.marketplace_substatus_label|default:"-" }}</dd></div><div><dt>Профиль</dt><dd>{{ order.profile.name }}</dd></div><div><dt>Импортирован</dt><dd>{{ order.imported_at|date:"d.m.Y H:i:s" }}</dd></div><div><dt>Последнее событие</dt><dd>{% if latest_marketplace_event %}{{ latest_marketplace_event.received_at|date:"d.m.Y H:i:s" }} · {{ latest_marketplace_event.get_status_display }}{% else %}Не зафиксировано{% endif %}</dd></div>{% if handover_summary %}<div><dt>Статус приёмки</dt><dd><strong>{{ handover_summary.acceptance_label }}</strong></dd></div>{% endif %}</dl></section>
+      <section class="detail-panel"><h2>Волны</h2><div class="compact-list">{% for task in tasks %}<div><span>{% if request_role == 'fbs_controller' %}<strong>Волна #{{ task.batch_id }}</strong>{% else %}<a href="{% url 'fbs:operator_wave_detail' batch_id=task.batch_id %}">Волна #{{ task.batch_id }}</a>{% endif %}<small>{{ task.get_status_display }}</small></span><strong>{{ task.picked_qty }}/{{ task.planned_qty }}</strong></div>{% empty %}<div><span>Еще не назначен</span></div>{% endfor %}</div></section>
+      <section class="detail-panel"><h2>Этикетка</h2><div class="compact-list">{% for label in labels %}<div><span>{{ label.get_status_display }}<small>{{ label.external_label_id|default:"Ожидается от площадки" }}</small></span>{% if label.document_url %}<a href="{{ label.document_url }}">Открыть</a>{% endif %}</div>{% empty %}<div><span>Еще не запрошена</span></div>{% endfor %}</div></section>
+      <section class="detail-panel"><h2>КИЗ и сроки</h2><div class="compact-list">{% for transfer in transfers %}<div><span>{{ transfer.get_metadata_type_display }}<small>{{ transfer.get_status_display }}</small>{% if transfer.value %}<code class="metadata-raw">{{ transfer.value }}</code>{% endif %}{% if transfer.external_status %}<small>Ответ площадки: {{ transfer.external_status }}</small>{% endif %}{% if transfer.last_error %}<small class="text-error metadata-raw">{{ transfer.last_error }}</small>{% endif %}</span><strong>{% if transfer.status == 'confirmed' %}ОК{% else %}{{ transfer.attempt_count }} поп.{% endif %}</strong></div>{% empty %}<div><span>Передач нет</span></div>{% endfor %}</div>{% if transfers and request_role != 'fbs_controller' %}<a class="button button-secondary" href="{% url 'fbs:metadata_control_detail' order_id=order.id %}">Контроль передач</a>{% endif %}</section>
+      <section class="detail-panel"><h2>Сопоставление поставки</h2>{% if handover_check %}<dl><div><dt>Номер заказа</dt><dd>{{ order.external_order_id }}</dd></div><div><dt>Номер стикера</dt><dd>{% if labels %}{{ labels.0.external_label_id|default:"Ожидается" }}{% else %}Не получен{% endif %}</dd></div><div><dt>Дата создания</dt><dd>{% if order.ordered_at %}{{ order.ordered_at|date:"d.m.Y H:i" }}{% else %}{{ order.imported_at|date:"d.m.Y H:i" }}{% endif %}</dd></div><div><dt>Количество</dt><dd>{{ unit_count }} шт.</dd></div><div><dt>Статус заказа</dt><dd>{{ order.internal_status_label }}</dd></div><div><dt>Статус проверки</dt><dd><span class="status status-{{ handover_check.state }}">{{ handover_check.label }}</span></dd></div><div><dt>Назначенная поставка</dt><dd>{{ handover_check.batch.external_supply_id|default:"ID ожидается" }}</dd></div>{% if handover %}<div><dt>Короб заказа</dt><dd>{{ handover.box.qr_code }}</dd></div>{% endif %}</dl><p class="{% if handover_check.state == 'problem' %}text-error{% else %}text-muted{% endif %}">{{ handover_check.detail }}</p><a class="button button-secondary" href="{% url 'fbs:tsd_handover_detail' batch_id=handover_check.batch.id %}">Открыть карточку отгрузки</a>{% else %}<p class="text-muted">Заказ не назначен в поставку.</p>{% endif %}</section>
+      <section class="detail-panel"><h2>Отгрузка</h2>{% if handover_summary %}<dl><div><dt>Поставка</dt><dd>{{ handover_summary.batch.external_supply_id|default:"Внутренняя" }}</dd></div><div><dt>Короб заказа</dt><dd>{{ handover_summary.box.qr_code }}</dd></div><div><dt>Состав</dt><dd>{{ handover_summary.order_count }} зак. / {{ handover_summary.unit_count }} шт.</dd></div><div><dt>Короба</dt><dd>{{ handover_summary.box_count }} всего / {{ handover_summary.accepted_box_count }} принято</dd></div><div><dt>Приемка</dt><dd>{{ handover_summary.acceptance_label }}</dd></div><div><dt>Передана</dt><dd>{{ handover_summary.batch.dispatched_at|date:"d.m.Y H:i"|default:"-" }}</dd></div><div><dt>Принята</dt><dd>{{ handover_summary.batch.accepted_at|date:"d.m.Y H:i"|default:"-" }}</dd></div></dl><a class="button button-secondary" href="{% url 'fbs:tsd_handover_detail' batch_id=handover_summary.batch.id %}">Открыть карточку отгрузки</a>{% else %}<p class="text-muted">В короб отгрузки не добавлен</p>{% endif %}</section>
+    </aside>
+  </div>
+
+  <div class="product-photo-viewer" data-product-photo-viewer hidden role="dialog" aria-modal="true" aria-labelledby="product-photo-viewer-title">
+    <div class="product-photo-viewer-card">
+      <button class="product-photo-viewer-close" type="button" data-product-photo-close aria-label="Закрыть крупное фото">×</button>
+      <img class="product-photo-viewer-image" data-product-photo-image src="" alt="">
+      <div class="product-photo-viewer-details">
+        <strong id="product-photo-viewer-title" data-product-photo-title>Фото товара</strong>
+        <span data-product-photo-meta></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const viewer = document.querySelector('[data-product-photo-viewer]');
+      const image = viewer && viewer.querySelector('[data-product-photo-image]');
+      const title = viewer && viewer.querySelector('[data-product-photo-title]');
+      const meta = viewer && viewer.querySelector('[data-product-photo-meta]');
+      const closeButton = viewer && viewer.querySelector('[data-product-photo-close]');
+      if (!viewer || !image || !title || !meta || !closeButton) return;
+
+      let opener = null;
+      const closeViewer = () => {
+        viewer.hidden = true;
+        image.removeAttribute('src');
+        document.body.style.overflow = '';
+        if (opener) opener.focus({ preventScroll: true });
+        opener = null;
+      };
+      const openViewer = button => {
+        const url = String(button.dataset.photoUrl || '').trim();
+        if (!url) return;
+        opener = button;
+        image.src = url;
+        image.alt = String(button.dataset.photoName || 'Фото товара');
+        title.textContent = String(button.dataset.photoName || 'Фото товара');
+        meta.textContent = String(button.dataset.photoMeta || '');
+        viewer.hidden = false;
+        document.body.style.overflow = 'hidden';
+        closeButton.focus({ preventScroll: true });
+      };
+
+      document.querySelectorAll('[data-product-photo-open]').forEach(button => {
+        button.addEventListener('click', () => openViewer(button));
+      });
+      closeButton.addEventListener('click', closeViewer);
+      viewer.addEventListener('click', event => {
+        if (event.target === viewer) closeViewer();
+      });
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !viewer.hidden) closeViewer();
+      });
+    })();
+  </script>
+{% endblock %}

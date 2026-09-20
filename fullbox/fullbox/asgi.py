@@ -1,0 +1,30 @@
+"""
+ASGI config for fullbox project.
+
+It exposes the ASGI callable as a module-level variable named ``application``.
+
+For more information on this file, see
+https://docs.djangoproject.com/en/6.0/howto/deployment/asgi/
+"""
+
+import os
+
+from channels.auth import AuthMiddlewareStack
+from channels.routing import ProtocolTypeRouter, URLRouter
+from django.core.asgi import get_asgi_application
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fullbox.settings')
+
+django_asgi_app = get_asgi_application()
+
+from agent.routing import websocket_urlpatterns as agent_ws
+from client_cabinet.routing import websocket_urlpatterns as chat_ws
+
+websocket_urlpatterns = list(agent_ws) + list(chat_ws)
+
+application = ProtocolTypeRouter(
+    {
+        "http": django_asgi_app,
+        "websocket": AuthMiddlewareStack(URLRouter(websocket_urlpatterns)),
+    }
+)

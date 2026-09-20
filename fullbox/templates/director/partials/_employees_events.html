@@ -1,0 +1,37 @@
+<section>
+  <div class="dir-row-2">
+    <article class="dir-card">
+      <h2 class="dir-card-title">KPI сотрудников</h2>
+      <p class="dir-card-sub">Лучшие и с просрочками · без персональных штрафов</p>
+      <div class="dir-emp-list">
+        {% for e in employees %}
+          <div class="dir-emp-row">
+            <div>
+              <div style="font-weight:600">{{ e.name }}</div>
+              <div class="dir-feed-meta">{{ e.role }}</div>
+            </div>
+            <span class="dir-status {{ e.tone }}">{{ e.metric }}</span>
+          </div>
+        {% endfor %}
+      </div>
+      <div style="margin-top:12px">
+        <a class="dir-section-link" href="/employees/">Открыть сотрудников →</a>
+      </div>
+    </article>
+    <article class="dir-card" id="reports">
+      <h2 class="dir-card-title">Лента событий</h2>
+      <p class="dir-card-sub">Последние 10 · обновление раз в минуту (демо)</p>
+      <div class="dir-feed">
+        {% for ev in events %}
+          <a class="dir-feed-row" href="{{ ev.href }}">
+            <div>
+              <div class="dir-feed-title">{{ ev.title }}</div>
+              <div class="dir-feed-meta">{{ ev.meta }}</div>
+            </div>
+            <div class="dir-feed-time">{{ ev.time }}</div>
+          </a>
+        {% endfor %}
+      </div>
+    </article>
+  </div>
+</section>

@@ -1,0 +1,142 @@
+{% extends "accountant/_base.html" %}
+{% block title %}Хранение — биллинг{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+  <div>
+    <h1 class="page-title">Биллинг → Хранение</h1>
+    <div class="page-sub">Ежедневные снимки объёма, ошибки расчёта, закрытие периода</div>
+  </div>
+</div>
+
+<form class="card" method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+  <div>
+    <div class="lbl">Год</div>
+    <input class="field" type="number" name="year" value="{{ year }}" style="width:100px">
+  </div>
+  <div>
+    <div class="lbl">Месяц</div>
+    <input class="field" type="number" name="month" min="1" max="12" value="{{ month }}" style="width:80px">
+  </div>
+  <div style="min-width:220px;flex:1">
+    <div class="lbl">Клиент</div>
+    <select class="field" name="client">
+      <option value="">Все</option>
+      {% for c in clients %}
+      <option value="{{ c.id }}" {% if filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn primary" type="submit">Показать</button>
+  <button class="btn" type="button" id="js-recalc-open-storage">Пересчитать неотправленные</button>
+  {% if filter_client %}
+  <a class="btn" href="/accountant/api/storage/export.csv?client_id={{ filter_client }}&year={{ year }}&month={{ month }}">CSV</a>
+  <button class="btn" type="button" id="js-close-period">Закрыть период</button>
+  <button class="btn" type="button" id="js-reopen-period">Открыть период</button>
+  {% endif %}
+</form>
+
+{% if open_errors %}
+<div class="card">
+  <h2 style="margin:0 0 12px;font-size:16px">Открытые ошибки ({{ open_errors|length }})</h2>
+  <table>
+    <thead><tr><th>Дата</th><th>Клиент</th><th>Тип</th><th>Сообщение</th><th></th></tr></thead>
+    <tbody>
+    {% for e in open_errors %}
+      <tr>
+        <td>{{ e.day|date:"d.m.Y"|default:"—" }}</td>
+        <td>{{ e.client.short_name|default:e.client.agn_name }}</td>
+        <td><span class="badge">{{ e.get_error_type_display }}</span></td>
+        <td>{{ e.message|truncatechars:80 }}</td>
+        <td><button class="btn" type="button" data-resolve="{{ e.id }}">Закрыть</button></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="card" style="padding:0;overflow:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Дата</th>
+        <th>Клиент</th>
+        <th>Режим</th>
+        <th>Палет</th>
+        <th>Объём, л</th>
+        <th>Объём, м³</th>
+        <th>Сумма</th>
+        <th>Статус</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for d in storage_days %}
+      <tr>
+        <td>{{ d.day|date:"d.m.Y" }}</td>
+        <td>{{ d.client.short_name|default:d.client.agn_name }}</td>
+        <td>{{ d.billing_mode|default:"—" }}</td>
+        <td>{{ d.pallet_count }}</td>
+        <td>{{ d.billable_volume_l }}</td>
+        <td>{{ d.billable_volume_m3 }}</td>
+        <td>{{ d.amount }}</td>
+        <td><span class="badge">{{ d.get_status_display }}</span></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="8" class="muted" style="padding:20px">Нет снимков за период</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function postJSON(url, body){
+  const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': (document.cookie.match(/csrftoken=([^;]+)/)||[])[1]||''}, body: JSON.stringify(body||{})});
+  return r.json();
+}
+document.querySelectorAll('[data-resolve]').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    const d = await postJSON('/accountant/api/storage/errors/'+btn.dataset.resolve+'/resolve/', {});
+    if(d.ok) location.reload(); else alert(d.error||'Ошибка');
+  });
+});
+const clientId = {% if filter_client %}{{ filter_client }}{% else %}null{% endif %};
+const year = {{ year }};
+const month = {{ month }};
+const closeBtn = document.getElementById('js-close-period');
+if(closeBtn){
+  closeBtn.onclick = async ()=>{
+    if(!clientId) return;
+    const d = await postJSON('/accountant/api/storage/periods/', {action:'close', client_id: clientId, year, month, checklist:{force:true}});
+    if(d.ok) alert('Период закрыт'); else alert(d.error||'Ошибка');
+  };
+}
+const reopenBtn = document.getElementById('js-reopen-period');
+if(reopenBtn){
+  reopenBtn.onclick = async ()=>{
+    if(!clientId) return;
+    const d = await postJSON('/accountant/api/storage/periods/', {action:'reopen', client_id: clientId, year, month});
+    if(d.ok) alert('Период открыт'); else alert(d.error||'Ошибка');
+  };
+}
+const recalcBtn = document.getElementById('js-recalc-open-storage');
+if(recalcBtn){
+  recalcBtn.onclick = async ()=>{
+    if(!confirm('Пересчитать хранение за выбранный период? Отправленные и оплаченные счета будут пропущены.')) return;
+    recalcBtn.disabled = true;
+    const oldText = recalcBtn.textContent;
+    recalcBtn.textContent = 'Пересчёт…';
+    try {
+      const d = await postJSON('/team-manager/billing/api/storage/recalculate-open/', {year, month, client_id: clientId});
+      if(!d.ok) { alert(d.error||'Ошибка пересчёта'); return; }
+      const stats = d.data||{};
+      alert('Пересчёт завершён. Пересчитано: '+(stats.recalculated||0)+', пропущено по отправленным счетам: '+(stats.skipped_sent_invoice||0)+', ошибок: '+(stats.errors||0));
+      location.reload();
+    } finally {
+      recalcBtn.disabled = false;
+      recalcBtn.textContent = oldText;
+    }
+  };
+}
+</script>
+{% endblock %}

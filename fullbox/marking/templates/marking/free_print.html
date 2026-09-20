@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Свободная печать КИЗ | ФУЛЛБОКС</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5f5f3; --surface: #fff; --surface-2: #f8f8f6; --ink: #303030;
+      --muted: #707070; --accent: #f89000; --accent-strong: #f86800;
+      --accent-soft: rgba(248,144,0,.13); --stroke: rgba(28,31,26,.12);
+      --success: #247a4b; --success-soft: rgba(36,122,75,.1);
+      --danger: #b83f35; --danger-soft: rgba(184,63,53,.1);
+      --shadow: 0 8px 24px rgba(48,48,48,.08);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); font-family: "Manrope", system-ui, sans-serif; }
+    a { color: inherit; text-decoration: none; }
+    button, input, select { font: inherit; }
+    .wrap { padding: 24px; }
+    .layout { display: grid; grid-template-columns: 240px minmax(0,1fr); gap: 20px; min-height: calc(100vh - 48px); }
+    .side, .panel { background: var(--surface); border: 1px solid var(--stroke); border-radius: 8px; box-shadow: var(--shadow); }
+    .side { display: grid; align-content: start; gap: 16px; padding: 18px; }
+    .fullbox-brand-img { display: block; width: 168px; max-width: 100%; height: auto; }
+    .profile, .nav-link { border: 1px solid var(--stroke); border-radius: 8px; background: var(--surface-2); }
+    .profile { padding: 12px; font-weight: 700; }
+    .nav { display: grid; gap: 10px; }
+    .nav-link { display: grid; gap: 4px; padding: 12px; }
+    .nav-link.primary { color: var(--accent-strong); background: var(--accent-soft); border-color: rgba(248,144,0,.25); }
+    .nav-title { font-weight: 800; }
+    .nav-sub { color: var(--muted); font-size: 12px; }
+    .logout { display: block; padding: 10px 12px; border: 1px solid var(--stroke); border-radius: 8px; text-align: center; font-weight: 800; }
+    .content { min-width: 0; }
+    .panel { padding: 22px; margin-bottom: 18px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; margin-bottom: 18px; }
+    h1, h2 { margin: 0; font-family: "Bricolage Grotesque", "Manrope", sans-serif; }
+    h1 { font-size: 28px; } h2 { font-size: 19px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .grid { display: grid; grid-template-columns: repeat(12,minmax(0,1fr)); gap: 12px; }
+    .field { display: grid; gap: 6px; min-width: 0; }
+    .field label { font-size: 12px; font-weight: 800; }
+    .field.span-2 { grid-column: span 2; } .field.span-3 { grid-column: span 3; }
+    .field.span-4 { grid-column: span 4; } .field.span-6 { grid-column: span 6; }
+    .input, .select { width: 100%; min-height: 46px; padding: 0 12px; border: 1px solid var(--stroke); border-radius: 8px; background: #fff; outline: none; }
+    .input:focus, .select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .button { min-height: 46px; padding: 0 16px; border: 1px solid var(--stroke); border-radius: 8px; background: #fff; color: var(--ink); font-weight: 800; cursor: pointer; }
+    .button.primary { color: #fff; background: var(--accent); border-color: var(--accent); }
+    .button:disabled { opacity: .5; cursor: not-allowed; }
+    .order-card { display: flex; justify-content: space-between; gap: 16px; padding: 14px; border: 1px solid var(--stroke); border-radius: 8px; background: var(--surface-2); }
+    .order-title { font-weight: 850; }
+    .items-heading { margin: 18px 0 10px; }
+    .items-table-wrap { overflow-x: auto; border: 1px solid var(--stroke); border-radius: 8px; }
+    .items-table { width: 100%; border-collapse: collapse; min-width: 850px; }
+    .items-table th, .items-table td { padding: 10px 12px; border-bottom: 1px solid var(--stroke); text-align: left; vertical-align: middle; }
+    .items-table th { color: var(--muted); background: var(--surface-2); font-size: 11px; }
+    .items-table tbody tr:last-child td { border-bottom: 0; }
+    .item-row { cursor: pointer; }
+    .item-row:hover { background: var(--surface-2); }
+    .item-row.selected { background: var(--accent-soft); }
+    .item-choice { width: 18px; height: 18px; accent-color: var(--accent); }
+    .marking-state { display: inline-block; padding: 4px 8px; border-radius: 8px; font-size: 12px; font-weight: 800; }
+    .marking-state.complete { color: var(--success); background: var(--success-soft); }
+    .marking-state.partial { color: #815000; background: var(--accent-soft); }
+    .marking-state.missing { color: var(--danger); background: var(--danger-soft); }
+    .marking-count { margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .stats { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 10px; margin-top: 14px; }
+    .stat { padding: 12px; border: 1px solid var(--stroke); border-radius: 8px; background: #fff; }
+    .stat-label { color: var(--muted); font-size: 11px; }
+    .stat-value { margin-top: 4px; font-size: 23px; font-weight: 900; }
+    .work { display: grid; grid-template-columns: minmax(0,1fr) minmax(360px,.8fr); gap: 18px; margin-top: 16px; }
+    .box { padding: 16px; border: 1px solid var(--stroke); border-radius: 8px; background: var(--surface-2); }
+    .box h2 { margin-bottom: 12px; }
+    .canvas-shell { display: grid; place-items: center; min-height: 290px; padding: 14px; border: 1px dashed rgba(48,48,48,.24); border-radius: 8px; background: #e9e9e6; }
+    #label-canvas { display: block; width: min(100%,580px); height: auto; background: #fff; box-shadow: 0 5px 18px rgba(0,0,0,.14); }
+    .message { margin-top: 12px; padding: 12px; border: 1px solid var(--stroke); border-radius: 8px; background: #fff; font-weight: 700; }
+    .message.success { color: var(--success); background: var(--success-soft); }
+    .message.error { color: var(--danger); background: var(--danger-soft); }
+    .note { margin-top: 12px; padding: 12px; border-radius: 8px; background: var(--accent-soft); color: #815000; font-size: 12px; }
+    .confirm-overlay { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: rgba(30,30,30,.48); }
+    .confirm-card { width: min(100%,460px); padding: 24px; border: 1px solid var(--stroke); border-radius: 12px; background: #fff; box-shadow: 0 24px 70px rgba(0,0,0,.24); }
+    .confirm-card h2 { margin-bottom: 10px; font-size: 24px; }
+    .confirm-card p { margin: 0; color: var(--muted); line-height: 1.5; }
+    .confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+    .button.danger { color: var(--danger); border-color: rgba(184,63,53,.34); background: var(--danger-soft); }
+    [hidden] { display: none !important; }
+    @media (max-width: 1120px) { .layout, .work { grid-template-columns: 1fr; } }
+    @media (max-width: 760px) {
+      .wrap { padding: 12px; } .panel, .side { padding: 14px; }
+      .grid { grid-template-columns: 1fr; } .field[class*="span-"] { grid-column: auto; }
+      .stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .header, .order-card { display: grid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        {% include "partials/fullbox_brand.html" %}
+        <div class="profile">
+          {{ free_print_role_label }}<br>
+          {% if request.user.employee_profile %}{{ request.user.employee_profile.full_name }}{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}
+        </div>
+        <nav class="nav">
+          <a class="nav-link" href="{{ free_print_home_url }}"><span class="nav-title">В кабинет</span><span class="nav-sub">Вернуться на рабочий стол</span></a>
+          <a class="nav-link" href="/marking/report/"><span class="nav-title">Отчёт ЧЗ</span><span class="nav-sub">Единый реестр кодов</span></a>
+          {% if free_print_role != "manager" %}<a class="nav-link" href="/marking/status/"><span class="nav-title">Проверка Честного знака</span><span class="nav-sub">Отдельная проверка КИЗ</span></a>
+          <a class="nav-link" href="/marking/duplicate/"><span class="nav-title">Дублирование Честного знака</span><span class="nav-sub">Копия существующего кода</span></a>
+          <a class="nav-link" href="/marking/return/"><span class="nav-title">Возврат ЧЗ</span><span class="nav-sub">Вернуть ошибочно распечатанный КИЗ</span></a>{% endif %}
+          <a class="nav-link primary" href="/marking/free-print/"><span class="nav-title">Свободная печать КИЗ</span><span class="nav-sub">Загрузка и печать по заявке</span></a>
+        </nav>
+        <a class="logout" href="/logout/">Выход</a>
+      </aside>
+
+      <main class="content">
+        <section class="panel">
+          <div class="header">
+            <div><h1>Свободная печать КИЗ</h1><div class="muted">Предварительная печать с обязательной привязкой к заявке, клиенту и товару.</div></div>
+          </div>
+          <form class="grid" method="get">
+            <div class="field span-3"><label for="order-type">Процесс</label><select class="select" id="order-type" name="order_type"><option value="processing"{% if selected_order_type == 'processing' %} selected{% endif %}>Заявка на обработку</option><option value="receiving"{% if selected_order_type == 'receiving' %} selected{% endif %}>Заявка на приемку</option></select></div>
+            <div class="field span-6"><label for="order-id">Номер заявки</label><input class="input" id="order-id" name="order_id" value="{{ selected_order_id }}" placeholder="Например: 33 или 157"></div>
+            <div class="field span-3"><label>&nbsp;</label><button class="button primary" type="submit">Открыть заявку</button></div>
+          </form>
+          {% if selection_error %}<div class="message error">{{ selection_error }}</div>{% endif %}
+        </section>
+
+        {% if selected_order %}
+          <section class="panel">
+            <div class="order-card">
+              <div><div class="order-title">{% if selected_order_type == 'processing' %}Обработка{% else %}Приемка{% endif %} №{{ selected_order_id }}</div><div class="muted">Клиент: {{ selected_agency.agn_name|default:"Не указан" }}</div></div>
+              <div class="muted">КИЗ не меняет остатки, резервы и статус заявки.</div>
+            </div>
+            {% if selected_items %}
+              <h2 class="items-heading">Товары заявки</h2>
+              <select id="item-select" hidden>{% for item in selected_items %}<option value="{{ forloop.counter0 }}">{{ item.sku_code }}{% if item.size %} · размер {{ item.size }}{% endif %}{% if item.barcode %} · ШК {{ item.barcode }}{% endif %} · {{ item.qty|default:0 }} шт.</option>{% endfor %}</select>
+              <div class="items-table-wrap">
+                <table class="items-table">
+                  <thead><tr><th></th><th>SKU</th><th>Наименование</th><th>Размер</th><th>Штрихкод</th><th>По заявке</th><th>Честный знак</th></tr></thead>
+                  <tbody>
+                    {% for item in selected_items %}
+                      <tr class="item-row{% if forloop.first %} selected{% endif %}" data-item-index="{{ forloop.counter0 }}" tabindex="0">
+                        <td><input class="item-choice" type="radio" name="selected_item" value="{{ forloop.counter0 }}"{% if forloop.first %} checked{% endif %} aria-label="Выбрать {{ item.sku_code }}"></td>
+                        <td><strong>{{ item.sku_code }}</strong></td>
+                        <td>{{ item.product_name|default:"-" }}</td>
+                        <td>{{ item.size|default:"-" }}</td>
+                        <td>{{ item.barcode|default:"-" }}</td>
+                        <td>{{ item.qty|default:0 }} шт.</td>
+                        <td>
+                          <span class="marking-state {{ item.marking_status }}">{{ item.marking_status_label }}</span>
+                          <div class="marking-count">В базе: {{ item.marking_known_count }} из {{ item.marking_required_count }}</div>
+                          {% if item.marking_client_free_count %}<div class="marking-count">Свободно у клиента: {{ item.marking_client_free_count }}</div>{% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <div class="note">Радиокнопка выбирает товар только для печати. При загрузке обрабатывается весь файл, а КИЗ распределяются по всем позициям заявки по ШК или GTIN.</div>
+              <div class="stats">
+                <div class="stat"><div class="stat-label">Загружено</div><div class="stat-value" id="stat-loaded">0</div></div>
+                <div class="stat"><div class="stat-label">Свободно у клиента</div><div class="stat-value" id="stat-client-free">0</div></div>
+                <div class="stat"><div class="stat-label">Доступно к печати</div><div class="stat-value" id="stat-available">0</div></div>
+                <div class="stat"><div class="stat-label">В очереди</div><div class="stat-value" id="stat-queued">0</div></div>
+                <div class="stat"><div class="stat-label">Напечатано</div><div class="stat-value" id="stat-printed">0</div></div>
+                <div class="stat"><div class="stat-label">Использовано</div><div class="stat-value" id="stat-used">0</div></div>
+              </div>
+              <div class="work">
+                <div>
+                  <div class="box">
+                    <h2>1. Загрузить КИЗ</h2>
+                    <div class="muted">Один столбец «КИЗ» распределяется по GTIN внутри DataMatrix. Если GTIN не совпадает с ШК заявки, используйте два столбца «ШК товара» + «КИЗ».</div>
+                    <form id="import-form" style="margin-top:12px">
+                      {% csrf_token %}
+                      <div class="grid"><div class="field span-6"><label for="file-input">Файл .xlsx</label><input class="input" id="file-input" name="file" type="file" accept=".xlsx" required></div><div class="field span-3"><label>&nbsp;</label><a class="button" href="/orders/processing/marking-template.xlsx" download style="display:grid;place-items:center">Скачать образец</a></div><div class="field span-3"><label>&nbsp;</label><button class="button primary" id="import-button" type="submit">Загрузить</button></div></div>
+                    </form>
+                  </div>
+                  <div class="box" style="margin-top:14px">
+                    <h2>2. Напечатать</h2>
+                    <div class="grid">
+                      <div class="field span-2"><label for="print-qty">Количество КИЗ</label><input class="input" id="print-qty" type="number" min="1" max="100" value="1"></div>
+                      <div class="field span-2"><label for="print-copies">Копий каждого</label><input class="input" id="print-copies" type="number" min="1" max="100" value="1"></div>
+                      <div class="field span-4"><label for="agent-select">Агент печати</label><select class="select" id="agent-select"></select></div>
+                      <div class="field span-4"><label for="printer-select">Принтер</label><select class="select" id="printer-select"></select></div>
+                    </div>
+                    <button class="button primary" id="print-button" type="button" style="width:100%;margin-top:12px">Подготовить и отправить в печать</button>
+                    <div class="note">Пример: «Количество КИЗ = 1», «Копий каждого = 2» напечатает две одинаковые этикетки одного ЧЗ. Копии одного КИЗ предназначены только для одной и той же единицы товара — не размещайте одинаковый код на разных товарах. Для печати выбираются КИЗ отмеченной позиции; загруженные коды других товаров остаются у своих позиций.</div>
+                  </div>
+                  <div class="message" id="message">Выберите товар и действие.</div>
+                </div>
+                <div class="box">
+                  <h2>Предпросмотр 58×40 мм</h2>
+                  <div class="canvas-shell"><canvas id="label-canvas" width="580" height="400"></canvas></div>
+                </div>
+              </div>
+            {% else %}
+              <div class="message error">В заявке не найдены товарные позиции для привязки КИЗ.</div>
+            {% endif %}
+          </section>
+        {% endif %}
+      </main>
+    </div>
+  </div>
+
+  <div class="confirm-overlay" id="print-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="print-confirm-title" hidden>
+    <div class="confirm-card">
+      <h2 id="print-confirm-title">Все этикетки напечатались?</h2>
+      <p>Задание уже выполнено агентом печати. Если не хватает хотя бы одной физической этикетки или результат неясен, заблокируйте всю партию. Повторно эти ЧЗ не напечатаются; руководитель проверит их поштучно через «Возврат ЧЗ».</p>
+      <div class="confirm-actions">
+        <button class="button danger" id="print-confirm-uncertain" type="button">Не все напечатались / не уверен</button>
+        <button class="button primary" id="print-confirm-yes" type="button">Да, все напечатались</button>
+      </div>
+    </div>
+  </div>
+
+  <iframe id="labels-item-renderer" src="/labels/settings/?renderer=1" title="Модуль шаблонов этикеток" style="position:fixed;left:-10000px;top:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0"></iframe>
+  {{ selected_items|json_script:"selected-items" }}
+  {{ print_agents|json_script:"print-agents" }}
+  <script>
+    const items = JSON.parse(document.getElementById("selected-items").textContent || "[]");
+    const printAgents = JSON.parse(document.getElementById("print-agents").textContent || "[]");
+    const itemSelect = document.getElementById("item-select");
+    const itemRows = Array.from(document.querySelectorAll(".item-row"));
+    const message = document.getElementById("message");
+    const canvas = document.getElementById("label-canvas");
+    const labelRendererFrame = document.getElementById("labels-item-renderer");
+    const agentSelect = document.getElementById("agent-select");
+    const printerSelect = document.getElementById("printer-select");
+    const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]")?.value || "";
+    const pendingLabelRenders = new Map();
+    const labelRendererWaiters = [];
+    const freePrintMaxQuantity = 100;
+    const freePrintMaxCopies = 100;
+    const freePrintMaxLabels = 100;
+    // Each rendered PNG is sizeable. Queue one KIZ per HTTP request so a batch
+    // of labels never exceeds Django's request-body limit.
+    const freePrintReservationChunkSize = 1;
+    const selectedItemStorageKey = `free_marking_selected_item:{{ selected_order_type|escapejs }}:{{ selected_order_key|escapejs }}`;
+    let labelRendererReady = false;
+    let busy = false;
+
+    function itemIdentity(item) { return JSON.stringify([String(item?.sku_code || ""), String(item?.size || ""), String(item?.barcode || "")]); }
+    function selectedItem() { return items[Number(itemSelect?.value || 0)] || null; }
+    function rememberSelectedItem() { const item = selectedItem(); if (!item) return; try { sessionStorage.setItem(selectedItemStorageKey, itemIdentity(item)); } catch (_error) {} }
+    function restoreSelectedItem() { if (!itemSelect) return; let identity = ""; try { identity = sessionStorage.getItem(selectedItemStorageKey) || ""; } catch (_error) {} if (!identity) return; const index = items.findIndex((item) => itemIdentity(item) === identity); if (index >= 0) itemSelect.value = String(index); }
+    function basePayload() {
+      const item = selectedItem() || {};
+      return {order_type: "{{ selected_order_type|escapejs }}", order_id: "{{ selected_order_key|escapejs }}", sku_code: item.sku_code || "", size: item.size || "", barcode: item.barcode || ""};
+    }
+    function setMessage(text, tone = "") { if (!message) return; message.textContent = text; message.className = `message${tone ? ` ${tone}` : ""}`; }
+    function setStats(stats) { ["loaded","client-free","available","queued","printed","used"].forEach((key) => { const sourceKey = key === "client-free" ? "client_free" : key; const node = document.getElementById(`stat-${key}`); if (node) node.textContent = Number(stats?.[sourceKey] || 0); }); }
+    function refreshSelected() { const index = Number(itemSelect?.value || 0); const item = selectedItem(); itemRows.forEach((row) => { const selected = Number(row.dataset.itemIndex) === index; row.classList.toggle("selected", selected); const radio = row.querySelector(".item-choice"); if (radio) radio.checked = selected; }); rememberSelectedItem(); setStats(item?.stats || {}); drawEmptyLabel(); }
+    function selectItem(index) { if (!itemSelect || busy) return; itemSelect.value = String(index); refreshSelected(); }
+    function drawEmptyLabel() { if (!canvas) return; const ctx = canvas.getContext("2d"); ctx.fillStyle="#fff"; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.strokeStyle="#d8d8d4"; ctx.strokeRect(1,1,canvas.width-2,canvas.height-2); ctx.fillStyle="#777"; ctx.font="700 22px Manrope, sans-serif"; ctx.textAlign="center"; ctx.fillText("Предпросмотр КИЗ",canvas.width/2,canvas.height/2); }
+    function markLabelRendererReady() {
+      if (labelRendererReady) return;
+      labelRendererReady = true;
+      labelRendererWaiters.splice(0).forEach(({resolve, timeoutId}) => { window.clearTimeout(timeoutId); resolve(); });
+    }
+    function waitForLabelRenderer() {
+      if (labelRendererReady) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const timeoutId = window.setTimeout(() => {
+          const index = labelRendererWaiters.findIndex((waiter) => waiter.resolve === resolve);
+          if (index >= 0) labelRendererWaiters.splice(index, 1);
+          reject(new Error("Модуль шаблонов этикеток не загрузился. Обновите страницу."));
+        }, 15000);
+        labelRendererWaiters.push({resolve, timeoutId});
+      });
+    }
+    labelRendererFrame?.addEventListener("load", markLabelRendererReady);
+    window.addEventListener("message", (event) => {
+      if (event.origin !== window.location.origin || event.source !== labelRendererFrame?.contentWindow) return;
+      const data = event.data || {};
+      if (data.type === "fullbox:item-label-renderer-ready") {
+        markLabelRendererReady();
+        return;
+      }
+      if (data.type !== "fullbox:render-item-label-result") return;
+      const requestId = String(data.requestId || "");
+      const pending = pendingLabelRenders.get(requestId);
+      if (!pending) return;
+      pendingLabelRenders.delete(requestId);
+      window.clearTimeout(pending.timeoutId);
+      if (data.ok && data.image) pending.resolve(String(data.image));
+      else pending.reject(new Error(data.error || "Шаблон этикетки не сформирован."));
+    });
+    async function requestLabelImage(payload) {
+      await waitForLabelRenderer();
+      return new Promise((resolve, reject) => {
+        if (!labelRendererFrame?.contentWindow) {
+          reject(new Error("Модуль шаблонов этикеток недоступен."));
+          return;
+        }
+        const requestId = `free-print-label-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        const timeoutId = window.setTimeout(() => {
+          pendingLabelRenders.delete(requestId);
+          reject(new Error("Модуль шаблонов не ответил. Обновите страницу."));
+        }, 15000);
+        pendingLabelRenders.set(requestId, {resolve, reject, timeoutId});
+        labelRendererFrame.contentWindow.postMessage({
+          type: "fullbox:render-item-label",
+          requestId,
+          payload,
+        }, window.location.origin);
+      });
+    }
+    function showLabelPreview(imageUrl) {
+      if (!canvas) return;
+      const preview = new Image();
+      preview.addEventListener("load", () => {
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(preview, 0, 0, canvas.width, canvas.height);
+      }, {once: true});
+      preview.src = imageUrl;
+    }
+    async function renderLabel(data, code, copyNumber = 1, copyCount = 1) {
+      const template = data.label_template || {};
+      const width = Number(template.width_mm) || 58;
+      const height = Number(template.height_mm) || 40;
+      const imageUrl = await requestLabelImage({
+        labelKey: template.label_key || "item_cz",
+        templateKey: template.template_key || "item_cz",
+        mode: "cz",
+        dims: {width, height},
+        data: {
+          barcode: String(data.barcode || "").trim(),
+          cz_code: String(code || "").trim(),
+          article: String(data.sku_code || "").trim(),
+          name: String(data.product_name || "").trim(),
+          size: String(data.size || "").trim(),
+          brand: String(data.brand || "").trim(),
+          subject: String(data.subject || "").trim(),
+          color: String(data.color || "").trim(),
+          composition: String(data.composition || "").trim(),
+          supplier: String(data.supplier || data.agency_name || "").trim(),
+          country: String(data.country || "").trim(),
+          manufacture_date: String(data.manufacture_date || "").trim(),
+          expiration_date: String(data.expiration_date || "").trim(),
+          copy_label: copyCount > 1 ? `КОПИЯ ${copyNumber}/${copyCount}` : "",
+        },
+      });
+      const separator = imageUrl.indexOf(",");
+      const encoded = separator >= 0 ? imageUrl.slice(separator + 1) : "";
+      if (!encoded) throw new Error("Модуль шаблонов вернул пустое изображение этикетки.");
+      showLabelPreview(imageUrl);
+      return encoded;
+    }
+    function populateAgents(){if(!agentSelect)return;agentSelect.innerHTML="";if(!printAgents.length){agentSelect.add(new Option("Нет активного агента",""));printerSelect.innerHTML="";printerSelect.add(new Option("Принтеры не найдены",""));return;}printAgents.forEach((agent)=>agentSelect.add(new Option(agent.label||agent.id,agent.id)));const stored=localStorage.getItem("labels_print_agent_id")||localStorage.getItem("fullbox_agent_id");if(stored&&printAgents.some((agent)=>agent.id===stored))agentSelect.value=stored;populatePrinters();}
+    function populatePrinters(){const selected=printAgents.find((agent)=>agent.id===agentSelect.value);printerSelect.innerHTML="";const printers=selected&&Array.isArray(selected.printers)?selected.printers:[];if(!printers.length){printerSelect.add(new Option("Принтеры не найдены",""));return;}printers.forEach((printer)=>printerSelect.add(new Option(printer,printer)));const stored=localStorage.getItem("processing_label_printer")||localStorage.getItem("label_printer");if(stored&&printers.includes(stored))printerSelect.value=stored;}
+    function sleep(ms){return new Promise((resolve)=>window.setTimeout(resolve,ms));}
+    function newPrintRequestId(){if(window.crypto&&typeof window.crypto.randomUUID==="function")return window.crypto.randomUUID();return `print-${Date.now()}-${Math.random().toString(36).slice(2,14)}`;}
+    async function postJson(url,payload,{retryable=false}={}){
+      const maxAttempts=retryable?3:1;
+      let lastError=null;
+      for(let attempt=0;attempt<maxAttempts;attempt+=1){
+        try{
+          const response=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":csrfToken},body:JSON.stringify(payload)});
+          const responseText=await response.text();
+          let data={};
+          if(responseText){try{data=JSON.parse(responseText);}catch(error){data={};}}
+          if(response.ok&&data.ok)return data;
+          const temporary=[502,503,504].includes(response.status);
+          if(temporary){
+            lastError=new Error("Сервер временно недоступен и не подтвердил создание задания печати. Дождитесь восстановления соединения и проверьте очередь перед повторным запуском.");
+            if(retryable&&attempt+1<maxAttempts){await sleep(800*(attempt+1));continue;}
+            throw lastError;
+          }
+          throw new Error(data.error||`Операция не выполнена (HTTP ${response.status}).`);
+        }catch(error){
+          if(error===lastError)throw error;
+          const networkError=error instanceof TypeError;
+          lastError=networkError
+            ?new Error("Нет соединения с сервером. Создание задания печати не подтверждено; проверьте очередь перед повторным запуском.")
+            :error;
+          if(retryable&&networkError&&attempt+1<maxAttempts){await sleep(800*(attempt+1));continue;}
+          throw lastError;
+        }
+      }
+      throw lastError||new Error("Операция не выполнена.");
+    }
+    async function waitForPrint(jobIds,lockedPayload){for(let attempt=0;attempt<120;attempt+=1){const data=await postJson("/marking/free-print/status/",{...lockedPayload,job_ids:jobIds},{retryable:true});if(data.stats)setStats(data.stats);if(data.terminal)return data;await sleep(1000);}throw new Error("Агент печати еще не подтвердил результат. Не запускайте повторную печать этой партии.");}
+    function askPrinted(){const modal=document.getElementById("print-confirm-modal");const yes=document.getElementById("print-confirm-yes");const uncertain=document.getElementById("print-confirm-uncertain");return new Promise((resolve)=>{const finish=(value)=>{modal.hidden=true;yes.removeEventListener("click",onYes);uncertain.removeEventListener("click",onUncertain);resolve(value);};const onYes=()=>finish("all");const onUncertain=()=>finish("uncertain");yes.addEventListener("click",onYes);uncertain.addEventListener("click",onUncertain);modal.hidden=false;yes.focus();});}
+    if(itemSelect)itemSelect.addEventListener("change",refreshSelected);
+    itemRows.forEach((row) => { row.addEventListener("click", () => selectItem(Number(row.dataset.itemIndex || 0))); row.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectItem(Number(row.dataset.itemIndex || 0)); } }); });
+    if(agentSelect)agentSelect.addEventListener("change",()=>{localStorage.setItem("labels_print_agent_id",agentSelect.value);localStorage.setItem("fullbox_agent_id",agentSelect.value);populatePrinters();});
+    if(printerSelect)printerSelect.addEventListener("change",()=>{localStorage.setItem("processing_label_printer",printerSelect.value);localStorage.setItem("label_printer",printerSelect.value);});
+    async function readJsonResponse(response){const contentType=response.headers.get("content-type")||"";if(contentType.includes("application/json"))return response.json();if(response.redirected&&response.url.includes("/login/"))throw new Error("Сессия завершена. Войдите в систему и повторите загрузку.");if(response.status>=500)throw new Error("Сервер не смог завершить проверку кодов ЧЗ. Повторите загрузку; если ошибка повторится, сообщите в поддержку.");throw new Error("Сервер вернул некорректный ответ. Обновите страницу и повторите загрузку.");}
+    document.getElementById("import-form")?.addEventListener("submit",async(event)=>{event.preventDefault();if(busy)return;const file=document.getElementById("file-input").files[0];if(!file)return;busy=true;setMessage("Проверяю и распределяю КИЗ по товарам заявки...");const form=new FormData();Object.entries(basePayload()).forEach(([key,value])=>form.append(key,value));form.append("file",file);try{const response=await fetch("/marking/free-print/import/",{method:"POST",headers:{"X-CSRFToken":csrfToken},body:form});const data=await readJsonResponse(response);if(!response.ok||!data.ok)throw new Error(data.error||"Не удалось загрузить КИЗ.");const itemCount=Array.isArray(data.items_added)?data.items_added.length:0;setMessage(`Загружено КИЗ: ${data.added}. Позиций товара: ${itemCount}. Обновляю заявку...`,"success");setTimeout(()=>window.location.reload(),900);}catch(error){setMessage(error.message||"Ошибка загрузки.","error");}finally{busy=false;}});
+    document.getElementById("print-button")?.addEventListener("click",async()=>{
+      if(busy)return;
+      const qty=Number(document.getElementById("print-qty").value||0);
+      const copies=Number(document.getElementById("print-copies").value||0);
+      if(!Number.isInteger(qty)||qty<1||qty>freePrintMaxQuantity){setMessage(`Укажите количество от 1 до ${freePrintMaxQuantity}.`,"error");return;}
+      if(!Number.isInteger(copies)||copies<1||copies>freePrintMaxCopies){setMessage(`Укажите количество копий от 1 до ${freePrintMaxCopies}.`,"error");return;}
+      if(qty*copies>freePrintMaxLabels){setMessage(`С учетом копий можно напечатать не более ${freePrintMaxLabels} этикеток за одну операцию.`,"error");return;}
+      if(!agentSelect.value||!printerSelect.value){setMessage("Выберите активный агент и принтер.","error");return;}
+      const lockedPayload=basePayload();
+      if(!lockedPayload.sku_code&&!lockedPayload.barcode){setMessage("Выберите товар для печати.","error");return;}
+      busy=true;
+      const button=document.getElementById("print-button");
+      button.disabled=true;
+      setMessage("Проверяю и резервирую всю партию КИЗ...");
+      let reservationJobId=0;
+      let reservationReleased=false;
+      const releaseUnusedReservation=async()=>{
+        if(!reservationJobId||reservationReleased)return;
+        await postJson("/marking/free-print/confirm/",{...lockedPayload,job_ids:[reservationJobId],printed:false},{retryable:true});
+        reservationReleased=true;
+      };
+      try{
+        const batchRequestId=newPrintRequestId();
+        const candidateData=await postJson("/marking/free-print/candidates/",{...lockedPayload,qty,reserve:true,request_id:batchRequestId},{retryable:true});
+        const codes=Array.isArray(candidateData.codes)?candidateData.codes:[];
+        reservationJobId=Number(candidateData.reservation_job_id||0);
+        if(codes.length!==qty||!reservationJobId)throw new Error(`Не удалось зарезервировать всю партию: нужно ${qty}, получено ${codes.length}. Печать не запущена.`);
+        const preparedLabels=[];
+        for(let index=0;index<codes.length;index+=1){
+          setMessage(`Формирую КИЗ ${index+1} из ${qty}...`);
+          const copyImages=[];
+          for(let copyNumber=1;copyNumber<=copies;copyNumber+=1){
+            setMessage(`Формирую КИЗ ${index+1} из ${qty}, копия ${copyNumber} из ${copies}...`);
+            copyImages.push(await renderLabel(candidateData,codes[index],copyNumber,copies));
+          }
+          preparedLabels.push({code:codes[index],label_png_base64:copyImages[0],copy_label_png_base64_list:copyImages});
+        }
+        const jobIds=[];
+        let queuedKizCount=0;
+        let queuedCopyCount=0;
+        let queueError=null;
+        while(queuedKizCount<qty&&!queueError){
+          const chunkStart=queuedKizCount;
+          const chunkQty=Math.min(freePrintReservationChunkSize,qty-chunkStart);
+          const labels=preparedLabels.slice(chunkStart,chunkStart+chunkQty);
+          setMessage(`Передаю зарезервированные КИЗ: ${chunkStart+1}–${chunkStart+chunkQty} из ${qty}...`);
+          try{
+            const requestId=newPrintRequestId();
+            const queueData=await postJson("/marking/free-print/queue/",{...lockedPayload,request_id:requestId,reservation_job_id:reservationJobId,agent_id:agentSelect.value,printer_name:printerSelect.value,copies,labels},{retryable:true});
+            const batchJobIds=(queueData.job_ids||[]).map((value)=>Number(value)).filter((value)=>value>0);
+            const queuedNow=Number(queueData.queued_count||0);
+            const queuedKizNow=Number(queueData.kiz_count||0);
+            if(!batchJobIds.length||queuedKizNow!==labels.length||queuedNow!==labels.length*copies)throw new Error("Сервер вернул неполную подпартию заданий печати.");
+            batchJobIds.forEach((jobId)=>{if(!jobIds.includes(jobId))jobIds.push(jobId);});
+            queuedKizCount+=queuedKizNow;
+            queuedCopyCount+=queuedNow;
+            setStats(queueData.stats);
+            setMessage(`Передано КИЗ: ${queuedKizCount} из ${qty}; копий этикеток: ${queuedCopyCount} из ${qty*copies}...`);
+          }catch(error){
+            queueError=error;
+          }
+        }
+        if(queueError)await releaseUnusedReservation();
+        if(!jobIds.length)throw queueError||new Error("Сервер не вернул номера заданий печати.");
+        setMessage(`Этикетки переданы агенту: ${queuedCopyCount} шт. Ожидаю результат печати...`);
+        const statusData=await waitForPrint(jobIds,lockedPayload);
+        if(statusData.failed){
+          setMessage("Агент сообщил об ошибке печати. Переданные КИЗ не возвращены в доступные и заблокированы от повторной печати до проверки.","error");
+          return;
+        }
+        const printResult=await askPrinted();
+        const printed=printResult==="all";
+        const uncertain=printResult==="uncertain";
+        const confirmData=await postJson("/marking/free-print/confirm/",{...lockedPayload,job_ids:jobIds,printed,uncertain});
+        setStats(confirmData.stats);
+        const partialMessage=queueError?` Передано КИЗ ${queuedKizCount} из ${qty}; остаток не резервировался.`:"";
+        if(uncertain){
+          setMessage(`Вся спорная партия заблокирована: ${confirmData.count||queuedKizCount} КИЗ. Система не даст напечатать их повторно; руководитель проверяет их поштучно через «Возврат ЧЗ».${partialMessage}`,"error");
+        }else{
+          setMessage(printed?`Печать подтверждена. Учтено КИЗ: ${confirmData.count||queuedKizCount}. Напечатано копий: ${queuedCopyCount}.${partialMessage}`:`Подтверждено, что не напечаталась ни одна этикетка. Возвращено КИЗ: ${confirmData.count||queuedKizCount}.${partialMessage}`,queueError?"error":"success");
+        }
+        window.setTimeout(()=>window.location.reload(),1400);
+      }catch(error){
+        try{await releaseUnusedReservation();}catch(_releaseError){}
+        setMessage(error.message||"Ошибка печати.","error");
+      }finally{
+        busy=false;
+        button.disabled=false;
+      }
+    });
+    restoreSelectedItem(); drawEmptyLabel(); populateAgents(); refreshSelected();
+  </script>
+</body>
+</html>

@@ -1,0 +1,368 @@
+{% extends "head_manager/fbs_base.html" %}
+
+{% block title %}AI-контроль ошибок{% endblock %}
+
+{% block head_extra %}
+<style>
+  .inspection-hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: flex-start;
+    padding: 20px;
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius);
+    background:
+      radial-gradient(circle at 92% 12%, rgba(248,184,0,.22), transparent 30%),
+      linear-gradient(135deg, #fff, rgba(248,144,0,.08));
+    box-shadow: var(--shadow);
+  }
+  .inspection-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .read-only-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 4px 9px;
+    border: 1px solid rgba(248,144,0,.34);
+    border-radius: 999px;
+    color: var(--accent-strong);
+    background: var(--accent-soft);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .inspection-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .safety-note {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    padding: 14px 16px;
+    border: 1px solid rgba(38,115,77,.24);
+    border-radius: var(--radius);
+    background: var(--success-soft);
+  }
+  .safety-note-icon {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: var(--success);
+    background: #fff;
+    font-weight: 900;
+  }
+  .safety-note strong { display: block; color: var(--success); font-size: 13px; }
+  .safety-note p { margin-top: 3px; color: #345f49; font-size: 12px; line-height: 1.45; }
+  .inspection-metrics { grid-template-columns: repeat(5, minmax(130px, 1fr)); }
+  .metric.critical strong { color: var(--danger); }
+  .metric.warning strong { color: var(--warning); }
+  .metric.healthy strong { color: var(--success); }
+  .incident-list { display: grid; gap: 10px; padding: 12px; }
+  .incident-card {
+    display: grid;
+    grid-template-columns: 108px minmax(0, 1.35fr) minmax(260px, 1fr);
+    gap: 14px;
+    align-items: start;
+    padding: 14px;
+    border: 1px solid var(--stroke);
+    border-left-width: 4px;
+    border-radius: var(--radius);
+    background: #fff;
+  }
+  .incident-card.critical { border-left-color: var(--danger); }
+  .incident-card.warning { border-left-color: #d89200; }
+  .incident-card.info { border-left-color: var(--info); }
+  .incident-contour { margin-top: 7px; color: var(--muted); font-size: 11px; font-weight: 900; }
+  .incident-title { font-size: 14px; font-weight: 900; line-height: 1.35; }
+  .incident-message { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .incident-action {
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    background: var(--surface-soft);
+    color: #4d4742;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .incident-action strong { display: block; margin-bottom: 3px; color: var(--ink); }
+  .incident-techline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .incident-techline code {
+    padding: 3px 6px;
+    border: 1px solid var(--stroke);
+    border-radius: 6px;
+    color: #655d57;
+    background: var(--surface-soft);
+    font-size: 10px;
+  }
+  .incident-details {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--stroke);
+    padding-top: 10px;
+  }
+  .incident-details > summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    min-height: 36px;
+    cursor: pointer;
+    color: var(--accent-strong);
+    font-size: 12px;
+    font-weight: 900;
+    list-style: none;
+  }
+  .incident-details > summary::-webkit-details-marker { display: none; }
+  .incident-details > summary::after {
+    content: "+";
+    display: grid;
+    width: 24px;
+    height: 24px;
+    place-items: center;
+    border-radius: 50%;
+    color: #fff;
+    background: var(--accent);
+    font-size: 16px;
+  }
+  .incident-details[open] > summary::after { content: "−"; }
+  .diagnostic-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .diagnostic-box {
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    background: var(--surface-soft);
+    color: #4d4742;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .diagnostic-box strong {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--ink);
+    font-size: 11px;
+  }
+  .evidence-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: end;
+    margin-top: 14px;
+  }
+  .evidence-head h3 { margin: 0; font-size: 13px; }
+  .evidence-head span { color: var(--muted); font-size: 11px; }
+  .evidence-list { display: grid; gap: 8px; margin-top: 8px; }
+  .evidence-item {
+    padding: 11px 12px;
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius);
+    background: #fff;
+  }
+  .evidence-title { color: var(--ink); font-size: 12px; font-weight: 900; }
+  .evidence-subtitle { margin-top: 2px; color: var(--muted); font-size: 11px; }
+  .evidence-facts { display: flex; flex-wrap: wrap; gap: 5px 8px; margin-top: 7px; }
+  .evidence-fact {
+    padding: 3px 6px;
+    border-radius: 6px;
+    color: #5f564f;
+    background: var(--surface-soft);
+    font-size: 10px;
+  }
+  .evidence-message {
+    margin-top: 7px;
+    padding: 7px 9px;
+    border-left: 3px solid rgba(248,144,0,.55);
+    color: #514840;
+    background: rgba(248,144,0,.06);
+    font-size: 11px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+  .evidence-note { margin-top: 8px; color: var(--muted); font-size: 11px; }
+  .source-status { display: inline-flex; align-items: center; gap: 7px; font-weight: 900; }
+  .source-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+  .source-status.attention::before { background: #d89200; }
+  .source-status.unavailable::before { background: var(--danger); }
+  .source-meta { color: var(--muted); font-size: 11px; }
+  @media (max-width: 1050px) {
+    .inspection-metrics { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+    .incident-card { grid-template-columns: 100px minmax(0, 1fr); }
+    .incident-action { grid-column: 2; }
+    .incident-details { grid-column: 1 / -1; }
+  }
+  @media (max-width: 760px) {
+    .inspection-hero { display: grid; }
+    .inspection-metrics { grid-template-columns: 1fr; }
+    .incident-card { grid-template-columns: 1fr; }
+    .incident-action { grid-column: auto; }
+    .diagnostic-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+  <section class="inspection-hero">
+    <div>
+      <div class="inspection-title-row">
+        <h1>AI-контроль ошибок</h1>
+        <span class="read-only-badge">Только чтение</span>
+      </div>
+      <p class="subtitle">Собирает сигналы из существующих журналов WMS, объясняет риск и предлагает только ручную проверку.</p>
+      <p class="muted">Обновлено: {{ inspection_report.generated_at|date:"d.m.Y H:i:s" }}</p>
+    </div>
+    <div class="inspection-actions">
+      <a class="btn primary" href="/head-manager/inspection/">Обновить проверку</a>
+      <a class="btn" href="/audit/orders/">История заявок</a>
+      <a class="btn" href="/audit/moves/">Движения склада</a>
+    </div>
+  </section>
+
+  <section class="safety-note" aria-label="Гарантия безопасности">
+    <span class="safety-note-icon">✓</span>
+    <div>
+      <strong>Рабочая программа не изменяется</strong>
+      <p>Автоматические исправления выключены. Инспектор не меняет код, остатки, резервы, зоны, заявки, статусы, задания печати или настройки интеграций.</p>
+    </div>
+  </section>
+
+  <section class="metrics inspection-metrics" aria-label="Сводка сигналов">
+    <article class="metric critical"><span>Критичные</span><strong>{{ inspection_summary.critical }}</strong></article>
+    <article class="metric warning"><span>Предупреждения</span><strong>{{ inspection_summary.warning }}</strong></article>
+    <article class="metric"><span>Всего сигналов</span><strong>{{ inspection_summary.total }}</strong></article>
+    <article class="metric healthy"><span>Источники без проблем</span><strong>{{ inspection_summary.healthy_sources }}</strong></article>
+    <article class="metric"><span>Источники недоступны</span><strong>{{ inspection_summary.unavailable_sources }}</strong></article>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Сигналы для проверки</h2>
+        <p class="muted">Сначала критичные. Каждая рекомендация требует решения человека.</p>
+      </div>
+      {% if inspection_report.overall == "critical" %}
+        <span class="pill danger">Есть критичные</span>
+      {% elif inspection_report.overall == "warning" %}
+        <span class="pill warning">Нужно внимание</span>
+      {% else %}
+        <span class="pill success">Сигналов нет</span>
+      {% endif %}
+    </div>
+    {% if incidents %}
+      <div class="incident-list">
+        {% for incident in incidents %}
+          <article class="incident-card {{ incident.severity }}">
+            <div>
+              {% if incident.severity == "critical" %}
+                <span class="pill danger">Критично</span>
+              {% elif incident.severity == "warning" %}
+                <span class="pill warning">Внимание</span>
+              {% else %}
+                <span class="pill info">Информация</span>
+              {% endif %}
+              <div class="incident-contour">{{ incident.contour }}{% if incident.count %} · {{ incident.count }}{% endif %}</div>
+            </div>
+            <div>
+              <div class="incident-title">{{ incident.title }}</div>
+              <div class="incident-message">{{ incident.message }}</div>
+              <div class="incident-techline">
+                <code>{{ incident.code }}</code>
+                <code>{{ incident.source }}</code>
+              </div>
+            </div>
+            <div class="incident-action">
+              <strong>Рекомендуемая проверка</strong>
+              {{ incident.recommendation }}
+            </div>
+            <details class="incident-details"{% if incident.severity == "critical" %} open{% endif %}>
+              <summary>
+                <span>Подробная диагностика{% if incident.evidence_total %} · объектов {{ incident.evidence_total }}{% endif %}</span>
+                <span class="sr-only">Открыть или закрыть</span>
+              </summary>
+              <div class="diagnostic-grid">
+                <div class="diagnostic-box">
+                  <strong>Почему это важно</strong>
+                  {{ incident.why_it_matters }}
+                </div>
+                <div class="diagnostic-box">
+                  <strong>Какое правило сработало</strong>
+                  {{ incident.check_rule }}
+                </div>
+                <div class="diagnostic-box">
+                  <strong>Техническая привязка</strong>
+                  Код: <code>{{ incident.code }}</code><br>
+                  Источник: <code>{{ incident.source }}</code>
+                </div>
+                <div class="diagnostic-box">
+                  <strong>Граница действий</strong>
+                  Только ручная проверка. Автоматическое исправление: выключено.
+                </div>
+              </div>
+              {% if incident.evidence %}
+                <div class="evidence-head">
+                  <h3>Конкретные объекты</h3>
+                  <span>Показано {{ incident.evidence|length }} из {{ incident.evidence_total }}</span>
+                </div>
+                <div class="evidence-list">
+                  {% for item in incident.evidence %}
+                    <article class="evidence-item">
+                      <div class="evidence-title">{{ item.title }}</div>
+                      {% if item.subtitle %}<div class="evidence-subtitle">{{ item.subtitle }}</div>{% endif %}
+                      {% if item.facts %}
+                        <div class="evidence-facts">
+                          {% for fact in item.facts %}<span class="evidence-fact">{{ fact }}</span>{% endfor %}
+                        </div>
+                      {% endif %}
+                      {% if item.message %}<div class="evidence-message">{{ item.message }}</div>{% endif %}
+                    </article>
+                  {% endfor %}
+                </div>
+                {% if incident.evidence_total > incident.evidence|length %}
+                  <p class="evidence-note">Список ограничен первыми {{ incident.evidence|length }} объектами, чтобы не перегружать рабочую страницу. Общее количество указано выше.</p>
+                {% endif %}
+              {% else %}
+                <p class="evidence-note">Для этого агрегатного сигнала конкретные объекты источник не возвращает. Используйте технический код и правило проверки.</p>
+              {% endif %}
+            </details>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">Активных сигналов не найдено. Данные и код не изменялись.</div>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Самоконтроль источников</h2>
+        <p class="muted">Если одна проверка недоступна, остальные продолжают работать.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Источник</th><th>Состояние</th><th>Сигналов</th><th>Время</th><th>Комментарий</th></tr>
+        </thead>
+        <tbody>
+          {% for source in inspection_sources %}
+            <tr>
+              <td><strong>{{ source.title }}</strong><div class="source-meta">{{ source.code }}</div></td>
+              <td><span class="source-status {{ source.status }}">{% if source.status == "ok" %}Проверен{% elif source.status == "attention" %}Требует внимания{% else %}Недоступен{% endif %}</span></td>
+              <td>{{ source.incident_count }}</td>
+              <td>{{ source.duration_ms }} мс</td>
+              <td class="wide">{{ source.message }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

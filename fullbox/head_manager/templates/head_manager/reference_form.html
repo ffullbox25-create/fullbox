@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --stroke: rgba(28,31,26,0.12);
+      --muted: #6b6f66;
+      --sun: #f2b747;
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+    }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 24px; }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+    .header { margin-bottom: 18px; }
+    h1 {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 28px;
+    }
+    .subtitle { margin-top: 6px; color: var(--muted); }
+    form { display: grid; gap: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .field { display: grid; gap: 6px; }
+    label { font-weight: 700; color: var(--muted); }
+    input, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      font: inherit;
+      background: #fff;
+    }
+    textarea { resize: vertical; min-height: 86px; }
+    .checks { display: flex; gap: 16px; flex-wrap: wrap; }
+    .checks label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: #1c1f1a;
+    }
+    .checks input { width: auto; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: inherit;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .errors { color: #b04c37; font-size: 13px; }
+    @media (max-width: 800px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="panel">
+      <div class="header">
+        <h1>{{ title }}</h1>
+        <div class="subtitle">{{ subtitle }}</div>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="errors">{{ form.non_field_errors }}</div>
+        {% endif %}
+        <div class="grid">
+          {% for field in form %}
+            {% if field.name != "is_default" and field.name != "is_active" %}
+              <div class="field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<div class="errors">{{ field.errors }}</div>{% endif %}
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        <div class="checks">
+          {% if form.is_default %}<label>{{ form.is_default }} {{ form.is_default.label }}</label>{% endif %}
+          {% if form.is_active %}<label>{{ form.is_active }} {{ form.is_active.label }}</label>{% endif %}
+        </div>
+        <div class="actions">
+          <button class="btn primary" type="submit">{{ submit_label }}</button>
+          <a class="btn" href="{{ back_url }}">Назад</a>
+        </div>
+      </form>
+    </section>
+  </div>
+</body>
+</html>

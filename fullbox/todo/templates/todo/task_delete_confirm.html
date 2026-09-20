@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Удалить задачу</title>
+  <link href="/static/vendor/space-grotesk.css" rel="stylesheet">
+  <style>
+    :root { --bg:#f6f4ed; --card:#ffffff; --card-soft:#f8f6f1; --stroke:rgba(31,35,40,0.12); --text:#1f2328; --muted:#6b7280; --red:#d14343; --gold:#c79a1c; --gold-soft:#f2d48c; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:'Space Grotesk',system-ui,sans-serif; }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 32px 20px 64px; }
+    .card { background:var(--card); border:1px solid var(--stroke); border-radius:18px; padding:20px; box-shadow:0 18px 45px rgba(15,23,42,0.08); }
+    .muted { color:var(--muted); }
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:12px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); color:var(--text); font-weight:600; cursor:pointer; }
+    .btn.danger { border-color:rgba(225,92,100,0.4); color:var(--red); }
+    .btn:hover { border-color:var(--gold); box-shadow:0 12px 30px rgba(199,154,32,0.2); transform:translateY(-2px); }
+    .actions { display:flex; gap:10px; justify-content:flex-end; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h2 style="margin-top:0;">Удалить задачу</h2>
+      <p class="muted">"{{ task.title }}" будет удалена без возможности восстановления.</p>
+      <form method="post">
+        {% csrf_token %}
+        <div class="actions">
+          <a class="btn" href="{% url 'todo:list' %}">Отмена</a>
+          <button class="btn danger" type="submit">Удалить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

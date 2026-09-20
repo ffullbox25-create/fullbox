@@ -1,0 +1,83 @@
+{% extends "head_manager/fbs_base.html" %}
+
+{% block title %}Инвентаризации{% endblock %}
+
+{% block content %}
+  <div class="topbar">
+    <div>
+      <h1>Инвентаризации</h1>
+      <p class="subtitle">Создание, передача ричтракерам и контроль результатов пересчета.</p>
+    </div>
+    <div class="topbar-actions">
+      <a class="btn primary" href="{% url 'inventory:create' %}">Добавить инвентаризацию</a>
+    </div>
+  </div>
+
+  <section class="metrics">
+    <a class="metric" href="?status=created"><span>Созданы</span><strong>{{ created_count }}</strong></a>
+    <a class="metric" href="?status=pending"><span>Переданы</span><strong>{{ pending_count }}</strong></a>
+    <a class="metric" href="?status=in_progress"><span>В работе</span><strong>{{ in_progress_count }}</strong></a>
+    <a class="metric" href="?status=completed"><span>Завершены</span><strong>{{ completed_count }}</strong></a>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Журнал инвентаризаций</h2>
+        <p class="muted">Показаны последние 200 операций.</p>
+      </div>
+      <form method="get" style="display:flex;gap:8px;align-items:end;">
+        <label>
+          Статус
+          <select name="status" onchange="this.form.submit()">
+            <option value="">Все статусы</option>
+            {% for value, label in status_choices %}
+              <option value="{{ value }}"{% if status_filter == value %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </form>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Тип</th>
+            <th>Статус</th>
+            <th>Контур</th>
+            <th>Создал</th>
+            <th>Провел</th>
+            <th>Дата создания</th>
+            <th>Начало</th>
+            <th>Окончание</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in inventories %}
+            <tr>
+              <td><a href="{% url 'inventory:detail' item.id %}"><strong>#{{ item.id }}</strong></a></td>
+              <td>{{ item.get_inventory_type_display }}</td>
+              <td>
+                <span class="pill {% if item.status == 'completed' %}success{% elif item.status == 'in_progress' %}warning{% elif item.status == 'canceled' %}danger{% else %}info{% endif %}">
+                  {{ item.get_status_display }}
+                </span>
+              </td>
+              <td class="wide">
+                {% if item.agency_id %}{{ item.agency.agn_name }}{% elif item.sku_id %}{{ item.sku.sku_code }} · {{ item.sku.name }}{% else %}{{ item.location_count }} мест{% endif %}
+              </td>
+              <td>{{ item.created_by.get_full_name|default:item.created_by.username|default:"—" }}</td>
+              <td>{{ item.performed_by_name|default:"—" }}</td>
+              <td>{{ item.created_at|date:"d.m.Y H:i" }}</td>
+              <td>{{ item.started_at|date:"d.m.Y H:i"|default:"—" }}</td>
+              <td>{{ item.completed_at|date:"d.m.Y H:i"|default:"—" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty" colspan="9">Инвентаризаций пока нет.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}
+

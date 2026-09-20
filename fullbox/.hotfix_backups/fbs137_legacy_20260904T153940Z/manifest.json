@@ -1,0 +1,14 @@
+{
+  "traceability.py": {
+    "before": "182c251adc65d942c156eecfb0b573464b38e0ad25e31869fc911435c29ea7fa",
+    "after": "94533dcc3397f83fcfd182ebeddeb6a1c31e23d907cff2c019e9dc141bddcce8"
+  },
+  "totes.py": {
+    "before": "dc24a273eacba60445c936b142b6c34334a7c61f07b772d217565dc8019f5600",
+    "after": "e4deabc11e06bad0cc21f2fe4266090a6d224d3162d6112e6aae170aad9de5f4"
+  },
+  "handover.py": {
+    "before": "e0c62727b9e8471a1557e993ec0d8fd4e0ef32889e7b38df51745f838c93cf13",
+    "after": "64c7baf1968f4f3e5949390637a8288b0d90cd0ddc43518a1e01e47fa1cca3ea"
+  }
+}

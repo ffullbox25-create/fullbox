@@ -1,0 +1,20 @@
+<style>
+  .client-tariff-sections { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+  .client-tariff-sections a { display:grid; gap:3px; padding:13px 14px; border:1px solid var(--stroke); border-radius:14px; background:#fff; color:var(--ink); text-decoration:none; }
+  .client-tariff-sections a:hover { border-color:rgba(248,144,0,.55); }
+  .client-tariff-sections a.active { border-color:var(--accent); background:var(--accent-soft); color:var(--accent-strong); }
+  .client-tariff-sections strong { font-size:14px; }
+  .client-tariff-sections span { color:var(--muted); font-size:11px; }
+  @media (max-width:900px) { .client-tariff-sections { grid-template-columns:1fr; } }
+</style>
+<nav class="client-tariff-sections" aria-label="Тарифы клиентов">
+  <a class="{% if active_tariff_section == 'general' %}active{% endif %}" href="/accountant/tariffs/{% if request.GET.client %}?client={{ request.GET.client }}{% endif %}">
+    <strong>Общие тарифы</strong><span>FBO и складские услуги</span>
+  </a>
+  <a class="{% if active_tariff_section == 'logistics' %}active{% endif %}" href="/accountant/logistics/tariffs/">
+    <strong>Логистика</strong><span>Направления и цена за палету</span>
+  </a>
+  <a class="{% if active_tariff_section == 'fbs' %}active{% endif %}" href="/accountant/fbs/tariffs/{% if request.GET.client %}?client={{ request.GET.client }}{% endif %}">
+    <strong>FBS</strong><span>Ставки по операциям и литражу</span>
+  </a>
+</nav>

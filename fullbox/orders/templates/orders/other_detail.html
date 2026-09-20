@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Прочая заявка {{ display_number }}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: "Manrope", system-ui, sans-serif; }
+    a { color: inherit; text-decoration: none; }
+    .or-page { max-width: 1500px; margin: 0 auto; padding: 24px 20px 72px; }
+    .or-crumbs { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+    .or-crumbs a { text-decoration: underline; }
+    .or-header { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 16px; }
+    .or-eyebrow { margin: 0 0 6px; color: var(--muted); font-size: 13px; font-weight: 700; letter-spacing: .02em; }
+    .or-title { margin: 0; font-family: "Bricolage Grotesque", "Manrope", sans-serif; font-size: 30px; line-height: 1.15; }
+    .or-meta { color: var(--muted); font-size: 13px; margin-top: 8px; display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+    .or-btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .or-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--stroke); background: var(--surface-2); color: var(--text); font: inherit; font-weight: 800; cursor: pointer; }
+    .or-btn-sm { padding: 7px 10px; font-size: 12px; }
+    .or-btn-primary { border-color: rgba(42,33,16,.16); background: linear-gradient(120deg, var(--gold), var(--gold-soft)); color: #2a2110; }
+    .or-btn-danger { border-color: rgba(212,84,60,.35); background: var(--danger-soft); color: var(--danger); }
+    .or-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .or-pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; background: var(--sun-soft); color: #8a5a00; font-size: 12px; font-weight: 800; }
+    .or-pill-warehouse { background: var(--accent-soft); color: var(--accent-strong); }
+    .or-pill-done { background: #d8f0e4; color: var(--accent-strong); }
+    .or-pill-cancel { background: var(--danger-soft); color: var(--danger); }
+    .or-layout { display: grid; grid-template-columns: minmax(0, 1fr) 410px; gap: 16px; align-items: start; }
+    .or-main { display: grid; gap: 14px; min-width: 0; }
+    .or-aside { display: grid; gap: 14px; position: sticky; top: 16px; }
+    .or-card { background: var(--card); border: 1px solid var(--stroke); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow); }
+    .or-card h2 { margin: 0 0 14px; font-size: 17px; font-family: "Bricolage Grotesque", "Manrope", sans-serif; }
+    .or-card h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+    .or-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+    .or-label { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+    .or-value { font-size: 14px; font-weight: 700; white-space: pre-wrap; word-break: break-word; }
+    .or-muted { color: var(--muted); }
+    .or-link-card, .or-file-card, .or-service-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; border: 1px solid var(--stroke); border-radius: 12px; background: var(--surface); padding: 10px 12px; margin-bottom: 8px; }
+    .or-file-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+    .or-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+    .or-field { display: grid; gap: 5px; font-size: 12px; color: var(--muted); font-weight: 800; }
+    textarea, select, input[type=text], input[type=number] { width: 100%; border: 1px solid var(--stroke); border-radius: 10px; padding: 10px 12px; background: var(--surface); color: var(--text); font: inherit; }
+    textarea { resize: vertical; }
+    .or-alert { padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(242,183,71,.45); background: var(--sun-soft); color: #805600; font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+    .or-alert-danger { border-color: rgba(212,84,60,.3); background: var(--danger-soft); color: var(--danger); }
+    .or-dropzone { border: 2px dashed var(--stroke); border-radius: var(--radius-lg); padding: 24px; background: var(--surface-2); text-align: center; cursor: pointer; transition: .15s; }
+    .or-dropzone-active { border-color: var(--accent); background: var(--accent-soft); }
+    .or-preview-list { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    .or-preview-card { position: relative; width: 104px; border: 1px solid var(--stroke); border-radius: 12px; background: var(--surface); padding: 6px; text-align: center; }
+    .or-preview-card img { width: 100%; height: 70px; object-fit: cover; border-radius: 8px; }
+    .or-preview-icon { width: 100%; height: 70px; display: grid; place-items: center; font-weight: 900; color: var(--accent-strong); }
+    .or-preview-name { margin-top: 5px; font-size: 10px; max-height: 28px; overflow: hidden; word-break: break-all; }
+    .or-preview-remove { position: absolute; top: -7px; right: -7px; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--stroke); background: var(--card); cursor: pointer; }
+    .or-chat { display: grid; gap: 10px; max-height: 380px; overflow: auto; margin-bottom: 12px; }
+    .or-chat-msg { padding: 10px 12px; border: 1px solid var(--stroke); border-left: 3px solid var(--sun); border-radius: 12px; background: var(--surface); }
+    .or-chat-msg[data-visibility="client"] { border-left-color: var(--accent); }
+    .or-chat-meta { display: flex; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .or-actions { display: grid; gap: 12px; }
+    .or-action-panel { position: sticky; bottom: 12px; z-index: 2; }
+    .or-summary-list { display: grid; gap: 10px; }
+    .or-summary-row { display: grid; grid-template-columns: 135px 1fr; gap: 10px; border-bottom: 1px solid var(--stroke); padding-bottom: 8px; }
+    .or-timeline { display: grid; gap: 0; }
+    .or-timeline-item { display: grid; grid-template-columns: 14px 1fr; gap: 10px; padding-bottom: 14px; position: relative; }
+    .or-timeline-item:not(:last-child)::before { content: ""; position: absolute; left: 6px; top: 16px; bottom: 0; width: 1px; background: var(--stroke); }
+    .or-timeline-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); margin-top: 4px; }
+    .or-timeline-title { font-weight: 800; font-size: 13px; }
+    .or-service-table { display: grid; gap: 8px; }
+    .or-service-row { align-items: end; }
+    .or-service-row .or-form-grid { flex: 1; }
+    @media (max-width: 1180px) {
+      .or-layout { grid-template-columns: 1fr; }
+      .or-aside { position: static; }
+    }
+    @media (max-width: 720px) {
+      .or-page { padding: 18px 12px 96px; }
+      .or-title { font-size: 23px; }
+      .or-card { padding: 16px; }
+      .or-summary-row { grid-template-columns: 1fr; gap: 2px; }
+      .or-action-panel { position: fixed; left: 10px; right: 10px; bottom: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="or-page">
+    <div class="or-crumbs"><a href="/orders/other/">Журнал прочих заявок</a> / {{ display_number }}</div>
+    <header class="or-header">
+      <div>
+        <p class="or-eyebrow">Прочая заявка · дополнительная задача склада</p>
+        <h1 class="or-title">{{ display_number }} · {% if item %}{{ item.display_title }}{% else %}{{ payload.category_label|default:"Другое" }}{% endif %}</h1>
+        <div class="or-meta">
+          <span>{% if agency %}{{ agency.short_name|default:agency.agn_name }}{% else %}Клиент не указан{% endif %}</span>
+          <span>·</span>
+          <span>Создано {% if created_at %}{{ created_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</span>
+          {% if item and item.manager %}<span>· Менеджер: {{ item.manager.full_name }}</span>{% endif %}
+          <span class="or-pill {% if is_terminal and status_value == 'cancelled' %}or-pill-cancel{% elif is_terminal %}or-pill-done{% elif bucket == 'warehouse' %}or-pill-warehouse{% endif %}">{{ status_label }}</span>
+          {% if item %}<span class="or-pill">{{ item.priority_label }}</span>{% endif %}
+          {% if item and item.due_at %}<span class="or-pill">Срок: {{ item.due_at|date:"d.m.Y H:i" }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="or-btn-row">
+        <a class="or-btn" href="/orders/other/">Журнал прочих заявок</a>
+        {% if cabinet_url %}<a class="or-btn" href="{{ cabinet_url }}">Кабинет склада</a>{% endif %}
+      </div>
+    </header>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="or-alert {% if message.tags == 'error' %}or-alert-danger{% endif %}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <div class="or-layout">
+      <div class="or-main">
+        <section class="or-card">
+          <h2>Описание задачи</h2>
+          <div class="or-info-grid">
+            <div><div class="or-label">Категория</div><div class="or-value">{% if item and item.category %}{{ item.category.title }}{% else %}{{ payload.category_label|default:"Другое" }}{% endif %}</div></div>
+            <div><div class="or-label">Подразделение</div><div class="or-value">{% if item %}{{ item.department_label }}{% else %}Склад{% endif %}</div></div>
+            <div><div class="or-label">Количество / ТЗ</div><div class="or-value">{% if payload.qty %}{{ payload.qty }}{% elif payload.quantity %}{{ payload.quantity }}{% else %}—{% endif %}</div></div>
+            <div><div class="or-label">Связанные объекты</div><div class="or-value">{{ links|length|default:"—" }}</div></div>
+          </div>
+          <div style="margin-top:14px">
+            <div class="or-label">Задача клиента / менеджера</div>
+            <div class="or-value">{% if item and item.description %}{{ item.description }}{% elif payload.description %}{{ payload.description }}{% else %}—{% endif %}</div>
+          </div>
+          {% if links %}
+            <div style="margin-top:14px">
+              <div class="or-label">Связано с заявкой или объектом</div>
+              {% for link in links %}
+                <div class="or-link-card">
+                  <div><b>{{ link.get_link_type_display }}</b><div class="or-muted">{{ link.label|default:link.object_key }}</div></div>
+                  {% if link.url %}<a class="or-btn or-btn-sm" href="{{ link.url }}">Открыть</a>{% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </section>
+
+        <form method="post" class="or-card" id="warehouse-result-form">
+          {% csrf_token %}
+          <h2>Результат выполнения</h2>
+          <div class="or-field" style="margin-bottom:10px">
+            Что было сделано
+            <textarea name="what_done" rows="4" placeholder="Например: товар найден, старая маркировка удалена, новые этикетки нанесены">{% if item and item.result_comment %}{{ item.result_comment }}{% endif %}</textarea>
+          </div>
+          <div class="or-form-grid">
+            <label class="or-field">Количество обработанного товара<input type="number" step="0.001" name="processed_qty" value="{% if item and item.result_qty %}{{ item.result_qty }}{% endif %}"></label>
+            <label class="or-field">Единица<select name="result_unit"><option value="шт" {% if item and item.result_unit == 'шт' %}selected{% endif %}>шт</option><option value="короб" {% if item and item.result_unit == 'короб' %}selected{% endif %}>короб</option><option value="кг" {% if item and item.result_unit == 'кг' %}selected{% endif %}>кг</option></select></label>
+            <label class="or-field">Количество коробов<input type="number" step="1" name="processed_boxes"></label>
+            <label class="or-field">Количество паллет<input type="number" step="1" name="processed_pallets"></label>
+          </div>
+          <div class="or-field" style="margin-top:10px">Обнаруженные расхождения<textarea name="discrepancy" rows="2" placeholder="Если расхождений нет, можно оставить пустым"></textarea></div>
+          <div class="or-field" style="margin-top:10px">Комментарий исполнителя<textarea name="executor_comment" rows="2" placeholder="Комментарий для менеджера"></textarea></div>
+          <input type="hidden" name="result_outcome" value="done_full">
+
+          <h2 style="margin-top:20px">Фактически оказанные услуги</h2>
+          <p class="or-muted" style="margin-top:-6px">При завершении откроется перечень доступных услуг. Укажите выполненные услуги и фактическое количество.</p>
+          {% for fact in other_service_facts %}
+            <div class="or-service-row">
+              <div><b>{{ fact.name }}</b><div class="or-muted">{{ fact.quantity }} {{ fact.unit }}{% if fact.reported_by %} · {{ fact.reported_by }}{% endif %}</div></div>
+              <span class="or-muted">{{ fact.status_label }}</span>
+            </div>
+          {% empty %}
+            <p class="or-muted">Услуги пока не указаны.</p>
+          {% endfor %}
+
+          {% if can_send_to_warehouse or can_accept_warehouse or can_take_in_work or can_save_result or can_request_clarification or can_complete %}
+          <div class="or-action-panel or-card" style="margin:18px -20px -20px; box-shadow:none">
+            <div class="or-actions">
+              <div class="or-btn-row">
+                {% if can_send_to_warehouse %}<button class="or-btn or-btn-primary" type="submit" name="action" value="send_to_warehouse">Подтвердить и отправить на склад</button>{% endif %}
+                {% if can_accept_warehouse %}<button class="or-btn or-btn-primary" type="submit" name="action" value="start_work">Взять в работу</button>{% endif %}
+                {% if can_take_in_work %}<button class="or-btn or-btn-primary" type="submit" name="action" value="take_in_work">Взять в работу</button>{% endif %}
+                {% if can_save_result %}<button class="or-btn" type="submit" name="action" value="save_result">Сохранить результат</button>{% endif %}
+                {% if can_request_clarification %}<button class="or-btn" type="submit" name="action" value="request_clarification">Запросить уточнение</button>{% endif %}
+                {% if can_complete %}<button class="or-btn or-btn-primary" type="submit" name="action" value="complete">{{ complete_label }}</button>{% endif %}
+              </div>
+              {% if can_request_clarification %}
+                <label class="or-field">Что необходимо уточнить?<input type="text" name="clarification_text" placeholder="Текст уйдёт менеджеру при действии «Запросить уточнение»"></label>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+        </form>
+        {% if warehouse_cancel_request_pending %}
+          <div class="or-card" style="margin-top:14px">
+            <h2>Отмена ожидает подтверждения склада</h2>
+            {% if warehouse_cancel_reason %}
+              <p class="or-muted">Причина: {{ warehouse_cancel_reason }}</p>
+            {% endif %}
+            {% if can_review_warehouse_cancel %}
+              <div class="or-btn-row">
+                <form method="post">
+                  {% csrf_token %}
+                  <button class="or-btn or-btn-danger" type="submit" name="action" value="approve_warehouse_cancel">Подтвердить отмену</button>
+                </form>
+                <form method="post">
+                  {% csrf_token %}
+                  <button class="or-btn" type="submit" name="action" value="reject_warehouse_cancel">Отклонить отмену</button>
+                </form>
+              </div>
+            {% endif %}
+          </div>
+        {% elif can_request_warehouse_cancel %}
+          <form method="post" class="or-card" style="margin-top:14px" id="cancel-reason-required">
+            {% csrf_token %}
+            <h2>Запросить отмену у склада</h2>
+            <label class="or-field">Причина отмены
+              <textarea name="cancel_reason" rows="2" required placeholder="Укажите причину отмены для склада и клиента"></textarea>
+            </label>
+            <div class="or-btn-row" style="margin-top:10px">
+              <button class="or-btn or-btn-danger" type="submit" name="action" value="request_warehouse_cancel">Запросить подтверждение склада</button>
+            </div>
+          </form>
+        {% endif %}
+        {% if can_cancel %}
+          <form method="post" class="or-card" style="margin-top:14px" id="cancel-reason-required">
+            {% csrf_token %}
+            <h2>Отмена заявки</h2>
+            <label class="or-field">Причина отмены для клиента
+              <textarea name="cancel_reason" rows="2" required placeholder="Укажите причину отмены для клиента"></textarea>
+            </label>
+            <div class="or-btn-row" style="margin-top:10px">
+              <button class="or-btn or-btn-danger" type="submit" name="action" value="cancel">Отменить заявку</button>
+            </div>
+          </form>
+        {% endif %}
+
+        <section class="or-card">
+          <h2>Фото и файлы</h2>
+          <div class="or-file-groups">
+            <div>
+              <h3>Файлы клиента</h3>
+              {% for file in client_files %}
+                <div class="or-file-card"><div><b>{{ file.filename }}</b><div class="or-muted">{{ file.file_size|filesizeformat }}</div></div><a class="or-btn or-btn-sm" href="{{ file.url }}?client={{ agency.id }}" target="_blank" rel="noopener">Скачать</a></div>
+              {% empty %}<p class="or-muted">Файлов клиента нет.</p>{% endfor %}
+            </div>
+            <div>
+              <h3>Файлы менеджера</h3>
+              {% for file in internal_files %}
+                <div class="or-file-card"><div><b>{{ file.filename }}</b><div class="or-muted">{{ file.file_size|filesizeformat }}</div></div><a class="or-btn or-btn-sm" href="{{ file.url }}?client={{ agency.id }}" target="_blank" rel="noopener">Скачать</a></div>
+              {% empty %}<p class="or-muted">Файлов менеджера нет.</p>{% endfor %}
+            </div>
+            <div>
+              <h3>Результат склада</h3>
+              {% for file in result_files %}
+                <div class="or-file-card"><div><b>{{ file.filename }}</b><div class="or-muted">{{ file.file_size|filesizeformat }}</div></div><a class="or-btn or-btn-sm" href="{{ file.url }}?client={{ agency.id }}" target="_blank" rel="noopener">Скачать</a></div>
+              {% empty %}<p class="or-muted">Файлов результата нет.</p>{% endfor %}
+            </div>
+          </div>
+          {% if not is_terminal %}
+            <form method="post" enctype="multipart/form-data" id="upload-form" style="margin-top:14px">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="upload_attachment">
+              <div class="or-dropzone" id="dropzone" tabindex="0">
+                <input type="file" id="file-input" name="files" multiple accept="image/*,.pdf,.xlsx,.xls,.doc,.docx" hidden>
+                <input type="file" id="camera-input" accept="image/*" capture="environment" hidden>
+                <b>Перетащите файлы сюда</b>
+                <div class="or-btn-row" style="justify-content:center;margin-top:10px">
+                  <button type="button" class="or-btn or-btn-sm" id="browse-files">Добавить фотографии</button>
+                  <button type="button" class="or-btn or-btn-sm" id="camera-files">Сделать фото</button>
+                </div>
+              </div>
+              <div class="or-preview-list" id="preview-list"></div>
+              <div class="or-btn-row" style="margin-top:12px">
+                <select name="purpose">
+                  <option value="result">Результат склада</option>
+                  <option value="internal">Файл менеджеру</option>
+                  <option value="client">Для клиента</option>
+                </select>
+                <button class="or-btn or-btn-primary" id="upload-submit" type="submit" disabled>Загрузить</button>
+              </div>
+            </form>
+          {% endif %}
+        </section>
+
+        <section class="or-card">
+          <h2>Комментарии</h2>
+          <div class="or-chat">
+            {% for c in comments %}
+              <article class="or-chat-msg" data-visibility="{{ c.visibility }}">
+                <div class="or-chat-meta"><b>{% if c.author %}{{ c.author.get_full_name|default:c.author.username }}{% else %}Система{% endif %}</b><span>{% if c.visibility == 'client' %}Клиенту{% else %}Менеджеру / внутренний{% endif %}</span><span>{{ c.created_at|date:"d.m.Y H:i" }}</span></div>
+                <div>{{ c.text|linebreaksbr }}</div>
+              </article>
+            {% empty %}<p class="or-muted">Комментариев пока нет.</p>{% endfor %}
+          </div>
+          {% if not is_terminal %}
+            <form method="post" class="or-field">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="add_comment">
+              <textarea name="comment" rows="2" placeholder="Введите комментарий менеджеру" required></textarea>
+              <div class="or-btn-row">
+                <select name="visibility"><option value="internal">Менеджеру / внутренний</option><option value="client">Клиенту</option></select>
+                <button class="or-btn or-btn-primary" type="submit">Отправить</button>
+              </div>
+            </form>
+          {% endif %}
+        </section>
+      </div>
+
+      <aside class="or-aside">
+        <section class="or-card">
+          <h2>Сводка</h2>
+          <div class="or-summary-list">
+            <div class="or-summary-row"><span class="or-muted">Статус</span><b>{{ status_label }}</b></div>
+            <div class="or-summary-row"><span class="or-muted">Клиент</span><b>{% if agency %}{{ agency.short_name|default:agency.agn_name }}{% else %}—{% endif %}</b></div>
+            <div class="or-summary-row"><span class="or-muted">Подразделение</span><b>{% if item %}{{ item.department_label }}{% else %}Склад{% endif %}</b></div>
+            <div class="or-summary-row"><span class="or-muted">Ответственный</span><b>{% if item and item.assignee %}{{ item.assignee.full_name }}{% else %}Не назначен{% endif %}</b></div>
+            <div class="or-summary-row"><span class="or-muted">Менеджер</span><b>{% if item and item.manager %}{{ item.manager.full_name }}{% else %}—{% endif %}</b></div>
+            <div class="or-summary-row"><span class="or-muted">Приоритет</span><b>{% if item %}{{ item.priority_label }}{% else %}Обычный{% endif %}</b></div>
+            <div class="or-summary-row"><span class="or-muted">Срок</span><b>{% if item and item.due_at %}{{ item.due_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</b></div>
+          </div>
+        </section>
+        <section class="or-card">
+          <h2>История заявки</h2>
+          <div class="or-timeline">
+            {% for entry in history %}
+              <article class="or-timeline-item">
+                <span class="or-timeline-dot"></span>
+                <div>
+                  <div class="or-timeline-title">{{ entry.description|default:entry.action }}</div>
+                  <div class="or-muted">{{ entry.created_at|date:"d.m.Y H:i" }}{% if entry.user %} · {{ entry.user }}{% endif %}</div>
+                </div>
+              </article>
+            {% empty %}<p class="or-muted">История пока пуста.</p>{% endfor %}
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+  {% include "billing/_warehouse_services_modal.html" %}
+  <script>
+  (function () {
+    var resultForm = document.getElementById('warehouse-result-form');
+    if (resultForm) {
+      resultForm.addEventListener('submit', function (event) {
+        var button = event.submitter;
+        if (!button || button.value !== 'complete' || resultForm.dataset.servicesReady === '1') return;
+        event.preventDefault();
+        var modal = window.FullboxWarehouseServicesModal;
+        if (!modal) return;
+        function value(name) {
+          var field = resultForm.elements[name];
+          return field ? Number(String(field.value || '0').replace(',', '.')) || 0 : 0;
+        }
+        modal.open(
+          {items: value('processed_qty'), boxes: value('processed_boxes'), pallets: value('processed_pallets')},
+          {
+            orderType: 'other',
+            orderId: '{{ wsfm_order_id|escapejs }}',
+            clientId: '{{ wsfm_client_id|escapejs }}',
+            clientName: '{{ agency|escapejs }}',
+            source: 'other_manual',
+            title: 'Фактически оказанные услуги',
+            itemsLabel: 'Обработано товара',
+            itemsUnit: 'шт.'
+          }
+        ).then(function () {
+          resultForm.dataset.servicesReady = '1';
+          resultForm.requestSubmit(button);
+        }).catch(function (error) {
+          if (error && error.message !== 'cancelled') window.alert(error.message || 'Не удалось сохранить услуги.');
+        });
+      });
+    }
+
+    var form = document.getElementById('upload-form');
+    if (!form) return;
+    var dropzone = document.getElementById('dropzone');
+    var fileInput = document.getElementById('file-input');
+    var cameraInput = document.getElementById('camera-input');
+    var browse = document.getElementById('browse-files');
+    var camera = document.getElementById('camera-files');
+    var preview = document.getElementById('preview-list');
+    var submit = document.getElementById('upload-submit');
+    var files = [];
+    function sync() {
+      if (typeof DataTransfer === 'undefined') return;
+      var dt = new DataTransfer();
+      files.forEach(function (file) { dt.items.add(file); });
+      fileInput.files = dt.files;
+    }
+    function render() {
+      preview.innerHTML = '';
+      submit.disabled = files.length === 0;
+      files.forEach(function (file, idx) {
+        var card = document.createElement('div');
+        card.className = 'or-preview-card';
+        if (file.type && file.type.indexOf('image/') === 0) {
+          var img = document.createElement('img');
+          img.src = URL.createObjectURL(file);
+          card.appendChild(img);
+        } else {
+          var icon = document.createElement('div');
+          icon.className = 'or-preview-icon';
+          icon.textContent = 'FILE';
+          card.appendChild(icon);
+        }
+        var name = document.createElement('div');
+        name.className = 'or-preview-name';
+        name.textContent = file.name;
+        card.appendChild(name);
+        var remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'or-preview-remove';
+        remove.textContent = 'x';
+        remove.addEventListener('click', function () { files.splice(idx, 1); sync(); render(); });
+        card.appendChild(remove);
+        preview.appendChild(card);
+      });
+    }
+    function addFiles(list) {
+      Array.prototype.forEach.call(list || [], function (file) { files.push(file); });
+      sync();
+      render();
+    }
+    browse.addEventListener('click', function () { fileInput.click(); });
+    camera.addEventListener('click', function () { cameraInput.click(); });
+    fileInput.addEventListener('change', function () { addFiles(fileInput.files); });
+    cameraInput.addEventListener('change', function () { addFiles(cameraInput.files); cameraInput.value = ''; });
+    ['dragenter', 'dragover'].forEach(function (eventName) {
+      dropzone.addEventListener(eventName, function (event) { event.preventDefault(); dropzone.classList.add('or-dropzone-active'); });
+    });
+    ['dragleave', 'drop'].forEach(function (eventName) {
+      dropzone.addEventListener(eventName, function (event) { event.preventDefault(); dropzone.classList.remove('or-dropzone-active'); });
+    });
+    dropzone.addEventListener('drop', function (event) {
+      if (event.dataTransfer && event.dataTransfer.files) addFiles(event.dataTransfer.files);
+    });
+    form.addEventListener('submit', function () { submit.disabled = true; submit.textContent = 'Загрузка...'; });
+  })();
+  </script>
+</body>
+</html>

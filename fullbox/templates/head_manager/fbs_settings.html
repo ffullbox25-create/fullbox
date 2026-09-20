@@ -1,0 +1,485 @@
+{% extends "head_manager/fbs_base.html" %}
+
+{% block title %}Настройки FBS{% endblock %}
+
+{% block head_extra %}
+  <style>
+    .settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .settings-metrics { grid-template-columns: repeat(7, minmax(110px, 1fr)); }
+    .settings-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+    .client-toolbar { display: grid; grid-template-columns: minmax(240px, 1fr) auto; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--stroke); }
+    .client-marketplaces, .warehouse-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .client-status { display: grid; gap: 4px; }
+    .create-form { display: grid; gap: 12px; padding: 16px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .form-grid .span-2 { grid-column: span 2; }
+    .equipment-section { display: grid; gap: 10px; scroll-margin-top: 12px; }
+    .equipment-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .equipment-list { display: grid; gap: 8px; }
+    .equipment-row { display: grid; grid-template-columns: 180px minmax(170px, 1fr) minmax(170px, 1fr) minmax(190px, 1fr) 120px 92px minmax(170px, 1fr) auto; gap: 8px; align-items: end; padding: 12px; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--surface); }
+    .equipment-row.cart { grid-template-columns: 180px minmax(190px, 1fr) 92px minmax(200px, 1fr) auto; }
+    .equipment-code { align-self: center; min-width: 0; }
+    .equipment-code strong { display: block; overflow-wrap: anywhere; }
+    .policy-list { display: grid; gap: 0; }
+    .policy-row { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(190px, 1fr) auto; gap: 10px; align-items: end; padding: 12px 16px; border-bottom: 1px solid var(--stroke); }
+    .policy-row:last-child { border-bottom: 0; }
+    .policy-name { align-self: center; min-width: 0; }
+    .policy-name strong, .policy-name span { display: block; overflow-wrap: anywhere; }
+    .replenishment-form { display: grid; grid-template-columns: minmax(240px, 1.5fr) repeat(2, minmax(120px, .5fr)) minmax(150px, .5fr) auto; gap: 10px; align-items: end; padding: 16px; }
+    .check-field { display: flex; min-height: 38px; align-items: center; gap: 8px; color: var(--ink); }
+    .check-field input { width: 18px; min-height: 18px; accent-color: var(--accent); }
+    .row-actions { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+    .wave-limit-input { width: 112px; min-width: 90px; }
+    .tote-journal { scroll-margin-top: 12px; }
+    .tote-journal-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; padding: 12px 16px; border-bottom: 1px solid var(--stroke); }
+    .tote-journal-toolbar label { min-width: 210px; }
+    .tote-summary { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tote-main, .tote-detail { display: block; }
+    .tote-main { font-weight: 850; color: var(--ink); }
+    .tote-detail { margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .tote-row td:first-child { border-left: 4px solid transparent; }
+    .tote-row[data-tote-status="work"] td:first-child { border-left-color: var(--info); }
+    .tote-row[data-tote-status="occupied"] td:first-child { border-left-color: var(--warning); }
+    .tote-row[data-tote-status="free"] td:first-child { border-left-color: var(--success); }
+    @media (max-width: 1350px) {
+      .settings-metrics { grid-template-columns: repeat(4, minmax(120px, 1fr)); }
+      .equipment-row, .equipment-row.cart, .replenishment-form { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
+      .row-actions { align-self: end; }
+    }
+    @media (max-width: 850px) {
+      .settings-metrics, .client-toolbar { grid-template-columns: 1fr; }
+      .settings-grid, .form-grid, .equipment-row, .equipment-row.cart, .policy-row, .replenishment-form { grid-template-columns: 1fr; }
+      .form-grid .span-2 { grid-column: auto; }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <header class="topbar">
+    <div>
+      <h1>Настройки FBS</h1>
+      <p class="subtitle">Клиенты, склады маркетплейсов, оборудование и хранение.</p>
+    </div>
+    <div class="topbar-actions">
+      <a class="btn" href="/head-manager/fbs/">Заявки FBS</a>
+      <a class="btn" href="/head-manager/fbs/controllers/">FBS-контролёры</a>
+      <a class="btn" href="/head-manager/fbs/pickers/">Сборщики</a>
+      <a class="btn" href="/head-manager/settings/warehouse-locations/">Места PR/OTG</a>
+      <a class="btn" href="/scanner-settings/">Сканеры</a>
+      <a class="btn" href="/labels/settings/">Принтеры</a>
+    </div>
+  </header>
+
+  <nav class="settings-nav" aria-label="Разделы настроек FBS">
+    <a class="btn primary" href="#clients">Клиенты</a>
+    <a class="btn" href="#queue-order">Очередь волн</a>
+    <a class="btn" href="#marketplace-priority">Приоритет маркетплейсов</a>
+    <a class="btn" href="#wave-settings">Настройка волн</a>
+    <a class="btn" href="#equipment">Оборудование</a>
+    <a class="btn" href="#tote-journal">Журнал тары</a>
+    <a class="btn" href="#storage-policies">Хранение и подсорт</a>
+    <a class="btn" href="/head-manager/settings/warehouse-locations/">Места PR/OTG</a>
+  </nav>
+
+  <section class="metrics settings-metrics" aria-label="Сводка настроек FBS">
+    <div class="metric"><span>Клиенты с API</span><strong>{{ summary.clients }}</strong></div>
+    <div class="metric"><span>FBS включен</span><strong>{{ summary.active_clients }}</strong></div>
+    <div class="metric"><span>Рабочие места</span><strong>{{ summary.workstations }}</strong></div>
+    <div class="metric"><span>Активные места</span><strong>{{ summary.active_workstations }}</strong></div>
+    <div class="metric"><span>Тара</span><strong>{{ summary.carts }}</strong></div>
+    <div class="metric"><span>Активная тара</span><strong>{{ summary.active_carts }}</strong></div>
+    <div class="metric"><span>Назначены принтеры</span><strong>{{ summary.configured_printers }}</strong></div>
+  </section>
+
+  {% if global_order_pull_enabled %}
+    <div class="notice success">Клиенты и токены обновляются вручную. Новые заказы включенных FBS-клиентов проверяются автоматически каждые 10 секунд.</div>
+  {% else %}
+    <div class="notice warning">Автоматическое обновление заказов выключено. Доступно только ручное обновление выбранного клиента.</div>
+  {% endif %}
+
+  <section class="panel" id="clients">
+    <div class="panel-head">
+      <div><h2>Клиенты FBS</h2><p class="muted">WB и Ozon с настроенными API-реквизитами</p></div>
+      <span class="pill {% if summary.active_clients %}success{% else %}neutral{% endif %}">{{ summary.active_clients }} включено</span>
+    </div>
+    <div class="client-toolbar">
+      <label>Найти клиента<input id="fbs-client-search" type="search" placeholder="Название, ИНН или ID"></label>
+      <div class="row-actions">
+        <a class="btn" href="/head-manager/fbs/settings/#clients">Обновить список клиентов</a>
+        <a class="btn" href="/head-manager/clients/">Все клиенты</a>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Клиент</th><th>Маркетплейсы</th><th>Склады FBS</th><th>Состояние</th><th>Действия</th></tr></thead>
+        <tbody id="fbs-client-rows">
+          {% for row in fbs_client_rows %}
+            <tr data-search="{{ row.agency|lower }} {{ row.agency.inn|default:''|lower }} {{ row.agency.id }}">
+              <td class="wide"><strong>{{ row.agency }}</strong><div class="muted">ID {{ row.agency.id }}{% if row.agency.inn %} · ИНН {{ row.agency.inn }}{% endif %}</div></td>
+              <td><div class="client-marketplaces">{% for marketplace in row.marketplaces %}<span class="pill info">{{ marketplace.label }}</span>{% endfor %}</div></td>
+              <td class="wide">
+                {% if row.warehouse_names %}<div class="warehouse-list">{% for name in row.warehouse_names %}<span class="pill neutral">{{ name }}</span>{% endfor %}</div>{% else %}<span class="muted">Не выбраны</span>{% endif %}
+              </td>
+              <td><div class="client-status"><span class="pill {% if row.fbs_enabled %}success{% else %}neutral{% endif %}">{% if row.fbs_enabled %}FBS включен{% else %}FBS выключен{% endif %}</span><span class="muted">{{ row.active_profile_count }} из {{ row.profile_count }} профилей</span>{% if row.last_order_sync_error %}<span class="pill danger">Ошибка обновления</span>{% elif row.last_order_sync_at %}<span class="muted">Заказы: {{ row.last_order_sync_at|date:"d.m.Y H:i" }}</span>{% else %}<span class="muted">Заказы еще не обновлялись</span>{% endif %}</div></td>
+              <td>
+                <div class="row-actions">
+                  <a class="btn small primary" href="/head-manager/fbs/settings/clients/{{ row.agency.id }}/">Настроить</a>
+                  {% if row.fbs_enabled %}
+                    <form method="post" action="/head-manager/fbs/settings/clients/{{ row.agency.id }}/update/">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="sync">
+                      <input type="hidden" name="return_to" value="settings">
+                      <button class="btn small" type="submit">Обновить заказы</button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty">Нет клиентов с API-реквизитами WB или Ozon.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="marketplace-priority">
+    <div class="panel-head">
+      <div><h2>Приоритет маркетплейсов</h2><p class="muted">Какой маркетплейс подборщик получает первым</p></div>
+    </div>
+    <div class="notice warning">Меньшее число означает более высокий приоритет. Правило применяется с указанной даты только к свободным волнам.</div>
+    <form method="post" action="{% url 'head-manager-fbs-queue-priority' %}" class="create-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_marketplace_priorities">
+      <div class="form-grid">
+        {% for row in marketplace_priorities %}
+          <label>{{ row.label }}<input type="number" name="priority_{{ row.marketplace }}" min="1" max="100" value="{{ row.priority }}" required></label>
+        {% endfor %}
+        <label>Действует с<input type="date" name="effective_from" value="{{ marketplace_priority_date|date:'Y-m-d' }}" required></label>
+      </div>
+      <div class="action-row"><button class="btn primary" type="submit">Сохранить приоритет</button></div>
+    </form>
+  </section>
+
+  <section class="panel" id="queue-order">
+    <div class="panel-head">
+      <div><h2>Очередь свободных волн</h2><p class="muted">Фактический порядок выдачи подборщику</p></div>
+      <span class="pill neutral">{{ wave_queue|length }} волн</span>
+    </div>
+    <div class="notice warning">Ручной порядок действует до конца текущего дня. Волны в работе и на проверке переставить нельзя.</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>№</th><th>Волна</th><th>Клиент</th><th>Маркетплейс</th><th>Товаров</th><th>Правило</th><th>Переместить</th></tr></thead>
+        <tbody>
+          {% for batch in wave_queue %}
+            <tr>
+              <td><strong>{{ batch.queue_position }}</strong></td>
+              <td><a class="btn small" href="{% url 'fbs:operator_wave_detail' batch_id=batch.id %}">#{{ batch.id }}</a></td>
+              <td class="wide"><strong>{{ batch.agency }}</strong></td>
+              <td><span class="pill info">{{ batch.queue_marketplace_label }}</span></td>
+              <td>{{ batch.planned_qty }}</td>
+              <td class="wide"><span class="muted">{{ batch.queue_priority_label }}</span></td>
+              <td>
+                <form method="post" action="{% url 'head-manager-fbs-queue-priority' %}" class="row-actions">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="reorder_queue">
+                  <input type="hidden" name="batch_id" value="{{ batch.id }}">
+                  <button class="btn small" type="submit" name="direction" value="top" title="В начало">⇈</button>
+                  <button class="btn small" type="submit" name="direction" value="up" title="Выше">↑</button>
+                  <button class="btn small" type="submit" name="direction" value="down" title="Ниже">↓</button>
+                  <button class="btn small" type="submit" name="direction" value="bottom" title="В конец">⇊</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" class="empty">Свободных волн сейчас нет.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="wave-settings">
+    <div class="panel-head">
+      <div>
+        <h2>Настройка волн</h2>
+        <p class="muted">Максимальный размер новой волны отдельно для каждого кабинета клиента</p>
+      </div>
+      <span class="pill neutral">{{ wave_profiles|length }} кабинетов</span>
+    </div>
+    <div class="notice warning">
+      Настройка применяется к автоматическому и ручному созданию новых волн. Уже созданные волны не меняются. Если один заказ сам превышает лимит единиц, он создаётся отдельной волной.
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Клиент</th><th>Кабинет</th><th>Состояние</th><th>Заказов в волне</th><th>Единиц в волне</th><th>Действия</th></tr>
+        </thead>
+        <tbody>
+          {% for profile in wave_profiles %}
+            <tr>
+              <td class="wide"><strong>{{ profile.agency }}</strong><div class="muted">ID {{ profile.agency_id }}</div></td>
+              <td class="wide"><strong>{{ profile.get_marketplace_display }} · {{ profile.name }}</strong><div class="muted">Склад {{ profile.external_warehouse_id }}</div></td>
+              <td>
+                <span class="pill {% if profile.is_active and profile.order_pull_enabled %}success{% else %}neutral{% endif %}">{% if profile.is_active and profile.order_pull_enabled %}Активен{% else %}Выключен{% endif %}</span>
+                <div class="muted">{% if profile.wave_policy_configured %}Индивидуально{% else %}Системное правило{% endif %}</div>
+              </td>
+              <td><input class="wave-limit-input" form="wave-policy-{{ profile.id }}" type="number" name="max_orders_per_wave" min="1" max="100" value="{{ profile.wave_max_orders }}" required></td>
+              <td><input class="wave-limit-input" form="wave-policy-{{ profile.id }}" type="number" name="max_units_per_wave" min="1" max="100" value="{{ profile.wave_max_units }}" required></td>
+              <td>
+                <form id="wave-policy-{{ profile.id }}" method="post" action="/head-manager/fbs/settings/wave-policy/">
+                  {% csrf_token %}
+                  <input type="hidden" name="profile_id" value="{{ profile.id }}">
+                </form>
+                <div class="row-actions">
+                  <button class="btn small primary" form="wave-policy-{{ profile.id }}" type="submit" name="action" value="save">Сохранить</button>
+                  {% if profile.wave_policy_configured %}<button class="btn small" form="wave-policy-{{ profile.id }}" type="submit" name="action" value="reset">Системное правило</button>{% endif %}
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="empty">Кабинеты FBS ещё не настроены.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <datalist id="known-printers">
+    {% for printer in known_printers %}<option value="{{ printer }}"></option>{% endfor %}
+  </datalist>
+
+  <section class="settings-grid" id="equipment">
+    <div class="panel">
+      <div class="panel-head"><div><h2>Создать рабочие места</h2><p class="muted">Коды FBS-WS создаются автоматически</p></div></div>
+      <form class="create-form" method="post" action="/head-manager/fbs/settings/equipment/workstation/create/">
+        {% csrf_token %}
+        <div class="form-grid">
+          <label>Количество<input type="number" name="count" min="1" max="50" value="1" required></label>
+          <label>Название<input type="text" name="name_prefix" maxlength="110" value="Рабочее место" required></label>
+          <label>Агент
+            <select name="device_agent">
+              <option value="">Не назначен</option>
+              {% for agent in agents %}<option value="{{ agent.id }}">{{ agent }} · {{ agent.agent_id }}</option>{% endfor %}
+            </select>
+          </label>
+          <label>Принтер<input type="text" name="printer_name" maxlength="255" list="known-printers" placeholder="Не назначен"></label>
+          <label>Мест ожидания у стола
+            <select name="max_parallel_waves"><option value="1">1 место</option><option value="2">2 места</option><option value="3">3 места</option><option value="4">4 места</option><option value="5">5 мест</option><option value="6">6 мест</option><option value="7" selected>7 мест</option></select>
+          </label>
+          <label class="span-2">Примечание<textarea name="notes" rows="2"></textarea></label>
+        </div>
+        <div class="action-row">
+          <button class="btn primary" type="submit">Создать</button>
+          <button class="btn" type="submit" name="print_labels" value="1">Создать и печатать</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><div><h2>Создать тару</h2><p class="muted">Тара создаётся общим пулом, без закрепления за столами. QR-коды FBS-CART формируются автоматически.</p></div><a class="btn small" href="#tote-journal">Открыть журнал тары</a></div>
+      <form class="create-form" method="post" action="/head-manager/fbs/settings/equipment/cart/create/">
+        {% csrf_token %}
+        <div class="form-grid">
+          <label>Количество<input type="number" name="count" min="1" max="100" value="1" required></label>
+          <label>Название<input type="text" name="name_prefix" maxlength="110" value="Тара" required></label>
+          <label class="span-2">Примечание<textarea name="notes" rows="2"></textarea></label>
+        </div>
+        <div class="action-row">
+          <button class="btn primary" type="submit">Создать</button>
+          <button class="btn" type="submit" name="print_labels" value="1">Создать и печатать</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section class="panel tote-journal" id="tote-journal">
+    <div class="panel-head">
+      <div><h2>Журнал тары</h2><p class="muted">Вся созданная тара одной строкой: доступность, текущая операция и фактическое место.</p></div>
+      <div class="tote-summary" aria-label="Состояния тары">
+        <span class="pill info">В работе {{ tote_summary.work }}</span>
+        <span class="pill warning">Занята {{ tote_summary.occupied }}</span>
+        <span class="pill success">Свободна {{ tote_summary.free }}</span>
+        <span class="pill neutral">Отключена {{ tote_summary.disabled }}</span>
+      </div>
+    </div>
+    <div class="tote-journal-toolbar">
+      <label>Найти тару<input id="tote-journal-search" type="search" placeholder="Название, QR, волна или место"></label>
+      <label>Состояние
+        <select id="tote-journal-status">
+          <option value="">Все состояния ({{ tote_summary.total }})</option>
+          <option value="work">В работе ({{ tote_summary.work }})</option>
+          <option value="occupied">Занята ({{ tote_summary.occupied }})</option>
+          <option value="free">Свободна ({{ tote_summary.free }})</option>
+          <option value="disabled">Отключена ({{ tote_summary.disabled }})</option>
+        </select>
+      </label>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Тара</th><th>Доступность</th><th>Этап</th><th>Где находится</th><th>Текущая работа</th><th>Изменено</th><th>Действия</th></tr></thead>
+        <tbody id="tote-journal-rows">
+          {% for row in tote_rows %}
+            <tr class="tote-row" data-tote-status="{{ row.category }}" data-tote-search="{{ row.cart.name|lower }} {{ row.cart.barcode|lower }} {{ row.status_label|lower }} {{ row.state_label|lower }} {{ row.location_label|lower }} {{ row.location_detail|lower }} {{ row.assignment_label|lower }} {{ row.assignment_detail|lower }}">
+              <td class="wide"><span class="tote-main">{{ row.cart.name }}</span><span class="tote-detail">{{ row.cart.barcode }} · ID {{ row.cart.id }}</span></td>
+              <td><span class="pill {{ row.status_class }}">{{ row.status_label }}</span></td>
+              <td><span class="tote-main">{{ row.state_label }}</span></td>
+              <td class="wide"><span class="tote-main">{{ row.location_label }}</span><span class="tote-detail">{{ row.location_detail }}</span></td>
+              <td class="wide"><span class="tote-main">{{ row.assignment_label }}</span><span class="tote-detail">{{ row.assignment_detail }}</span></td>
+              <td><span class="tote-main">{{ row.updated_at|date:"d.m.Y H:i" }}</span></td>
+              <td><div class="row-actions"><a class="btn small" href="/head-manager/fbs/settings/labels/?kind=cart&ids={{ row.cart.id }}">Печать QR</a><a class="btn small" href="#cart-edit-{{ row.cart.id }}">Настроить</a></div></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" class="empty">Тара ещё не создана. Создайте её в блоке выше — она сразу появится здесь.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="settings-grid" id="storage-policies">
+    <div class="panel">
+      <div class="panel-head"><div><h2>Тарификация хранения</h2><p class="muted">Для каждого клиента отдельно: литры или паллето-места</p></div></div>
+      <div class="policy-list">
+        {% for agency in fbs_agencies %}
+          <form class="policy-row" method="post" action="/head-manager/fbs/settings/storage-policy/">
+            {% csrf_token %}
+            <input type="hidden" name="agency_id" value="{{ agency.id }}">
+            <div class="policy-name"><strong>{{ agency }}</strong><span class="muted">Клиент ID {{ agency.id }}</span></div>
+            <label>Режим
+              <select name="billing_mode" required>
+                {% for value, label in billing_choices %}<option value="{{ value }}"{% if agency.fbs_storage_policy.billing_mode == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+              </select>
+            </label>
+            <button class="btn primary" type="submit">Сохранить</button>
+          </form>
+        {% empty %}<div class="empty">Нет клиентов с активным профилем FBS.</div>{% endfor %}
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><div><h2>Порог подсорта</h2><p class="muted">Система формирует предложение, товар не резервируется автоматически</p></div></div>
+      <form class="replenishment-form" method="post" action="/head-manager/fbs/settings/replenishment-policy/">
+        {% csrf_token %}
+        <label>SKU
+          <select name="sku_id" required>
+            <option value="">Выберите SKU</option>
+            {% for sku in fbs_skus %}<option value="{{ sku.id }}">{{ sku.agency }} · {{ sku.sku_code }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Минимум<input type="number" name="minimum_qty" min="0" value="0" required></label>
+        <label>Пополнить до<input type="number" name="target_qty" min="0" value="0" required></label>
+        <label class="check-field"><input type="checkbox" name="auto_suggest" value="1" checked> Подсказывать</label>
+        <button class="btn primary" type="submit">Сохранить</button>
+      </form>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Клиент</th><th>SKU</th><th>Минимум</th><th>До уровня</th><th>Подсказка</th></tr></thead>
+          <tbody>
+            {% for policy in replenishment_policies %}
+              <tr><td>{{ policy.agency }}</td><td>{{ policy.sku.sku_code }}</td><td>{{ policy.minimum_qty }}</td><td>{{ policy.target_qty }}</td><td>{% if policy.auto_suggest %}Да{% else %}Нет{% endif %}</td></tr>
+            {% empty %}<tr><td colspan="5" class="empty">Пороги еще не заданы.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="equipment-section" id="workstations">
+    <div class="equipment-heading"><div><h2>Рабочие места</h2><p class="muted">{{ summary.active_workstations }} из {{ summary.workstations }} активны</p></div></div>
+    <div class="equipment-list">
+      {% for workstation in workstations %}
+        <form class="equipment-row" method="post" action="/head-manager/fbs/settings/equipment/workstation/{{ workstation.id }}/update/">
+          {% csrf_token %}
+          <div class="equipment-code"><strong>{{ workstation.barcode }}</strong><span class="muted">ID {{ workstation.id }}</span></div>
+          <label>Название<input type="text" name="name" maxlength="128" value="{{ workstation.name }}" required></label>
+          <label>Агент
+            <select name="device_agent">
+              <option value="">Не назначен</option>
+              {% for agent in agents %}<option value="{{ agent.id }}"{% if agent.id == workstation.device_agent_id %} selected{% endif %}>{{ agent }} · {{ agent.agent_id }}</option>{% endfor %}
+            </select>
+          </label>
+          <label>Принтер<input type="text" name="printer_name" maxlength="255" list="known-printers" value="{{ workstation.printer_name }}" placeholder="Не назначен"></label>
+          <label>Мест ожидания у стола<select name="max_parallel_waves"><option value="1"{% if workstation.max_parallel_waves == 1 %} selected{% endif %}>1</option><option value="2"{% if workstation.max_parallel_waves == 2 %} selected{% endif %}>2</option><option value="3"{% if workstation.max_parallel_waves == 3 %} selected{% endif %}>3</option><option value="4"{% if workstation.max_parallel_waves == 4 %} selected{% endif %}>4</option><option value="5"{% if workstation.max_parallel_waves == 5 %} selected{% endif %}>5</option><option value="6"{% if workstation.max_parallel_waves == 6 %} selected{% endif %}>6</option><option value="7"{% if workstation.max_parallel_waves == 7 %} selected{% endif %}>7</option></select></label>
+          <label class="check-field"><input type="checkbox" name="is_active"{% if workstation.is_active %} checked{% endif %}> Активно</label>
+          <label>Примечание<input type="text" name="notes" value="{{ workstation.notes }}"></label>
+          <div class="row-actions">
+            <a class="btn small" href="/head-manager/fbs/settings/labels/?kind=workstation&ids={{ workstation.id }}">Печать</a>
+            <button class="btn small primary" type="submit">Сохранить</button>
+          </div>
+        </form>
+      {% empty %}
+        <div class="empty panel">Рабочие места еще не созданы.</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="equipment-section" id="carts">
+    <div class="equipment-heading"><div><h2>Тара</h2><p class="muted">Общий пул: {{ summary.active_carts }} из {{ summary.carts }} единиц активны</p></div></div>
+    <div class="equipment-list">
+      {% for cart in carts %}
+        <form class="equipment-row cart" id="cart-edit-{{ cart.id }}" method="post" action="/head-manager/fbs/settings/equipment/cart/{{ cart.id }}/update/">
+          {% csrf_token %}
+          <div class="equipment-code"><strong>{{ cart.barcode }}</strong><span class="muted">ID {{ cart.id }}</span></div>
+          <label>Название<input type="text" name="name" maxlength="128" value="{{ cart.name }}" required></label>
+          <label class="check-field"><input type="checkbox" name="is_active" data-auto-submit-active{% if cart.is_active %} checked{% endif %}> Активна</label>
+          <label>Примечание<input type="text" name="notes" value="{{ cart.notes }}"></label>
+          <div class="row-actions">
+            <a class="btn small" href="/head-manager/fbs/settings/labels/?kind=cart&ids={{ cart.id }}">Печать</a>
+            <button class="btn small primary" type="submit">Сохранить</button>
+          </div>
+        </form>
+      {% empty %}
+        <div class="empty panel">Тара еще не создана.</div>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    (function () {
+      var input = document.getElementById("fbs-client-search");
+      var rows = document.querySelectorAll("#fbs-client-rows tr[data-search]");
+      if (!input) return;
+      input.addEventListener("input", function () {
+        var query = input.value.trim().toLowerCase();
+        rows.forEach(function (row) {
+          row.hidden = query && row.dataset.search.indexOf(query) === -1;
+        });
+      });
+    })();
+    (function () {
+      var search = document.getElementById("tote-journal-search");
+      var status = document.getElementById("tote-journal-status");
+      var rows = document.querySelectorAll("#tote-journal-rows tr[data-tote-search]");
+      if (!search || !status) return;
+      function applyFilters() {
+        var query = search.value.trim().toLowerCase();
+        var selectedStatus = status.value;
+        rows.forEach(function (row) {
+          var matchesQuery = !query || row.dataset.toteSearch.indexOf(query) !== -1;
+          var matchesStatus = !selectedStatus || row.dataset.toteStatus === selectedStatus;
+          row.hidden = !(matchesQuery && matchesStatus);
+        });
+      }
+      search.addEventListener("input", applyFilters);
+      status.addEventListener("change", applyFilters);
+    })();
+    (function () {
+      document.querySelectorAll("input[data-auto-submit-active]").forEach(function (toggle) {
+        toggle.addEventListener("change", function () {
+          var form = toggle.closest("form");
+          if (!form || form.dataset.submitting === "1") return;
+          form.dataset.submitting = "1";
+          toggle.setAttribute("aria-busy", "true");
+          if (typeof form.requestSubmit === "function") {
+            form.requestSubmit();
+          } else {
+            form.submit();
+          }
+        });
+      });
+    })();
+  </script>
+{% endblock %}

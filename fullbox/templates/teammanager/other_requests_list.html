@@ -1,0 +1,139 @@
+{% extends "teammanager/_base.html" %}
+{% block title %}Другие заявки{% endblock %}
+{% block content %}
+<style>
+  .or-wrap { max-width: 1520px; width: 100%; margin: 0 auto; }
+  .or-head { display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
+  .or-head h1 { margin:0; font-family:"Bricolage Grotesque", Manrope, sans-serif; font-size:28px; }
+  .or-counters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .or-counters a {
+    display:inline-flex; gap:8px; align-items:center;
+    padding:8px 12px; border-radius:12px; border:1px solid var(--stroke);
+    background:var(--card); font-weight:700; font-size:13px; text-decoration:none; color: var(--ink);
+  }
+  .or-counters a.active { border-color: var(--accent); background: var(--accent-soft); }
+  .or-counters strong { color: var(--accent-strong); }
+  .or-filters { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; background: var(--card); border: 1px solid var(--stroke); border-radius: var(--radius-lg); padding: 14px; }
+  .or-filters input, .or-filters select {
+    min-height:40px; border:1px solid var(--stroke); border-radius:10px; padding:8px 12px; background:var(--surface); font: inherit;
+  }
+  .or-filters input { min-width:240px; flex:1; }
+  .or-table-wrap { background:var(--card); border:1px solid var(--stroke); border-radius:16px; overflow-x:auto; box-shadow: var(--shadow); }
+  table.or-table { width:100%; border-collapse:collapse; min-width: 980px; }
+  table.or-table th, table.or-table td { padding:11px 12px; border-bottom:1px solid var(--stroke); text-align:left; font-size:13px; vertical-align:top; }
+  table.or-table th { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); background:var(--surface-2); white-space: nowrap; }
+  table.or-table tbody tr:hover { background: var(--surface-2); }
+  table.or-table tbody tr.or-row-overdue { box-shadow: inset 3px 0 0 var(--danger); }
+  .pill { display:inline-block; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:700; background:var(--sun-soft); color:#8a5a00; }
+  .pill.overdue { background:var(--danger-soft); color:var(--danger); }
+  .pill.ok { background:var(--accent-soft); color:var(--accent-strong); }
+  .pill.closed { background:var(--surface-2); color:var(--muted); }
+  .muted { color: var(--muted); }
+  .or-cell-title a { color: var(--ink); text-decoration: none; font-weight: 600; }
+  .or-cell-title a:hover { text-decoration: underline; }
+</style>
+<div class="or-wrap">
+  <div class="or-head">
+    <div>
+      <p class="muted" style="margin:0 0 4px">Личный кабинет</p>
+      <h1>Другие заявки</h1>
+      <p class="muted" style="margin:6px 0 0">Нестандартные задачи вне приёмки, обработки и отгрузки</p>
+    </div>
+  </div>
+
+  <div class="or-counters">
+    <a class="{% if not filters.focus %}active{% endif %}" href="?q={{ filters.q|urlencode }}">Все <strong>{{ counters.all }}</strong></a>
+    <a class="{% if filters.focus == 'new' %}active{% endif %}" href="?focus=new&q={{ filters.q|urlencode }}">Новые <strong>{{ counters.new }}</strong></a>
+    <a class="{% if filters.focus == 'department' %}active{% endif %}" href="?focus=department&q={{ filters.q|urlencode }}">Ожидают подразделение <strong>{{ counters.department }}</strong></a>
+    <a class="{% if filters.focus == 'in_progress' %}active{% endif %}" href="?focus=in_progress&q={{ filters.q|urlencode }}">В работе <strong>{{ counters.in_progress }}</strong></a>
+    <a class="{% if filters.focus == 'check' %}active{% endif %}" href="?focus=check&q={{ filters.q|urlencode }}">Ожидают проверки <strong>{{ counters.check }}</strong></a>
+    <a class="{% if filters.focus == 'overdue' %}active{% endif %}" href="?focus=overdue&q={{ filters.q|urlencode }}">Просроченные <strong>{{ counters.overdue }}</strong></a>
+    <a class="{% if filters.focus == 'closed' %}active{% endif %}" href="?focus=closed&q={{ filters.q|urlencode }}">Закрытые <strong>{{ counters.closed }}</strong></a>
+  </div>
+
+  <form class="or-filters" method="get">
+    {% if filters.focus %}<input type="hidden" name="focus" value="{{ filters.focus }}">{% endif %}
+    <input type="search" name="q" value="{{ filters.q }}" placeholder="Поиск: номер, клиент, задача, ответственный">
+    <select name="category">
+      <option value="">Все категории</option>
+      {% for value, label in category_choices %}
+        <option value="{{ value }}" {% if filters.category == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="status">
+      <option value="">Все статусы</option>
+      {% for value, label in status_choices %}
+        <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="department">
+      <option value="">Все подразделения</option>
+      {% for value, label in department_choices %}
+        <option value="{{ value }}" {% if filters.department == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="priority">
+      <option value="">Любой приоритет</option>
+      {% for value, label in priority_choices %}
+        <option value="{{ value }}" {% if filters.priority == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn primary" type="submit">Найти</button>
+  </form>
+
+  <div class="or-table-wrap">
+    <table class="or-table">
+      <thead>
+        <tr>
+          <th>Номер</th>
+          <th>Задача</th>
+          <th>Клиент</th>
+          <th>Категория</th>
+          <th>Связано с</th>
+          <th>Подразделение</th>
+          <th>Ответственный</th>
+          <th>Приоритет</th>
+          <th>Статус</th>
+          <th>Файлы</th>
+          <th>Срок</th>
+          <th>Создана</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr class="{% if row.is_overdue %}or-row-overdue{% endif %}">
+          <td><a href="{{ row.detail_url }}"><b>{{ row.public_number }}</b></a></td>
+          <td class="or-cell-title"><a href="{{ row.detail_url }}">{{ row.display_title }}</a></td>
+          <td>{{ row.agency.short_name|default:row.agency.agn_name }}</td>
+          <td>{% if row.category %}{{ row.category.title }}{% else %}{{ row.category_code|default:"—" }}{% endif %}</td>
+          <td>{% if row.links_count %}<span class="pill">{{ row.links_count }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td>{{ row.department_label }}</td>
+          <td>{% if row.assignee %}{{ row.assignee.full_name }}{% else %}<span class="muted">Не назначен</span>{% endif %}</td>
+          <td>{{ row.priority_label }}</td>
+          <td>
+            <span class="pill {% if row.is_overdue %}overdue{% elif row.status == 'closed' %}ok{% elif row.status == 'cancelled' or row.status == 'rejected' %}closed{% endif %}">
+              {{ row.status_label }}
+            </span>
+          </td>
+          <td>
+            {% if row.attachments_count or row.comments_count %}
+              <span class="muted">
+                {% if row.attachments_count %}файлы {{ row.attachments_count }}{% endif %}
+                {% if row.attachments_count and row.comments_count %} · {% endif %}
+                {% if row.comments_count %}комм. {{ row.comments_count }}{% endif %}
+              </span>
+            {% else %}
+              <span class="muted">—</span>
+            {% endif %}
+          </td>
+          <td>{% if row.due_at %}{{ row.due_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</td>
+          <td>{{ row.created_at|date:"d.m.Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="12" class="muted">Заявок пока нет.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

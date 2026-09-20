@@ -1,0 +1,70 @@
+<dialog id="receiving-fbs-destination-dialog" aria-labelledby="receiving-fbs-destination-title"
+        style="width:min(560px,90vw);box-sizing:border-box;border:1px solid #ddd;border-radius:16px;padding:24px;color:#303030;font:inherit;max-height:85vh">
+  <form method="dialog" id="receiving-fbs-destination-form">
+    <h2 id="receiving-fbs-destination-title" style="margin-top:0">Выберите конечное FBS-место</h2>
+    <p id="receiving-fbs-destination-pallet"></p>
+    <p>Место выбирает кладовщик. PR сверху — промежуточное место приёмки, а здесь — куда переместить паллету для FBS.</p>
+    <label for="receiving-fbs-destination-search">Поиск места</label>
+    <input id="receiving-fbs-destination-search" type="search" placeholder="Код или название места"
+           style="display:block;width:100%;box-sizing:border-box;min-height:44px;margin:8px 0 16px">
+    <label for="receiving-fbs-destination-select">Конечное FBS-место</label>
+    <select id="receiving-fbs-destination-select" required
+            style="display:block;width:100%;box-sizing:border-box;min-height:48px;margin:8px 0 16px"></select>
+    <p id="receiving-fbs-destination-note" role="status"></p>
+    <div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:12px;margin-top:24px">
+      <button type="button" id="receiving-fbs-destination-cancel" class="btn" style="min-height:44px;padding:10px">Отмена</button>
+      <button type="submit" id="receiving-fbs-destination-confirm" class="btn"
+              style="background:#f89000;color:#303030;font-weight:700;min-height:44px;padding:10px">Подтвердить выбранное место</button>
+    </div>
+  </form>
+</dialog>
+<script>
+window.chooseReceivingFbsDestination = async ({url, palletCode, requiredBoxes = 1}) => {
+  const response = await fetch(url, {credentials: 'same-origin', cache: 'no-store'});
+  const data = await response.json();
+  if (!response.ok || !data.ok) throw new Error(data.message || 'Не удалось загрузить FBS-места.');
+  const existing = (data.routes || []).filter(row => row.source_pallet_code === palletCode);
+  if (existing.length) {
+    alert(`Для паллеты ${palletCode} уже создано перемещение: ${existing.map(row => row.cell_code).join(', ')}. Оно не изменено. Изменение существующего задания выполняется через перемещения FBS.`);
+    return null;
+  }
+  const dialog = document.getElementById('receiving-fbs-destination-dialog');
+  const form = document.getElementById('receiving-fbs-destination-form');
+  const select = document.getElementById('receiving-fbs-destination-select');
+  const search = document.getElementById('receiving-fbs-destination-search');
+  const confirm = document.getElementById('receiving-fbs-destination-confirm');
+  const options = (data.options || []).filter(row => row.free_box_slots == null || row.free_box_slots >= requiredBoxes);
+  document.getElementById('receiving-fbs-destination-pallet').textContent = `Паллета: ${palletCode} · коробов: ${requiredBoxes}`;
+  document.getElementById('receiving-fbs-destination-note').textContent = options.length
+    ? 'При подтверждении доступность места будет проверена повторно. Без вашего выбора место не назначается.'
+    : 'Подходящих свободных FBS-мест сейчас нет. Освободите место и повторите выбор.';
+  search.value = '';
+  const renderOptions = () => {
+    const selected = select.value;
+    select.replaceChildren(new Option('Выберите место — обязательно', ''));
+    const query = search.value.trim().toLocaleLowerCase();
+    for (const row of options) {
+      const text = `${row.code} · ${row.label}${row.pallet_code ? ` · ${row.pallet_code} · свободно ${row.free_box_slots} кор.` : ' · свободное место'}`;
+      if (!query || text.toLocaleLowerCase().includes(query)) select.add(new Option(text, String(row.cell_id)));
+    }
+    select.value = Array.from(select.options).some(option => option.value === selected) ? selected : '';
+    confirm.disabled = !select.value;
+  };
+  select.value = '';
+  search.oninput = renderOptions;
+  select.onchange = () => { confirm.disabled = !select.value; };
+  renderOptions();
+  return new Promise(resolve => {
+    form.onsubmit = event => {
+      event.preventDefault();
+      if (select.value && form.reportValidity()) dialog.close(select.value);
+    };
+    document.getElementById('receiving-fbs-destination-cancel').onclick = () => dialog.close('');
+    dialog.oncancel = event => { event.preventDefault(); dialog.close(''); };
+    dialog.onclose = () => resolve(dialog.returnValue ? Number(dialog.returnValue) : null);
+    dialog.returnValue = '';
+    dialog.showModal();
+    search.focus();
+  });
+};
+</script>

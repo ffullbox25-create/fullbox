@@ -1,0 +1,152 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}{{ movement_request.number }}{% endblock %}
+{% block workspace_crumb %}<a href="{% url 'fbs:operator_movements' %}">Перемещения</a><span>/</span><strong>{{ movement_request.number }}</strong>{% endblock %}
+{% block workspace_title %}{{ movement_request.number }}{% endblock %}
+{% block workspace_actions %}<a class="button button-secondary" href="{% url 'fbs:operator_movements' %}">К перемещениям</a>{% endblock %}
+
+{% block workspace_body %}
+  {% if acceptance_job %}
+    <section class="detail-panel" role="status">
+      {% if acceptance_job.pending %}
+        <h2>Выполняется принятие заявки</h2>
+        <p>Проверяем короба и резервы, формируем задания и проводим остатки. Большая заявка обрабатывается в фоне; вкладку можно закрыть. Итог появится здесь после завершения.</p>
+        {% if not acceptance_job.active %}
+          <p>Обработчик пока не запущен или был остановлен. Можно безопасно повторить запуск — второе проведение не создаётся.</p>
+          <form method="post" action="{% url 'fbs:operator_approve_movement' request_id=movement_request.id %}" data-submit-once>{% csrf_token %}<button class="button button-primary" type="submit">Продолжить принятие</button></form>
+        {% endif %}
+        <script>window.setTimeout(function () { window.location.reload(); }, 10000);</script>
+      {% elif acceptance_job.state == 'failed' %}
+        <h2>Принятие не завершено</h2><p>{{ acceptance_job.error }}</p>
+      {% else %}
+        <h2>Принятие завершено</h2><p>Актуальный статус и результат показаны ниже.</p>
+      {% endif %}
+    </section>
+  {% endif %}
+  <section class="detail-hero">
+    <div><span class="section-kicker">Общий склад → отдельный остаток FBS</span><h2>{{ movement_request.number }}</h2><a href="{% url 'fbs:operator_client_detail' agency_id=movement_request.agency_id %}">{{ movement_request.agency }}</a></div>
+    <div class="detail-status"><span class="status status-{{ movement_request.status }}">{{ movement_request.get_status_display }}</span><strong>{{ movement_request.requested_qty }} шт.</strong><small>{{ movement_request.get_mode_display }}{% if movement_request.requested_box_count %} · {{ movement_request.requested_box_count }} физ. кор.{% endif %}{% if movement_request.requested_mixed_box_count %} · микс {{ movement_request.requested_mixed_box_count }}{% endif %}</small></div>
+  </section>
+
+  <section class="operator-summary operator-summary-five">
+    <div><span>Запрошено</span><strong>{{ movement_request.requested_qty }}</strong></div>
+    <div><span>{% if prepared_boxes %}Размещено{% else %}Перемещено{% endif %}</span><strong>{% if prepared_boxes %}{{ prepared_placed_qty }}{% else %}{{ moved_qty }}{% endif %}</strong>{% if prepared_boxes %}<small>Собрано: {{ prepared_scanned_qty }}</small>{% elif staged_qty %}<small>В подготовке: {{ staged_qty }}</small>{% endif %}</div>
+    <div><span>Позиций</span><strong>{{ lines|length }}</strong></div>
+    <div><span>Планов ТСД</span><strong>{{ plans|length }}</strong></div>
+    <div><span>Создана</span><strong>{{ movement_request.created_at|date:"d.m H:i" }}</strong></div>
+  </section>
+
+  <div class="detail-layout">
+    <div class="detail-main">
+      <section class="operator-table-band">
+        <div class="operator-table-heading"><h2>Состав заявки</h2><strong>{{ lines|length }}</strong></div>
+        <div class="operator-table-scroll"><table class="operator-table"><thead><tr><th>Товар</th><th>ШК</th><th>Количество</th><th>Общий остаток при подаче</th><th>FBS при подаче</th><th>Короба-кандидаты</th></tr></thead><tbody>
+          {% for line in lines %}<tr><td><strong>{{ line.sku_code }}</strong><small>{{ line.product_name }}</small></td><td><code>{{ line.barcode }}</code></td><td><strong>{{ line.requested_qty }} шт.</strong>{% if line.requested_box_count %}<small>{{ line.requested_box_count }} × {{ line.units_per_box }}</small>{% endif %}</td><td>{{ line.general_available_qty_snapshot }}</td><td>{{ line.fbs_available_qty_snapshot }}</td><td>{% if line.box_candidate_summary %}<strong>{{ line.box_candidate_summary.available_count }} из {{ line.box_candidate_summary.required_count }}</strong><small>{% for code in line.box_candidate_summary.container_codes %}{{ code }}{% if not forloop.last %}, {% endif %}{% endfor %}</small>{% else %}<span class="text-muted">Не требуется</span>{% endif %}</td></tr>{% endfor %}
+        </tbody></table></div>
+      </section>
+
+      {% if plans %}<section class="operator-table-band"><div class="operator-table-heading"><h2>Задания склада и ТСД</h2><strong>{{ plans|length }}</strong></div><div class="operator-table-scroll"><table class="operator-table"><thead><tr><th>План</th><th>Назначение</th><th>Количество</th><th>Исполнитель</th><th>Статус</th><th></th></tr></thead><tbody>{% for plan in plans %}<tr><td>#{{ plan.id }}</td><td>{% if plan.prepared_box_rows %}Постоянные FBS-короба<small>{{ plan.prepared_box_rows|length }} QR · ячейку выберет водитель</small>{% elif plan.mode == "item" and plan.status != "done" %}Свободная ячейка OS<small>{% if plan.target_box %}{{ plan.target_box.box_code }}{% else %}короб создаст кладовщик{% endif %} · место выберет водитель</small>{% else %}{{ plan.physical_location_label }}<small>{{ plan.target_pallet.pallet_code }} · {% if plan.target_box %}{{ plan.target_box.box_code }}{% else %}короб создаст кладовщик{% endif %}</small>{% endif %}</td><td>{{ plan.moved_qty }} / {{ plan.planned_qty }}{% if plan.prepared_box_rows %}<small>Собрано: {% for box in plan.prepared_box_rows %}{{ box.scanned_qty }}{% if not forloop.last %} + {% endif %}{% endfor %}</small>{% elif plan.status == "awaiting_pack" %}<small>В подготовке: {{ plan.staged_qty }}</small>{% elif plan.mode == "item" and plan.target_box and plan.status != "done" %}<small>Короб подготовлен, ожидает размещения</small>{% endif %}</td><td>{{ plan.assigned_to|default:"Свободное задание" }}</td><td><span class="status status-{{ plan.status }}">{{ plan.get_status_display }}</span></td><td class="row-action"><a class="button button-secondary button-compact" href="{% url 'fbs:tsd_storekeeper_plan' plan_id=plan.id %}">Открыть</a></td></tr>{% endfor %}</tbody></table></div></section>{% endif %}
+    </div>
+
+    <aside class="detail-side">
+      {% if staging_container_code %}
+        <section class="detail-panel">
+          <h2>Подготовка штучного товара</h2>
+          <dl>
+            <div><dt>Временный короб заявки</dt><dd><code>{{ staging_container_code }}</code></dd></div>
+            <div><dt>Куда передать</dt><dd><strong>{{ staging_location.location_code|default:staging_location.zone_code }}</strong><small>{{ staging_location.display_name|default:"Зона подготовки FBS" }}</small></dd></div>
+          </dl>
+          <a class="button button-primary" href="{% url 'fbs:operator_movement_labels' request_id=movement_request.id %}?kind=container">Печатать QR короба</a>
+          {% if staging_location %}<a class="button button-secondary" href="{% url 'fbs:operator_movement_labels' request_id=movement_request.id %}?kind=zone">Печатать QR зоны</a>{% endif %}
+        </section>
+      {% endif %}
+      {% if can_pack %}
+        {% for plan in plans %}{% if plan.status == "awaiting_pack" %}
+          <section class="detail-panel">
+            <h2>Создать короб по плану #{{ plan.id }}</h2>
+            <p class="text-muted">На месте {{ plan.staging_location.location_code|default:plan.staging_location.zone_code }}: {{ plan.staged_qty }} шт. · {{ plan.staging_location.display_name|default:"подготовка FBS" }}.</p>
+            <form method="post" action="{% url 'fbs:operator_pack_movement' request_id=movement_request.id %}" data-submit-once>{% csrf_token %}<input type="hidden" name="plan_id" value="{{ plan.id }}"><label><span>QR временного короба</span><input type="text" name="staging_container_scan" required autocomplete="off" inputmode="none" data-scanner-only placeholder="{{ staging_container_code }}"></label><button class="button button-primary" type="submit">Создать QR нового короба</button></form>
+          </section>
+        {% endif %}{% endfor %}
+      {% endif %}
+      {% if prepared_boxes %}
+        <section class="detail-panel">
+          <h2>Постоянные FBS-короба</h2>
+          <dl>
+            <div><dt>Напечатано</dt><dd>{{ prepared_boxes|length }}</dd></div>
+            <div><dt>Закрыто</dt><dd>{{ prepared_closed_count }}</dd></div>
+            <div><dt>Размещено</dt><dd>{{ prepared_placed_count }}</dd></div>
+            <div><dt>Не использовано</dt><dd>{{ prepared_unused_count }}</dd></div>
+            <div><dt>Микс фактически</dt><dd>{{ prepared_mixed_count }} / {{ movement_request.requested_mixed_box_count }}</dd></div>
+            <div><dt>Сверка количества</dt><dd>{{ prepared_placed_qty }} / {{ movement_request.requested_qty }} шт.</dd></div>
+          </dl>
+          {% for box in prepared_boxes %}<p><code>{{ box.box_code }}</code><br><span class="status status-{{ box.status }}">{{ box.get_status_display }}</span> · {{ box.placed_qty }}/{{ box.scanned_qty }} шт.{% if box.distinct_barcode_count > 1 %} · микс{% endif %}{% if box.fbs_box %} · {{ box.fbs_box.pallet.cell.warehouse_location_label }}{% endif %}</p>{% endfor %}
+          <a class="button button-primary" href="{% url 'fbs:operator_movement_labels' request_id=movement_request.id %}?kind=final_box">Печатать QR коробов</a>
+        </section>
+      {% endif %}
+      {% for plan in plans %}{% if plan.mode == "item" and plan.target_box %}
+        <section class="detail-panel">
+          <h2>{% if plan.status == "done" %}Размещенный FBS-короб{% else %}Короб готов к размещению{% endif %}</h2>
+          <dl><div><dt>QR короба</dt><dd><code>{{ plan.target_box.box_code }}</code></dd></div><div><dt>Место</dt><dd>{% if plan.status == "done" %}{{ plan.physical_location_label }}{% else %}Выберет водитель погрузчика{% endif %}</dd></div></dl>
+          <a class="button button-primary" href="{% url 'fbs:operator_movement_labels' request_id=movement_request.id %}?kind=final_box">Печатать QR FBS-короба</a>
+          {% if plan.status != "done" %}<p class="text-muted">Передайте промаркированный короб водителю. Он отсканирует короб и свободную ячейку OS.</p>{% endif %}
+        </section>
+      {% endif %}{% endfor %}
+      {% if can_accept and not acceptance_job.pending %}
+        <section class="detail-panel">
+          <h2>Принять в работу</h2>
+          {% if uses_hard_reserve %}<p class="text-muted">Зарезервировано количество товара. При принятии планировщик выберет доступные короба и паллеты для задания. Физический адрес изменится после скана водителя.</p>{% else %}<p class="text-muted">После принятия общий остаток будет зарезервирован для FBS и сразу войдет в доступность маркетплейса. Физический адрес изменится только после скана водителя.</p>{% endif %}
+          <form method="post" action="{% url 'fbs:operator_approve_movement' request_id=movement_request.id %}" data-confirm-submit="Учесть товар в FBS и создать физические задания ричтраку?" data-submit-once>
+            {% csrf_token %}
+            {% if movement_request.mode == "item" %}<label><span>Сколько постоянных коробов напечатать</span><input type="number" name="prepared_box_count" min="1" max="50" value="{{ movement_request.requested_box_count|default:1 }}" required><small>Клиент указал: {{ movement_request.requested_box_count|default:1 }} физических коробов, из них микс: {{ movement_request.requested_mixed_box_count }}.</small></label>{% endif %}
+            <button class="button button-primary" type="submit">Учесть в FBS и передать ричтраку</button>
+          </form>
+          {% if can_accept_with_item_fallback %}
+            <hr>
+            <h3>Не хватает коробов нужной кратности</h3>
+            {% for line in item_fallback_lines %}
+              <p><strong>{{ line.sku_code }}</strong> · ШК <code>{{ line.barcode }}</code><br><span class="text-muted">Поштучно добрать {{ line.item_fallback_qty }} шт. и сформировать {{ line.item_fallback_box_count }} кор.</span></p>
+            {% endfor %}
+            <p class="text-muted">Доступные целые короба останутся коробными заданиями. Для недостающего количества будут созданы отдельное поштучное задание и новые QR коробов. Другой целый короб программа не подменяет.</p>
+            <form method="post" action="{% url 'fbs:operator_approve_movement' request_id=movement_request.id %}" data-confirm-submit="Создать коробные задания и отдельный поштучный добор недостающего количества?" data-submit-once>
+              {% csrf_token %}
+              <input type="hidden" name="allow_item_fallback" value="1">
+              <button class="button button-secondary" type="submit">Принять с поштучным добором</button>
+            </form>
+          {% endif %}
+        </section>
+      {% endif %}
+      {% if can_confirm and not acceptance_job.pending %}
+        <section class="detail-panel">
+          <h2>Подтвердить факт</h2>
+          <p class="text-muted">Ричтрак завершил перемещение {{ moved_qty }} шт. Подтверждение завершит заявку, обновит биллинг и статус клиента. Менеджер увидит результат без дополнительного согласования.</p>
+          {% if movement_request.clarification_reason %}<p><strong>Комментарий:</strong> {{ movement_request.clarification_reason }}</p>{% endif %}
+          {% if moved_qty != movement_request.requested_qty %}
+            <div class="notice notice-warning" role="status">
+              <strong>Есть расхождение: запрошено {{ movement_request.requested_qty }} шт., перемещено {{ moved_qty }} шт.</strong><br>
+              Проверьте подготовленный комментарий и подтвердите фактическое количество.
+            </div>
+          {% endif %}
+          <form method="post" action="{% url 'fbs:operator_confirm_movement' request_id=movement_request.id %}" data-confirm-submit="Подтвердить выполнение FBS-перемещения?" data-submit-once>
+            {% csrf_token %}
+            <label><span>Комментарий кладовщика{% if moved_qty != movement_request.requested_qty %} (обязательно){% endif %}</span><textarea name="comment" rows="4"{% if moved_qty != movement_request.requested_qty %} required aria-required="true"{% endif %} placeholder="Обязателен при расхождении количества">{% if moved_qty != movement_request.requested_qty %}{% for plan in plans %}{% if plan.status == "canceled" %}{{ plan.comment|slice:"22:"|striptags }}
+{% endif %}{% endfor %}{% endif %}</textarea></label>
+            <button class="button button-primary" type="submit">Подтвердить выполнение</button>
+          </form>
+        </section>
+      {% endif %}
+      {% if can_cancel and not acceptance_job.pending %}
+        <section class="detail-panel">
+          <h2>Отменить заявку</h2>
+          <p class="text-muted">Отмена доступна до первого фактического скана. Незавершённые задания будут отменены, резерв вернётся в доступный остаток клиента.</p>
+          <form method="post" action="{% url 'fbs:operator_cancel_movement' request_id=movement_request.id %}" data-confirm-submit="Отменить заявку и вернуть резерв в доступный остаток клиента?" data-submit-once>
+            {% csrf_token %}
+            <label><span>Причина отмены</span><textarea name="reason" rows="3" required placeholder="Укажите причину"></textarea></label>
+            <button class="button button-secondary" type="submit">Отменить заявку</button>
+          </form>
+        </section>
+      {% endif %}
+      <section class="detail-panel"><h2>Контроль</h2><dl><div><dt>Клиент</dt><dd>{{ movement_request.agency }}</dd></div><div><dt>Подал</dt><dd>{{ movement_request.requested_by|default:"ЛК клиента" }}</dd></div><div><dt>Менеджер</dt><dd>Наблюдение без подтверждения</dd></div><div><dt>Передано на склад</dt><dd>{{ movement_request.created_at|date:"d.m.Y H:i" }}</dd></div><div><dt>Принял склад</dt><dd>{{ movement_request.warehouse_accepted_by|default:"Не принято" }}</dd></div><div><dt>Подтвердил факт</dt><dd>{{ movement_request.warehouse_confirmed_by|default:"Ожидается" }}</dd></div></dl>{% if movement_request.comment %}<p><strong>Комментарий клиента:</strong> {{ movement_request.comment }}</p>{% endif %}{% if movement_request.status == "canceled" and movement_request.clarification_reason %}<p><strong>Причина отмены:</strong> {{ movement_request.clarification_reason }}</p>{% endif %}</section>
+    </aside>
+  </div>
+{% endblock %}

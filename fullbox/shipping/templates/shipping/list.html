@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Заявки на отгрузку</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #0e6b5b;
+      --sun: #f2b747;
+      --stroke: rgba(28,31,26,0.12);
+      --danger: #d4543c;
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      overflow: hidden;
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image:
+        linear-gradient(rgba(28,31,26,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(28,31,26,0.06) 1px, transparent 1px);
+      background-size: 36px 36px;
+      opacity: 0.08;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { position: relative; z-index: 1; padding: 24px; }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      min-height: calc(100vh - 96px);
+    }
+    .side {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 16px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+    }
+    .brand-title {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.6px;
+    }
+    .profile {
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+    }
+    .profile-value { font-weight: 600; }
+    .nav { display: grid; gap: 10px; }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    .nav-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 12px 24px rgba(14,107,91,0.12);
+    }
+    .nav-link.primary {
+      background: linear-gradient(135deg, rgba(242,183,71,0.45), rgba(14,107,91,0.15));
+      border-color: transparent;
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub { font-size: 12px; color: var(--muted); }
+    .btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.14);
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .btn.ghost { background: transparent; }
+    .content {
+      display: grid;
+      gap: 18px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .panel-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 24px;
+    }
+    .panel-subtitle { color: var(--muted); font-size: 13px; }
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      align-items: end;
+      margin-bottom: 12px;
+    }
+    label { display: grid; gap: 6px; font-weight: 600; color: var(--muted); }
+    select, input {
+      width: 100%;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .table-wrap {
+      overflow: auto;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(15,23,42,0.03);
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 860px; }
+    th, td {
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--stroke);
+      text-align: left;
+      vertical-align: middle;
+      font-size: 14px;
+    }
+    th {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      background: rgba(15,23,42,0.04);
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.05);
+    }
+    .status.done { background: rgba(21,128,61,0.14); border-color: rgba(21,128,61,0.25); color: #166534; }
+    .status.warn { background: rgba(180,83,9,0.14); border-color: rgba(180,83,9,0.28); color: #92400e; }
+    .status.draft { background: rgba(99,102,241,0.14); border-color: rgba(99,102,241,0.28); color: #3730a3; }
+    .status.stop { background: rgba(212,84,60,0.14); border-color: rgba(212,84,60,0.28); color: #991b1b; }
+    .empty {
+      padding: 16px;
+      text-align: center;
+      color: var(--muted);
+      border-radius: 12px;
+      border: 1px dashed var(--stroke);
+      margin-top: 10px;
+    }
+    .messages { margin-bottom: 10px; display: grid; gap: 8px; }
+    .msg {
+      border-radius: 12px;
+      border: 1px solid transparent;
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+    .msg.ok { border-color: rgba(14,107,91,0.35); background: rgba(14,107,91,0.12); color: #0b5246; }
+    .msg.err { border-color: rgba(212,84,60,0.35); background: rgba(212,84,60,0.14); color: #7f1d1d; }
+    .problem-report {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding: 14px;
+      border: 1px solid rgba(180,83,9,0.28);
+      border-left: 5px solid #d97706;
+      border-radius: 14px;
+      background: rgba(248,184,0,0.08);
+    }
+    .problem-report-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .problem-report-title { margin: 0; font-size: 18px; }
+    .problem-report-meta { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .problem-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(130px, 1fr));
+      gap: 8px;
+    }
+    .problem-metric {
+      padding: 10px;
+      border: 1px solid rgba(28,31,26,0.1);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.72);
+    }
+    .problem-metric-label { display: block; color: var(--muted); font-size: 11px; font-weight: 700; }
+    .problem-metric-value { display: block; margin-top: 3px; font-size: 20px; font-weight: 800; }
+    .problem-sections {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .problem-section {
+      min-width: 0;
+      border: 1px solid rgba(28,31,26,0.1);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.72);
+      overflow: hidden;
+    }
+    .problem-section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 9px 10px;
+      border-bottom: 1px solid rgba(28,31,26,0.08);
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .problem-row {
+      display: grid;
+      grid-template-columns: minmax(92px, .8fr) minmax(120px, 1fr) minmax(0, 2fr);
+      gap: 8px;
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(28,31,26,0.08);
+      font-size: 12px;
+      align-items: start;
+    }
+    .problem-row:last-child { border-bottom: none; }
+    .problem-row.stop { background: rgba(212,84,60,0.08); }
+    .problem-row a { font-weight: 800; }
+    .problem-detail { color: var(--muted); line-height: 1.35; }
+    .problem-empty { padding: 10px; color: var(--muted); font-size: 12px; }
+    .fbs-outbound {
+      margin-bottom: 14px;
+      padding: 14px;
+      border: 1px solid rgba(248,144,0,0.34);
+      border-left: 5px solid #f89000;
+      border-radius: 14px;
+      background: rgba(248,144,0,0.08);
+    }
+    .fbs-outbound-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .fbs-outbound-title { margin: 0; font-size: 18px; }
+    .fbs-outbound-help { color: var(--muted); font-size: 12px; }
+    @media (max-width: 1200px) {
+      body { overflow: auto; }
+      .layout { grid-template-columns: 1fr; }
+      .side, .content { max-height: none; overflow: visible; padding-right: 0; }
+      .problem-metrics, .problem-sections { grid-template-columns: 1fr; }
+      .problem-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand-title">FULLBOX</div>
+        <div class="profile">
+          <div class="profile-value">
+            {% if scope == "client" and selected_client %}
+              Кабинет клиента<br>
+              {{ selected_client.agn_name|default:selected_client.fio_agn|default:"клиента" }}
+            {% else %}
+              {% include "partials/current_user.html" %}
+            {% endif %}
+          </div>
+        </div>
+        <nav class="nav">
+          {% if scope == "client" and selected_client %}
+            <a class="nav-link" href="/client/dashboard/?client={{ selected_client.id }}">
+              <span class="nav-title">В кабинет</span>
+              <span class="nav-sub">Главная клиента</span>
+            </a>
+            <a class="nav-link" href="/orders/?client={{ selected_client.id }}">
+              <span class="nav-title">Журнал заявок</span>
+              <span class="nav-sub">Общий журнал</span>
+            </a>
+            <a class="nav-link primary" href="{% url 'shipping:list' %}?client={{ selected_client.id }}">
+              <span class="nav-title">Заявки на отгрузку</span>
+              <span class="nav-sub">Список и статусы</span>
+            </a>
+            <a class="nav-link" href="/sklad/journal/?client={{ selected_client.id }}">
+              <span class="nav-title">Складские остатки</span>
+              <span class="nav-sub">Доступный товар</span>
+            </a>
+          {% else %}
+            <a class="nav-link" href="{{ cabinet_url }}">
+              <span class="nav-title">В кабинет</span>
+              <span class="nav-sub">Главная роли</span>
+            </a>
+            <a class="nav-link" href="/orders/">
+              <span class="nav-title">Журнал заявок</span>
+              <span class="nav-sub">Общий журнал</span>
+            </a>
+            <a class="nav-link primary" href="{% url 'shipping:list' %}">
+              <span class="nav-title">Заявки на отгрузку</span>
+              <span class="nav-sub">Список и статусы</span>
+            </a>
+            <a class="nav-link" href="/client/">
+              <span class="nav-title">Список клиентов</span>
+              <span class="nav-sub">Выбор клиента</span>
+            </a>
+          {% endif %}
+        </nav>
+        <a class="btn ghost" href="/logout/">Выход</a>
+      </aside>
+
+      <main class="content">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h1 class="panel-title">Заявки на отгрузку</h1>
+              <div class="panel-subtitle">Управление отгрузкой, резервом и закрытием заявок.</div>
+            </div>
+            {% if can_write %}
+              {% if selected_client %}
+                <a class="btn primary" href="{% url 'shipping:create' %}?client={{ selected_client.id }}">+ Новая заявка</a>
+              {% else %}
+                <a class="btn primary" href="{% url 'shipping:create' %}">+ Новая заявка</a>
+              {% endif %}
+            {% endif %}
+          </div>
+
+          {% if messages %}
+            <div class="messages">
+              {% for message in messages %}
+                <div class="msg {% if message.tags == 'error' %}err{% else %}ok{% endif %}">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          {% if shipping_problem_report.show %}
+            <div class="problem-report">
+              <div class="problem-report-head">
+                <div>
+                  <h2 class="problem-report-title">Проблемные отгрузки сегодня</h2>
+                  <div class="problem-report-meta">{{ shipping_problem_report.date_label }}</div>
+                </div>
+                {% if not shipping_problem_report.has_rows %}
+                  <span class="status done">Критичных строк нет</span>
+                {% else %}
+                  <span class="status warn">Требует внимания</span>
+                {% endif %}
+              </div>
+              <div class="problem-metrics">
+                <div class="problem-metric">
+                  <span class="problem-metric-label">Активные блокеры</span>
+                  <span class="problem-metric-value">{{ shipping_problem_report.totals.active_blockers }}</span>
+                </div>
+                <div class="problem-metric">
+                  <span class="problem-metric-label">Ozon/Fullbox</span>
+                  <span class="problem-metric-value">{{ shipping_problem_report.totals.box_imbalance }}</span>
+                </div>
+                <div class="problem-metric">
+                  <span class="problem-metric-label">Факт OTG</span>
+                  <span class="problem-metric-value">{{ shipping_problem_report.totals.missing_fact }}</span>
+                </div>
+                <div class="problem-metric">
+                  <span class="problem-metric-label">Ошибки ричтрака</span>
+                  <span class="problem-metric-value">{{ shipping_problem_report.totals.reachtruck_errors }}</span>
+                </div>
+              </div>
+              <div class="problem-sections">
+                {% for section in shipping_problem_report.sections %}
+                  <div class="problem-section">
+                    <div class="problem-section-head">
+                      <span>{{ section.title }}</span>
+                      <span>{{ section.count }}</span>
+                    </div>
+                    {% if section.rows %}
+                      {% for row in section.rows %}
+                        <div class="problem-row {{ row.severity }}">
+                          <div><a href="{{ row.href }}">{{ row.number }}</a><br><span class="problem-detail">{{ row.status }}</span></div>
+                          <div>{{ row.client }}</div>
+                          <div class="problem-detail">{{ row.detail }}</div>
+                        </div>
+                      {% endfor %}
+                      {% if section.omitted %}
+                        <div class="problem-empty">Еще {{ section.omitted }} строк.</div>
+                      {% endif %}
+                    {% else %}
+                      <div class="problem-empty">Нет строк.</div>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          <form method="get" class="filters">
+            <label>
+              Статус
+              <select name="status">
+                <option value="">Все</option>
+                {% for value, label in status_choices %}
+                  <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            {% if scope == 'staff' %}
+              <label>
+                Клиент
+                <select name="client">
+                  <option value="">Все</option>
+                  {% for client in clients %}
+                    <option value="{{ client.id }}" {% if client_filter == client.id|stringformat:'s' %}selected{% endif %}>{{ client.agn_name }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            {% endif %}
+            <button class="btn" type="submit">Применить фильтр</button>
+          </form>
+
+          {% if fbs_outbound_issues %}
+            <section class="fbs-outbound" aria-labelledby="fbs-outbound-title">
+              <div class="fbs-outbound-head">
+                <div>
+                  <h2 class="fbs-outbound-title" id="fbs-outbound-title">Вывоз товара из FBS</h2>
+                  <div class="fbs-outbound-help">Подтверждённые менеджером заявки, доступные складу для отбора и выдачи.</div>
+                </div>
+                <span class="status warn">Активных: {{ fbs_outbound_issues|length }}</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Номер</th>
+                      <th>Клиент</th>
+                      <th>Статус</th>
+                      <th>Тип</th>
+                      <th>Позиций / количество</th>
+                      <th>Создана</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for issue in fbs_outbound_issues %}
+                      <tr>
+                        <td><a href="{% url 'fbs:external_issue_detail' issue.pk %}"><b>{{ issue.number }}</b></a></td>
+                        <td>{{ issue.agency.agn_name }}</td>
+                        <td><span class="status warn">{{ issue.get_status_display }}</span></td>
+                        <td>{{ issue.shipping_details.delivery_type_label|default:"Самовывоз" }}{% if issue.shipping_details.marketplace_name %}<br><span class="problem-detail">{{ issue.shipping_details.marketplace_name }}</span>{% endif %}{% if issue.shipping_details.destination_warehouse %}<br><span class="problem-detail">{{ issue.shipping_details.destination_warehouse }}</span>{% endif %}{% if issue.shipping_details.eta_date %}<br><span class="problem-detail">Дата: {{ issue.shipping_details.eta_date }}</span>{% endif %}{% if issue.shipping_details.vehicle_type_label %}<br><span class="problem-detail">{{ issue.shipping_details.vehicle_type_label }}{% if issue.shipping_details.vehicle_number %} · {{ issue.shipping_details.vehicle_number }}{% endif %}</span>{% endif %}</td>
+                        <td>{{ issue.line_count }} поз. / {{ issue.total_requested_qty|default:0 }} шт.</td>
+                        <td>{{ issue.created_at|date:"d.m.Y H:i" }}</td>
+                        <td><a class="btn" href="{% url 'fbs:external_issue_detail' issue.pk %}">Открыть</a></td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          {% endif %}
+
+          {% if orders %}
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Номер</th>
+                    <th>Клиент</th>
+                    <th>Статус</th>
+                    <th>Тип</th>
+                    <th>Позиций</th>
+                    <th>Создана</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for order in orders %}
+                    <tr>
+                      <td><a href="{% url 'shipping:detail' order.id %}"><b>{{ order.display_number|default:order.number }}</b></a></td>
+                      <td>{{ order.agency.agn_name }}</td>
+                      <td>
+                        {% with st=order.status %}
+                          <span class="status {% if st == 'shipped' or st == 'partial_shipped' %}done{% elif st == 'draft' %}draft{% elif st == 'canceled' %}stop{% else %}warn{% endif %}">{{ order.ui_status_label|default:order.get_status_display }}</span>
+                        {% endwith %}
+                      </td>
+                      <td>{{ order.get_delivery_type_display }}</td>
+                      <td>{{ order.items.count }}</td>
+                      <td>{{ order.created_at|date:"d.m.Y H:i" }}</td>
+                      <td><a class="btn" href="{% url 'shipping:detail' order.id %}">Открыть</a></td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% elif not fbs_outbound_issues %}
+            <div class="empty">Заявок пока нет.</div>
+          {% endif %}
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

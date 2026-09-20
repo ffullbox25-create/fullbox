@@ -1,0 +1,144 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f89000">
+  <title>{% block title %}Мои рейсы{% endblock %} · Фуллбокс</title>
+  <link href="{% static 'vendor/bricolage-manrope.css' %}" rel="stylesheet">
+  <style>
+    :root { --ink:#303030; --accent:#f89000; --strong:#f86800; --yellow:#f8b800; --soft:rgba(248,144,0,.13); --surface:#fff; --bg:#f7f5f0; --line:rgba(48,48,48,.12); --muted:#736e65; --danger:#b43b37; --ok:#347453; }
+    * { box-sizing:border-box; }
+    html { min-width:320px; overflow-x:hidden; }
+    body { margin:0; min-height:100vh; min-width:320px; overflow-x:hidden; background:var(--bg); color:var(--ink); font-family:"Manrope",system-ui,sans-serif; -webkit-text-size-adjust:100%; }
+    [hidden] { display:none !important; }
+    a { color:inherit; }
+    .driver-shell { width:min(780px,100%); margin:0 auto; min-height:100vh; background:var(--surface); box-shadow:0 0 50px rgba(48,48,48,.08); }
+    .driver-head { position:sticky; top:0; z-index:20; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; background:rgba(255,255,255,.96); border-bottom:1px solid var(--line); backdrop-filter:blur(12px); }
+    .driver-brand { min-width:0; flex:0 1 160px; }
+    .fullbox-brand-img { width:148px; max-height:42px; object-fit:contain; object-position:left center; display:block; }
+    .driver-head-actions { min-width:0; display:flex; align-items:center; justify-content:flex-end; gap:9px; }
+    .driver-user { min-width:0; text-align:right; font-size:12px; color:var(--muted); line-height:1.35; }
+    .driver-user strong { display:block; max-width:190px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink); }
+    .sound-toggle { min-height:40px; flex:0 0 auto; border:1px solid var(--line); border-radius:12px; padding:7px 10px; background:#fff; color:var(--ink); font:800 12px "Manrope",sans-serif; cursor:pointer; }
+    .sound-toggle[aria-pressed="true"] { background:var(--soft); border-color:rgba(248,144,0,.35); color:#8a4b00; }
+    .driver-content { padding:16px 16px calc(92px + env(safe-area-inset-bottom)); }
+    .page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; line-height:1.1; }
+    .page-sub { margin:6px 0 0; color:var(--muted); font-size:13px; }
+    .card { margin-top:14px; padding:16px; background:#fff; border:1px solid var(--line); border-radius:20px; box-shadow:0 10px 28px rgba(48,48,48,.06); }
+    .card-title { margin:0 0 10px; font-size:16px; font-weight:800; }
+    .grid { display:grid; gap:10px; }
+    .facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .fact { padding:10px 12px; border-radius:14px; background:#faf8f3; min-width:0; }
+    .fact-label { color:var(--muted); font-size:11px; font-weight:700; }
+    .fact-value { margin-top:3px; font-size:14px; font-weight:700; overflow-wrap:anywhere; }
+    .status { display:inline-flex; padding:6px 10px; border-radius:999px; background:var(--soft); color:#8a4b00; font-size:12px; font-weight:800; }
+    .status.ok { background:#e2f1e8; color:var(--ok); }
+    .status.bad { background:#f8e4e1; color:var(--danger); }
+    .btn { width:100%; min-height:48px; border:1px solid var(--line); border-radius:14px; padding:11px 14px; background:#fff; color:var(--ink); font:700 14px "Manrope",sans-serif; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+    .btn.primary { border-color:transparent; background:linear-gradient(120deg,var(--accent),var(--yellow)); color:#2d210f; }
+    .btn.danger { color:#fff; background:var(--danger); border-color:transparent; }
+    .btn:disabled { opacity:.45; cursor:not-allowed; }
+    label { display:grid; gap:6px; font-size:12px; font-weight:800; color:var(--muted); }
+    input, select, textarea { width:100%; min-height:46px; border:1px solid var(--line); border-radius:13px; padding:10px 12px; background:#fff; color:var(--ink); font:14px "Manrope",sans-serif; }
+    textarea { min-height:96px; resize:vertical; }
+    input[type="file"] { padding:9px; }
+    .messages { display:grid; gap:8px; margin:12px 0; }
+    .message { padding:11px 12px; border-radius:13px; background:var(--soft); font-size:13px; }
+    .message.error { background:#f8e4e1; color:var(--danger); }
+    .bottom-nav { position:fixed; z-index:25; left:50%; bottom:0; transform:translateX(-50%); width:min(780px,100%); display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); background:rgba(255,255,255,.97); border-top:1px solid var(--line); backdrop-filter:blur(12px); }
+    .bottom-link { padding:9px 6px; border-radius:12px; text-align:center; text-decoration:none; font-size:12px; font-weight:800; }
+    .bottom-link.active { background:var(--soft); color:#9b5000; }
+    .offline-banner { display:none; position:sticky; top:67px; z-index:18; padding:9px 14px; background:#fff1c7; color:#735000; font-size:12px; font-weight:800; text-align:center; }
+    .offline-banner.show { display:block; }
+    .sound-setup { position:sticky; top:67px; z-index:19; padding:10px 14px; display:flex; align-items:center; justify-content:center; gap:10px; background:#fff6df; border-bottom:1px solid rgba(248,144,0,.25); color:#704000; font-size:12px; font-weight:800; text-align:left; }
+    .offline-banner.show + .sound-setup { top:101px; }
+    .sound-setup button { flex:0 0 auto; min-height:38px; border:0; border-radius:11px; padding:8px 11px; background:var(--accent); color:#2d210f; font:800 12px "Manrope",sans-serif; }
+    .pending-note { display:none; padding:10px 12px; border-radius:12px; background:#fff1c7; color:#735000; font-size:12px; font-weight:800; }
+    .pending-note.show { display:block; }
+    details > summary { cursor:pointer; font-weight:800; }
+    .timeline { display:grid; gap:10px; }
+    .timeline-row { padding-left:13px; border-left:3px solid var(--accent); }
+    .muted { color:var(--muted); font-size:12px; }
+    .driver-tabs { display:flex; gap:7px; overflow-x:auto; overscroll-behavior-inline:contain; scrollbar-width:none; padding:9px; }
+    .driver-tabs::-webkit-scrollbar { display:none; }
+    .driver-tabs .bottom-link { flex:0 0 auto; min-height:40px; display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; }
+    .trip-card-head, .trip-title-row { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+    .assignment-alert { position:fixed; z-index:60; left:50%; bottom:calc(82px + env(safe-area-inset-bottom)); transform:translate(-50%,24px); width:min(500px,calc(100% - 28px)); padding:18px; border:2px solid var(--accent); border-radius:22px; background:#fff; box-shadow:0 22px 70px rgba(48,48,48,.28); opacity:0; pointer-events:none; transition:opacity .2s ease,transform .2s ease; }
+    .assignment-alert.show { opacity:1; transform:translate(-50%,0); pointer-events:auto; }
+    .assignment-alert-kicker { color:#8a4b00; font-size:11px; font-weight:900; letter-spacing:.05em; text-transform:uppercase; }
+    .assignment-alert-title { margin:4px 36px 5px 0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:24px; line-height:1.12; }
+    .assignment-alert-text { margin:0 0 13px; color:var(--muted); font-size:13px; line-height:1.45; overflow-wrap:anywhere; }
+    .assignment-alert-close { position:absolute; top:10px; right:10px; width:36px; height:36px; border:0; border-radius:50%; background:#f5f1e9; color:var(--ink); font-size:22px; line-height:1; cursor:pointer; }
+    @media (max-width:640px) {
+      .driver-shell { width:100%; box-shadow:none; }
+      .driver-head { padding:9px 11px; gap:8px; }
+      .driver-brand { flex-basis:126px; }
+      .fullbox-brand-img { width:124px; max-height:36px; }
+      .driver-head-actions { gap:6px; }
+      .driver-user strong { max-width:112px; }
+      .sound-toggle { min-height:38px; padding:6px 8px; font-size:11px; }
+      .driver-content { padding:13px 11px calc(90px + env(safe-area-inset-bottom)); }
+      .page-title { font-size:24px; }
+      .card { margin-top:11px; padding:14px; border-radius:16px; }
+      .facts { grid-template-columns:1fr; gap:8px; }
+      .fact { padding:10px; }
+      .trip-card-head, .trip-title-row { display:grid; grid-template-columns:minmax(0,1fr); }
+      .trip-card-head .status, .trip-title-row .status { justify-self:start; }
+      input, select, textarea { min-height:48px; font-size:16px; }
+      input[type="checkbox"] { min-height:22px; }
+      .btn { min-height:52px; font-size:15px; }
+      .sound-setup { top:55px; align-items:stretch; flex-direction:column; padding:10px 11px; }
+      .offline-banner.show + .sound-setup { top:89px; }
+      .sound-setup button { width:100%; }
+      .bottom-nav { gap:3px; padding-left:7px; padding-right:7px; }
+      .bottom-link { padding-left:4px; padding-right:4px; font-size:11px; }
+      .assignment-alert { bottom:calc(78px + env(safe-area-inset-bottom)); width:calc(100% - 20px); padding:16px; border-radius:18px; }
+      .assignment-alert-title { font-size:22px; }
+    }
+    @media (max-width:390px) {
+      .driver-user { display:none; }
+      .driver-head-actions { margin-left:auto; }
+      .driver-tabs { margin-left:-2px; margin-right:-2px; }
+    }
+    @media (prefers-reduced-motion:reduce) { .assignment-alert { transition:none; } }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body data-driver-employee-id="{{ employee.pk|default:'' }}">
+  <div class="driver-shell">
+    <header class="driver-head">
+      <a class="driver-brand" href="/logistics/driver/trips/" aria-label="Мои рейсы">{% include "partials/fullbox_brand.html" %}</a>
+      <div class="driver-head-actions">
+        <button id="driver-sound-toggle" class="sound-toggle" type="button" aria-pressed="false" aria-label="Настройка звука уведомлений">🔕 Звук</button>
+        <div class="driver-user"><strong>{{ employee.full_name|default:"Водитель" }}</strong><a href="/logout/">Выйти</a></div>
+      </div>
+    </header>
+    <div id="offline-banner" class="offline-banner">Нет соединения. Данные останутся на устройстве до отправки.</div>
+    <div id="driver-sound-setup" class="sound-setup" hidden>
+      <span>Чтобы услышать «Назначен новый рейс», один раз включите звук на этом устройстве.</span>
+      <button id="driver-sound-enable" type="button">Включить звук</button>
+    </div>
+    <main class="driver-content">
+      {% if messages %}<div class="messages">{% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+      {% block content %}{% endblock %}
+    </main>
+    <nav class="bottom-nav">
+      <a class="bottom-link{% if bucket == 'new' %} active{% endif %}" href="/logistics/driver/trips/?bucket=new">Новые</a>
+      <a class="bottom-link{% if bucket == 'work' or trip %} active{% endif %}" href="/logistics/driver/trips/?bucket=work">В работе</a>
+      <a class="bottom-link{% if bucket == 'problem' %} active{% endif %}" href="/logistics/driver/trips/?bucket=problem">Проблемные</a>
+    </nav>
+  </div>
+  <section id="driver-assignment-alert" class="assignment-alert" role="alertdialog" aria-live="assertive" aria-labelledby="driver-assignment-title" hidden>
+    <button id="driver-assignment-close" class="assignment-alert-close" type="button" aria-label="Закрыть">×</button>
+    <div class="assignment-alert-kicker">Новое назначение</div>
+    <h2 id="driver-assignment-title" class="assignment-alert-title">Назначен новый рейс</h2>
+    <p id="driver-assignment-text" class="assignment-alert-text"></p>
+    <a id="driver-assignment-open" class="btn primary" href="/logistics/driver/trips/">Открыть рейс</a>
+  </section>
+  <script src="{% static 'logistics/driver-notifications.js' %}" defer></script>
+  <script src="{% static 'logistics/driver-offline.js' %}" defer></script>
+  {% block page_js %}{% endblock %}
+</body>
+</html>

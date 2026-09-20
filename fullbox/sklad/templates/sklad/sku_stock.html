@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Остатки SKU | FULLBOX</title>
+  <style>
+    :root {
+      --bg: #f3f1eb;
+      --card: #ffffff;
+      --card-soft: #faf8f2;
+      --stroke: rgba(15, 23, 42, 0.12);
+      --stroke-strong: rgba(15, 23, 42, 0.18);
+      --text: #171717;
+      --muted: #666f7a;
+      --accent: #c69a1f;
+      --accent-soft: rgba(198, 154, 31, 0.14);
+      --ok: #1f7a52;
+      --warn: #9a6b00;
+      --danger: #b42318;
+      --shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      width: 100%;
+      max-width: none;
+      padding: 16px 18px 28px;
+    }
+    .stack { display: grid; gap: 12px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .title-block { display: grid; gap: 4px; }
+    .eyebrow {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+    h1 {
+      margin: 0;
+      font-size: 32px;
+      line-height: 1.05;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 40px;
+      padding: 0 14px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke-strong);
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn:hover {
+      border-color: var(--accent);
+      background: #fffdf6;
+    }
+    .btn.primary {
+      background: #f8f1d8;
+      border-color: #e2c36c;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) minmax(260px, 0.5fr) auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .input {
+      width: 100%;
+      min-height: 42px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke-strong);
+      background: #fff;
+      padding: 0 12px;
+      font: inherit;
+      color: var(--text);
+    }
+    .input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(130px, 1fr));
+      gap: 8px;
+    }
+    .metric {
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      padding: 10px;
+      background: var(--card-soft);
+      display: grid;
+      gap: 4px;
+    }
+    .metric .value {
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .metric .label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+    }
+    .table-card {
+      padding: 0;
+      overflow: hidden;
+    }
+    .table-head {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--stroke);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .table-title {
+      margin: 0;
+      font-size: 18px;
+    }
+    .table-wrap {
+      width: 100%;
+      overflow: auto;
+      max-height: calc(100vh - 310px);
+    }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 1380px;
+      font-size: 13px;
+    }
+    th,
+    td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--stroke);
+      border-right: 1px solid var(--stroke);
+      text-align: left;
+      vertical-align: top;
+      background: #fff;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #fff7dd;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #4c5561;
+      white-space: nowrap;
+    }
+    thead tr:first-child th { z-index: 4; }
+    thead tr.filter-row th {
+      top: 34px;
+      z-index: 3;
+      background: #fffdf2;
+      padding: 6px;
+    }
+    th:first-child,
+    td:first-child { border-left: 1px solid var(--stroke); }
+    .sort-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 100%;
+      color: inherit;
+    }
+    .sort-link.active {
+      color: #0e6b5b;
+    }
+    .sort-mark {
+      color: var(--accent);
+      font-size: 11px;
+    }
+    .column-filter {
+      width: 100%;
+      min-width: 82px;
+      height: 30px;
+      border: 1px solid var(--stroke-strong);
+      border-radius: 8px;
+      background: #fff;
+      padding: 0 8px;
+      font: inherit;
+      font-size: 12px;
+      color: var(--text);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .column-filter:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    tbody tr:hover td { background: #fffdf6; }
+    tbody tr.mixed-quant td {
+      background: #fff4df;
+    }
+    tbody tr.mixed-quant:hover td {
+      background: #ffeecb;
+    }
+    tbody tr.mixed-quant-0 td { background: #fff4df; }
+    tbody tr.mixed-quant-0:hover td { background: #ffeecb; }
+    tbody tr.mixed-quant-1 td { background: #eaf7ff; }
+    tbody tr.mixed-quant-1:hover td { background: #d6efff; }
+    tbody tr.mixed-quant-2 td { background: #eef8e7; }
+    tbody tr.mixed-quant-2:hover td { background: #ddf0d0; }
+    tbody tr.mixed-quant-3 td { background: #f7ecff; }
+    tbody tr.mixed-quant-3:hover td { background: #efdafa; }
+    .num {
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+    .muted { color: var(--muted); }
+    .sku {
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .name-cell {
+      max-width: 360px;
+      overflow-wrap: anywhere;
+    }
+    .reserve { color: var(--warn); }
+    .available { color: var(--ok); }
+    .zero { color: var(--muted); font-weight: 600; }
+    .quant {
+      min-width: 220px;
+      max-width: 320px;
+      overflow-wrap: anywhere;
+      color: #394150;
+    }
+    .type-col {
+      width: 52px;
+      min-width: 52px;
+      max-width: 64px;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .client-col {
+      width: 58px;
+      min-width: 58px;
+      max-width: 70px;
+      white-space: nowrap;
+    }
+    .client-col input {
+      width: 100%;
+      min-width: 52px;
+    }
+    .row-detail-button {
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+      padding: 0;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .row-detail-button:hover {
+      color: var(--accent);
+    }
+    .qty-detail-button {
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+      padding: 0;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .qty-detail-button:hover {
+      color: var(--accent);
+    }
+    .stock-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      padding: 24px;
+      background: rgba(18, 24, 32, 0.32);
+    }
+    .stock-modal-backdrop.is-open {
+      display: block;
+    }
+    .stock-modal {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      width: min(1180px, calc(100vw - 48px));
+      height: min(760px, calc(100vh - 48px));
+      min-width: min(720px, calc(100vw - 48px));
+      min-height: 360px;
+      overflow: hidden;
+      resize: both;
+      transform: translate(-50%, -50%);
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: 0 24px 70px rgba(35, 31, 24, 0.24);
+    }
+    .stock-modal-head {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--stroke);
+      background: var(--card-soft);
+      cursor: move;
+      user-select: none;
+    }
+    .stock-modal-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.25;
+    }
+    .stock-modal-subtitle {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .stock-modal-close {
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: #fff;
+      cursor: pointer;
+      font-weight: 800;
+      padding: 8px 12px;
+    }
+    .stock-modal-body {
+      height: calc(100% - 74px);
+      overflow: auto;
+      padding: 14px 18px 18px;
+    }
+    .stock-detail-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .stock-detail-table th,
+    .stock-detail-table td {
+      border-bottom: 1px solid var(--stroke);
+      padding: 8px 9px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .stock-detail-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #fff7de;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .empty {
+      padding: 26px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .pagination {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 12px 16px;
+      border-top: 1px solid var(--stroke);
+      background: var(--card-soft);
+    }
+    .page-link {
+      min-width: 34px;
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--stroke);
+      border-radius: 9px;
+      background: #fff;
+      font-weight: 700;
+    }
+    .page-link.current {
+      background: #f8f1d8;
+      border-color: #e2c36c;
+    }
+    @media (max-width: 980px) {
+      .controls,
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+      .table-wrap { max-height: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="stack">
+      <section class="card">
+        <div class="topbar">
+          <div class="title-block">
+            <div class="eyebrow">FULLBOX · {% include "partials/current_user.html" %}</div>
+            <h1>Остатки SKU</h1>
+          </div>
+          <div class="actions">
+            <a class="btn" href="/sklad/journal/">Складские остатки</a>
+            <a class="btn" href="/sklad/">В кабинет</a>
+            <a class="btn" href="/logout/">Выход</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <form id="sku-stock-filters" class="controls" method="get">
+          <input type="hidden" name="sort" value="{{ sku_stock_sort_key }}">
+          <input type="hidden" name="dir" value="{{ sku_stock_sort_dir }}">
+          <div class="field">
+            <label for="q">Поиск</label>
+            <input id="q" class="input" type="search" name="q" value="{{ q }}" placeholder="Клиент, артикул, наименование, ШК, тип товара">
+          </div>
+          <div class="field">
+            <label for="client">Клиент</label>
+            <select id="client" class="input" name="client">
+              <option value="">Все клиенты</option>
+              {% for agency in client_options %}
+                <option value="{{ agency.id }}"{% if selected_agency and selected_agency.id == agency.id %} selected{% endif %}>{{ agency.short_name|default:agency.agn_name|default:agency }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button class="btn primary" type="submit">Найти</button>
+          <a class="btn" href="{{ reset_url }}">Сброс</a>
+        </form>
+      </section>
+
+      <section class="summary-grid">
+        <div class="metric">
+          <div class="value">{{ summary.sku_count }}</div>
+          <div class="label">Строк SKU</div>
+        </div>
+        <div class="metric">
+          <div class="value">{{ summary.physical_qty }}</div>
+          <div class="label">Ед.</div>
+        </div>
+        <div class="metric">
+          <div class="value">{{ summary.main_qty }}</div>
+          <div class="label">OS</div>
+        </div>
+        <div class="metric">
+          <div class="value">{{ summary.processing_zone_qty }}</div>
+          <div class="label">OBR</div>
+        </div>
+        <div class="metric">
+          <div class="value">{{ summary.otg_zone_qty }}</div>
+          <div class="label">OTG</div>
+        </div>
+        <div class="metric">
+          <div class="value">{{ summary.shipping_reserved_qty }}</div>
+          <div class="label">Резерв OTG</div>
+        </div>
+        <div class="metric">
+          <div class="value">{{ summary.available_to_promise_qty }}</div>
+          <div class="label">Свободно</div>
+        </div>
+      </section>
+
+      <section class="card table-card">
+        <div class="table-head">
+          <h2 class="table-title">Количество по SKU</h2>
+          <div class="muted">Без коробов, палет и мест хранения</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th class="client-col"><a class="sort-link{% if sku_stock_sort_key == 'client' %} active{% endif %}" href="{{ sku_stock_sort_urls.client }}">Клиент{% if sku_stock_sort_key == 'client' %}<span class="sort-mark">{% if sku_stock_sort_dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+                <th><a class="sort-link{% if sku_stock_sort_key == 'sku' %} active{% endif %}" href="{{ sku_stock_sort_urls.sku }}">Артикул{% if sku_stock_sort_key == 'sku' %}<span class="sort-mark">{% if sku_stock_sort_dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+                <th><a class="sort-link{% if sku_stock_sort_key == 'name' %} active{% endif %}" href="{{ sku_stock_sort_urls.name }}">Наименование{% if sku_stock_sort_key == 'name' %}<span class="sort-mark">{% if sku_stock_sort_dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+                <th><a class="sort-link{% if sku_stock_sort_key == 'size' %} active{% endif %}" href="{{ sku_stock_sort_urls.size }}">Размер{% if sku_stock_sort_key == 'size' %}<span class="sort-mark">{% if sku_stock_sort_dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+                <th><a class="sort-link{% if sku_stock_sort_key == 'barcode' %} active{% endif %}" href="{{ sku_stock_sort_urls.barcode }}">ШК{% if sku_stock_sort_key == 'barcode' %}<span class="sort-mark">{% if sku_stock_sort_dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+                <th class="type-col"><a class="sort-link{% if sku_stock_sort_key == 'goods_type' %} active{% endif %}" href="{{ sku_stock_sort_urls.goods_type }}">Тип{% if sku_stock_sort_key == 'goods_type' %}<span class="sort-mark">{% if sku_stock_sort_dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+                <th><a class="sort-link{% if sku_stock_sort_key == 'physical_qty' %} active{% endif %}" href="{{ sku_stock_sort_urls.physical_qty }}">Ед.{% if sku_stock_sort_key == 'physical_qty' %}<span class="sort-mark">{% if sku_stock_sort_dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+                <th><a class="sort-link{% if sku_stock_sort_key == 'box_quant' %} active{% endif %}" href="{{ sku_stock_sort_urls.box_quant }}">Квантовка{% if sku_stock_sort_key == 'box_quant' %}<span class="sort-mark">{% if sku_stock_sort_dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+                <th><a class="sort-link{% if sku_stock_sort_key == 'main_qty' %} active{% endif %}" href="{{ sku_stock_sort_urls.main_qty }}">OS{% if sku_stock_sort_key == 'main_qty' %}<span class="sort-mark">{% if sku_stock_sort_dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+                <th><a class="sort-link{% if sku_stock_sort_key == 'processing_zone_qty' %} active{% endif %}" href="{{ sku_stock_sort_urls.processing_zone_qty }}">OBR{% if sku_stock_sort_key == 'processing_zone_qty' %}<span class="sort-mark">{% if sku_stock_sort_dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+                <th><a class="sort-link{% if sku_stock_sort_key == 'otg_zone_qty' %} active{% endif %}" href="{{ sku_stock_sort_urls.otg_zone_qty }}">OTG{% if sku_stock_sort_key == 'otg_zone_qty' %}<span class="sort-mark">{% if sku_stock_sort_dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+                <th><a class="sort-link{% if sku_stock_sort_key == 'shipping_reserved_qty' %} active{% endif %}" href="{{ sku_stock_sort_urls.shipping_reserved_qty }}">Резерв OTG{% if sku_stock_sort_key == 'shipping_reserved_qty' %}<span class="sort-mark">{% if sku_stock_sort_dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+                <th><a class="sort-link{% if sku_stock_sort_key == 'processing_reserved_qty' %} active{% endif %}" href="{{ sku_stock_sort_urls.processing_reserved_qty }}">Резерв OBR{% if sku_stock_sort_key == 'processing_reserved_qty' %}<span class="sort-mark">{% if sku_stock_sort_dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+                <th><a class="sort-link{% if sku_stock_sort_key == 'available_to_promise_qty' %} active{% endif %}" href="{{ sku_stock_sort_urls.available_to_promise_qty }}">Свободно{% if sku_stock_sort_key == 'available_to_promise_qty' %}<span class="sort-mark">{% if sku_stock_sort_dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+                <th><a class="sort-link{% if sku_stock_sort_key == 'latest_at' %} active{% endif %}" href="{{ sku_stock_sort_urls.latest_at }}">Обновлено{% if sku_stock_sort_key == 'latest_at' %}<span class="sort-mark">{% if sku_stock_sort_dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+              </tr>
+              <tr class="filter-row">
+                <th></th>
+                <th class="client-col"><input class="column-filter" form="sku-stock-filters" type="search" name="f_client" value="{{ column_filters.f_client }}" list="sku-stock-filter-client" placeholder="Клиент"></th>
+                <th><input class="column-filter" form="sku-stock-filters" type="search" name="f_sku" value="{{ column_filters.f_sku }}" list="sku-stock-filter-sku" placeholder="Артикул"></th>
+                <th><input class="column-filter" form="sku-stock-filters" type="search" name="f_name" value="{{ column_filters.f_name }}" list="sku-stock-filter-name" placeholder="Наименование"></th>
+                <th><input class="column-filter" form="sku-stock-filters" type="search" name="f_size" value="{{ column_filters.f_size }}" list="sku-stock-filter-size" placeholder="Размер"></th>
+                <th><input class="column-filter" form="sku-stock-filters" type="search" name="f_barcode" value="{{ column_filters.f_barcode }}" list="sku-stock-filter-barcode" placeholder="ШК"></th>
+                <th class="type-col"><input class="column-filter" form="sku-stock-filters" type="search" name="f_goods_type" value="{{ column_filters.f_goods_type }}" list="sku-stock-filter-goods-type" placeholder="Тип"></th>
+                <th></th>
+                <th><input class="column-filter" form="sku-stock-filters" type="search" name="f_quant" value="{{ column_filters.f_quant }}" list="sku-stock-filter-quant" placeholder="Квантовка"></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+                <tr class="{{ row.row_css_class }}">
+                  <td class="num"><button class="row-detail-button" type="button" data-row-detail data-row-number="{{ forloop.counter }}" data-row-title="{{ row.client_label }} · {{ row.sku }} · {{ row.goods_type }}" data-detail="{{ row.detail_json|escape }}">{{ forloop.counter }}</button></td>
+                  <td class="client-col">{{ row.client_label }}</td>
+                  <td class="sku">{{ row.sku }}</td>
+                  <td class="name-cell">{{ row.name }}</td>
+                  <td>{{ row.size }}</td>
+                  <td>{{ row.barcode }}</td>
+                  <td class="type-col">{{ row.goods_type }}</td>
+                  <td class="num">{{ row.physical_qty }}</td>
+                  <td class="quant">{{ row.box_quant_text|default:"-" }}</td>
+                  <td class="num">{% if row.main_qty %}<button class="qty-detail-button" type="button" data-qty-detail data-detail-kind="stock" data-detail-title="OS: короба и места" data-row-title="{{ row.client_label }} · {{ row.sku }} · {{ row.goods_type }}" data-detail="{{ row.main_detail_json|escape }}">{{ row.main_qty }}</button>{% else %}0{% endif %}</td>
+                  <td class="num">{% if row.processing_zone_qty %}<button class="qty-detail-button" type="button" data-qty-detail data-detail-kind="stock" data-detail-title="OBR: короба и места" data-row-title="{{ row.client_label }} · {{ row.sku }} · {{ row.goods_type }}" data-detail="{{ row.processing_zone_detail_json|escape }}">{{ row.processing_zone_qty }}</button>{% else %}0{% endif %}</td>
+                  <td class="num">{% if row.otg_zone_qty %}<button class="qty-detail-button" type="button" data-qty-detail data-detail-kind="stock" data-detail-title="OTG: короба и места" data-row-title="{{ row.client_label }} · {{ row.sku }} · {{ row.goods_type }}" data-detail="{{ row.otg_zone_detail_json|escape }}">{{ row.otg_zone_qty }}</button>{% else %}0{% endif %}</td>
+                  <td class="num reserve">{% if row.shipping_reserved_qty %}<button class="qty-detail-button" type="button" data-qty-detail data-detail-kind="orders" data-detail-title="Резерв OTG: заявки" data-row-title="{{ row.client_label }} · {{ row.sku }} · {{ row.goods_type }}" data-detail="{{ row.shipping_reserve_json|escape }}">{{ row.shipping_reserved_qty }}</button>{% else %}0{% endif %}</td>
+                  <td class="num reserve">{% if row.processing_reserved_qty %}<button class="qty-detail-button" type="button" data-qty-detail data-detail-kind="orders" data-detail-title="Резерв OBR: заявки" data-row-title="{{ row.client_label }} · {{ row.sku }} · {{ row.goods_type }}" data-detail="{{ row.processing_reserve_json|escape }}">{{ row.processing_reserved_qty }}</button>{% else %}0{% endif %}</td>
+                  <td class="num available">{{ row.available_to_promise_qty }}</td>
+                  <td class="muted">{% if row.latest_at %}{{ row.latest_at|date:"d.m.Y H:i" }}{% else %}-{% endif %}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td class="empty" colspan="16">Нет остатков по выбранным фильтрам.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <datalist id="sku-stock-filter-client">
+            {% for value in column_filter_options.f_client %}<option value="{{ value }}">{% endfor %}
+          </datalist>
+          <datalist id="sku-stock-filter-sku">
+            {% for value in column_filter_options.f_sku %}<option value="{{ value }}">{% endfor %}
+          </datalist>
+          <datalist id="sku-stock-filter-name">
+            {% for value in column_filter_options.f_name %}<option value="{{ value }}">{% endfor %}
+          </datalist>
+          <datalist id="sku-stock-filter-size">
+            {% for value in column_filter_options.f_size %}<option value="{{ value }}">{% endfor %}
+          </datalist>
+          <datalist id="sku-stock-filter-barcode">
+            {% for value in column_filter_options.f_barcode %}<option value="{{ value }}">{% endfor %}
+          </datalist>
+          <datalist id="sku-stock-filter-goods-type">
+            {% for value in column_filter_options.f_goods_type %}<option value="{{ value }}">{% endfor %}
+          </datalist>
+          <datalist id="sku-stock-filter-quant">
+            {% for value in column_filter_options.f_quant %}<option value="{{ value }}">{% endfor %}
+          </datalist>
+        </div>
+        {% if page_obj and page_obj.has_other_pages %}
+          <nav class="pagination" aria-label="Страницы">
+            {% if page_obj.has_previous %}
+              <a class="page-link" href="{% if page_query %}?{{ page_query }}&{% else %}?{% endif %}page={{ page_obj.previous_page_number }}">←</a>
+            {% endif %}
+            {% for link in page_links %}
+              {% if link.ellipsis %}
+                <span class="page-link">…</span>
+              {% elif link.current %}
+                <span class="page-link current">{{ link.number }}</span>
+              {% else %}
+                <a class="page-link" href="{% if page_query %}?{{ page_query }}&{% else %}?{% endif %}page={{ link.number }}">{{ link.number }}</a>
+              {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+              <a class="page-link" href="{% if page_query %}?{{ page_query }}&{% else %}?{% endif %}page={{ page_obj.next_page_number }}">→</a>
+            {% endif %}
+          </nav>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+  <div class="stock-modal-backdrop" id="sku-stock-detail-modal" hidden>
+    <div class="stock-modal" role="dialog" aria-modal="true" aria-labelledby="sku-stock-detail-title">
+      <div class="stock-modal-head">
+        <div>
+          <h2 class="stock-modal-title" id="sku-stock-detail-title">Короба и места</h2>
+          <div class="stock-modal-subtitle" id="sku-stock-detail-subtitle"></div>
+        </div>
+        <button class="stock-modal-close" type="button" data-stock-modal-close>Закрыть</button>
+      </div>
+      <div class="stock-modal-body" id="sku-stock-detail-body"></div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const modal = document.getElementById('sku-stock-detail-modal');
+      const dialog = modal ? modal.querySelector('.stock-modal') : null;
+      const modalHead = modal ? modal.querySelector('.stock-modal-head') : null;
+      const title = document.getElementById('sku-stock-detail-title');
+      const subtitle = document.getElementById('sku-stock-detail-subtitle');
+      const body = document.getElementById('sku-stock-detail-body');
+      if (!modal || !dialog || !modalHead || !title || !subtitle || !body) {
+        return;
+      }
+
+      const escapeHtml = function (value) {
+        return String(value || '').replace(/[&<>"']/g, function (char) {
+          return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+          }[char];
+        });
+      };
+
+      const closeModal = function () {
+        modal.classList.remove('is-open');
+        modal.hidden = true;
+        body.innerHTML = '';
+      };
+
+      const clamp = function (value, min, max) {
+        return Math.min(Math.max(value, min), max);
+      };
+
+      let dragState = null;
+      modalHead.addEventListener('pointerdown', function (event) {
+        if (event.target.closest('[data-stock-modal-close]')) {
+          return;
+        }
+        const rect = dialog.getBoundingClientRect();
+        dialog.style.left = rect.left + 'px';
+        dialog.style.top = rect.top + 'px';
+        dialog.style.transform = 'none';
+        dragState = {
+          pointerId: event.pointerId,
+          offsetX: event.clientX - rect.left,
+          offsetY: event.clientY - rect.top
+        };
+        modalHead.setPointerCapture(event.pointerId);
+      });
+
+      modalHead.addEventListener('pointermove', function (event) {
+        if (!dragState || dragState.pointerId !== event.pointerId) {
+          return;
+        }
+        const rect = dialog.getBoundingClientRect();
+        const maxLeft = Math.max(8, window.innerWidth - rect.width - 8);
+        const maxTop = Math.max(8, window.innerHeight - rect.height - 8);
+        dialog.style.left = clamp(event.clientX - dragState.offsetX, 8, maxLeft) + 'px';
+        dialog.style.top = clamp(event.clientY - dragState.offsetY, 8, maxTop) + 'px';
+      });
+
+      const stopDrag = function (event) {
+        if (!dragState || dragState.pointerId !== event.pointerId) {
+          return;
+        }
+        dragState = null;
+        try {
+          modalHead.releasePointerCapture(event.pointerId);
+        } catch (error) {}
+      };
+      modalHead.addEventListener('pointerup', stopDrag);
+      modalHead.addEventListener('pointercancel', stopDrag);
+
+      const openModal = function (button) {
+        let items = [];
+        try {
+          items = JSON.parse(button.getAttribute('data-detail') || '[]');
+        } catch (error) {
+          items = [];
+        }
+        const detailTitle = button.getAttribute('data-detail-title') || '';
+        const detailKind = button.getAttribute('data-detail-kind') || 'stock';
+        if (detailTitle) {
+          title.textContent = detailTitle;
+        } else {
+          title.textContent = 'Строка ' + (button.getAttribute('data-row-number') || '') + ': короба и места';
+        }
+        subtitle.textContent = button.getAttribute('data-row-title') || '';
+        if (!items.length) {
+          body.innerHTML = '<div class="empty">Нет детализации по этой цифре.</div>';
+        } else if (detailKind === 'orders') {
+          const rows = items.map(function (item, index) {
+            const label = item.url
+              ? '<a href="' + escapeHtml(item.url) + '">' + escapeHtml(item.label) + '</a>'
+              : '<strong>' + escapeHtml(item.label) + '</strong>';
+            return '<tr>'
+              + '<td>' + (index + 1) + '</td>'
+              + '<td>' + label + '</td>'
+              + '<td class="num">' + escapeHtml(item.qty) + '</td>'
+              + '<td>' + escapeHtml(item.description) + '</td>'
+              + '</tr>';
+          }).join('');
+          body.innerHTML = '<table class="stock-detail-table">'
+            + '<thead><tr><th>#</th><th>Заявка</th><th>Ед.</th><th>Комментарий</th></tr></thead>'
+            + '<tbody>' + rows + '</tbody>'
+            + '</table>';
+        } else {
+          const rows = items.map(function (item, index) {
+            return '<tr>'
+              + '<td>' + (index + 1) + '</td>'
+              + '<td><strong>' + escapeHtml(item.box_code) + '</strong></td>'
+              + '<td>' + escapeHtml(item.pallet_code) + '</td>'
+              + '<td>' + escapeHtml(item.place) + '</td>'
+              + '<td class="num">' + escapeHtml(item.qty) + '</td>'
+              + '</tr>';
+          }).join('');
+          body.innerHTML = '<table class="stock-detail-table">'
+            + '<thead><tr><th>#</th><th>Короб</th><th>Паллета</th><th>Место</th><th>Ед.</th></tr></thead>'
+            + '<tbody>' + rows + '</tbody>'
+            + '</table>';
+        }
+        modal.hidden = false;
+        modal.classList.add('is-open');
+      };
+
+      document.querySelectorAll('[data-row-detail]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          openModal(button);
+        });
+      });
+      document.querySelectorAll('[data-qty-detail]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          openModal(button);
+        });
+      });
+      document.querySelectorAll('[data-stock-modal-close]').forEach(function (button) {
+        button.addEventListener('click', closeModal);
+      });
+      modal.addEventListener('click', function (event) {
+        if (event.target === modal) {
+          closeModal();
+        }
+      });
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !modal.hidden) {
+          closeModal();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

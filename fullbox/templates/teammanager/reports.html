@@ -1,0 +1,108 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}Отчёты и аналитика{% endblock %}
+
+{% block extra_css %}
+  .reports-head { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+  .reports-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:32px; line-height:1.1; letter-spacing:-.03em; }
+  .reports-sub { margin-top:6px; color:var(--muted); font-size:14px; }
+  .reports-actions { display:flex; gap:10px; flex-wrap:wrap; }
+  .section-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+  .section-card { display:grid; gap:14px; min-height:210px; padding:18px; border:1px solid var(--stroke); border-radius:22px; background:var(--surface); color:var(--ink); text-decoration:none; box-shadow:var(--shadow); transition:transform .15s ease, border-color .15s ease; }
+  .section-card:hover { transform:translateY(-2px); border-color:rgba(14,107,91,.35); }
+  .section-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+  .section-icon { width:44px; height:44px; display:grid; place-items:center; border-radius:16px; background:var(--accent-soft); color:var(--accent-strong); font-weight:900; font-size:22px; }
+  .section-count { display:grid; place-items:center; min-width:34px; height:28px; padding:0 9px; border-radius:999px; background:var(--sun-soft); color:#8a5a00; font-weight:900; font-size:13px; }
+  .section-title { margin:0; font-size:20px; line-height:1.2; font-weight:900; }
+  .section-desc { color:var(--muted); font-size:13px; line-height:1.45; }
+  .section-bottom { display:flex; justify-content:space-between; gap:10px; align-items:center; margin-top:auto; color:var(--accent-strong); font-size:13px; font-weight:900; }
+  .favorite-note { color:#8a5a00; background:var(--sun-soft); border-radius:999px; padding:4px 8px; }
+  .content-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:14px; align-items:start; }
+  .panel { display:grid; gap:12px; padding:16px; border:1px solid var(--stroke); border-radius:20px; background:var(--surface); box-shadow:var(--shadow); min-width:0; }
+  .panel-head { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+  .panel-title { margin:0; font-size:18px; font-weight:900; }
+  .empty { padding:18px; border:1px dashed var(--stroke); border-radius:16px; background:var(--surface-2); color:var(--muted); font-size:13px; text-align:center; }
+  .notice { padding:12px 14px; border-radius:16px; border:1px solid rgba(14,107,91,.22); background:var(--accent-soft); color:var(--accent-strong); font-size:13px; line-height:1.45; }
+  .quick-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  .quick-card { display:grid; gap:8px; min-height:112px; padding:15px; border:1px solid var(--stroke); border-radius:18px; background:#fff; color:var(--ink); text-decoration:none; }
+  .quick-card:hover { border-color:rgba(14,107,91,.35); }
+  .quick-section { color:var(--accent-strong); font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.04em; }
+  .quick-title { font-size:16px; font-weight:900; line-height:1.25; }
+  .quick-desc { color:var(--muted); font-size:12px; line-height:1.4; }
+  @media (max-width:1280px){ .content-grid{grid-template-columns:1fr;} .section-grid,.quick-grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  @media (max-width:760px){ .section-grid,.quick-grid{grid-template-columns:1fr;} }
+{% endblock %}
+
+{% block content %}
+  <div class="reports-head">
+    <div>
+      <h1 class="reports-title">Отчёты и аналитика</h1>
+      <div class="reports-sub">Выберите направление, затем конкретный отчёт</div>
+    </div>
+    <div class="reports-actions">
+      <a class="btn" href="/team-manager/reports/history/">История выгрузок</a>
+      <a class="btn" href="/team-manager/reports/saved/">Сохранённые отчёты</a>
+      <a class="btn" href="/team-manager/knowledge/">Помощь</a>
+    </div>
+  </div>
+
+  <div class="notice">
+    Все отчёты ниже формируются по актуальным данным WMS и биллинга в режиме только чтения. Формирование отчёта не меняет остатки, резервы, задания или финансовые документы.
+  </div>
+
+  <div class="content-grid">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">Направления отчётности</h2>
+          <div class="reports-sub">Всего доступно отчётов: {{ report_total_count }}</div>
+        </div>
+      </div>
+      {% if report_sections %}
+        <div class="section-grid">
+          {% for section in report_sections %}
+            <a class="section-card" href="{{ section.url }}">
+              <span class="section-top">
+                <span class="section-icon">{{ section.icon }}</span>
+                <span class="section-count">{{ section.report_count }}</span>
+              </span>
+              <span>
+                <h3 class="section-title">{{ section.title }}</h3>
+                <span class="section-desc">{{ section.description }}</span>
+              </span>
+              <span class="section-bottom">
+                <span>Открыть →</span>
+                {% if section.favorite_count %}
+                  <span class="favorite-note">★ {{ section.favorite_count }}</span>
+                {% endif %}
+              </span>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">Для вашей роли нет доступных отчётов этого кабинета.</div>
+      {% endif %}
+    </section>
+
+    {% if featured_reports %}
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">Главные рабочие отчёты</h2>
+            <div class="reports-sub">Быстрый доступ к ежедневному контролю</div>
+          </div>
+        </div>
+        <div class="quick-grid">
+          {% for report in featured_reports %}
+            <a class="quick-card" href="{{ report.url }}">
+              <span class="quick-section">{{ report.section_title }}</span>
+              <span class="quick-title">{{ report.title }}</span>
+              <span class="quick-desc">{{ report.description }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+  </div>
+{% endblock %}

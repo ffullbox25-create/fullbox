@@ -1,0 +1,19 @@
+{% with support_role=request.session.employee_role|default:request.user.employee_profile.role %}
+{% if request.user.is_superuser or request.user.username == "dev" or support_role == "admin" or support_role == "director" or support_role == "accountant" or support_role == "hr" or support_role == "developer" or support_role == "head_manager" or support_role == "manager" or support_role == "processing_head" or support_role == "storekeeper" %}
+  <a id="ai-support-launch" href="{% url 'ai_support:create' %}" style="position:fixed;right:18px;bottom:18px;z-index:10000;padding:11px 15px;border-radius:999px;background:#136f63;color:#fff;text-decoration:none;font:700 14px/1.2 system-ui,-apple-system,sans-serif;box-shadow:0 8px 26px rgba(0,0,0,.22)" data-zone="{{ ai_support_zone|default:'' }}">Сообщить об ошибке</a>
+  <script>
+    (() => {
+      const link = document.getElementById("ai-support-launch");
+      if (!link) return;
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        const url = new URL(link.href, window.location.origin);
+        url.searchParams.set("source_url", window.location.pathname + window.location.search);
+        url.searchParams.set("page_title", document.title);
+        if (link.dataset.zone) url.searchParams.set("zone", link.dataset.zone);
+        window.location.assign(url.toString());
+      });
+    })();
+  </script>
+{% endif %}
+{% endwith %}

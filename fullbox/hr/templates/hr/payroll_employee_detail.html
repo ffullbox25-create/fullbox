@@ -1,0 +1,56 @@
+{% extends "hr/base.html" %}
+
+{% block title %}{{ employee.full_name }}{% endblock %}
+
+{% block content %}
+  <header class="page-head">
+    <div>
+      <div class="breadcrumbs"><a href="{% url 'hr:payroll-employees' %}">Карточки и ставки</a><span>›</span><span>{{ employee.full_name }}</span></div>
+      <h1>{{ employee.full_name }}</h1>
+      <div class="muted">{{ employee.get_role_display }} · данные для месячного отчёта</div>
+    </div>
+  </header>
+
+  <div class="two-col">
+    <section class="panel">
+      <h2>Карточка для отчёта</h2>
+      <form method="post">
+        {% csrf_token %}<input type="hidden" name="action" value="profile">
+        <div class="form-grid">
+          {% include "hr/_form_fields.html" with form=profile_form %}
+          <div class="form-actions"><button class="btn primary" type="submit">Сохранить карточку</button></div>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Новая ставка</h2>
+      <form method="post">
+        {% csrf_token %}<input type="hidden" name="action" value="rate">
+        <div class="form-grid">
+          {% include "hr/_form_fields.html" with form=rate_form %}
+          <div class="form-actions"><button class="btn primary" type="submit">Добавить ставку</button></div>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>История ставок</h2>
+    <div class="compact-table-wrap">
+      <table>
+        <thead><tr><th>Период</th><th class="money">Почасовая</th><th class="money">Оклад</th><th>Основание</th></tr></thead>
+        <tbody>
+          {% for rate in rates %}
+            <tr>
+              <td>{{ rate.effective_from|date:"d.m.Y" }} — {% if rate.effective_to %}{{ rate.effective_to|date:"d.m.Y" }}{% else %}по настоящее время{% endif %}</td>
+              <td class="money">{{ rate.hourly_rate|floatformat:2 }}</td>
+              <td class="money">{{ rate.monthly_salary|floatformat:2 }}</td>
+              <td>{{ rate.note|default:"—" }}</td>
+            </tr>
+          {% empty %}<tr><td colspan="4" class="empty-state">Ставки ещё не заведены.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

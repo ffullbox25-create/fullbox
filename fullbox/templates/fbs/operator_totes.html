@@ -1,0 +1,133 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Тара FBS{% endblock %}
+
+{% block workspace_page_class %}tote-settings-page{% endblock %}
+
+{% block workspace_body %}
+  <style>
+    .tote-create-band { display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, 1.35fr); gap: 14px; align-items: stretch; }
+    .tote-create-card { padding: 18px; border: 1px solid var(--line, #e3e0dc); border-radius: 18px; background: #fff; }
+    .tote-create-card h2 { margin: 0 0 4px; font-size: 20px; }
+    .tote-create-card p { margin: 0 0 14px; color: var(--muted, #756d66); }
+    .tote-create-form { display: grid; grid-template-columns: 120px minmax(160px, .8fr) minmax(220px, 1.2fr) auto; gap: 10px; align-items: end; }
+    .tote-create-form label, .tote-row-form label { display: grid; gap: 5px; min-width: 0; font-size: 12px; font-weight: 800; color: var(--muted, #756d66); }
+    .tote-create-form input, .tote-row-form input { width: 100%; min-height: 42px; border: 1px solid #d8d3cd; border-radius: 10px; padding: 9px 11px; background: #fff; color: #303030; font: inherit; }
+    .tote-create-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+    .tote-code { display: block; font-weight: 900; overflow-wrap: anywhere; }
+    .tote-note { display: block; margin-top: 3px; color: var(--muted, #756d66); font-size: 12px; }
+    .tote-state { display: inline-flex; align-items: center; min-height: 28px; padding: 5px 9px; border-radius: 999px; background: #f1efec; font-size: 12px; font-weight: 900; }
+    .tote-state-free { color: #245d45; background: #e6f4ec; }
+    .tote-state-work, .tote-state-occupied { color: #8a4b00; background: #fff0da; }
+    .tote-state-disabled { color: #7c2929; background: #fde8e8; }
+    .tote-row-form { display: grid; gap: 9px; min-width: 260px; padding-top: 9px; }
+    .tote-row-form .toggle { display: flex; grid-template-columns: auto 1fr; align-items: center; gap: 8px; color: #303030; }
+    .tote-row-form .toggle input { width: 18px; min-height: 18px; padding: 0; accent-color: #f89000; }
+    .tote-row-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+    .tote-details summary { cursor: pointer; color: #303030; font-weight: 850; }
+    .tote-guard { margin: 0; color: #8a4b00; font-size: 12px; }
+    @media (max-width: 1180px) {
+      .tote-create-band, .tote-create-form { grid-template-columns: 1fr 1fr; }
+      .tote-create-actions { grid-column: 1 / -1; }
+    }
+    @media (max-width: 760px) {
+      .tote-create-band, .tote-create-form { grid-template-columns: 1fr; }
+      .tote-create-actions { grid-column: auto; }
+    }
+  </style>
+
+  <section class="operator-summary">
+    <div><span>Всего тар</span><strong>{{ summary.total }}</strong></div>
+    <div><span>Активных</span><strong>{{ summary.active }}</strong></div>
+    <div><span>Свободных</span><strong>{{ summary.free }}</strong></div>
+    <div class="{% if summary.work %}summary-problem{% endif %}"><span>У сотрудников и в работе</span><strong>{{ summary.work }}</strong></div>
+  </section>
+
+  <section class="tote-create-band">
+    <div class="tote-create-card">
+      <h2>Управление тарой</h2>
+      <p>Кладовщик видит весь фонд FBS, текущее место, волну и сотрудника. Занятую тару отключить нельзя.</p>
+      <a class="button button-secondary button-compact" href="{% url 'fbs:operator_readiness' %}">Открыть диагностику смены</a>
+    </div>
+    <div class="tote-create-card">
+      <h2>Добавить тару</h2>
+      <p>Уникальные QR-коды создаются автоматически.</p>
+      <form class="tote-create-form" method="post" action="{% url 'fbs:operator_tote_create' %}">
+        {% csrf_token %}
+        <label>Количество<input type="number" name="count" min="1" max="100" value="1" required></label>
+        <label>Название<input type="text" name="name_prefix" maxlength="110" value="Тара" required></label>
+        <label>Примечание<input type="text" name="notes" maxlength="1000" placeholder="Например: синяя тележка"></label>
+        <div class="tote-create-actions">
+          <button class="button button-secondary button-compact" type="submit">Создать</button>
+          <button class="button button-primary button-compact" type="submit" name="print_labels" value="1">Создать и печатать</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section class="operator-command-row client-command-row">
+    <form class="operator-filters operator-filters-compact" method="get">
+      <label><span>Тара, QR, сотрудник, клиент или волна</span><input type="search" name="q" value="{{ query }}" placeholder="Начните вводить"></label>
+      <label><span>Статус</span>
+        <select name="status">
+          <option value=""{% if not selected_status %} selected{% endif %}>Все</option>
+          <option value="active"{% if selected_status == 'active' %} selected{% endif %}>Активные</option>
+          <option value="free"{% if selected_status == 'free' %} selected{% endif %}>Свободные</option>
+          <option value="work"{% if selected_status == 'work' %} selected{% endif %}>В работе</option>
+          <option value="disabled"{% if selected_status == 'disabled' %} selected{% endif %}>Отключённые</option>
+        </select>
+      </label>
+      <label><span>На странице</span><select name="page_size">{% for size in page_sizes %}<option value="{{ size }}"{% if size == page_size %} selected{% endif %}>{{ size }}</option>{% endfor %}</select></label>
+      <div class="filter-actions">
+        <button class="button button-secondary button-compact" type="submit">Показать</button>
+        <a class="button button-secondary button-compact" href="{% url 'fbs:operator_totes' %}">Сбросить</a>
+      </div>
+    </form>
+  </section>
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading"><div><span class="section-kicker">Фонд FBS</span><h2>Тары и занятость</h2></div><strong>{{ page.paginator.count }}</strong></div>
+    <div class="operator-table-scroll">
+      <table class="operator-table">
+        <thead><tr><th>Тара</th><th>Статус</th><th>Где находится</th><th>Клиент и волна</th><th>Кто собирал</th><th>Создал</th><th></th></tr></thead>
+        <tbody>
+          {% for row in page.object_list %}
+            <tr>
+              <td><span class="tote-code">{{ row.cart.name }}</span><small>{{ row.cart.barcode }}</small>{% if row.cart.notes %}<span class="tote-note">{{ row.cart.notes }}</span>{% endif %}</td>
+              <td><span class="tote-state tote-state-{{ row.status_code }}">{{ row.status_label }}</span></td>
+              <td><strong>{{ row.location }}</strong></td>
+              <td>{% if row.batch %}<strong>{{ row.batch.agency }}</strong><small>Волна #{{ row.batch.id }}</small>{% elif row.cart.owner_agency %}<strong>{{ row.cart.owner_agency }}</strong><small>Старая привязка поставщика</small>{% else %}<span class="text-muted">Не назначена</span>{% endif %}</td>
+              <td><strong>{{ row.picker }}</strong></td>
+              <td><strong>{{ row.creator }}</strong><small>{{ row.cart.created_at|date:"d.m.Y H:i" }}</small></td>
+              <td class="row-action">
+                <a class="button button-secondary button-compact" href="{% url 'fbs:operator_tote_labels' %}?ids={{ row.cart.id }}" target="_blank">Печать QR</a>
+                <details class="tote-details">
+                  <summary>Настроить</summary>
+                  <form class="tote-row-form" method="post" action="{% url 'fbs:operator_tote_update' cart_id=row.cart.id %}">
+                    {% csrf_token %}
+                    <label>Название<input type="text" name="name" maxlength="128" value="{{ row.cart.name }}" required></label>
+                    <label>Примечание<input type="text" name="notes" maxlength="1000" value="{{ row.cart.notes }}"></label>
+                    {% if row.cart.is_active and not row.can_disable %}<input type="hidden" name="is_active" value="1">{% endif %}
+                    <label class="toggle"><input type="checkbox" name="is_active" value="1"{% if row.cart.is_active %} checked{% endif %}{% if row.cart.is_active and not row.can_disable %} disabled{% endif %}><span>Тара активна</span></label>
+                    {% if row.cart.is_active and not row.can_disable %}<p class="tote-guard">Отключение недоступно: тара используется сотрудником или волной.</p>{% endif %}
+                    <div class="tote-row-actions"><button class="button button-primary button-compact" type="submit">Сохранить</button></div>
+                  </form>
+                </details>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-row" colspan="7">Тары по выбранному фильтру не найдены</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if page.paginator.num_pages > 1 %}
+    <nav class="operator-pagination" aria-label="Страницы тары">
+      {% if page.has_previous %}<a class="button button-secondary button-compact" href="?q={{ query|urlencode }}&status={{ selected_status|urlencode }}&page_size={{ page_size }}&page={{ page.previous_page_number }}">Назад</a>{% endif %}
+      <span>Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="button button-secondary button-compact" href="?q={{ query|urlencode }}&status={{ selected_status|urlencode }}&page_size={{ page_size }}&page={{ page.next_page_number }}">Далее</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Диагностика FBS{% endblock %}
+
+{% block workspace_body %}
+  <section class="operator-table-band">
+    <div class="operator-table-heading">
+      <div>
+        <span class="section-kicker">Предсменная проверка</span>
+        <h2>{{ report.overall.label }}</h2>
+      </div>
+      <a class="button button-secondary button-compact" href="{% url 'fbs:operator_readiness' %}">Обновить</a>
+    </div>
+    <div class="operator-summary operator-summary-five">
+      <div><span>Профили</span><strong>{{ report.profile_count }}</strong></div>
+      <div><span>Готовые столы смены</span><strong>{{ report.ready_workstations }}/{{ report.planned_workstations }}</strong></div>
+      <div><span>Свободная тара</span><strong>{{ report.free_totes }}/{{ report.active_totes }}</strong></div>
+      <div><span>Активные волны</span><strong>{{ report.active_batches }}</strong></div>
+      <div class="{% if report.command_problems or report.label_problems %}summary-problem{% endif %}"><span>Ошибки обмена</span><strong>{{ report.command_problems|add:report.label_problems }}</strong></div>
+    </div>
+    <div class="operator-table-scroll">
+      <table class="operator-table">
+        <thead><tr><th>Проверка</th><th>Результат</th><th>Состояние</th></tr></thead>
+        <tbody>
+          {% for check in report.checks %}
+            <tr>
+              <td><strong>{{ check.title }}</strong>{% if check.count != None %}<small>Количество: {{ check.count }}</small>{% endif %}</td>
+              <td>{{ check.message }}</td>
+              <td><span class="status {% if check.severity == 'ok' %}status-done{% elif check.severity == 'warning' %}status-warning{% else %}status-problem{% endif %}">{% if check.severity == 'ok' %}Готово{% elif check.severity == 'warning' %}Внимание{% else %}Блокирует запуск{% endif %}</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading"><div><span class="section-kicker">Интеграции</span><h2>Клиенты и склады</h2></div><strong>{{ report.profile_count }}</strong></div>
+    <div class="operator-table-scroll">
+      <table class="operator-table">
+        <thead><tr><th>Клиент</th><th>Маркетплейс</th><th>Склад</th><th>Заказы</th><th>Последнее обновление</th><th>Состояние</th></tr></thead>
+        <tbody>
+          {% for profile in report.profiles %}
+            <tr>
+              <td><a class="table-main-link" href="{% url 'fbs:operator_client_detail' agency_id=profile.agency.id %}">{{ profile.agency }}</a></td>
+              <td>{{ profile.marketplace }}</td>
+              <td>{{ profile.warehouse }}</td>
+              <td>{% if profile.order_pull_enabled %}Включены{% else %}Выключены{% endif %}</td>
+              <td>{% if profile.last_success_at %}{{ profile.last_success_at|date:"d.m.Y H:i:s" }}{% else %}-{% endif %}</td>
+              <td><span class="status {% if profile.severity == 'ok' %}status-done{% elif profile.severity == 'warning' %}status-warning{% else %}status-problem{% endif %}">{{ profile.message }}</span></td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-row" colspan="6">Активных профилей нет</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading"><div><span class="section-kicker">Рабочие места</span><h2>Agent, принтеры и сканеры</h2></div><strong>{{ report.ready_workstations }}/{{ report.planned_workstations }} в смене</strong></div>
+    <div class="operator-table-scroll">
+      <table class="operator-table">
+        <thead><tr><th>Стол</th><th>Смена</th><th>Agent</th><th>Принтер</th><th>Сканер</th><th>Итог</th></tr></thead>
+        <tbody>
+          {% for row in report.equipment_rows %}
+            <tr>
+              <td><strong>{{ row.workstation.name }}</strong><small>{{ row.workstation.barcode }}</small></td>
+              <td>{{ row.workstation.get_shift_status_display }}</td>
+              <td>{% if row.planned %}<span class="status {% if row.agent.online %}status-done{% else %}status-problem{% endif %}">{{ row.agent.text }}</span>{% if not row.agent.online and row.agent_last_seen %}<small>Последняя связь: {{ row.agent_last_seen|date:"d.m.Y H:i:s" }}</small>{% endif %}{% else %}<span class="status">Не требуется</span>{% endif %}</td>
+              <td>{% if row.planned %}<span class="status {% if row.printer.severity == 'ok' %}status-done{% elif row.printer.severity == 'danger' %}status-problem{% else %}status-warning{% endif %}">{{ row.printer.text }}</span>{% else %}<span class="status">Не требуется</span>{% endif %}</td>
+              <td>{% if row.planned %}<span class="status {% if row.scanner.ready %}status-done{% else %}status-problem{% endif %}">{{ row.scanner.text }}</span>{% else %}<span class="status">Не требуется</span>{% endif %}</td>
+              <td><span class="status {% if not row.planned %}{% elif row.ready %}status-done{% else %}status-problem{% endif %}">{% if not row.planned %}Не участвует в смене{% elif row.ready %}Готов{% else %}Не готов{% endif %}</span></td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-row" colspan="6">Рабочие места не созданы</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="problem-columns">
+    <section class="detail-panel">
+      <h2>FBS-остаток</h2>
+      <div class="metric-grid">
+        <div><span>Факт</span><strong>{{ report.stock.qty }}</strong></div>
+        <div><span>Доступно</span><strong>{{ report.stock.available }}</strong></div>
+        <div><span>Резерв</span><strong>{{ report.stock.reserved }}</strong></div>
+      </div>
+    </section>
+    <section class="detail-panel">
+      <h2>Сканы за 24 часа</h2>
+      <div class="metric-grid">
+        <div><span>Всего</span><strong>{{ report.scan_total }}</strong></div>
+        <div><span>Отклонено</span><strong>{{ report.scan_errors }}</strong></div>
+        <div><span>Доля отклонений</span><strong>{{ report.scan_error_rate }}%</strong></div>
+      </div>
+    </section>
+    <section class="detail-panel">
+      <h2>Ошибки по этапам</h2>
+      <div class="problem-detail-list">
+        {% for row in report.scan_stage_rows %}<div><span><strong>{{ row.label }}</strong><small>{{ row.errors }} из {{ row.total }}</small></span><em>{{ row.error_rate }}%</em></div>{% empty %}<div class="empty-state empty-state-ok">За 24 часа сканов нет</div>{% endfor %}
+      </div>
+    </section>
+  </div>
+  <section class="operator-table-band">
+    <div class="operator-table-heading"><div><span class="section-kicker">Безопасная валидация</span><h2>Почему сканы отклонены</h2></div><strong>{{ report.scan_errors }}</strong></div>
+    <div class="operator-table-scroll">
+      <table class="operator-table">
+        <thead><tr><th>Этап</th><th>Причина</th><th>Что делать</th><th>Количество</th><th>Последний случай</th></tr></thead>
+        <tbody>
+          {% for row in report.scan_error_reason_rows %}
+            <tr><td>{{ row.stage_label }}</td><td>{{ row.message }}</td><td>{{ row.action }}</td><td><strong>{{ row.total }}</strong></td><td>{{ row.last_at|date:"d.m.Y H:i:s" }}</td></tr>
+          {% empty %}
+            <tr><td class="empty-row" colspan="5">За 24 часа отклоненных сканов нет</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <p class="text-muted">Сформировано {{ report.generated_at|date:"d.m.Y H:i:s" }}. Экран выполняет только чтение данных.</p>
+{% endblock %}

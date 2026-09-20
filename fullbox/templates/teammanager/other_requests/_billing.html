@@ -1,0 +1,26 @@
+<section class="or-card">
+  <h2>Оплата и начисление</h2>
+  {% if not item.is_paid and not item.category.can_be_paid %}
+    <p class="muted" style="margin:0">Бесплатная задача — начисление не требуется.</p>
+  {% else %}
+    <div class="or-info-label">Статус биллинга</div>
+    <div class="or-info-value">{{ billing_status_label }}</div>
+    <div class="or-info-label">Платная задача</div>
+    <div class="or-info-value">{% if item.is_paid %}Да{% else %}По категории{% endif %}</div>
+    {% if item.billing_service_code %}
+      <div class="or-info-label">Код услуги</div>
+      <div class="or-info-value">{{ item.billing_service_code }}</div>
+    {% endif %}
+    {% if billing_app and billing_app.charges_total %}
+      <div class="or-info-label">Сумма начисления</div>
+      <div class="or-info-value">{{ billing_app.charges_total }} ₽</div>
+    {% endif %}
+    {% if billing_url %}
+      <a class="or-btn" href="{{ billing_url }}" style="margin-top:8px;display:inline-block">Открыть в биллинге</a>
+    {% elif item.status == 'closed' %}
+      <p class="muted" style="margin:8px 0 0">Заявка закрыта — запись биллинга создаётся при подтверждении.</p>
+    {% else %}
+      <p class="muted" style="margin:8px 0 0">После закрытия менеджером появится заявка в биллинге.</p>
+    {% endif %}
+  {% endif %}
+</section>

@@ -1,0 +1,44 @@
+{% extends "logistics/management_base.html" %}
+{% block title %}Проблемные рейсы{% endblock %}
+{% block management_title %}Проблемные рейсы{% endblock %}
+{% block management_content %}
+  {% with problems_active=1 %}{% endwith %}
+  <section class="dm-card">
+    <form class="dm-form" method="get">
+      <label>Поиск<input type="search" name="q" value="{{ filters.q }}" placeholder="Рейс, заявка, клиент, маркетплейс"></label>
+      <label>Период с<input type="date" name="date_from" value="{{ filters.date_from }}"></label>
+      <label>по<input type="date" name="date_to" value="{{ filters.date_to }}"></label>
+      <label>Маркетплейс<input name="marketplace" value="{{ filters.marketplace }}" placeholder="Ozon, Wildberries…"></label>
+      <label>Клиент<input name="client" value="{{ filters.client }}" placeholder="Название клиента"></label>
+      <label>Водитель<select name="driver"><option value="">Все</option>{% for driver in drivers %}<option value="{{ driver.pk }}"{% if filters.driver == driver.pk|stringformat:"s" %} selected{% endif %}>{{ driver.full_name }}</option>{% endfor %}</select></label>
+      <label>Причина<select name="reason"><option value="">Все</option>{% for value,label in failure_reasons %}<option value="{{ value }}"{% if filters.reason == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label>Ответственная сторона<select name="party"><option value="">Все</option>{% for value,label in party_choices %}<option value="{{ value }}"{% if filters.party == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label>Наличие штрафа<select name="has_penalty"><option value="">Все</option><option value="yes"{% if filters.has_penalty == 'yes' %} selected{% endif %}>Есть</option><option value="no"{% if filters.has_penalty == 'no' %} selected{% endif %}>Нет</option></select></label>
+      <label>Статус<select name="status"><option value="">Все</option>{% for value,label in problem_statuses %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <button class="btn primary" type="submit">Применить фильтры</button>
+    </form>
+  </section>
+  <div class="dm-table-wrap">
+    <table class="dm-table">
+      <thead><tr><th>Рейс / заявка</th><th>Дата</th><th>Клиент / МП</th><th>Водитель</th><th>Склад</th><th>Причина</th><th>Ответственная сторона</th><th>Возможный штраф</th><th>Фактический штраф</th><th>Статус</th><th>Ответственный</th><th>Следующее действие</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td><a href="/logistics/problems/{{ row.problem.pk }}/"><strong>{{ row.problem.trip.number }}</strong></a><div class="dm-muted">{{ row.first_order.number|default:"—" }}</div></td>
+            <td>{{ row.problem.trip.trip_date|date:"d.m.Y"|default:"—" }}</td>
+            <td>{{ row.first_order.client|default:"—" }}<div class="dm-muted">{{ row.summary.marketplaces }}</div></td>
+            <td>{{ row.problem.trip.assigned_driver.full_name|default:"—" }}</td>
+            <td>{{ row.summary.destinations }}</td>
+            <td>{{ row.problem.get_reason_code_display }}</td>
+            <td>{{ row.problem.get_responsible_party_display }}</td>
+            <td>{{ row.totals.estimated|floatformat:2 }} ₽</td>
+            <td>{{ row.totals.actual|floatformat:2 }} ₽</td>
+            <td><span class="dm-pill">{{ row.problem.get_status_display }}</span></td>
+            <td>{{ row.problem.assigned_to.full_name|default:"—" }}</td>
+            <td>{{ row.problem.next_action_at|date:"d.m.Y H:i"|default:"—" }}</td>
+          </tr>
+        {% empty %}<tr><td colspan="12">Проблемные рейсы не найдены.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

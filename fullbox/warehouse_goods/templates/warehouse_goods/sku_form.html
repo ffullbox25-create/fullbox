@@ -1,0 +1,29 @@
+{% extends "warehouse_goods/base.html" %}
+{% block title %}{% if mode == 'create' %}Новый товар{% else %}Изменить {{ sku.sku_code }}{% endif %}{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <a class="back-link" href="{% if sku %}{% url 'warehouse_goods:detail' sku.pk %}{% else %}{% url 'warehouse_goods:list' %}{% endif %}">← Назад</a>
+    <h1>{% if mode == 'create' %}Новый товар{% else %}Изменить товар{% endif %}</h1>
+    <p>Основные данные общей номенклатуры FULLBOX.</p>
+  </div>
+</header>
+<form class="form-card" method="post">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <div class="form-grid">
+    {% for field in form %}
+      <label class="{% if field.field.widget.input_type == 'checkbox' %}check-field{% endif %}{% if field.name == 'description' or field.name == 'img_comment' %} span-2{% endif %}">
+        {% if field.field.widget.input_type == 'checkbox' %}{{ field }}<span>{{ field.label }}</span>{% else %}<span>{{ field.label }}{% if field.field.required %} *</span>{% else %}</span>{% endif %}{{ field }}{% endif %}
+        {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+        {{ field.errors }}
+      </label>
+    {% endfor %}
+  </div>
+  <div class="form-actions">
+    <a class="btn quiet" href="{% if sku %}{% url 'warehouse_goods:detail' sku.pk %}{% else %}{% url 'warehouse_goods:list' %}{% endif %}">Отмена</a>
+    <button class="btn primary" type="submit">Сохранить</button>
+  </div>
+</form>
+{% endblock %}
+

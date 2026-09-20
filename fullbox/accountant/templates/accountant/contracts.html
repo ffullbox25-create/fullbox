@@ -1,0 +1,27 @@
+{% extends "accountant/_base.html" %}
+{% block title %}Договоры / КП{% endblock %}
+{% block content %}
+<div>
+  <h1 class="page-title">Договоры / КП</h1>
+  <div class="page-sub">Договоры и коммерческие предложения клиентов.</div>
+</div>
+<div class="card" style="padding:0;overflow:auto">
+  <table>
+    <thead><tr><th>Клиент</th><th>Договор</th><th>КП</th><th>Компания FullBox</th><th>Статус</th><th></th></tr></thead>
+    <tbody>
+      {% for row in contract_rows %}
+        <tr>
+          <td>{{ row.agency.short_name|default:row.agency.agn_name }}</td>
+          <td>{{ row.contract|default:"—" }}</td>
+          <td>{{ row.kp|default:"—" }}</td>
+          <td>{% if row.company %}{{ row.company.short_name|default:row.company.name }}{% else %}—{% endif %}</td>
+          <td><span class="badge">{{ row.lifecycle.get_status_display }}</span></td>
+          <td><a class="btn" href="/accountant/clients/{{ row.agency.id }}/">Открыть</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="muted" style="text-align:center;padding:40px">Нет данных</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

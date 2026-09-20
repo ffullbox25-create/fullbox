@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #0e6b5b;
+      --sun: #f2b747;
+      --stroke: rgba(28,31,26,0.12);
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 1360px; margin: 0 auto; padding: 24px; }
+    .wrap.fullscreen { max-width: none; width: 100%; padding: 24px 28px; }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 28px;
+    }
+    .subtitle { color: var(--muted); margin-top: 6px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      font-weight: 700;
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .messages { display: grid; gap: 10px; margin-bottom: 16px; }
+    .message {
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+    }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; min-width: 980px; border-collapse: collapse; }
+    table.wide-table { min-width: 1480px; }
+    th, td { padding: 12px 10px; border-bottom: 1px solid var(--stroke); text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-size: 13px; }
+    .muted { color: var(--muted); }
+    .stack { display: grid; gap: 6px; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(14,107,91,0.08);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .empty {
+      padding: 18px;
+      border: 1px dashed var(--stroke);
+      border-radius: 16px;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap{% if directory_mode == 'own_companies' or directory_mode == 'carriers' %} fullscreen{% endif %}">
+    <section class="panel">
+      <div class="header">
+        <div>
+          <h1 class="title">{{ title }}</h1>
+          <div class="subtitle">{{ subtitle }}</div>
+        </div>
+        <div class="actions">
+          <a class="btn" href="{{ back_url }}">В кабинет</a>
+          <a class="btn primary" href="{{ create_url }}">Добавить</a>
+        </div>
+      </div>
+
+      {% if messages %}
+        <div class="messages">
+          {% for message in messages %}
+            <div class="message">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if items %}
+        <div class="table-wrap">
+          <table{% if directory_mode == "own_companies" or directory_mode == "carriers" %} class="wide-table"{% endif %}>
+            <thead>
+              <tr>
+                {% if directory_mode == "own_companies" %}
+                  <th>Полное название</th>
+                  <th>Сокращенное</th>
+                  <th>Основные реквизиты</th>
+                  <th>Юр. адрес</th>
+                  <th>Почтовый адрес</th>
+                  <th>Банковские реквизиты</th>
+                  <th>Контакты и ЭДО</th>
+                  <th>Статус</th>
+                  <th>Действие</th>
+                {% elif directory_mode == "carriers" %}
+                  <th>Полное название</th>
+                  <th>Сокращенное</th>
+                  <th>Основные реквизиты</th>
+                  <th>Юр. адрес</th>
+                  <th>Почтовый адрес</th>
+                  <th>Банковские реквизиты</th>
+                  <th>Контакты</th>
+                  <th>Статус</th>
+                  <th>Действие</th>
+                {% else %}
+                  <th>Полное название</th>
+                  <th>Сокращенное</th>
+                  <th>Реквизиты</th>
+                  <th>Контакты</th>
+                  <th>Статус</th>
+                  <th>Действие</th>
+                {% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in items %}
+                <tr>
+                  {% if directory_mode == "own_companies" %}
+                    <td>
+                      <strong>{{ item.name }}</strong>
+                      {% if item.comment %}
+                        <div style="margin-top:6px;" class="muted">{{ item.comment }}</div>
+                      {% endif %}
+                    </td>
+                    <td>{{ item.short_name|default:"-" }}</td>
+                    <td>
+                      <div class="stack">
+                        <div>ИНН: {{ item.inn|default:"-" }}</div>
+                        {% if item.kpp %}<div>КПП: {{ item.kpp }}</div>{% endif %}
+                        {% if item.ogrn %}<div>ОГРН: {{ item.ogrn }}</div>{% endif %}
+                        {% if item.director_name %}<div>Руководитель: {{ item.director_name }}</div>{% endif %}
+                        {% if item.director_basis %}<div class="muted">{{ item.director_basis }}</div>{% endif %}
+                      </div>
+                    </td>
+                    <td>{{ item.address|default:"-" }}</td>
+                    <td>{{ item.postal_address|default:"-" }}</td>
+                    <td>
+                      <div class="stack">
+                        <div>{{ item.bank_name|default:"-" }}</div>
+                        {% if item.bank_bik %}<div>БИК: {{ item.bank_bik }}</div>{% endif %}
+                        {% if item.settlement_account %}<div>Р/с: {{ item.settlement_account }}</div>{% endif %}
+                        {% if item.correspondent_account %}<div>К/с: {{ item.correspondent_account }}</div>{% endif %}
+                        {% if item.bank_address %}<div class="muted">{{ item.bank_address }}</div>{% endif %}
+                      </div>
+                    </td>
+                    <td>
+                      <div class="stack">
+                        <div>{{ item.phone|default:"-" }}</div>
+                        <div>{{ item.email|default:"-" }}</div>
+                        {% if item.edo_operator %}<div>ЭДО: {{ item.edo_operator }}</div>{% endif %}
+                        {% if item.edo_id %}<div class="muted">ID: {{ item.edo_id }}</div>{% endif %}
+                      </div>
+                    </td>
+                    <td>
+                      <div class="chips">
+                        {% if item.is_active %}<span class="chip">Активен</span>{% else %}<span class="chip" style="background: rgba(212,84,60,0.12); color:#b04c37;">Неактивен</span>{% endif %}
+                        {% if item.is_default %}<span class="chip" style="background: rgba(242,183,71,0.18); color:#916400;">По умолчанию</span>{% endif %}
+                      </div>
+                    </td>
+                    <td><a class="btn" href="{{ edit_base_url }}/{{ item.id }}/edit/">Редактировать</a></td>
+                  {% elif directory_mode == "carriers" %}
+                    <td>
+                      <strong>{{ item.name }}</strong>
+                      {% if item.comment %}
+                        <div style="margin-top:6px;" class="muted">{{ item.comment }}</div>
+                      {% endif %}
+                    </td>
+                    <td>{{ item.short_name|default:"-" }}</td>
+                    <td>
+                      <div class="stack">
+                        <div>ИНН: {{ item.inn|default:"-" }}</div>
+                        {% if item.kpp %}<div>КПП: {{ item.kpp }}</div>{% endif %}
+                        {% if item.ogrn %}<div>ОГРН: {{ item.ogrn }}</div>{% endif %}
+                      </div>
+                    </td>
+                    <td>{{ item.address|default:"-" }}</td>
+                    <td>{{ item.postal_address|default:"-" }}</td>
+                    <td>
+                      <div class="stack">
+                        <div>{{ item.bank_name|default:"-" }}</div>
+                        {% if item.bank_bik %}<div>БИК: {{ item.bank_bik }}</div>{% endif %}
+                        {% if item.settlement_account %}<div>Р/с: {{ item.settlement_account }}</div>{% endif %}
+                        {% if item.correspondent_account %}<div>К/с: {{ item.correspondent_account }}</div>{% endif %}
+                        {% if item.bank_address %}<div class="muted">{{ item.bank_address }}</div>{% endif %}
+                      </div>
+                    </td>
+                    <td>
+                      <div class="stack">
+                        <div>{{ item.phone|default:"-" }}</div>
+                        <div>{{ item.email|default:"-" }}</div>
+                        {% if item.contact_person %}<div>{{ item.contact_person }}</div>{% endif %}
+                      </div>
+                    </td>
+                    <td>
+                      <div class="chips">
+                        {% if item.is_active %}<span class="chip">Активен</span>{% else %}<span class="chip" style="background: rgba(212,84,60,0.12); color:#b04c37;">Неактивен</span>{% endif %}
+                      </div>
+                    </td>
+                    <td><a class="btn" href="{{ edit_base_url }}/{{ item.id }}/edit/">Редактировать</a></td>
+                  {% else %}
+                    <td>
+                      <strong>{{ item.name }}</strong>
+                      {% if item.comment %}
+                        <div style="margin-top:6px; color: var(--muted);">{{ item.comment }}</div>
+                      {% endif %}
+                    </td>
+                    <td>{{ item.short_name|default:"-" }}</td>
+                    <td>
+                      <div>ИНН: {{ item.inn|default:"-" }}</div>
+                      {% if item.kpp %}<div>КПП: {{ item.kpp }}</div>{% endif %}
+                      {% if item.ogrn %}<div>ОГРН: {{ item.ogrn }}</div>{% endif %}
+                      {% if item.address %}<div style="margin-top:6px; color: var(--muted);">{{ item.address }}</div>{% endif %}
+                    </td>
+                    <td>
+                      <div>{{ item.phone|default:"-" }}</div>
+                      <div>{{ item.email|default:"-" }}</div>
+                      {% if item.contact_person %}<div style="margin-top:6px;">{{ item.contact_person }}</div>{% endif %}
+                    </td>
+                    <td>
+                      <div class="chips">
+                        {% if item.is_active %}<span class="chip">Активен</span>{% else %}<span class="chip" style="background: rgba(212,84,60,0.12); color:#b04c37;">Неактивен</span>{% endif %}
+                        {% if item.is_default %}<span class="chip" style="background: rgba(242,183,71,0.18); color:#916400;">По умолчанию</span>{% endif %}
+                      </div>
+                    </td>
+                    <td><a class="btn" href="{{ edit_base_url }}/{{ item.id }}/edit/">Редактировать</a></td>
+                  {% endif %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty">Список пуст. Добавь первый {{ type_label }}.</div>
+      {% endif %}
+    </section>
+  </div>
+</body>
+</html>

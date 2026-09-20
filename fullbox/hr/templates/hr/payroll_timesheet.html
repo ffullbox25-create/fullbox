@@ -1,0 +1,44 @@
+{% extends "hr/base.html" %}
+
+{% block title %}Табель{% endblock %}
+
+{% block content %}
+  <header class="page-head">
+    <div>
+      <div class="breadcrumbs"><a href="{% url 'hr:monthly-payroll-report' %}?month={{ month_value }}">Месячный отчёт</a><span>›</span><span>Табель</span></div>
+      <h1>Табель рабочего времени</h1>
+      <div class="muted">Одна строка на сотрудника и дату. Повторный ввод обновляет существующую строку.</div>
+    </div>
+  </header>
+
+  <section class="panel">
+    <h2>Добавить или обновить день</h2>
+    <form method="post">
+      {% csrf_token %}<input type="hidden" name="month" value="{{ month_value }}">
+      <div class="form-grid">
+        {% include "hr/_form_fields.html" with form=form %}
+        <div class="form-actions"><button class="btn primary" type="submit">Сохранить в табель</button></div>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <form class="filter-bar" method="get">
+      <div class="field"><label for="timesheet-month">Месяц</label><input id="timesheet-month" type="month" name="month" value="{{ month_value }}"></div>
+      <button class="btn" type="submit">Показать</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="compact-table-wrap">
+      <table>
+        <thead><tr><th>Дата</th><th>Сотрудник</th><th class="number">План, ч</th><th class="number">Отработано, ч</th><th class="number">Опоздание, мин</th><th class="number">Стажировка, ч</th><th>Комментарий</th></tr></thead>
+        <tbody>
+          {% for row in entries %}
+            <tr><td>{{ row.item.work_date|date:"d.m.Y" }}</td><td>{{ row.item.employee.full_name }}</td><td class="number">{{ row.planned_hours|floatformat:2 }}</td><td class="number">{{ row.worked_hours|floatformat:2 }}</td><td class="number">{{ row.item.late_minutes }}</td><td class="number">{{ row.internship_hours|floatformat:2 }}</td><td>{{ row.item.note|default:"—" }}</td></tr>
+          {% empty %}<tr><td colspan="7" class="empty-state">За выбранный месяц табель пока пуст.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

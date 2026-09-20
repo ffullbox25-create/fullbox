@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Перемещение коробов</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f7f5;
+      --panel: #ffffff;
+      --ink: #17211b;
+      --muted: #607067;
+      --line: #d7e0da;
+      --ok: #138a45;
+      --ok-dark: #0b6b34;
+      --bad: #b42318;
+      --warn: #8a5a00;
+      --soft: #eef5f1;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.4;
+    }
+    .page {
+      width: min(760px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 14px;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .title {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 800;
+    }
+    .back {
+      color: var(--muted);
+      font-size: 14px;
+      text-decoration: none;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .panel h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+    .scan-form {
+      display: grid;
+      gap: 10px;
+    }
+    .scan-submit {
+      display: none;
+    }
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    input[type="text"] {
+      width: 100%;
+      min-height: 52px;
+      border: 1px solid #b9c7bf;
+      border-radius: 8px;
+      padding: 12px;
+      color: var(--ink);
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0;
+      background: #fff;
+    }
+    button {
+      width: 100%;
+      min-height: 50px;
+      border: 0;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .btn-primary { background: var(--ok); color: #fff; }
+    .btn-secondary { background: #dfe7e2; color: var(--ink); }
+    .btn-danger { background: #f7d7d4; color: var(--bad); }
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .actions.single { grid-template-columns: 1fr; }
+    .notice {
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+    .notice.ok { background: #e8f7ee; color: var(--ok-dark); }
+    .notice.error { background: #fdeceb; color: var(--bad); }
+    .notice.warn { background: #fff3d6; color: var(--warn); }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .summary div {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: var(--soft);
+    }
+    .summary span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .summary strong {
+      display: block;
+      overflow-wrap: anywhere;
+      font-size: 16px;
+      margin-top: 4px;
+    }
+    .brief {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .brief-line {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: var(--soft);
+      font-size: 16px;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+    .list-count {
+      display: inline-flex;
+      width: fit-content;
+      border-radius: 8px;
+      padding: 6px 10px;
+      background: #e8f7ee;
+      color: var(--ok-dark);
+      font-size: 18px;
+      font-weight: 900;
+      margin-top: -2px;
+    }
+    .step-total {
+      display: grid;
+      gap: 4px;
+      border-radius: 8px;
+      padding: 12px;
+      background: #e8f7ee;
+      color: var(--ok-dark);
+      font-weight: 900;
+      overflow-wrap: anywhere;
+    }
+    .step-total strong {
+      font-size: 20px;
+    }
+    .step-total small {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .confirm-box {
+      display: grid;
+      gap: 6px;
+      text-align: left;
+      background: var(--ok);
+      color: #fff;
+    }
+    .confirm-box small {
+      display: block;
+      font-weight: 600;
+      opacity: 0.9;
+      overflow-wrap: anywhere;
+    }
+    .confirm-code {
+      display: block;
+      font-size: 18px;
+      font-weight: 900;
+      overflow-wrap: anywhere;
+    }
+    .confirm-action {
+      display: block;
+      margin-top: 6px;
+      font-size: 18px;
+      font-weight: 900;
+    }
+    .list {
+      display: grid;
+      gap: 8px;
+      padding: 0;
+      margin: 10px 0 0;
+      list-style: none;
+    }
+    .line-item {
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+    }
+    .line-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-weight: 800;
+    }
+    .line-meta {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 3px;
+      overflow-wrap: anywhere;
+    }
+    .pallet-box-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #eef1ee;
+    }
+    .pallet-box-item.selected {
+      border-color: #8ad5a7;
+      background: #e8f7ee;
+      color: var(--ok-dark);
+    }
+    .missing-box-form { margin-top: 8px; }
+    .missing-box-button {
+      min-height: 42px;
+      border: 1px solid #e4aaa5;
+      background: #fdeceb;
+      color: var(--bad);
+      font-size: 14px;
+    }
+    .discrepancy { color: var(--bad); font-weight: 700; }
+    @media (max-width: 520px) {
+      .page { padding: 10px; }
+      .title { font-size: 22px; }
+      .summary,
+      .actions { grid-template-columns: 1fr; }
+      input[type="text"] { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <h1 class="title">Перемещение коробов</h1>
+      <a class="back" href="{{ inventory_url }}">Назад</a>
+    </header>
+
+    {% if ok_message %}
+      <div class="notice ok">{{ ok_message }}</div>
+    {% endif %}
+    {% if done_message %}
+      <div class="notice ok">{{ done_message }}</div>
+    {% endif %}
+    {% if error %}
+      <div class="notice error">{{ error }}</div>
+    {% endif %}
+
+    {% if not operation %}
+      <section class="panel">
+        <h2>Сканируйте короб</h2>
+        <form class="scan-form" method="post" autocomplete="off" data-auto-scan="1">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="scan_box">
+          <input type="text" name="scan_value" autofocus inputmode="text" aria-label="Скан короба">
+          <button class="btn-primary scan-submit" type="submit">Показать короб</button>
+        </form>
+      </section>
+    {% elif operation.status == "selecting" %}
+      <section class="panel">
+        <h2>Сканируйте короб</h2>
+        <form class="scan-form" method="post" autocomplete="off" style="margin-top: 10px;" data-auto-scan="1">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="scan_box">
+          <input type="text" name="scan_value" autofocus inputmode="text" aria-label="Скан короба">
+          <button class="btn-primary scan-submit" type="submit">Показать короб</button>
+        </form>
+
+        {% if last_box %}
+          <form method="post" style="margin-top: 10px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="confirm_box">
+            <input type="hidden" name="box_code" value="{{ last_box.box_code }}">
+            <button class="confirm-box" type="submit">
+              <span class="confirm-code">Короб: {{ last_box.box_code }}</span>
+              {% for line in last_box.lines %}
+                <strong>{{ line.sku }} - {{ line.qty }} шт.</strong>
+                {% if line.name %}<small>{{ line.name }}</small>{% endif %}
+              {% endfor %}
+              <span class="confirm-action">Подтвердить короб</span>
+            </button>
+          </form>
+          <div class="brief">
+            <div class="brief-line">Паллета: {{ last_box.pallet_code }}</div>
+            <div class="brief-line">Место: {{ last_box.location_scan_code|default:last_box.location_label }}</div>
+          </div>
+        {% elif operation.source_pallet_code %}
+          <div class="brief">
+            <div class="brief-line">Паллета: {{ operation.source_pallet_code }}</div>
+            <div class="brief-line">Место: {{ operation.source_location_scan_code|default:operation.source_location_label }}</div>
+          </div>
+        {% endif %}
+      </section>
+
+      <section class="panel">
+        <h2>Выбранные короба</h2>
+        <div class="list-count">{{ stats.selected_count }} выбрано · {{ stats.source_remaining }} останется</div>
+        <ul class="list">
+          {% for box in operation.selected_boxes %}
+            <li class="line-item">
+              <div class="line-head"><span>Короб: {{ box.box_code }}</span><span>{{ box.total_qty }} шт.</span></div>
+              <div class="line-meta">{{ box.agency_name_short }}</div>
+            </li>
+          {% empty %}
+            <li class="line-meta">Короба пока не выбраны.</li>
+          {% endfor %}
+        </ul>
+        {% if operation.selected_boxes %}
+          <form method="post" class="actions single">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="finish_selection">
+            <button class="btn-primary" type="submit">Собрано -> перемещаем</button>
+          </form>
+        {% endif %}
+      </section>
+    {% elif operation.status == "destination" %}
+      <section class="panel">
+        <h2>Сканируйте паллету</h2>
+        <form class="scan-form" method="post" autocomplete="off" data-auto-scan="1">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="scan_destination_pallet">
+          <input type="text" name="scan_value" autofocus inputmode="text" aria-label="Скан паллеты назначения">
+          <button class="btn-primary scan-submit" type="submit">Выбрать паллету</button>
+        </form>
+        <div class="brief">
+          <div class="brief-line">Паллета: {{ operation.source_pallet_code }}</div>
+          <div class="brief-line">Место: {{ operation.source_location_scan_code|default:operation.source_location_label }}</div>
+        </div>
+        <div class="step-total" style="margin-top: 10px;">
+          <strong>{{ stats.selected_count }} коробов к перемещению</strong>
+          <small>{{ stats.source_remaining }} останется на паллете</small>
+        </div>
+        <ul class="list">
+          {% for box in operation.selected_boxes %}
+            <li class="line-item">
+              <div class="line-head"><span>Короб: {{ box.box_code }}</span><span>{{ box.total_qty }} шт.</span></div>
+              <div class="line-meta">{{ box.agency_name_short }}</div>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% elif operation.status == "verifying" %}
+      <section class="panel">
+        <h2>Сканируйте короба</h2>
+        <form class="scan-form" method="post" autocomplete="off" data-auto-scan="1">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="scan_destination_box">
+          <input type="text" name="scan_value" autofocus inputmode="text" aria-label="Скан короба на паллете назначения">
+          <button class="btn-primary scan-submit" type="submit">Проверить короб</button>
+        </form>
+        <div class="brief">
+          <div class="brief-line">Паллета: {{ operation.destination_pallet_code }}</div>
+          <div class="brief-line">Место: {{ operation.destination_location_scan_code|default:operation.destination_location_label }}</div>
+        </div>
+        <div class="step-total" style="margin-top: 10px;">
+          <strong>{{ stats.scanned_count }} из {{ stats.expected_count }} проверено</strong>
+          <small>
+            {% if stats.missing_count %}
+              {{ stats.missing_count }} осталось проверить · {{ stats.selected_count }} коробов добавляем
+            {% else %}
+              Проверка завершена · {{ stats.selected_count }} коробов добавляем
+            {% endif %}
+          </small>
+        </div>
+        {% if stats.active_discrepancy_count %}
+          <div class="notice warn" style="margin-top: 10px;">Есть расхождения: {{ stats.active_discrepancy_count }}. Завершить можно, главному менеджеру уйдет красная задача.</div>
+        {% endif %}
+        <form method="post" style="margin-top: 10px;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="complete">
+          <button class="{% if stats.active_discrepancy_count %}btn-danger{% elif stats.missing_count %}btn-secondary{% else %}btn-primary{% endif %}" type="submit">
+            {% if stats.active_discrepancy_count %}
+              Завершить с расхождениями
+            {% elif stats.missing_count %}
+              Завершить без полной проверки
+            {% else %}
+              Подтвердить состав и переместить
+            {% endif %}
+          </button>
+        </form>
+        <h2 style="margin-top: 14px;">Короба на паллете</h2>
+        <ul class="list">
+          {% for box in stats.destination_boxes %}
+            <li class="pallet-box-item{% if box.is_scanned %} selected{% endif %}">
+              <div class="line-head"><span>Короб: {{ box.box_code }}</span><span>{{ box.total_qty }} шт.</span></div>
+              {% if box.is_scanned %}
+                <div class="line-meta">Проверен</div>
+              {% else %}
+                <form method="post" class="missing-box-form">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="report_missing_box">
+                  <input type="hidden" name="box_code" value="{{ box.box_code }}">
+                  <button class="missing-box-button" type="submit">Нет короба на месте</button>
+                </form>
+              {% endif %}
+            </li>
+          {% empty %}
+            <li class="line-meta">На паллете назначения по системе коробов нет.</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="panel">
+        <h2>Перемещаем</h2>
+        <ul class="list">
+          {% for box in operation.selected_boxes %}
+            <li class="line-item">
+              <div class="line-head"><span>Короб: {{ box.box_code }}</span><span>{{ box.total_qty }} шт.</span></div>
+              <div class="line-meta">{{ operation.source_pallet_code }}</div>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      {% if stats.discrepancies %}
+        <section class="panel">
+          <h2>Расхождения</h2>
+          <ul class="list discrepancy">
+            {% for item in stats.discrepancies %}
+              <li>{{ item.message }}</li>
+            {% endfor %}
+          </ul>
+        </section>
+      {% endif %}
+
+    {% else %}
+      <section class="panel">
+        <h2>Операция завершена</h2>
+        <div class="step-total">
+          <strong>{{ stats.selected_count }} коробов перемещено</strong>
+          <small>{{ stats.discrepancy_count }} расхождений</small>
+        </div>
+        <div class="brief">
+          <div class="brief-line">С паллеты: {{ operation.source_pallet_code }}</div>
+          <div class="brief-line">На паллету: {{ operation.destination_pallet_code }}</div>
+        </div>
+        {% if operation.manager_task_id %}
+          <div class="notice warn" style="margin-top: 10px;">Создана красная задача главному менеджеру.</div>
+        {% endif %}
+      </section>
+    {% endif %}
+
+    {% if operation and not is_final and operation.status != "verifying" and stats.source_boxes %}
+      <section class="panel">
+        <h2>Короба на паллете</h2>
+        <ul class="list">
+          {% for box in stats.source_boxes %}
+            <li class="pallet-box-item{% if box.is_selected %} selected{% endif %}">
+              <div class="line-head"><span>Короб: {{ box.box_code }}</span><span>{{ box.total_qty }} шт.</span></div>
+              {% if box.is_selected %}
+                <div class="line-meta">Выбран к перемещению</div>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+
+    {% if operation and not is_final %}
+      <section class="panel">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="cancel">
+          <button class="btn-secondary" type="submit">Вернуться в инвентаризацию</button>
+        </form>
+      </section>
+    {% else %}
+      <section class="panel">
+        <form method="get" action="{{ inventory_url }}">
+          <button class="btn-secondary" type="submit">Вернуться в инвентаризацию</button>
+        </form>
+      </section>
+    {% endif %}
+  </main>
+  <script>
+    (function () {
+      var soundEvent = "{{ sound_event|escapejs }}";
+      function playPattern(pattern) {
+        if (!pattern || !window.AudioContext && !window.webkitAudioContext) {
+          return;
+        }
+        var AudioCtx = window.AudioContext || window.webkitAudioContext;
+        var ctx = new AudioCtx();
+        var t = ctx.currentTime + 0.02;
+        pattern.forEach(function (step) {
+          var osc = ctx.createOscillator();
+          var gain = ctx.createGain();
+          osc.type = step.type || "sine";
+          osc.frequency.setValueAtTime(step.freq, t);
+          gain.gain.setValueAtTime(0.0001, t);
+          gain.gain.exponentialRampToValueAtTime(step.volume || 0.08, t + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + step.duration);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(t);
+          osc.stop(t + step.duration + 0.02);
+          t += step.duration + (step.pause || 0.03);
+        });
+        window.setTimeout(function () {
+          ctx.close();
+        }, Math.max(250, (t - ctx.currentTime + 0.2) * 1000));
+      }
+      function playSound(name) {
+        var patterns = {
+          info: [{ freq: 880, duration: 0.08, volume: 0.06 }],
+          confirm: [
+            { freq: 660, duration: 0.08, volume: 0.06 },
+            { freq: 990, duration: 0.1, volume: 0.07 }
+          ],
+          happy: [
+            { freq: 523, duration: 0.1, volume: 0.06 },
+            { freq: 659, duration: 0.1, volume: 0.06 },
+            { freq: 784, duration: 0.16, volume: 0.07 }
+          ],
+          fanfare: [
+            { freq: 523, duration: 0.09, volume: 0.07 },
+            { freq: 659, duration: 0.09, volume: 0.07 },
+            { freq: 784, duration: 0.09, volume: 0.07 },
+            { freq: 1046, duration: 0.2, volume: 0.08 }
+          ],
+          game_over: [
+            { freq: 220, duration: 0.18, volume: 0.08, type: "square" },
+            { freq: 165, duration: 0.24, volume: 0.08, type: "square" }
+          ]
+        };
+        playPattern(patterns[name]);
+      }
+      document.querySelectorAll('form[data-auto-scan="1"]').forEach(function (form) {
+        var input = form.querySelector('input[name="scan_value"]');
+        var timer = null;
+        if (!input) {
+          return;
+        }
+        function submitScan() {
+          if (form.dataset.submitted === "1" || !input.value.trim()) {
+            return;
+          }
+          form.dataset.submitted = "1";
+          form.submit();
+        }
+        input.addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            submitScan();
+          }
+        });
+        input.addEventListener("input", function () {
+          window.clearTimeout(timer);
+          timer = window.setTimeout(function () {
+            if (input.value.trim().length >= 4) {
+              submitScan();
+            }
+          }, 450);
+        });
+      });
+      var focused = document.querySelector("input[autofocus]");
+      if (focused) {
+        focused.focus();
+      }
+      if (soundEvent) {
+        window.setTimeout(function () {
+          playSound(soundEvent);
+        }, 80);
+      }
+    }());
+  </script>
+</body>
+</html>

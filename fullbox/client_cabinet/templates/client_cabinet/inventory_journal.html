@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Складские остатки | FULLBOX</title>
+  
+  <style>
+    
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      overflow: hidden;
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      background-image:
+        linear-gradient(rgba(28,31,26,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(28,31,26,0.06) 1px, transparent 1px);
+      background-size: 36px 36px;
+      opacity: 0.08;
+    }
+    body::after {
+      background:
+        radial-gradient(420px 240px at 20% 20%, rgba(242,183,71,0.18), transparent 70%),
+        radial-gradient(360px 220px at 85% 30%, rgba(14,107,91,0.12), transparent 70%);
+      opacity: 0.7;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 24px 24px 72px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      align-items: stretch;
+      min-height: calc(100vh - 96px);
+    }
+    .side {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 16px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+    }
+    .brand {
+      display: grid;
+      gap: 4px;
+    }
+    .brand-title {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.6px;
+    }
+    .fullbox-brand-mark { display: inline-flex; align-items: center; min-width: 0; }
+    .fullbox-brand-img { display: block; width: auto; height: 42px; max-width: 132px; object-fit: contain; }
+    .profile {
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+    }
+    .profile-value {
+      font-weight: 600;
+    }
+    .nav {
+      display: grid;
+      gap: 10px;
+    }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      padding: 12px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .nav-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 12px 24px rgba(14,107,91,0.12);
+    }
+    .nav-link.primary {
+      background: linear-gradient(135deg, rgba(242,183,71,0.45), rgba(14,107,91,0.15));
+      border-color: transparent;
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub { font-size: 12px; color: var(--muted); }
+    .side-footer {
+      display: grid;
+      gap: 10px;
+    }
+    .content {
+      display: grid;
+      gap: 18px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .search-wrap {
+      position: relative;
+      min-width: 240px;
+      max-width: 360px;
+      width: 100%;
+    }
+    .search-input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    .suggestions {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      max-height: 220px;
+      overflow: auto;
+      z-index: 5;
+      display: none;
+    }
+    .suggestions.open { display: block; }
+    .suggestion-item {
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .suggestion-item:hover {
+      background: var(--surface-2);
+    }
+    .panel-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 20px;
+    }
+    .panel-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      font-weight: 700;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.14);
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .table-wrap {
+      overflow: auto;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.03);
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 640px; }
+    th, td { border-bottom: 1px solid var(--stroke); padding: 10px; text-align: left; vertical-align: top; }
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      background: rgba(28,31,26,0.04);
+    }
+    .filter-row th {
+      background: transparent;
+      padding: 6px 10px 12px;
+    }
+    .filter-select {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .filter-select:focus {
+      outline: none;
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    @media (max-width: 1200px) {
+      body { overflow: auto; }
+      .layout { grid-template-columns: 1fr; }
+      .side,
+      .content {
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand">
+          <div class="brand-title">{% include "partials/fullbox_brand.html" %}</div>
+        </div>
+        <div class="profile">
+          <div class="profile-value">
+            {% if client_agency %}
+              Кабинет клиента<br>
+              {{ client_agency.agn_name|default:client_agency.fio_agn|default:"клиента" }}
+            {% else %}
+              {% include "partials/current_user.html" %}
+            {% endif %}
+          </div>
+        </div>
+        <nav class="nav">
+          {% if client_agency %}
+            <a class="nav-link" href="/market-sync/?client={{ client_agency.id }}">
+              <span class="nav-title">Синхронизация</span>
+              <span class="nav-sub">Маркетплейсы</span>
+            </a>
+            <a class="nav-link" href="/client/{{ client_agency.id }}/sku/">
+              <span class="nav-title">Номенклатура</span>
+              <span class="nav-sub">SKU и карточки</span>
+            </a>
+            <a class="nav-link" href="/orders/receiving/?client={{ client_agency.id }}">
+              <span class="nav-title">Заявка на приемку</span>
+              <span class="nav-sub">Отправить поставку</span>
+            </a>
+            <a class="nav-link" href="/orders/processing/?client={{ client_agency.id }}">
+              <span class="nav-title">Заявка на обработку</span>
+              <span class="nav-sub">Подготовка товара</span>
+            </a>
+            <a class="nav-link" href="/client/marking/?client={{ client_agency.id }}">
+              <span class="nav-title">Честный знак</span>
+              <span class="nav-sub">Коды и история</span>
+            </a>
+            <a class="nav-link primary" href="{% firstof inventory_home_url '/sklad/journal/' %}">
+              <span class="nav-title">Складские остатки</span>
+              <span class="nav-sub">Актуальные стоки</span>
+            </a>
+            <a class="nav-link" href="/client/{{ client_agency.id }}/edit/">
+              <span class="nav-title">Реквизиты клиента</span>
+              <span class="nav-sub">Карточка контрагента</span>
+            </a>
+          {% else %}
+            <a class="nav-link" href="/client/">
+              <span class="nav-title">Список клиентов</span>
+              <span class="nav-sub">Выбрать кабинет</span>
+            </a>
+          {% endif %}
+        </nav>
+        <div class="side-footer">
+          <a class="btn ghost" href="/logout/">Выход</a>
+        </div>
+      </aside>
+
+      <main class="content">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Складские остатки</h2>
+              <div class="panel-subtitle">Показан ваш товар без локаций хранения.</div>
+            </div>
+            <div class="search-wrap">
+              <input class="search-input" type="search" placeholder="Поиск по всем колонкам" data-global-search>
+              <div class="suggestions" data-suggestions></div>
+            </div>
+            <div>
+              <a class="btn primary" href="{% firstof inventory_cabinet_url '/client/dashboard/lk/' %}">В кабинет</a>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table data-filter-table>
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Наименование</th>
+                  <th>Размер</th>
+                  <th>Тип товара</th>
+                  <th>В заявках на обработку</th>
+                  <th>В заявках на отгрузку</th>
+                  <th style="background:#fff3df;color:#9a5400;">На проверке склада</th>
+                  <th style="background:#e8f5ec;color:#17663a;">Свободный остаток</th>
+                  <th>Учтено сейчас</th>
+                </tr>
+                <tr class="filter-row">
+                  <th>
+                    <select class="filter-select" data-col="0">
+                      <option value="">Все</option>
+                    </select>
+                  </th>
+                  <th>
+                    <select class="filter-select" data-col="1">
+                      <option value="">Все</option>
+                    </select>
+                  </th>
+                  <th>
+                    <select class="filter-select" data-col="2">
+                      <option value="">Все</option>
+                    </select>
+                  </th>
+                  <th>
+                    <select class="filter-select" data-col="3">
+                      <option value="">Все</option>
+                    </select>
+                  </th>
+                  <th></th>
+                  <th></th>
+                  <th></th>
+                  <th></th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                  <tr>
+                    <td>{{ row.sku }}</td>
+                    <td>{{ row.name }}</td>
+                    <td>{{ row.size }}</td>
+                    <td>{% if row.goods_type == "gv" or row.goods_type == "GV" %}Готовый{% else %}{{ row.goods_type }}{% endif %}</td>
+                    <td>{{ row.processing_request_qty|default:0 }}</td>
+                    <td>{{ row.shipping_request_qty|default:0 }}</td>
+                    <td style="background:#fff8eb;color:#9a5400;font-weight:700;">{{ row.problem_qty|default:0 }}</td>
+                    <td style="background:#eef8f1;color:#17663a;font-weight:700;">{{ row.free_real_qty|default:0 }}</td>
+                    <td style="font-weight:700;">{{ row.accounted_qty|default:0 }}</td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="9" class="muted">Записей пока нет.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const table = document.querySelector("table[data-filter-table]");
+      if (!table) return;
+      const body = table.tBodies[0];
+      if (!body) return;
+      const rows = Array.from(body.rows);
+      const selects = Array.from(table.querySelectorAll("select[data-col]"));
+      const searchInput = document.querySelector("[data-global-search]");
+      const suggestionsBox = document.querySelector("[data-suggestions]");
+
+      const normalize = (value) => (value || "").replace(/\s+/g, " ").trim();
+      const normalizeLower = (value) => normalize(value).toLowerCase();
+
+      selects.forEach((select) => {
+        const col = Number(select.dataset.col);
+        const values = new Set();
+        rows.forEach((row) => {
+          const cell = row.cells[col];
+          if (!cell) return;
+          const text = normalize(cell.textContent);
+          if (text) values.add(text);
+        });
+        Array.from(values)
+          .sort((a, b) => a.localeCompare(b, "ru"))
+          .forEach((value) => {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = value;
+            select.appendChild(option);
+          });
+      });
+
+      const searchableValues = (() => {
+        const values = new Set();
+        rows.forEach((row) => {
+          Array.from(row.cells).forEach((cell) => {
+            const text = normalize(cell.textContent);
+            if (text) values.add(text);
+          });
+        });
+        return Array.from(values).sort((a, b) => a.localeCompare(b, "ru"));
+      })();
+
+      const renderSuggestions = (query) => {
+        suggestionsBox.innerHTML = "";
+        if (query.length < 3) {
+          suggestionsBox.classList.remove("open");
+          return;
+        }
+        const lower = query.toLowerCase();
+        const matches = searchableValues.filter((value) =>
+          value.toLowerCase().includes(lower)
+        ).slice(0, 8);
+        if (!matches.length) {
+          suggestionsBox.classList.remove("open");
+          return;
+        }
+        matches.forEach((value) => {
+          const item = document.createElement("div");
+          item.className = "suggestion-item";
+          item.textContent = value;
+          item.addEventListener("mousedown", (event) => {
+            event.preventDefault();
+            searchInput.value = value;
+            applyFilters();
+            suggestionsBox.classList.remove("open");
+          });
+          suggestionsBox.appendChild(item);
+        });
+        suggestionsBox.classList.add("open");
+      };
+
+      const applyFilters = () => {
+        const filters = selects.map((select) => ({
+          col: Number(select.dataset.col),
+          value: select.value,
+        }));
+        const query = normalizeLower(searchInput ? searchInput.value : "");
+        rows.forEach((row) => {
+          let visible = true;
+          for (const filter of filters) {
+            if (!filter.value) continue;
+            const cell = row.cells[filter.col];
+            const text = normalize(cell ? cell.textContent : "");
+            if (text !== filter.value) {
+              visible = false;
+              break;
+            }
+          }
+          if (visible && query) {
+            const rowText = normalizeLower(row.textContent);
+            if (!rowText.includes(query)) {
+              visible = false;
+            }
+          }
+          row.style.display = visible ? "" : "none";
+        });
+      };
+
+      selects.forEach((select) => select.addEventListener("change", applyFilters));
+      if (searchInput) {
+        searchInput.addEventListener("input", () => {
+          renderSuggestions(normalize(searchInput.value));
+          applyFilters();
+        });
+        searchInput.addEventListener("blur", () => {
+          setTimeout(() => suggestionsBox.classList.remove("open"), 120);
+        });
+        searchInput.addEventListener("focus", () => {
+          renderSuggestions(normalize(searchInput.value));
+        });
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<section class="or-card">
+  <h2>История</h2>
+  <div class="or-tabs" data-timeline-filter>
+    <button type="button" class="or-tab-btn active" data-filter="all">Все</button>
+    <button type="button" class="or-tab-btn" data-filter="status">Статусы</button>
+    <button type="button" class="or-tab-btn" data-filter="file">Файлы</button>
+  </div>
+  <div class="or-timeline" id="or-timeline">
+    {% for entry in history %}
+      <div class="or-timeline-item" data-kind="{{ entry.timeline_kind }}">
+        <div class="or-timeline-dot"></div>
+        <div class="or-timeline-body">
+          <div class="or-timeline-title">{{ entry.description|default:entry.action }}</div>
+          <div class="muted">{{ entry.created_at|date:"d.m.Y H:i" }}{% if entry.user %} · {{ entry.user }}{% endif %}</div>
+        </div>
+      </div>
+    {% empty %}
+      <p class="muted">История пуста.</p>
+    {% endfor %}
+  </div>
+</section>
+<script>
+(function () {
+  var tabs = document.querySelectorAll('[data-timeline-filter] .or-tab-btn');
+  var timeline = document.getElementById('or-timeline');
+  if (!tabs.length || !timeline) return;
+  tabs.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      tabs.forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var filter = btn.getAttribute('data-filter');
+      timeline.querySelectorAll('.or-timeline-item').forEach(function (item) {
+        var kind = item.getAttribute('data-kind');
+        item.style.display = (filter === 'all' || filter === kind) ? '' : 'none';
+      });
+    });
+  });
+})();
+</script>

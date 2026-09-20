@@ -1,0 +1,80 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Возврат ошибочного отбора{% endblock %}
+{% block page_class %}tsd-page-controller controller-restock-page{% endblock %}
+
+{% block content %}
+  <section class="restock-summary" aria-label="Состояние возвратов">
+    <div><span>Открыто заданий</span><strong>{{ open_requests|length }}</strong></div>
+    <div><span>Можно вернуть</span><strong>{{ candidate_batches|length }}</strong></div>
+    <div><span>Последние завершенные</span><strong>{{ history|length }}</strong></div>
+  </section>
+
+  <section class="operator-table-band" id="open-restocks">
+    <div class="operator-table-heading">
+      <div><span class="section-kicker">Физический возврат</span><h2>Задания у подборщиков</h2></div>
+      <strong>{{ open_requests|length }}</strong>
+    </div>
+    <div class="operator-table-scroll">
+      <table class="operator-table restock-table">
+        <thead><tr><th>Задание</th><th>Прогресс</th><th>Подборщик</th><th>Источник и назначение</th><th>Причина</th></tr></thead>
+        <tbody>
+          {% for restock in open_requests %}
+            <tr>
+              <td><strong>#{{ restock.id }} · волна #{{ restock.batch_id }}</strong><small>{{ restock.order_count }} заказов · {{ restock.created_at|date:"d.m H:i" }}</small>{% if restock.source_tote %}<small>Тара {{ restock.source_tote.name }} · {{ restock.source_tote.barcode }}</small>{% endif %}</td>
+              <td><strong>{{ restock.returned_qty }} / {{ restock.planned_qty }} шт.</strong><small>{{ restock.get_status_display }}</small></td>
+              <td><strong>{% if restock.assigned_to %}{{ restock.assigned_to.get_full_name|default:restock.assigned_to.username }}{% else %}Свободно{% endif %}</strong><small>{% if restock.claimed_at %}с {{ restock.claimed_at|date:"H:i" }}{% else %}ожидает на ТСД{% endif %}</small></td>
+              <td>
+                {% if restock.quarantine_box %}<span class="restock-box-chip">Карантин · {{ restock.quarantine_box.box_code }} · {{ restock.quarantine_box.pallet.cell.warehouse_location_label }}</span>{% else %}{% for box in restock.source_boxes %}<span class="restock-box-chip">{{ box.box_code }} · {{ box.cell_label }} · {{ box.returned_qty }}/{{ box.planned_qty }}</span>{% endfor %}{% endif %}
+              </td>
+              <td><span>{{ restock.reason }}</span></td>
+            </tr>
+          {% empty %}<tr><td class="empty-row" colspan="5">Открытых заданий возврата нет.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="operator-table-band" id="eligible-waves">
+    <div class="operator-table-heading">
+      <div><span class="section-kicker">У контролера</span><h2>Волны для возврата отбора</h2></div>
+      <strong>{{ candidate_batches|length }}</strong>
+    </div>
+    <div class="restock-candidate-list">
+      {% for batch in candidate_batches %}
+        <article class="restock-candidate-row">
+          <div class="restock-candidate-info">
+            <strong>Волна #{{ batch.id }} · {{ batch.picked_qty }} шт.</strong>
+            <small>{{ batch.order_count }} заказов · тара {{ batch.cart.name|default:"-" }} · стол {{ batch.workstation.name|default:"-" }}</small>
+            <div class="restock-boxes">
+              {% for box in batch.restock_source_boxes %}<span class="restock-box-chip">{{ box.box_code }} · {{ box.cell_label }} · {{ box.qty }} шт.</span>{% empty %}<span class="text-error">Исходные короба не найдены</span>{% endfor %}
+            </div>
+          </div>
+          <form method="post" class="restock-create-form" data-submit-once>
+            {% csrf_token %}
+            <input type="hidden" name="batch_id" value="{{ batch.id }}">
+            <label for="restock-reason-{{ batch.id }}">Причина
+              <input id="restock-reason-{{ batch.id }}" name="reason" required minlength="10" placeholder="Например: заказы отменены до проверки">
+            </label>
+            <label class="restock-confirm"><input type="checkbox" name="confirm" value="1" required> Товар физически находится у контролера</label>
+            <button class="button button-primary" type="submit"{% if not warehouse_writes_enabled %} disabled{% endif %}>Передать подборщику</button>
+          </form>
+        </article>
+      {% empty %}<div class="empty-state">Нет собранных волн, которые можно безопасно вернуть до упаковки.</div>{% endfor %}
+    </div>
+  </section>
+
+  <details class="controller-history"{% if not candidate_batches and not open_requests %} open{% endif %}>
+    <summary>История возвратов · {{ history|length }}</summary>
+    <div class="operator-table-scroll">
+      <table class="operator-table restock-table">
+        <thead><tr><th>Задание</th><th>Результат</th><th>Подборщик</th><th>Короба</th><th>Завершено</th></tr></thead>
+        <tbody>
+          {% for restock in history %}
+            <tr><td><strong>#{{ restock.id }} · волна #{{ restock.batch_id }}</strong><small>{{ restock.reason }}</small></td><td><strong>{{ restock.returned_qty }} / {{ restock.planned_qty }} шт.</strong><small>{{ restock.get_status_display }}</small></td><td>{% if restock.assigned_to %}{{ restock.assigned_to.get_full_name|default:restock.assigned_to.username }}{% else %}-{% endif %}</td><td>{% for box in restock.source_boxes %}<span class="restock-box-chip">{{ box.box_code }} · {{ box.returned_qty }} шт.</span>{% endfor %}</td><td>{{ restock.completed_at|date:"d.m.Y H:i"|default:"-" }}</td></tr>
+          {% empty %}<tr><td class="empty-row" colspan="5">Истории пока нет.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+{% endblock %}

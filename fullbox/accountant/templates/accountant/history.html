@@ -1,0 +1,28 @@
+{% extends "accountant/_base.html" %}
+{% block title %}История изменений{% endblock %}
+{% block content %}
+<div>
+  <h1 class="page-title">История изменений</h1>
+  <div class="page-sub">Изменения реквизитов и статусов клиентов.</div>
+</div>
+<div class="card" style="padding:0;overflow:auto">
+  <table>
+    <thead><tr><th>Когда</th><th>Клиент</th><th>Поле</th><th>Было</th><th>Стало</th><th>Кто</th><th>Комментарий</th></tr></thead>
+    <tbody>
+      {% for log in change_logs %}
+        <tr>
+          <td>{{ log.changed_at|date:"d.m.Y H:i" }}</td>
+          <td><a href="/accountant/clients/{{ log.agency_id }}/">{{ log.agency.short_name|default:log.agency.agn_name }}</a></td>
+          <td>{{ log.field_name }}</td>
+          <td class="muted">{{ log.old_value|truncatechars:50 }}</td>
+          <td>{{ log.new_value|truncatechars:50 }}</td>
+          <td>{% if log.user %}{{ log.user }}{% else %}—{% endif %}</td>
+          <td>{{ log.comment|truncatechars:60 }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="muted" style="text-align:center;padding:40px">Записей нет</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "warehouse_goods/base.html" %}
+{% block title %}История {{ sku.sku_code }}{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div><a class="back-link" href="{{ back_url }}">← {{ back_label }}</a><div class="eyebrow">История движения</div><h1>{{ sku.name }}</h1><p>{{ sku.sku_code }}{% if selected_barcode %} · ШК {{ selected_barcode }}{% endif %}</p></div>
+  <a class="btn secondary" href="{% url 'warehouse_goods:history-export' sku.pk %}{% if selected_barcode %}?barcode={{ selected_barcode|urlencode }}{% endif %}">Выгрузить Excel</a>
+</header>
+<section class="table-card"><div class="table-scroll"><table class="goods-table history-table"><thead><tr><th>Дата</th><th>Действие</th><th>Откуда</th><th>Куда</th><th class="num">Количество</th><th>Пользователь</th><th>Информация</th></tr></thead><tbody>
+{% for row in rows %}<tr><td class="history-date">{{ row.occurred_at|date:'d.m.Y H:i' }}</td><td><strong>{{ row.action }}</strong></td><td class="history-location">{{ row.from_location }}</td><td class="history-location">{{ row.to_location }}</td><td class="num">{{ row.qty }}</td><td>{{ row.user_name }}</td><td class="history-info">{{ row.information }}</td></tr>{% empty %}<tr><td colspan="7"><div class="empty-state"><strong>Движений пока нет</strong></div></td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}

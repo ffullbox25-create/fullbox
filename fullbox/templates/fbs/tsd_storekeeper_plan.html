@@ -1,0 +1,105 @@
+{% extends "fbs/tsd_base.html" %}
+{% load static %}
+
+{% block title %}План FBS #{{ plan.id }}{% endblock %}
+
+{% block content %}
+  <section class="detail-surface">
+    <div class="status-row">
+      <span class="status status-{{ plan.status }}">{{ plan.get_status_display }}</span>
+      <strong>{{ plan.get_mode_display }}</strong>
+    </div>
+    <div class="metric-grid">
+      <div><span>Клиент</span><strong>{{ plan.agency }}</strong></div>
+      <div><span>Количество</span><strong>{{ plan.moved_qty }}/{{ plan.planned_qty }} шт.</strong></div>
+      <div><span>{% if can_pack %}В зоне подготовки{% else %}Передано через подготовку{% endif %}</span><strong>{{ staged_qty }} шт.</strong></div>
+      <div><span>Место склада</span><strong>{% if dynamic_destination %}Выберет водитель{% else %}{{ plan.target_cell.warehouse_location_label }}{% endif %}</strong></div>
+      <div><span>Паллета</span><strong>{% if dynamic_destination %}Определится при размещении{% else %}{{ plan.target_pallet.pallet_code }}{% endif %}</strong></div>
+      <div><span>Короба FBS</span><strong>{% if prepared_boxes %}{{ prepared_boxes|length }} напечатано{% elif plan.target_box %}{{ plan.target_box.box_code }}{% else %}Выберет кладовщик{% endif %}</strong></div>
+      {% if staging_container_code %}<div><span>Временный короб</span><strong>{{ staging_container_code }}</strong></div>{% endif %}
+      <div><span>Исполнитель</span><strong>{% if plan.assigned_to %}{{ plan.assigned_to.get_username }}{% else %}Не назначен{% endif %}</strong></div>
+    </div>
+  </section>
+
+  <section class="section-band">
+    <div class="section-heading"><h2>Состав</h2><span class="count">{{ plan.lines.all|length }}</span></div>
+    <div class="line-list">
+      {% for line in plan.lines.all %}
+        <div class="line-row">
+          <div>
+            <strong>{% if line.sku_ref %}{{ line.sku_ref.sku_code }}{% else %}{{ line.source_container.container_code }}{% endif %}</strong>
+            <span>{% if line.sku_ref %}{{ line.sku_ref.name }} · ШК {{ line.barcode }}{% else %}Короб целиком{% endif %}</span>
+          </div>
+          <div class="line-qty">{{ line.qty_moved }}/{{ line.qty_requested }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if plan.comment %}<div class="comment-band">{{ plan.comment }}</div>{% endif %}
+
+  {% if can_pack %}
+    <section class="section-band">
+      <div class="section-heading"><h2>Уложить товар в короб</h2><span class="count">{{ staged_qty }} шт.</span></div>
+      <p>Пересчитайте товар из зоны {{ plan.staging_location.location_code|default:plan.staging_location.zone_code }}. Адрес хранения выберет водитель позже.</p>
+      <form class="scan-form" method="post" action="{% url 'fbs:tsd_pack_plan' plan_id=plan.id %}" data-submit-once>
+        {% csrf_token %}
+        <label for="new-staging-container">QR временного короба</label>
+        <input id="new-staging-container" type="text" name="staging_container_scan" required autofocus autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only>
+        <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Создать QR нового короба</button>
+      </form>
+    </section>
+  {% endif %}
+
+  {% if prepared_boxes %}
+    <section class="section-band">
+      <div class="section-heading"><h2>Постоянные короба</h2><span class="count">{{ prepared_boxes|length }}</span></div>
+      <p>Собрано {{ prepared_scanned_qty }} шт., размещено {{ prepared_placed_qty }} из {{ plan.planned_qty }} шт.</p>
+      <div class="line-list">
+        {% for box in prepared_boxes %}
+          <div class="line-row">
+            <div><strong>{{ box.box_code }}</strong><span>{{ box.get_status_display }}{% if box.fbs_box %} · {{ box.fbs_box.pallet.cell.warehouse_location_label }}{% endif %}</span></div>
+            <div class="line-qty">{{ box.placed_qty }}/{{ box.scanned_qty }}</div>
+          </div>
+        {% endfor %}
+      </div>
+      <a class="button button-primary" href="{% url 'fbs:operator_movement_labels' request_id=plan.client_movement_request_id %}?kind=final_box">Печатать QR коробов</a>
+    </section>
+  {% endif %}
+
+  {% if awaiting_placement %}
+    <section class="section-band">
+      <div class="section-heading"><h2>Передать водителю</h2><strong>{{ plan.target_box.box_code }}</strong></div>
+      <p>Распечатайте QR, наклейте его на короб и передайте короб водителю погрузчика. Адрес заранее не назначается.</p>
+      <a class="button button-primary" href="{% url 'fbs:operator_movement_labels' request_id=plan.client_movement_request_id %}?kind=final_box">Печатать QR FBS-короба</a>
+    </section>
+  {% endif %}
+
+  {% if plan.target_box and plan.status == "done" or awaiting_placement %}
+    <section class="section-band">
+      <div class="section-heading"><h2>QR короба</h2><strong>{{ plan.target_box.box_code }}</strong></div>
+      <div id="fbs-box-qr" data-code="{{ plan.target_box.box_code }}"></div>
+    </section>
+    <script src="{% static 'vendor/qrcode.min.js' %}"></script>
+    <script>
+      (function () {
+        var element = document.getElementById("fbs-box-qr");
+        if (element && window.QRCode) {
+          new QRCode(element, {text: element.dataset.code, width: 180, height: 180});
+        }
+      }());
+    </script>
+  {% endif %}
+
+  {% if plan.status == "proposed" %}
+    <form method="post" action="{% url 'fbs:tsd_confirm_plan' plan_id=plan.id %}" data-submit-once>
+      {% csrf_token %}
+      <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Подтвердить план</button>
+    </form>
+  {% elif plan.status == "confirmed" and plan.moved_qty == 0 %}
+    <form method="post" action="{% url 'fbs:tsd_cancel_plan' plan_id=plan.id %}" data-submit-once>
+      {% csrf_token %}
+      <button class="button button-danger" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Отменить план</button>
+    </form>
+  {% endif %}
+{% endblock %}

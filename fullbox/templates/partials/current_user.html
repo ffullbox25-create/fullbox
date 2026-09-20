@@ -1,0 +1,13 @@
+{% if request.user.is_authenticated and request.user.employee_profile %}
+  Текущий пользователь: {{ request.user.employee_profile.full_name }}
+{% elif request.session.employee_name %}
+  Текущий пользователь: {{ request.session.employee_name }}
+{% elif selected_client %}
+  Текущий пользователь: Клиент {{ selected_client.agn_name|default:selected_client.fio_agn|default:"клиент" }}
+{% elif client_view and agency %}
+  Текущий пользователь: Клиент {{ agency.agn_name|default:agency.fio_agn|default:"клиент" }}
+{% elif request.user.is_authenticated %}
+  Текущий пользователь: {{ request.user.get_full_name|default:request.user.username }}
+{% else %}
+  Текущий пользователь: Гость
+{% endif %}

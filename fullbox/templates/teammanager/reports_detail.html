@@ -1,0 +1,428 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}{{ report.title }}{% endblock %}
+
+{% block extra_css %}
+  .breadcrumbs { display:flex; gap:8px; flex-wrap:wrap; color:var(--muted); font-size:12px; font-weight:800; }
+  .breadcrumbs a { color:var(--accent-strong); }
+  .head { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+  .title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:32px; line-height:1.1; letter-spacing:-.03em; }
+  .sub { margin-top:6px; color:var(--muted); font-size:14px; line-height:1.45; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .panel { display:grid; gap:14px; padding:16px; border:1px solid var(--stroke); border-radius:20px; background:var(--surface); box-shadow:var(--shadow); min-width:0; }
+  .filters-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+  .field-wrap { display:grid; gap:5px; min-width:0; }
+  .field-wrap span { color:var(--muted); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+  .field-hint { min-height:15px; color:var(--muted); font-size:10px; line-height:1.35; }
+  .field { width:100%; min-height:40px; border:1px solid var(--stroke); border-radius:12px; background:#fff; padding:9px 12px; font:inherit; font-size:13px; color:var(--ink); box-sizing:border-box; }
+  .check-row { display:flex; gap:8px; align-items:center; min-height:40px; padding:9px 12px; border:1px solid var(--stroke); border-radius:12px; background:#fff; font-size:13px; font-weight:800; }
+  .button-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .columns-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+  .compact-report-panel { gap:10px; padding:12px 14px; }
+  .compact-report-panel .field,
+  .compact-report-panel .check-row { min-height:36px; padding:7px 10px; border-radius:10px; }
+  .compact-report-panel .filters-grid { gap:8px; }
+  .compact-report-panel > .filters-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .report-disclosure { border:1px solid var(--stroke); border-radius:12px; background:var(--surface-2); }
+  .report-disclosure > summary { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:10px 12px; cursor:pointer; list-style:none; color:var(--ink); font-size:13px; font-weight:900; }
+  .report-disclosure > summary::-webkit-details-marker { display:none; }
+  .report-disclosure > summary::after { content:"⌄"; color:var(--accent-strong); font-size:16px; transition:transform .16s ease; }
+  .report-disclosure[open] > summary::after { transform:rotate(180deg); }
+  .report-disclosure .summary-copy { display:flex; gap:8px; align-items:center; min-width:0; }
+  .report-disclosure .summary-count { color:var(--muted); font-size:12px; font-weight:800; }
+  .report-disclosure-body { padding:0 10px 10px; }
+  .compact-save { display:block; padding:0; overflow:hidden; }
+  .compact-save > summary { padding:12px 14px; }
+  .compact-save .report-disclosure-body { padding:0 14px 14px; }
+  .tags { display:flex; gap:8px; flex-wrap:wrap; }
+  .tag { display:inline-flex; gap:5px; align-items:center; width:fit-content; border-radius:999px; border:1px solid var(--stroke); background:var(--surface-2); padding:5px 9px; color:var(--muted); font-size:12px; font-weight:800; }
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+  .kpi { display:grid; gap:5px; padding:13px; border:1px solid var(--stroke); border-radius:16px; background:#fff; }
+  .kpi span { color:var(--muted); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+  .kpi strong { font-size:24px; font-weight:900; }
+  .table-wrap { overflow:auto; border:1px solid var(--stroke); border-radius:16px; background:#fff; }
+  .report-table { width:100%; border-collapse:separate; border-spacing:0; min-width:900px; font-size:12px; }
+  .report-table th { text-align:left; padding:10px; color:var(--muted); background:var(--surface-2); border-bottom:1px solid var(--stroke); font-size:10px; text-transform:uppercase; letter-spacing:.04em; }
+  .report-table td { padding:12px 10px; border-bottom:1px solid var(--stroke); color:var(--muted); }
+  .report-table tr:last-child td { border-bottom:0; }
+  .empty { padding:22px; border:1px dashed var(--stroke); border-radius:16px; background:var(--surface-2); color:var(--muted); font-size:13px; text-align:center; line-height:1.45; }
+  .notice { padding:12px 14px; border-radius:16px; border:1px solid rgba(14,107,91,.22); background:var(--accent-soft); color:var(--accent-strong); font-size:13px; line-height:1.45; }
+  .notice.warn { border-color:rgba(179,103,0,.28); background:rgba(255,193,90,.22); color:#8a5a00; }
+  .save-inline { display:grid; grid-template-columns:minmax(180px,1fr) auto; gap:8px; }
+  .pager { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .pager a, .pager span { min-width:34px; min-height:34px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--stroke); border-radius:10px; background:#fff; color:var(--ink); text-decoration:none; font-weight:900; font-size:12px; }
+  .pager .current { background:var(--accent-strong); color:#fff; border-color:var(--accent-strong); }
+  @media (max-width:1180px){ .filters-grid,.kpi-grid,.columns-grid{grid-template-columns:repeat(2,minmax(0,1fr));} .compact-report-panel > .filters-grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  @media (max-width:720px){ .filters-grid,.kpi-grid,.columns-grid,.save-inline{grid-template-columns:1fr;} .compact-report-panel{padding:10px;} .compact-report-panel > .filters-grid{grid-template-columns:1fr;} }
+{% endblock %}
+
+{% block content %}
+  <div class="breadcrumbs">
+    <a href="/team-manager/reports/">Все отчёты</a>
+    <span>→</span>
+    <a href="/team-manager/reports/{{ section.key }}/">{{ section.title }}</a>
+    <span>→</span>
+    <span>{{ report.title }}</span>
+  </div>
+
+  <div class="head">
+    <div>
+      <h1 class="title">{{ report.title }}</h1>
+      <div class="sub">{{ report.description }}</div>
+    </div>
+    <div class="actions">
+      <a class="btn" href="/team-manager/reports/{{ section.key }}/">← К направлению</a>
+      <form method="post" action="/team-manager/reports/{{ section.key }}/{{ report.code }}/favorite/">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button class="btn" type="submit">{% if report.is_favorite %}Убрать из избранного{% else %}Добавить в избранное{% endif %}</button>
+      </form>
+    </div>
+  </div>
+
+  <form class="panel{% if compact_report %} compact-report-panel{% endif %}" method="get" action="/team-manager/reports/{{ section.key }}/{{ report.code }}/">
+    <div>
+      <h2 class="title" style="font-size:{% if compact_report %}18{% else %}22{% endif %}px;">Фильтры отчёта</h2>
+      <div class="sub">Значения сохраняются в URL. Тяжёлые запросы запускаются только кнопкой «Сформировать».</div>
+    </div>
+    <div class="filters-grid">
+      {% for filter in primary_report_filters %}
+        <label class="field-wrap">
+          <span>{{ filter.label }}{% if filter.required %} *{% endif %}</span>
+          {% if filter.type == "checkbox" %}
+            <span class="check-row">
+              <input type="checkbox" name="{{ filter.code }}" value="1" {% if filter.checked %}checked{% endif %}>
+              {{ filter.label }}
+            </span>
+          {% elif filter.dependent_options %}
+            <input
+              class="field"
+              type="search"
+              name="{{ filter.code }}"
+              value="{{ filter.value }}"
+              list="product-article-options"
+              autocomplete="off"
+              data-product-article-input
+              placeholder="{% if selected_product_client_id %}Введите артикул или название{% else %}Сначала выберите клиента{% endif %}"
+              {% if not selected_product_client_id %}disabled{% endif %}
+            >
+            <datalist id="product-article-options" data-product-article-options></datalist>
+            <small class="field-hint" data-product-article-hint>
+              {% if selected_product_client_id %}Загрузка артикулов клиента…{% else %}Поле станет доступно после выбора клиента.{% endif %}
+            </small>
+          {% elif filter.options %}
+            <select class="field" name="{{ filter.code }}" {% if compact_report and filter.code == "client_id" %}data-product-client-select{% endif %} {% if filter.required %}required{% endif %}>
+              <option value="">Выберите клиента</option>
+              {% for option in filter.options %}
+                <option value="{{ option.value }}" {% if filter.value == option.value %}selected{% endif %}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          {% elif filter.type == "date" %}
+            <input class="field" type="date" name="{{ filter.code }}" value="{{ filter.value }}">
+          {% else %}
+            <input class="field" type="text" name="{{ filter.code }}" value="{{ filter.value }}" placeholder="{{ filter.placeholder }}" {% if filter.required %}required{% endif %}>
+          {% endif %}
+        </label>
+      {% endfor %}
+      {% if not compact_report %}
+        <label class="field-wrap">
+          <span>Строк на странице</span>
+          <select class="field" name="page_size">
+            {% for size in page_size_options %}
+              <option value="{{ size }}" {% if selected_page_size == size|stringformat:"s" %}selected{% endif %}>{{ size }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field-wrap">
+          <span>Сортировка</span>
+          <input class="field" type="text" name="sort" value="{{ selected_sort }}" placeholder="например: available_quantity">
+        </label>
+      {% endif %}
+    </div>
+    {% if compact_report %}
+      <details class="report-disclosure"{% if advanced_filters_open %} open{% endif %}>
+        <summary>
+          <span class="summary-copy">Дополнительные фильтры <span class="summary-count">{{ advanced_report_filters|length }} параметров</span></span>
+        </summary>
+        <div class="report-disclosure-body filters-grid">
+          {% for filter in advanced_report_filters %}
+            <label class="field-wrap">
+              <span>{{ filter.label }}{% if filter.required %} *{% endif %}</span>
+              {% if filter.type == "checkbox" %}
+                <span class="check-row">
+                  <input type="checkbox" name="{{ filter.code }}" value="1" {% if filter.checked %}checked{% endif %}>
+                  {{ filter.label }}
+                </span>
+              {% elif filter.options %}
+                <select class="field" name="{{ filter.code }}" {% if filter.required %}required{% endif %}>
+                  <option value="">Выберите клиента</option>
+                  {% for option in filter.options %}
+                    <option value="{{ option.value }}" {% if filter.value == option.value %}selected{% endif %}>{{ option.label }}</option>
+                  {% endfor %}
+                </select>
+              {% elif filter.type == "date" %}
+                <input class="field" type="date" name="{{ filter.code }}" value="{{ filter.value }}">
+              {% else %}
+                <input class="field" type="text" name="{{ filter.code }}" value="{{ filter.value }}" placeholder="{{ filter.placeholder }}" {% if filter.required %}required{% endif %}>
+              {% endif %}
+            </label>
+          {% endfor %}
+          <label class="field-wrap">
+            <span>Строк на странице</span>
+            <select class="field" name="page_size">
+              {% for size in page_size_options %}
+                <option value="{{ size }}" {% if selected_page_size == size|stringformat:"s" %}selected{% endif %}>{{ size }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field-wrap">
+            <span>Сортировка</span>
+            <input class="field" type="text" name="sort" value="{{ selected_sort }}" placeholder="например: -operation_at">
+          </label>
+        </div>
+      </details>
+      <details class="report-disclosure">
+        <summary>
+          <span class="summary-copy">Настройка колонок <span class="summary-count">показано {{ visible_column_codes|length }} из {{ report.columns|length }}</span></span>
+        </summary>
+        <div class="report-disclosure-body columns-grid">
+          {% for column in report.columns %}
+            <label class="check-row">
+              <input type="checkbox" name="columns" value="{{ column.code }}" {% if column.code in visible_column_codes %}checked{% endif %}>
+              {{ column.title }}
+            </label>
+          {% endfor %}
+        </div>
+      </details>
+    {% else %}
+      <div>
+        <h3 class="title" style="font-size:16px;">Колонки</h3>
+        <div class="columns-grid">
+          {% for column in report.columns %}
+            <label class="check-row">
+              <input type="checkbox" name="columns" value="{{ column.code }}" {% if column.code in visible_column_codes %}checked{% endif %}>
+              {{ column.title }}
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+    {% if active_filters %}
+      <div class="tags">
+        {% for filter in active_filters %}
+          <span class="tag">{{ filter.label }}: {{ filter.value }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <div class="button-row">
+      <button class="btn primary" type="submit">Сформировать</button>
+      <a class="btn" href="/team-manager/reports/{{ section.key }}/{{ report.code }}/">Сбросить</a>
+      <a class="btn" href="/team-manager/reports/{{ section.key }}/{{ report.code }}/export/xlsx/{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}">Экспорт XLSX</a>
+      <a class="btn" href="/team-manager/reports/{{ section.key }}/{{ report.code }}/export/csv/{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}">Экспорт CSV</a>
+      <button class="btn" type="button" onclick="navigator.clipboard && navigator.clipboard.writeText(window.location.href)">Скопировать ссылку</button>
+    </div>
+  </form>
+
+  {% if compact_report %}
+    <details class="panel report-disclosure compact-save">
+      <summary>
+        <span class="summary-copy">Сохранить конфигурацию <span class="summary-count">фильтры и колонки</span></span>
+      </summary>
+      <div class="report-disclosure-body">
+        <form class="save-inline" method="post" action="/team-manager/reports/{{ section.key }}/{{ report.code }}/save/">
+          {% csrf_token %}
+          <input class="field" type="text" name="title" placeholder="Например: Движение товара за неделю">
+          <input type="hidden" name="export_format" value="xlsx">
+          {% for key, value in current_query_items %}
+            <input type="hidden" name="filter_{{ key }}" value="{{ value }}">
+          {% endfor %}
+          {% for code in visible_column_codes %}
+            <input type="hidden" name="filter_columns" value="{{ code }}">
+          {% endfor %}
+          <button class="btn" type="submit">Сохранить настройки</button>
+        </form>
+      </div>
+    </details>
+  {% else %}
+    <div class="panel">
+      <div>
+        <h2 class="title" style="font-size:22px;">Сохранить конфигурацию</h2>
+        <div class="sub">Сохраняются только настройки и фильтры. Строки результата не считаются актуальным отчётом и не сохраняются.</div>
+      </div>
+      <form class="save-inline" method="post" action="/team-manager/reports/{{ section.key }}/{{ report.code }}/save/">
+        {% csrf_token %}
+        <input class="field" type="text" name="title" placeholder="Например: Остатки клиента Талеев на основном складе">
+        <input type="hidden" name="export_format" value="xlsx">
+        {% for key, value in current_query_items %}
+          <input type="hidden" name="filter_{{ key }}" value="{{ value }}">
+        {% endfor %}
+        {% for code in visible_column_codes %}
+          <input type="hidden" name="filter_columns" value="{{ code }}">
+        {% endfor %}
+        <button class="btn" type="submit">Сохранить настройки</button>
+      </form>
+    </div>
+  {% endif %}
+
+  <section class="panel">
+    <div class="head">
+      <div>
+        <h2 class="title" style="font-size:22px;">Результат отчёта</h2>
+        <div class="sub">Время формирования: {{ generated_at|date:"d.m.Y H:i" }} · найдено строк: {% if report_data %}{{ report_data.row_count }}{% else %}0{% endif %}</div>
+      </div>
+    </div>
+    {% if report_data.unavailable_message %}
+      <div class="notice warn">{{ report_data.unavailable_message }}</div>
+    {% endif %}
+    <div class="kpi-grid">
+      {% for kpi in report_data.kpis %}
+        <div class="kpi"><span>{{ kpi.label }}</span><strong>{{ kpi.value }}</strong></div>
+      {% endfor %}
+    </div>
+    <div class="table-wrap">
+      <table class="report-table">
+        <thead>
+          <tr>
+            {% for column in report_columns %}
+              <th>{{ column.title }}{% if column.sortable %} ↕{% endif %}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% if table_rows %}
+            {% for row in table_rows %}
+              <tr>
+                {% for cell in row.values %}
+                  <td title="{{ cell.value }}">{{ cell.value }}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="{{ report_columns|length }}">
+                <div class="empty">
+                  По выбранным условиям данных нет. Измените фильтры или сбросьте параметры и повторите загрузку.
+                </div>
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+        <tfoot>
+          <tr>
+            {% if total_cells %}
+              {% for cell in total_cells %}
+                <td>{{ cell }}</td>
+              {% endfor %}
+            {% else %}
+              {% for column in report_columns %}
+                <td>{% if forloop.first %}Итого{% else %}—{% endif %}</td>
+              {% endfor %}
+            {% endif %}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% if report_data.page_obj and report_data.page_obj.paginator.num_pages > 1 %}
+      <div class="pager">
+        {% if report_data.page_obj.has_previous %}
+          <a href="?{{ query_without_page }}{% if query_without_page %}&{% endif %}page={{ report_data.page_obj.previous_page_number }}">←</a>
+        {% endif %}
+        {% for number in report_data.page_range %}
+          {% if number == report_data.page_obj.number %}
+            <span class="current">{{ number }}</span>
+          {% elif number == "…" %}
+            <span>{{ number }}</span>
+          {% else %}
+            <a href="?{{ query_without_page }}{% if query_without_page %}&{% endif %}page={{ number }}">{{ number }}</a>
+          {% endif %}
+        {% endfor %}
+        {% if report_data.page_obj.has_next %}
+          <a href="?{{ query_without_page }}{% if query_without_page %}&{% endif %}page={{ report_data.page_obj.next_page_number }}">→</a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+  {% if compact_report %}
+    <script>
+      (() => {
+        const clientSelect = document.querySelector("[data-product-client-select]");
+        const articleInput = document.querySelector("[data-product-article-input]");
+        const articleOptions = document.querySelector("[data-product-article-options]");
+        const articleHint = document.querySelector("[data-product-article-hint]");
+        const endpoint = "{{ product_article_options_url|escapejs }}";
+        if (!clientSelect || !articleInput || !articleOptions || !articleHint || !endpoint) return;
+
+        let searchTimer = null;
+        let requestSequence = 0;
+
+        const setHint = (text) => {
+          articleHint.textContent = text;
+        };
+
+        const clearOptions = () => {
+          articleOptions.replaceChildren();
+        };
+
+        const loadArticles = async (query = "") => {
+          const clientId = clientSelect.value.trim();
+          requestSequence += 1;
+          const currentSequence = requestSequence;
+          clearOptions();
+          if (!clientId) {
+            articleInput.disabled = true;
+            articleInput.placeholder = "Сначала выберите клиента";
+            setHint("Поле станет доступно после выбора клиента.");
+            return;
+          }
+
+          articleInput.disabled = false;
+          articleInput.placeholder = "Введите артикул или название";
+          articleInput.setAttribute("aria-busy", "true");
+          setHint("Загрузка артикулов клиента…");
+          try {
+            const params = new URLSearchParams({client_id: clientId});
+            if (query.trim()) params.set("q", query.trim());
+            const response = await fetch(`${endpoint}?${params.toString()}`, {
+              credentials: "same-origin",
+              headers: {Accept: "application/json"},
+            });
+            const payload = await response.json();
+            if (currentSequence !== requestSequence) return;
+            if (!response.ok || !payload.ok) throw new Error(payload.error || "Не удалось загрузить артикулы.");
+            for (const item of payload.options || []) {
+              const option = document.createElement("option");
+              option.value = item.value || "";
+              option.label = item.label || item.value || "";
+              articleOptions.appendChild(option);
+            }
+            if (!payload.total) {
+              setHint(query.trim() ? "По запросу ничего не найдено." : "У клиента нет активных артикулов.");
+            } else if (payload.truncated) {
+              setHint(`Найдено ${payload.total}. Введите часть артикула или названия для уточнения.`);
+            } else {
+              setHint(`Доступно артикулов: ${payload.total}.`);
+            }
+          } catch (error) {
+            if (currentSequence === requestSequence) {
+              setHint(error instanceof Error ? error.message : "Не удалось загрузить артикулы.");
+            }
+          } finally {
+            if (currentSequence === requestSequence) articleInput.removeAttribute("aria-busy");
+          }
+        };
+
+        clientSelect.addEventListener("change", () => {
+          articleInput.value = "";
+          loadArticles("");
+        });
+        articleInput.addEventListener("input", () => {
+          window.clearTimeout(searchTimer);
+          searchTimer = window.setTimeout(() => loadArticles(articleInput.value), 250);
+        });
+
+        if (clientSelect.value) loadArticles(articleInput.value);
+        else loadArticles("");
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

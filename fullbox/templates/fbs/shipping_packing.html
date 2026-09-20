@@ -1,0 +1,2122 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Паллетизация отгрузки · заявка {{ order.display_number|default:order.number }}</title>
+  <style>
+    :root{--bg:#f6f4ed;--card:#fff;--soft:#f8f6f1;--gold:#c79a1c;--gold-soft:#f2d48c;--muted:#6b7280;--stroke:rgba(31,35,40,.12);--text:#1f2328;--success:#1f9d55;--danger:#d14343;--offset:88px}
+    *{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--bg);color:var(--text);font-family:"Space Grotesk",system-ui,sans-serif}a{text-decoration:none;color:inherit}
+    .wrap{padding:24px 18px 64px;min-height:100vh}.layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px;align-items:stretch}.side,.main{display:grid;gap:12px;min-height:0}.scroll{overflow:auto;min-height:0}.side.scroll{height:calc(100vh - var(--offset))}
+    .card,.side-card{background:var(--card);border:1px solid var(--stroke);border-radius:16px;box-shadow:0 16px 30px rgba(15,23,42,.12)}.card{padding:16px}.side-card{padding:14px}.flow-card{display:flex;flex-direction:column;height:calc(100vh - var(--offset));min-height:0}
+    .muted{color:var(--muted)}.side-title,.section-title{font-weight:600}.side-title{margin:0 0 8px}.section-title{margin:12px 0 6px}
+    .side-actions{display:grid;gap:8px}.tab,.btn{padding:10px 14px;border-radius:10px;border:1px solid var(--stroke);background:rgba(15,23,42,.04);color:var(--text);font-weight:600;cursor:pointer}.side-actions .tab{width:100%;display:inline-flex;justify-content:center}.tab:hover,.btn:hover{background:rgba(15,23,42,.08)}.primary{border-color:transparent;background:linear-gradient(120deg,var(--gold),var(--gold-soft))}.btn.small{padding:6px 10px;font-size:12px}.btn[disabled]{opacity:.6;cursor:not-allowed}
+    .notice,.error{border-radius:12px;padding:10px 12px;margin-bottom:12px}.notice{border:1px solid rgba(31,157,85,.35);background:rgba(31,157,85,.12);color:#166534}.error{border:1px solid rgba(209,67,67,.35);background:rgba(209,67,67,.12);color:#7f1d1d}
+    .binding-alert{display:grid;gap:9px;padding:12px;margin-bottom:12px;border:1px solid rgba(209,67,67,.4);border-left:5px solid var(--danger);border-radius:12px;background:rgba(209,67,67,.1);color:#651d16}.binding-alert-title{font-weight:800}.binding-alert-row{display:grid;grid-template-columns:minmax(180px,1.4fr) repeat(4,minmax(100px,.7fr));gap:7px}.binding-alert-cell{min-width:0;padding:7px 9px;border:1px solid rgba(209,67,67,.2);border-radius:8px;background:rgba(255,255,255,.75)}.binding-alert-label{display:block;margin-bottom:2px;color:#7f1d1d;font-size:10px;font-weight:700;text-transform:uppercase}.binding-alert-value{font-weight:800;word-break:break-word}.binding-alert-result{color:#b42318}
+    .info-list{display:grid;gap:10px}.info-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}.info-value{font-weight:600;word-break:break-word}.agent-panel{display:grid;gap:10px}.agent-field{display:grid;gap:5px}.agent-select{width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--stroke);background:#fff;color:var(--text);font:inherit}.agent-line{display:flex;justify-content:space-between;gap:10px;font-size:12px}.agent-value{font-weight:600;text-align:right;word-break:break-word}.agent-indicator{display:inline-flex;align-items:center;gap:7px;font-weight:700}.agent-indicator::before{content:"";width:8px;height:8px;border-radius:999px;background:var(--muted);box-shadow:0 0 0 2px rgba(31,35,40,.08)}.agent-indicator.ok::before{background:var(--success)}.agent-indicator.warn::before{background:var(--gold)}.agent-indicator.error::before{background:var(--danger)}.agent-actions{display:grid;grid-template-columns:1fr;gap:8px}.agent-actions .btn{display:inline-flex;justify-content:center;text-align:center}
+    .tsd-scan-panel{position:sticky;top:0;z-index:12;display:grid;grid-template-columns:minmax(190px,.7fr) minmax(260px,1fr);gap:10px;align-items:center;margin-bottom:12px;padding:10px 12px;border:1px solid rgba(199,154,32,.42);border-radius:14px;background:#fff9e9;box-shadow:0 8px 20px rgba(15,23,42,.09)}.tsd-scan-copy{display:grid;gap:3px}.tsd-scan-title{font-weight:800}.tsd-scan-state{font-size:12px;color:var(--muted)}.tsd-scan-state.ok{color:var(--success);font-weight:700}.tsd-scan-state.error{color:var(--danger);font-weight:700}.tsd-scan-state.warn{color:#9a6700;font-weight:700}.tsd-scan-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.tsd-scan-input{width:100%;padding:11px 12px;border:1px solid var(--stroke);border-radius:10px;background:#fff;color:var(--text);font:inherit}.tsd-scan-input:focus{outline:2px solid rgba(199,154,32,.45);border-color:var(--gold)}
+    .action-bar{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}.action-left,.action-right{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;border:1px solid var(--stroke);background:rgba(15,23,42,.04);font-size:12px;font-weight:600}.pill span{color:var(--gold)}
+    .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(420px,1.15fr);gap:16px;flex:1;min-height:0}.col{display:grid;gap:12px;min-height:0;height:100%}.left-col{grid-template-rows:auto minmax(180px,clamp(220px,36vh,360px)) auto auto}
+    .section-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.section-hint{font-size:12px;color:var(--muted)}.section-count{font-weight:700;color:var(--gold)}
+    .table-wrap{overflow:auto;border:1px solid var(--stroke);border-radius:12px;min-height:0}.remaining{min-height:0}table{width:100%;border-collapse:collapse;min-width:520px;table-layout:fixed}th,td{border-bottom:1px solid var(--stroke);border-right:1px solid var(--stroke);padding:8px 10px;text-align:left;vertical-align:top;word-break:break-word}th:last-child,td:last-child{border-right:none}th{background:rgba(15,23,42,.04);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px;position:sticky;top:0;z-index:1}
+    .current{background:var(--soft);border:1px solid var(--stroke);border-radius:16px;padding:12px;min-height:0}.current-grid{display:grid;grid-template-columns:120px minmax(0,1fr) 200px;gap:10px;align-items:start;min-height:0}.badge{width:104px;height:104px;border-radius:18px;border:1px dashed #d2a52a;background:#f9e7b8;color:#7a4c00;display:grid;place-items:center;text-align:center;padding:10px;font-weight:700;margin:0 auto}.box-meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px}.code{font-weight:600}.status{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--gold)}.box-items{display:grid;gap:6px;max-height:clamp(140px,24vh,220px);overflow:auto;padding-right:4px}.box-item{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 8px;border-radius:10px;border:1px solid var(--stroke);background:#fff}.box-item small{display:block;color:var(--muted)}.qty{font-weight:700;color:#7a4c00;background:rgba(199,154,32,.2);padding:2px 6px;border-radius:999px}.close-big{width:100%;min-height:88px;font-size:15px;font-weight:700;border-radius:14px}
+    .board{display:grid;gap:12px}.pallet{border:1px solid var(--stroke);border-radius:16px;padding:12px;background:#fff}.pallet.open{border-color:var(--gold);box-shadow:0 12px 26px rgba(199,154,32,.2)}.pallet.active{border-color:var(--success);box-shadow:0 0 0 2px rgba(31,157,85,.3)}.p-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}.p-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.p-chip{width:48px;height:44px;display:grid;place-items:center;gap:2px;padding:4px 6px;border-radius:10px;border:1px solid var(--stroke);background:#f1f0ec;color:#555;font-weight:700;line-height:1.1;text-align:center}.p-chip-top{font-size:11px}.p-chip-bottom{font-size:10px;color:var(--muted)}.p-code{font-weight:600}.p-status{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}.p-meta{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-bottom:8px}.p-meta span{font-weight:700;color:var(--text)}
+    .box-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:6px}.p-head .box-grid{display:flex;flex-wrap:wrap;gap:6px}.box-chip{width:64px;height:48px;border-radius:10px;position:relative;display:block;border:1px solid var(--stroke);background:#f1f0ec;color:#555;cursor:pointer}.box-chip.open{background:#f9e7b8;border-color:#d2a52a;color:#7a4c00}.box-chip.closed{background:#d8f2e1;border-color:#1f9d55;color:#0f5c30}.box-chip-number{position:absolute;top:4px;left:0;right:0;text-align:center;font-size:11px;font-weight:700;line-height:1}.box-chip-count{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:10px;font-weight:600;opacity:.9}
+    .closed-list{display:grid;gap:8px;max-height:clamp(180px,28vh,320px);overflow:auto;padding-right:4px}.closed-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;border:1px solid var(--stroke);background:#fff;font-size:13px}
+    .context-menu{position:fixed;z-index:60;display:none;min-width:220px;padding:6px;border:1px solid var(--stroke);border-radius:12px;background:#fff;box-shadow:0 18px 36px rgba(15,23,42,.18)}.context-menu.is-open{display:block}.context-menu button{width:100%;border:0;background:transparent;text-align:left;padding:9px 10px;border-radius:8px;cursor:pointer;font:inherit}.context-menu button:hover{background:rgba(15,23,42,.06)}.context-menu button[disabled]{opacity:.5;cursor:not-allowed}.context-menu .danger{color:var(--danger)}
+    .pallet-close-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:32px;background:rgba(15,23,42,.52);z-index:40}.pallet-close-modal.is-open{display:flex}.pallet-close-card{width:min(94vw,840px);padding:36px;border-radius:24px;border:1px solid var(--stroke);background:#fff;box-shadow:0 32px 70px rgba(15,23,42,.26);display:grid;gap:28px}.pallet-close-head{display:grid;gap:10px}.pallet-close-title{font-size:36px;font-weight:700;line-height:1.08}.pallet-close-head .muted{font-size:22px}.pallet-close-form{display:grid;gap:24px}.pallet-close-form .info-label{font-size:15px}.pallet-close-input{width:100%;padding:24px 28px;border-radius:18px;border:1px solid var(--stroke);font:inherit;font-size:32px;font-weight:700}.pallet-close-input:focus{outline:4px solid rgba(199,154,32,.35);border-color:var(--gold)}.pallet-close-error{display:none;border-radius:16px;border:1px solid rgba(209,67,67,.35);background:rgba(209,67,67,.1);color:#7f1d1d;padding:16px 18px;font-size:20px}.pallet-close-error.is-open{display:block}.pallet-close-actions{display:flex;justify-content:flex-end;gap:16px;flex-wrap:wrap}.pallet-close-actions .btn{padding:18px 28px;border-radius:16px;font-size:20px}
+    .slip-panel{margin-top:16px;padding-top:16px;border-top:1px solid var(--stroke);display:grid;gap:14px}.slip-toolbar{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}.slip-toolbar-left,.slip-toolbar-right{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.slip-printer{min-width:220px;padding:10px 12px;border-radius:10px;border:1px solid var(--stroke);background:#fff;color:var(--text)}.slip-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}.slip-card{padding:14px;border-radius:16px;border:1px solid var(--stroke);background:#fff;display:grid;gap:12px}.slip-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.slip-card-title{font-weight:700}.slip-card-meta{font-size:12px;color:var(--muted)}.slip-card-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .packing-slip-sheet{aspect-ratio:75/120;background:#fff;color:#111;border:1px solid rgba(17,24,39,.18);border-radius:.9em;padding:1.05em .92em;display:grid;grid-template-rows:auto auto auto 1fr auto;gap:.48em;box-shadow:0 .38em .9em rgba(15,23,42,.08)}.packing-slip-title{font-size:1.18em;font-weight:800;letter-spacing:.04em;text-align:center}.packing-slip-marketplace{font-size:1.02em;font-weight:800;text-align:center;text-transform:uppercase;letter-spacing:.05em}.packing-slip-qr-wrap{display:grid;gap:.28em;justify-items:center;padding:.12em 0 .36em}.packing-slip-qr-main{display:grid;place-items:center}.packing-slip-qr{width:4.8em;height:4.8em}.packing-slip-qr img,.packing-slip-qr canvas{display:block;width:100%!important;height:100%!important}.packing-slip-qr-caption{font-size:.78em;font-weight:900;letter-spacing:.03em;text-align:center;line-height:1.1;word-break:break-word}.packing-slip-rows{display:grid;gap:.2em}.packing-slip-row{display:grid;grid-template-columns:1.18fr .82fr;gap:.4em;align-items:flex-start;padding:.16em 0;border-bottom:1px solid rgba(17,24,39,.12)}.packing-slip-row:last-child{border-bottom:none}.packing-slip-label{font-size:.58em;font-weight:700;text-transform:uppercase;letter-spacing:.03em}.packing-slip-value{font-size:.62em;font-weight:600;text-align:right;line-height:1.18;word-break:break-word}.packing-slip-value.left{text-align:left}.packing-slip-footer{text-align:center;font-size:.72em;font-weight:900;letter-spacing:.18em}
+    .packing-slip-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.52);z-index:30}.packing-slip-modal.is-open{display:flex}.packing-slip-modal-card{width:min(92vw,820px);max-height:92vh;overflow:auto;padding:18px;border-radius:20px;border:1px solid var(--stroke);background:#fff;box-shadow:0 24px 48px rgba(15,23,42,.22);display:grid;gap:14px}.packing-slip-modal-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.packing-slip-modal-actions{display:flex;gap:8px;flex-wrap:wrap}.packing-slip-modal-body{display:grid;place-items:center;background:var(--soft);border:1px solid var(--stroke);border-radius:16px;padding:20px}.packing-slip-empty{padding:18px;border-radius:16px;border:1px dashed var(--stroke);background:rgba(15,23,42,.03);color:var(--muted)}.box-view-modal{z-index:45}.box-view-grid{display:grid;grid-template-columns:180px minmax(0,1fr);gap:14px;align-items:start}.box-view-qr{width:160px;height:160px;border-radius:16px;border:1px solid var(--stroke);background:#fff;display:grid;place-items:center;overflow:hidden}.box-view-qr canvas,.box-view-qr img{max-width:100%;max-height:100%}.box-view-table table{min-width:560px}.qr-label-capture{position:fixed;left:-99999px;top:0;opacity:0;pointer-events:none}
+    .packing-slip-capture{position:fixed;left:-99999px;top:0;opacity:0;pointer-events:none}
+    @media (max-width:1100px){.layout{grid-template-columns:1fr}.main{order:1}.side{order:2}.split{grid-template-columns:1fr}.left-col{display:flex;flex-direction:column}.current-head{order:1}.current{order:2}.remaining-head{order:3}.remaining{order:4}.current-grid{grid-template-columns:1fr}.box-view-grid{grid-template-columns:1fr}.binding-alert-row{grid-template-columns:repeat(2,minmax(0,1fr))}.flow-card{height:auto}.side.scroll{height:auto}.scroll{overflow:visible}.close-big{min-height:64px}}
+    @media (max-width:640px){.wrap{padding:6px 5px 24px}.layout{display:block}.side{display:none}.card{padding:8px;border-radius:12px}.flow-card{gap:8px}.tsd-scan-panel{grid-template-columns:1fr;padding:10px;top:2px;margin-bottom:6px;border-width:2px}.tsd-scan-title{font-size:18px}.tsd-scan-state{font-size:14px;min-height:20px}.tsd-scan-form{grid-template-columns:minmax(0,1fr) auto}.tsd-scan-input{min-height:52px;font-size:17px}.tsd-scan-form .btn{min-width:92px}.action-bar{margin-bottom:2px}.action-left{width:100%;justify-content:space-between}.action-right{width:100%}.action-right .btn{flex:1;min-height:48px}.split{gap:10px}.binding-alert-row{grid-template-columns:1fr}.remaining table{min-width:100%;table-layout:auto}.remaining th,.remaining td{padding:7px 5px;font-size:11px}.remaining th:nth-child(3),.remaining td:nth-child(3){display:none}.remaining .btn{padding:7px 8px;font-size:0}.remaining .btn::after{content:"+";font-size:18px;line-height:1}.badge{width:78px;height:78px}.current{padding:9px}.current-grid{gap:7px}.box-item{align-items:flex-start;flex-direction:column}.close-big{min-height:58px}.section-title{margin:6px 0}.closed-list{max-height:none}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side scroll">
+        <div class="side-card">
+          <div class="muted">FULLBOX · {% include "partials/current_user.html" %}</div>
+          <h3>Паллетизация отгрузки · заявка {{ order.display_number|default:order.number }}</h3>
+          <div class="muted">Статус: {{ status_label }}</div>
+        </div>
+        <div class="side-card">
+          <h4 class="side-title">Действия</h4>
+          <div class="side-actions">
+            <a class="tab" href="{{ detail_url }}">К заявке</a>
+            <a class="tab" href="{{ cabinet_url }}">В кабинет</a>
+            <a class="tab" href="/logout/">Выход</a>
+          </div>
+        </div>
+        <div class="side-card equipment-card">
+          <h4 class="side-title">Оборудование</h4>
+          <div class="agent-panel">
+            <label class="agent-field">
+              <span class="info-label" id="print-connection-label">Агент</span>
+              <select class="agent-select" id="print-agent-select">
+                <option value="">Авто</option>
+              </select>
+            </label>
+            <div class="agent-line">
+              <span class="muted">Статус</span>
+              <span class="agent-value agent-indicator warn" id="print-agent-status">проверяю</span>
+            </div>
+            <div class="agent-line">
+              <span class="muted">Принтер</span>
+              <span class="agent-value" id="print-printer-status">-</span>
+            </div>
+            <div class="agent-actions" id="print-agent-actions">
+              <a class="btn" id="print-agent-download" href="/labels/scanners/agent/download/" target="_blank" rel="noopener">Скачать агента</a>
+              <a class="btn" href="/labels/settings/?return={{ request.get_full_path|urlencode }}">Настройки оборудования</a>
+            </div>
+            <div class="muted" id="print-agent-hint">QR печатается через выбранный агент.</div>
+          </div>
+        </div>
+        <div class="side-card">
+          <h4 class="side-title">Информация</h4>
+          <div class="info-list">
+            <div>
+              <div class="info-label">Клиент</div>
+              <div class="info-value">{{ client_label }}</div>
+            </div>
+            <div>
+              <div class="info-label">Итог</div>
+              <div class="info-value" id="summary-line">-</div>
+            </div>
+          </div>
+        </div>
+        <div class="side-card">
+          <h4 class="side-title">Что делаем</h4>
+          <div class="muted">Берем уже собранные короба и распределяем их по новым паллетам отгрузки. Товар внутри коробов не перекладываем.</div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="card flow-card">
+          {% if messages %}
+            {% for message in messages %}
+              <div class="{% if message.tags == 'error' %}error{% else %}notice{% endif %}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+          {% if packing_pallet_removal_pending %}
+            <div class="error">Ожидается решение менеджера по изъятию паллеты {{ packing_pallet_removal_pending.pallet_label|default:packing_pallet_removal_pending.pallet_code }}. Размещение и завершение паллетизации временно заблокированы.</div>
+          {% endif %}
+          {% if storekeeper_binding_alert.closed_by_discrepancy %}
+            <div class="notice">Расхождение по ШК и количеству закрыто добором. Сырой валидатор видит отличие от исходной заявки, но это не активная ошибка.</div>
+          {% endif %}
+          {% if storekeeper_binding_alert.show %}
+            <div class="binding-alert" role="alert">
+              <div class="binding-alert-title">Расхождение по ШК и количеству товара</div>
+              {% for row in storekeeper_binding_alert.rows %}
+                <div class="binding-alert-row">
+                  <div class="binding-alert-cell">
+                    <span class="binding-alert-label">ШК товара</span>
+                    <span class="binding-alert-value">{{ row.barcode }}</span>
+                  </div>
+                  <div class="binding-alert-cell">
+                    <span class="binding-alert-label">Заявлено {{ storekeeper_binding_alert.marketplace_label }}</span>
+                    <span class="binding-alert-value">{{ row.marketplace_qty }} шт.</span>
+                  </div>
+                  <div class="binding-alert-cell">
+                    <span class="binding-alert-label">В заявке</span>
+                    <span class="binding-alert-value">{{ row.requested_qty }} шт.</span>
+                  </div>
+                  <div class="binding-alert-cell">
+                    <span class="binding-alert-label">Факт в OTG</span>
+                    <span class="binding-alert-value">{{ row.fact_qty }} шт.</span>
+                  </div>
+                  <div class="binding-alert-cell">
+                    <span class="binding-alert-label">Расхождение</span>
+                    <span class="binding-alert-value binding-alert-result">{{ row.mismatch_label }}</span>
+                  </div>
+                </div>
+              {% endfor %}
+              {% if storekeeper_binding_alert.blocking %}
+                <b>Завершение паллетизации заблокировано до устранения расхождения.</b>
+                <div><a class="btn" href="{{ detail_url }}">Перейти к заявке и согласовать расхождение</a></div>
+              {% elif storekeeper_binding_alert.approved_with_discrepancy %}
+                <b>Расхождение согласовано. Исходная заявка и складской факт сохранены без изменений.</b>
+              {% else %}
+                <b>Проверьте расхождение до завершения паллетизации.</b>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          <form method="post" id="packing-form">
+            {% csrf_token %}
+            <input type="hidden" name="boxes_json" id="boxes-json">
+            <input type="hidden" name="pallets_json" id="pallets-json">
+            <input type="hidden" name="agent_id" id="agent-id-hidden">
+            {% if packing_edit_mode %}<input type="hidden" name="edit" value="1">{% endif %}
+          </form>
+
+          <div class="tsd-scan-panel" id="tsd-scan-panel">
+            <div class="tsd-scan-copy">
+              <div class="tsd-scan-title">ТСД · Паллетизация {{ order.display_number|default:order.number }}</div>
+              <div class="tsd-scan-state" id="tsd-scan-state" role="status" aria-live="polite">Готов: пикните ШК короба</div>
+            </div>
+            <form class="tsd-scan-form" id="tsd-scan-form" autocomplete="off">
+              <input class="tsd-scan-input" id="tsd-scan-input" type="text" inputmode="none" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="ШК короба" placeholder="Пикните или введите ШК короба">
+              <button class="btn primary" type="submit">Добавить</button>
+            </form>
+          </div>
+
+          <div class="action-bar">
+            <div class="action-left">
+              <div class="pill">Открытая паллета: <span id="open-pallet-pill">-</span></div>
+              <div class="pill">Без паллеты: <span id="unassigned-pill">0</span></div>
+            </div>
+            <div class="action-right">
+              <button class="btn" type="button" id="close-pallet-btn">Закрыть паллету</button>
+              <button class="btn primary" type="submit" form="packing-form"{% if storekeeper_binding_alert.blocking %} disabled aria-disabled="true" title="Устраните расхождение по ШК и количеству товара"{% endif %}>{% if storekeeper_binding_alert.approved_with_discrepancy %}Паллетизация с расхождением{% else %}Завершить паллетизацию{% endif %}</button>
+            </div>
+          </div>
+
+          <div class="split">
+            <div class="col left-col">
+              <div class="section-head remaining-head">
+                <div class="section-title">Неразмещенные короба</div>
+                <div class="section-hint">В списке: <span class="section-count" id="remaining-count">0</span></div>
+              </div>
+              <div class="table-wrap remaining">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Короб</th>
+                      <th>Кол-во</th>
+                      <th>ШК / состав</th>
+                      <th>В паллету</th>
+                    </tr>
+                  </thead>
+                  <tbody id="remaining-boxes"></tbody>
+                </table>
+              </div>
+
+              <div class="section-head current-head">
+                <div class="section-title">Открытая паллета</div>
+                <div class="section-hint">Внутри: <span class="section-count" id="current-count">0</span></div>
+              </div>
+              <div class="current">
+                <div class="current-grid">
+                  <div><div class="badge" id="current-pallet-badge">Паллета</div></div>
+                  <div>
+                    <div class="box-meta">
+                      <div class="code" id="current-pallet-code">-</div>
+                      <div class="status" id="current-pallet-status">Открыта</div>
+                    </div>
+                    <div class="box-items" id="current-pallet-boxes"></div>
+                  </div>
+                  <div><button class="btn primary close-big" type="button" id="close-current-pallet-btn">Закрыть паллету</button></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col scroll">
+              <div class="section-title">Паллеты</div>
+              <div class="board" id="pallet-board"></div>
+
+              <div class="section-title">Закрытые паллеты</div>
+              <div class="closed-list" id="closed-pallets"></div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="context-menu" id="box-context-menu" aria-hidden="true">
+    <button type="button" data-action="view-box">Просмотр короба</button>
+    <button type="button" data-action="print-box-qr">Распечатать QR</button>
+    <button type="button" data-action="unassign-box">Убрать из паллеты</button>
+  </div>
+
+  <div class="context-menu" id="pallet-context-menu" aria-hidden="true">
+    <button type="button" data-action="open-pallet">Открыть паллету</button>
+    <button type="button" data-action="close-pallet">Закрыть паллету</button>
+    <button type="button" data-action="print-pallet-boxes-qr">Распечатать QR всех коробов паллеты</button>
+    <button type="button" data-action="print-pallet-slip">Распечатать упаковочный лист</button>
+    <button type="button" data-action="request-pallet-removal" class="danger">Убрать эту паллету из заявки вместе с товаром</button>
+    <button type="button" data-action="delete-pallet" class="danger">Удалить пустую паллету</button>
+  </div>
+
+  <div class="packing-slip-modal box-view-modal" id="box-view-modal" aria-hidden="true">
+    <div class="packing-slip-modal-card" role="dialog" aria-modal="true" aria-labelledby="box-view-title">
+      <div class="packing-slip-modal-head">
+        <div>
+          <div class="section-title" id="box-view-title">Короб <span id="box-view-code">-</span></div>
+          <div class="muted" id="box-view-meta">-</div>
+        </div>
+        <div class="packing-slip-modal-actions">
+          <button class="btn primary" type="button" id="box-view-print-qr">Распечатать QR</button>
+          <button class="btn" type="button" id="box-view-close">Закрыть</button>
+        </div>
+      </div>
+      <div class="box-view-grid">
+        <div class="box-view-qr" id="box-view-qr">QR</div>
+        <div class="table-wrap box-view-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Артикул</th>
+                <th>Наименование</th>
+                <th>Размер</th>
+                <th>ШК</th>
+                <th>Кол-во</th>
+              </tr>
+            </thead>
+            <tbody id="box-view-items"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pallet-close-modal" id="pallet-close-count-modal" aria-hidden="true">
+    <div class="pallet-close-card" role="dialog" aria-modal="true" aria-labelledby="pallet-close-title">
+      <div class="pallet-close-head">
+        <div class="pallet-close-title" id="pallet-close-title">Закрыть паллету</div>
+        <div class="muted" id="pallet-close-caption">Сколько коробов в паллете?</div>
+      </div>
+      <form class="pallet-close-form" id="pallet-close-count-form">
+        <label>
+          <div class="info-label">Количество коробов</div>
+          <input class="pallet-close-input" id="pallet-close-count-input" type="number" min="0" step="1" inputmode="numeric" autocomplete="off" required>
+        </label>
+        <div class="pallet-close-error" id="pallet-close-count-error"></div>
+        <div class="pallet-close-actions">
+          <button class="btn" type="button" id="pallet-close-cancel-btn">Отмена</button>
+          <button class="btn primary" type="submit">Закрыть паллету</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="pallet-close-modal" id="pallet-removal-modal" aria-hidden="true">
+    <div class="pallet-close-card" role="dialog" aria-modal="true" aria-labelledby="pallet-removal-title">
+      <div class="pallet-close-head">
+        <div class="pallet-close-title" id="pallet-removal-title">Изъять паллету из заявки</div>
+        <div class="muted" id="pallet-removal-caption">Укажите причину отмены этой паллеты.</div>
+      </div>
+      <form class="pallet-close-form" id="pallet-removal-form">
+        <label>
+          <div class="info-label">Причина отмены</div>
+          <textarea class="pallet-close-input" id="pallet-removal-reason" rows="4" required></textarea>
+        </label>
+        <div class="pallet-close-error" id="pallet-removal-error"></div>
+        <div class="pallet-close-actions">
+          <button class="btn" type="button" id="pallet-removal-cancel-btn">Отмена</button>
+          <button class="btn primary" type="submit">Отправить на подтверждение менеджеру</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {{ boxes_data|json_script:"boxes-data" }}
+  {{ pallets_data|json_script:"pallets-data" }}
+  {{ order.display_number|default:order.number|json_script:"order-label" }}
+  {{ client_label|json_script:"client-label" }}
+  {{ scanner_agents|json_script:"scanner-agents-data" }}
+  {{ preferred_agent_id|json_script:"preferred-agent-id-data" }}
+  {{ preferred_agent_locked|json_script:"preferred-agent-locked-data" }}
+  {{ packing_pallet_removal_pending|json_script:"pallet-removal-pending-data" }}
+  {{ pallet_removal_request_url|json_script:"pallet-removal-request-url-data" }}
+  {{ packing_slip_meta|json_script:"packing-slip-meta" }}
+  <script src="/static/vendor/html2canvas.min.js"></script>
+  <script src="/static/vendor/qrcode.min.js"></script>
+  <script>
+    (() => {
+      const boxesData = JSON.parse(document.getElementById('boxes-data').textContent || '[]');
+      const palletsData = JSON.parse(document.getElementById('pallets-data').textContent || '[]');
+      const orderLabel = JSON.parse(document.getElementById('order-label').textContent || '"-"');
+      const clientLabel = JSON.parse(document.getElementById('client-label')?.textContent || '"-"');
+      const scannerAgentsData = JSON.parse(document.getElementById('scanner-agents-data')?.textContent || '[]');
+      const preferredAgentId = String(JSON.parse(document.getElementById('preferred-agent-id-data')?.textContent || '""') || '').trim();
+      const preferredAgentLocked = Boolean(JSON.parse(document.getElementById('preferred-agent-locked-data')?.textContent || 'false'));
+      const palletRemovalPending = JSON.parse(document.getElementById('pallet-removal-pending-data')?.textContent || '{}') || {};
+      const palletRemovalRequestUrl = String(JSON.parse(document.getElementById('pallet-removal-request-url-data')?.textContent || '""') || '').trim();
+      const packingEditMode = {{ packing_edit_mode|yesno:"true,false" }};
+      const packingSlipMetaEl = document.getElementById('packing-slip-meta');
+      const packingSlipMeta = JSON.parse(packingSlipMetaEl?.textContent || '{}');
+      const remainingEl = document.getElementById('remaining-boxes');
+      const currentCodeEl = document.getElementById('current-pallet-code');
+      const currentStatusEl = document.getElementById('current-pallet-status');
+      const currentBadgeEl = document.getElementById('current-pallet-badge');
+      const currentBoxesEl = document.getElementById('current-pallet-boxes');
+      const boardEl = document.getElementById('pallet-board');
+      const closedEl = document.getElementById('closed-pallets');
+      const summaryEl = document.getElementById('summary-line');
+      const openPillEl = document.getElementById('open-pallet-pill');
+      const unassignedPillEl = document.getElementById('unassigned-pill');
+      const remainingCountEl = document.getElementById('remaining-count');
+      const currentCountEl = document.getElementById('current-count');
+      const boxesInput = document.getElementById('boxes-json');
+      const palletsInput = document.getElementById('pallets-json');
+      const slipGridEl = document.getElementById('packing-slip-grid');
+      const printerInputEl = document.getElementById('packing-slip-printer');
+      const printAllSlipsBtn = document.getElementById('print-all-slips-btn');
+      const slipModalEl = document.getElementById('packing-slip-modal');
+      const slipModalBodyEl = document.getElementById('packing-slip-modal-body');
+      const slipModalCaptionEl = document.getElementById('packing-slip-modal-caption');
+      const slipModalPrintEl = document.getElementById('packing-slip-modal-print');
+      const slipModalCloseEl = document.getElementById('packing-slip-modal-close');
+      const slipCaptureHostEl = document.getElementById('packing-slip-capture-host');
+      const palletCloseModalEl = document.getElementById('pallet-close-count-modal');
+      const palletCloseCaptionEl = document.getElementById('pallet-close-caption');
+      const palletCloseFormEl = document.getElementById('pallet-close-count-form');
+      const palletCloseInputEl = document.getElementById('pallet-close-count-input');
+      const palletCloseErrorEl = document.getElementById('pallet-close-count-error');
+      const palletCloseCancelEl = document.getElementById('pallet-close-cancel-btn');
+      const palletRemovalModalEl = document.getElementById('pallet-removal-modal');
+      const palletRemovalCaptionEl = document.getElementById('pallet-removal-caption');
+      const palletRemovalFormEl = document.getElementById('pallet-removal-form');
+      const palletRemovalReasonEl = document.getElementById('pallet-removal-reason');
+      const palletRemovalErrorEl = document.getElementById('pallet-removal-error');
+      const palletRemovalCancelEl = document.getElementById('pallet-removal-cancel-btn');
+      const boxContextMenuEl = document.getElementById('box-context-menu');
+      const palletContextMenuEl = document.getElementById('pallet-context-menu');
+      const boxViewModalEl = document.getElementById('box-view-modal');
+      const boxViewCodeEl = document.getElementById('box-view-code');
+      const boxViewMetaEl = document.getElementById('box-view-meta');
+      const boxViewItemsEl = document.getElementById('box-view-items');
+      const boxViewQrEl = document.getElementById('box-view-qr');
+      const boxViewPrintQrEl = document.getElementById('box-view-print-qr');
+      const boxViewCloseEl = document.getElementById('box-view-close');
+      const printAgentSelectEl = document.getElementById('print-agent-select');
+      const printAgentStatusEl = document.getElementById('print-agent-status');
+      const printAgentHintEl = document.getElementById('print-agent-hint');
+      const printPrinterStatusEl = document.getElementById('print-printer-status');
+      const printConnectionLabelEl = document.getElementById('print-connection-label');
+      const printAgentDownloadEl = document.getElementById('print-agent-download');
+      const agentIdHiddenEl = document.getElementById('agent-id-hidden');
+      const tsdScanPanelEl = document.getElementById('tsd-scan-panel');
+      const tsdScanFormEl = document.getElementById('tsd-scan-form');
+      const tsdScanInputEl = document.getElementById('tsd-scan-input');
+      const tsdScanStateEl = document.getElementById('tsd-scan-state');
+      const supportsDesktopMode = !!(
+        window.fullboxDesktop && typeof window.fullboxDesktop.getStatus === 'function'
+      );
+      const csrfToken = document.querySelector('#packing-form input[name="csrfmiddlewaretoken"]')?.value || '';
+      const autosaveUrl = "{% url 'shipping:packing-draft' pk=order.pk %}";
+      const autosaveStatusEl = (() => {
+        const submitBtn = document.querySelector('button[form="packing-form"][type="submit"]');
+        if (!submitBtn) return null;
+        const el = document.createElement('span');
+        el.className = 'muted';
+        el.style.marginLeft = '10px';
+        el.style.fontSize = '12px';
+        submitBtn.insertAdjacentElement('afterend', el);
+        return el;
+      })();
+      const slipsEnabled = Boolean(
+        slipGridEl &&
+        printerInputEl &&
+        printAllSlipsBtn &&
+        slipModalEl &&
+        slipModalBodyEl &&
+        slipModalCaptionEl &&
+        slipModalPrintEl &&
+        slipModalCloseEl &&
+        slipCaptureHostEl
+      );
+
+      const state = {
+        boxes: Array.isArray(boxesData) ? boxesData.map((box, index) => ({
+          row_key: String(box?.row_key || `BOXROW-${index + 1}`),
+          code: String(box?.code || `BOX-${index + 1}`),
+          qty: Number(box?.qty || 0),
+          barcode_preview: String(box?.barcode_preview || '-'),
+          items: Array.isArray(box?.items) ? box.items : [],
+          pallet_code: String(box?.pallet_code || ''),
+          ui_index: Number(box?.ui_index || index + 1),
+        })) : [],
+        pallets: Array.isArray(palletsData) ? palletsData.map((pallet, index) => ({
+          code: String(pallet?.code || `PAL-${index + 1}`),
+          label: String(pallet?.label || pallet?.code || `Паллета ${index + 1}`),
+          sealed: true,
+        })) : [],
+        activePalletCode: '',
+        previewSlipKey: '',
+        previewBoxRowKey: '',
+        pendingClosePalletCode: '',
+        pendingRemovalPalletCode: '',
+        contextBoxRowKey: '',
+        contextPalletCode: '',
+        printing: false,
+        qrPrinting: false,
+        removalSubmitting: false,
+        selectedAgentId: '',
+      };
+
+      const normalize = (value) => String(value || '').trim();
+      const removalBlocked = () => normalize(palletRemovalPending?.removal_status) === 'pending';
+      const removalBlockedMessage = () => `Ожидается решение менеджера по изъятию паллеты ${normalize(palletRemovalPending?.pallet_label) || normalize(palletRemovalPending?.pallet_code) || '-'}. Продолжать паллетизацию пока нельзя.`;
+      const guardRemovalBlocked = () => {
+        if (!removalBlocked()) return false;
+        alert(removalBlockedMessage());
+        return true;
+      };
+      const boxRowKey = (box) => normalize(box?.row_key) || normalize(box?.code);
+      const boxChipLabel = (box) => {
+        const code = normalize(box?.code);
+        if (!code) return String(box?.ui_index || '');
+        const parts = code.split('-').filter(Boolean);
+        const candidate = parts.length >= 2 ? parts[parts.length - 2] : (parts[0] || code);
+        const cleaned = String(candidate || '').trim();
+        if (cleaned) return cleaned.slice(-6);
+        return code.slice(-6);
+      };
+      const boxNo = (box) => Number(box?.ui_index || 0) || 0;
+      const boxesForPallet = (code) => state.boxes.filter((box) => normalize(box.pallet_code) === normalize(code));
+      const unassignedBoxes = () => state.boxes.filter((box) => !normalize(box.pallet_code));
+      const usedCodes = () => new Set(state.boxes.map((box) => normalize(box.pallet_code)).filter(Boolean));
+      const getPallet = (code) => state.pallets.find((pallet) => normalize(pallet.code) === normalize(code)) || null;
+      const getActivePallet = () => getPallet(state.activePalletCode);
+      const getBox = (rowKey) => state.boxes.find((box) => boxRowKey(box) === normalize(rowKey)) || null;
+      const escapeHtml = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+      const printJobUrl = '/orders/processing/print-jobs/';
+      const printerStorageKeys = ['shipping_packing_slip_printer', 'processing_label_printer', 'label_printer'];
+      const readStoredPrinter = () => {
+        for (const key of printerStorageKeys) {
+          const value = String(localStorage.getItem(key) || '').trim();
+          if (value) return value;
+        }
+        return '';
+      };
+      const persistPrinter = (value) => {
+        const normalizedValue = String(value || '').trim();
+        if (!normalizedValue) return;
+        printerStorageKeys.forEach((key) => localStorage.setItem(key, normalizedValue));
+      };
+      const localAgentBridgeState = { detected: null };
+      const localAgentBridgeUrls = [
+        'http://127.0.0.1:17841/whoami',
+        'http://localhost:17841/whoami',
+      ];
+      const printAgentStorageKey = `fullbox_shipping_packing_agent_id_${orderLabel}`;
+      const labelPrinterStorageKeys = ['processing_label_printer', 'label_printer', 'shipping_packing_slip_printer'];
+      const localAgentHasPrintablePrinters = (payload) => {
+        const virtualPrinterMarkers = ['pdf', 'xps', 'onenote', 'fax', 'microsoft print', 'save to pdf', 'anydesk', 'rustdesk', 'remote desktop', 'redirected'];
+        const seen = new Set();
+        const source = Array.isArray(payload && payload.printers) ? payload.printers : [];
+        for (const item of source) {
+          const value = String(item || '').trim();
+          const key = value.toLowerCase();
+          if (!value || seen.has(key)) {
+            continue;
+          }
+          seen.add(key);
+          if (!virtualPrinterMarkers.some((marker) => key.includes(marker))) {
+            return true;
+          }
+        }
+        return false;
+      };
+      const clearStoredLocalAgentId = (agentId) => {
+        const normalized = normalize(agentId);
+        if (!normalized) {
+          return;
+        }
+        if (normalize(localStorage.getItem(printAgentStorageKey) || '') === normalized) {
+          localStorage.removeItem(printAgentStorageKey);
+        }
+        if (normalize(localStorage.getItem('labels_print_agent_id') || '') === normalized) {
+          localStorage.removeItem('labels_print_agent_id');
+        }
+      };
+      const readStoredLabelPrinter = () => {
+        const stored = labelPrinterStorageKeys
+          .map((key) => String(localStorage.getItem(key) || '').trim())
+          .find(Boolean) || '';
+        const localAgent = localAgentBridgeState.detected;
+        if (!localAgent) return stored;
+        if (stored && (!localAgent.printers.length || localAgent.printers.includes(stored))) return stored;
+        return localAgent.defaultPrinter || stored;
+      };
+      const setPrintAgentStatus = (text, stateName = 'muted') => {
+        if (!printAgentStatusEl) return;
+        printAgentStatusEl.textContent = text || '-';
+        printAgentStatusEl.classList.remove('ok', 'warn', 'error', 'muted');
+        printAgentStatusEl.classList.add(stateName || 'muted');
+      };
+      const setPrintAgentHint = (text, isError = false) => {
+        if (!printAgentHintEl) return;
+        printAgentHintEl.textContent = text || '';
+        printAgentHintEl.style.color = isError ? 'var(--danger)' : '';
+      };
+      const renderPrinterStatus = () => {
+        if (!printPrinterStatusEl) return;
+        printPrinterStatusEl.textContent = readStoredLabelPrinter() || 'не выбран';
+      };
+      const fetchLocalAgentBridgePayload = async (url) => {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), 1200);
+        try {
+          const resp = await fetch(url, {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-store',
+            signal: controller.signal,
+          });
+          if (!resp.ok) return null;
+          const data = await resp.json().catch(() => null);
+          if (!data || data.ok === false || !data.agentId) return null;
+          return {
+            agentId: String(data.agentId || '').trim(),
+            name: String(data.name || '').trim(),
+            host: String(data.host || '').trim(),
+            defaultPrinter: String(data.defaultPrinter || '').trim(),
+            printers: Array.isArray(data.printers)
+              ? data.printers.map((value) => String(value || '').trim()).filter(Boolean)
+              : [],
+          };
+        } catch (err) {
+          return null;
+        } finally {
+          window.clearTimeout(timer);
+        }
+      };
+      const detectLocalAgentBridge = async () => {
+        for (const url of localAgentBridgeUrls) {
+          const payload = await fetchLocalAgentBridgePayload(url);
+          if (payload && payload.agentId) {
+            if (!localAgentHasPrintablePrinters(payload)) {
+              clearStoredLocalAgentId(payload.agentId);
+            }
+            localAgentBridgeState.detected = payload;
+            return payload;
+          }
+        }
+        return null;
+      };
+      const getAgentRecord = (agentId) => (Array.isArray(scannerAgentsData) ? scannerAgentsData : [])
+        .find((agent) => normalize(agent?.agent_id) === normalize(agentId)) || null;
+      const populatePrintAgentSelect = () => {
+        if (!printAgentSelectEl) return;
+        const existing = new Set(Array.from(printAgentSelectEl.options || []).map((option) => option.value));
+        (Array.isArray(scannerAgentsData) ? scannerAgentsData : []).forEach((agent) => {
+          const agentId = normalize(agent?.agent_id);
+          if (!agentId || existing.has(agentId)) return;
+          const option = document.createElement('option');
+          option.value = agentId;
+          option.textContent = `${agent.title || agentId} · ${agentId}`;
+          option.dataset.status = String(agent.status || '');
+          option.dataset.online = agent.is_online ? '1' : '0';
+          printAgentSelectEl.appendChild(option);
+          existing.add(agentId);
+        });
+      };
+      const upsertPrintAgentOption = (agentInfo) => {
+        if (!agentInfo || !agentInfo.agentId || !printAgentSelectEl) return;
+        const agentId = normalize(agentInfo.agentId);
+        const title = normalize(agentInfo.name || agentInfo.host || agentId) || agentId;
+        let option = Array.from(printAgentSelectEl.options || []).find((entry) => entry.value === agentId);
+        if (!option) {
+          option = document.createElement('option');
+          printAgentSelectEl.appendChild(option);
+        }
+        option.value = agentId;
+        option.textContent = `${title} · ${agentId}`;
+        option.dataset.status = 'онлайн';
+        option.dataset.online = '1';
+        const existing = getAgentRecord(agentId);
+        if (existing) {
+          existing.title = title;
+          existing.status = 'онлайн';
+          existing.is_online = true;
+        } else if (Array.isArray(scannerAgentsData)) {
+          scannerAgentsData.unshift({ agent_id: agentId, title, status: 'онлайн', is_online: true, last_seen: '' });
+        }
+      };
+      const chooseDefaultPrintAgentId = () => {
+        if (preferredAgentLocked && preferredAgentId) return preferredAgentId;
+        const pageStored = normalize(localStorage.getItem(printAgentStorageKey) || '');
+        if (pageStored) return pageStored;
+        const globalStored = normalize(localStorage.getItem('labels_print_agent_id') || '');
+        if (globalStored) return globalStored;
+        if (preferredAgentId) return preferredAgentId;
+        const online = (Array.isArray(scannerAgentsData) ? scannerAgentsData : []).find((agent) => agent?.agent_id && agent.is_online);
+        if (online) return normalize(online.agent_id);
+        const first = (Array.isArray(scannerAgentsData) ? scannerAgentsData : []).find((agent) => agent?.agent_id);
+        return first ? normalize(first.agent_id) : '';
+      };
+      const applyPrintAgentId = (agentId) => {
+        const value = normalize(agentId);
+        state.selectedAgentId = value;
+        if (agentIdHiddenEl) agentIdHiddenEl.value = value;
+        if (value) {
+          localStorage.setItem(printAgentStorageKey, value);
+          localStorage.setItem('labels_print_agent_id', value);
+        } else {
+          localStorage.removeItem(printAgentStorageKey);
+        }
+        if (printAgentSelectEl) {
+          const hasOption = Array.from(printAgentSelectEl.options || []).some((option) => option.value === value);
+          printAgentSelectEl.value = hasOption ? value : '';
+        }
+        const localAgent = localAgentBridgeState.detected;
+        const record = getAgentRecord(value);
+        if (value && localAgent && normalize(localAgent.agentId) === value) {
+          setPrintAgentStatus('свой агент', 'ok');
+          setPrintAgentHint(`Локальный агент: ${localAgent.name || localAgent.host || value}.`);
+        } else if (record) {
+          setPrintAgentStatus(record.is_online ? 'онлайн' : 'нет связи', record.is_online ? 'ok' : 'warn');
+          setPrintAgentHint(value ? `Печать пойдет через ${record.title || value}.` : 'QR печатается через выбранный агент.');
+        } else if (value) {
+          setPrintAgentStatus('выбран', 'warn');
+          setPrintAgentHint(`Печать пойдет через ${value}.`);
+        } else {
+          setPrintAgentStatus('авто', 'warn');
+          setPrintAgentHint('Агент будет выбран по принтеру.');
+        }
+        renderPrinterStatus();
+        scannerAgentSync();
+      };
+      const initPrintAgentPanel = () => {
+        if (supportsDesktopMode) {
+          if (printConnectionLabelEl) printConnectionLabelEl.textContent = 'Режим';
+          if (printAgentDownloadEl) printAgentDownloadEl.hidden = true;
+          if (printAgentSelectEl) printAgentSelectEl.disabled = true;
+          window.addEventListener('fullbox:scan', handleDesktopPackingScan);
+          window.addEventListener('fullbox:desktop-ready', () => {
+            void refreshDesktopPackingStatus();
+          });
+          window.addEventListener('focus', () => {
+            void refreshDesktopPackingStatus();
+          });
+          document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) void refreshDesktopPackingStatus();
+          });
+          void refreshDesktopPackingStatus();
+          return;
+        }
+        populatePrintAgentSelect();
+        applyPrintAgentId(chooseDefaultPrintAgentId());
+        printAgentSelectEl?.addEventListener('change', () => applyPrintAgentId(printAgentSelectEl.value || ''));
+        detectLocalAgentBridge().then((payload) => {
+          if (!payload || !payload.agentId) {
+            renderPrinterStatus();
+            return;
+          }
+          if (!localAgentHasPrintablePrinters(payload)) {
+            applyPrintAgentId(chooseDefaultPrintAgentId());
+            renderPrinterStatus();
+            return;
+          }
+          upsertPrintAgentOption(payload);
+          applyPrintAgentId(payload.agentId);
+        }).catch(() => {
+          renderPrinterStatus();
+        });
+      };
+      const ensureQrPrintTarget = () => {
+        const printer = readStoredLabelPrinter();
+        if (!printer) {
+          alert('Выберите принтер этикеток в настройках оборудования.');
+          return null;
+        }
+        return {
+          printerName: printer,
+          agentId: normalize(state.selectedAgentId)
+            || (localAgentHasPrintablePrinters(localAgentBridgeState.detected) ? normalize(localAgentBridgeState.detected?.agentId) : '')
+            || normalize(localStorage.getItem('labels_print_agent_id') || ''),
+        };
+      };
+      const packingOrderMatch = window.location.pathname.match(/\/shipping\/(\d+)\/packing\/?$/i);
+      const packingOrderId = packingOrderMatch ? Number.parseInt(packingOrderMatch[1], 10) : null;
+      const agentEventsUrl = '/agent/events/poll/';
+      const agentContextUrl = '/agent/contexts/claim/';
+      const agentStatusUrl = '/agent/status/';
+      let agentContextId = '';
+      let agentSinceId = 0;
+      let agentPollTimer = null;
+      let agentStatusTimer = null;
+      let agentContextTimer = null;
+
+      const postJson = (url, payload) => fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken,
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload || {}),
+      });
+      const clearPackingAgentTimers = () => {
+        if (agentPollTimer) window.clearTimeout(agentPollTimer);
+        if (agentStatusTimer) window.clearTimeout(agentStatusTimer);
+        if (agentContextTimer) window.clearTimeout(agentContextTimer);
+        agentPollTimer = null;
+        agentStatusTimer = null;
+        agentContextTimer = null;
+      };
+      const schedulePackingAgentPoll = (delay = 1000) => {
+        if (agentPollTimer) window.clearTimeout(agentPollTimer);
+        agentPollTimer = window.setTimeout(() => { void pollPackingAgentEvents(); }, delay);
+      };
+      const schedulePackingAgentStatus = (delay = 3000) => {
+        if (agentStatusTimer) window.clearTimeout(agentStatusTimer);
+        agentStatusTimer = window.setTimeout(() => { void pollPackingAgentStatus(); }, delay);
+      };
+      const schedulePackingAgentContext = (delay = 10000) => {
+        if (agentContextTimer) window.clearTimeout(agentContextTimer);
+        agentContextTimer = window.setTimeout(() => { void claimPackingAgentContext(false); }, delay);
+      };
+      const findBoxByScan = (rawValue) => {
+        const value = normalize(rawValue).toLowerCase();
+        if (!value) return null;
+        return state.boxes.find((box) => {
+          const code = normalize(box?.code).toLowerCase();
+          const barcode = normalize(box?.barcode_preview).toLowerCase();
+          return (code && code === value) || (barcode && barcode !== '-' && barcode === value);
+        }) || null;
+      };
+      const setTsdScanState = (message, stateName = '') => {
+        if (!tsdScanStateEl) return;
+        tsdScanStateEl.textContent = message || 'Готов: пикните ШК короба';
+        tsdScanStateEl.classList.remove('ok', 'warn', 'error');
+        if (stateName) tsdScanStateEl.classList.add(stateName);
+      };
+      const signalTsdScan = (ok) => {
+        if (navigator.vibrate) navigator.vibrate(ok ? 70 : [90, 60, 90]);
+        if (!tsdScanPanelEl) return;
+        tsdScanPanelEl.animate(
+          [
+            { boxShadow: `0 0 0 0 ${ok ? 'rgba(31,157,85,.45)' : 'rgba(209,67,67,.45)'}` },
+            { boxShadow: `0 0 0 8px ${ok ? 'rgba(31,157,85,0)' : 'rgba(209,67,67,0)'}` },
+          ],
+          { duration: 420, easing: 'ease-out' },
+        );
+      };
+      let lastPackingScanValue = '';
+      let lastPackingScanAt = 0;
+      const handlePackingScan = (rawValue, source = 'tsd') => {
+        const value = normalize(rawValue);
+        if (!value) return;
+        const scanKey = value.toLowerCase();
+        const now = Date.now();
+        if (scanKey === lastPackingScanValue && now - lastPackingScanAt < 900) return;
+        lastPackingScanValue = scanKey;
+        lastPackingScanAt = now;
+        if (removalBlocked()) {
+          setTsdScanState(removalBlockedMessage(), 'warn');
+          signalTsdScan(false);
+          if (source === 'agent') {
+            setPrintAgentStatus('ожидает менеджера', 'warn');
+            setPrintAgentHint(removalBlockedMessage(), true);
+          }
+          return;
+        }
+        const box = findBoxByScan(value);
+        if (!box) {
+          setTsdScanState(`Короб ${value} не найден в этой заявке`, 'error');
+          signalTsdScan(false);
+          if (source === 'agent') {
+            setPrintAgentStatus('короб не найден', 'error');
+            setPrintAgentHint(`Скан ${value} не относится к коробам этой паллетизации.`, true);
+          }
+          return;
+        }
+        const active = ensureOpenPallet();
+        const targetLabel = normalize(active?.label) || normalize(active?.code) || '-';
+        const previousPalletCode = normalize(box.pallet_code);
+        const targetPalletCode = normalize(active?.code);
+        assignToActive(boxRowKey(box));
+        render();
+        if (previousPalletCode && previousPalletCode === targetPalletCode) {
+          setTsdScanState(`Уже добавлен: ${box.code} → ${targetLabel}`, 'warn');
+          signalTsdScan(true);
+          if (source === 'agent') {
+            setPrintAgentStatus('короб принят', 'ok');
+            setPrintAgentHint(`Короб ${box.code} уже в открытой паллете ${targetLabel}.`);
+          }
+          return;
+        }
+        if (previousPalletCode && previousPalletCode !== targetPalletCode) {
+          setTsdScanState(`Перенесён: ${box.code} → ${targetLabel}`, 'ok');
+          signalTsdScan(true);
+          if (source === 'agent') {
+            setPrintAgentStatus('короб перенесен', 'ok');
+            setPrintAgentHint(`Короб ${box.code} перенесен в паллету ${targetLabel}.`);
+          }
+          return;
+        }
+        setTsdScanState(`Добавлен: ${box.code} → ${targetLabel}`, 'ok');
+        signalTsdScan(true);
+        if (source === 'agent') {
+          setPrintAgentStatus('короб добавлен', 'ok');
+          setPrintAgentHint(`Короб ${box.code} добавлен в паллету ${targetLabel}.`);
+        }
+      };
+      const handlePackingAgentScan = (rawValue) => handlePackingScan(rawValue, 'agent');
+      const directScanConfig = { maxGap: 220, idleGap: 130, minLength: 6, maxTotal: 3000, avgMax: 90 };
+      let directScanBuffer = '';
+      let directScanStartedAt = 0;
+      let directScanLastAt = 0;
+      let directScanTimer = null;
+      const clearDirectScanBuffer = () => {
+        directScanBuffer = '';
+        directScanStartedAt = 0;
+        directScanLastAt = 0;
+        if (directScanTimer) window.clearTimeout(directScanTimer);
+        directScanTimer = null;
+      };
+      const directScanModalsOpen = () => [palletCloseModalEl, palletRemovalModalEl, boxViewModalEl, slipModalEl]
+        .some((el) => el?.classList.contains('is-open'));
+      const finishDirectScan = () => {
+        const value = normalize(directScanBuffer);
+        const length = value.length;
+        const total = directScanStartedAt && directScanLastAt ? directScanLastAt - directScanStartedAt : 0;
+        const average = length > 1 ? total / (length - 1) : 0;
+        clearDirectScanBuffer();
+        if (length < directScanConfig.minLength || total > directScanConfig.maxTotal || (average && average > directScanConfig.avgMax)) return;
+        handlePackingScan(value, 'tsd');
+      };
+      const queueDirectScanFinish = () => {
+        if (directScanTimer) window.clearTimeout(directScanTimer);
+        directScanTimer = window.setTimeout(finishDirectScan, directScanConfig.idleGap);
+      };
+      const captureDirectTsdScan = (event) => {
+        if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey || directScanModalsOpen()) return;
+        const target = event.target;
+        if (target === tsdScanInputEl) return;
+        if (target instanceof HTMLElement && (target.isContentEditable || target.matches('input, textarea, select'))) return;
+        if (event.key === 'Enter' || event.key === 'Tab') {
+          if (directScanBuffer) {
+            event.preventDefault();
+            event.stopPropagation();
+            finishDirectScan();
+          }
+          return;
+        }
+        if (!event.key || event.key.length !== 1) {
+          if (event.key === 'Escape') clearDirectScanBuffer();
+          return;
+        }
+        const now = Date.now();
+        if (directScanLastAt && now - directScanLastAt > directScanConfig.maxGap) clearDirectScanBuffer();
+        if (!directScanBuffer) directScanStartedAt = now;
+        directScanBuffer += event.key;
+        directScanLastAt = now;
+        event.preventDefault();
+        event.stopPropagation();
+        queueDirectScanFinish();
+      };
+      let desktopLastScanValue = '';
+      let desktopLastScanAt = 0;
+      const refreshDesktopPackingStatus = async () => {
+        if (!supportsDesktopMode || !window.fullboxDesktop) return false;
+        try {
+          const status = await window.fullboxDesktop.getStatus();
+          const scanner = status && status.scanner ? status.scanner : {};
+          const computerName = normalize(status?.computerName || status?.name || status?.host) || 'этот компьютер';
+          const workstationId = normalize(status?.workstationId || status?.agentId);
+          const port = normalize(scanner.port);
+          const connected = !!scanner.connected;
+          const printer = normalize(status?.shippingPrinter || status?.labelPrinter) || readStoredLabelPrinter();
+          state.selectedAgentId = workstationId;
+          if (agentIdHiddenEl) agentIdHiddenEl.value = workstationId;
+          if (printAgentSelectEl) {
+            const option = document.createElement('option');
+            option.value = workstationId || 'desktop';
+            option.textContent = `Fullbox Desktop · ${computerName}`;
+            printAgentSelectEl.replaceChildren(option);
+            printAgentSelectEl.value = option.value;
+            printAgentSelectEl.disabled = true;
+          }
+          if (printPrinterStatusEl) printPrinterStatusEl.textContent = printer || 'не выбран';
+          setPrintAgentStatus(
+            connected
+              ? `Desktop · напрямую · ${port || 'COM'} · ожидаю сканирование`
+              : `Desktop · напрямую · ${port ? `${port} · нет связи` : 'сканер не подключён'}`,
+            connected ? 'ok' : 'error',
+          );
+          setPrintAgentHint(
+            connected
+              ? `Сканирование напрямую через Fullbox Desktop на ${computerName}. Агент не используется.`
+              : 'Проверьте сканер в верхней строке Fullbox Desktop.',
+            !connected,
+          );
+          return connected;
+        } catch (error) {
+          setPrintAgentStatus('Desktop недоступен', 'error');
+          setPrintAgentHint('Не удалось получить состояние сканера из Fullbox Desktop.', true);
+          return false;
+        }
+      };
+      const handleDesktopPackingScan = (event) => {
+        if (!supportsDesktopMode) return;
+        const detail = event && event.detail ? event.detail : {};
+        detail.fullboxHandled = true;
+        detail.fullboxMode = 'desktop-direct';
+        if (event && event.cancelable) event.preventDefault();
+        const value = normalize(detail.value);
+        if (!value) return;
+        const now = Date.now();
+        if (value === desktopLastScanValue && now - desktopLastScanAt < 250) return;
+        desktopLastScanValue = value;
+        desktopLastScanAt = now;
+        const port = normalize(detail.port);
+        const displayValue = value.length > 34 ? `${value.slice(0, 34)}…` : value;
+        setPrintAgentStatus(`Desktop · напрямую · скан получен${port ? ` · ${port}` : ''}`, 'ok');
+        setPrintAgentHint(`Обрабатываю ${displayValue} напрямую через Fullbox Desktop.`);
+        handlePackingAgentScan(value);
+      };
+      const handlePackingAgentEvent = (evt) => {
+        if (evt && evt.id) {
+          agentSinceId = Math.max(agentSinceId, Number(evt.id) || 0);
+        }
+        const value = evt && evt.payload ? String(evt.payload.value || '').trim() : '';
+        if (!value) return;
+        handlePackingAgentScan(value);
+      };
+      const claimPackingAgentContext = async (force) => {
+        const agentId = normalize(state.selectedAgentId);
+        if (!agentId) {
+          agentContextId = '';
+          agentSinceId = 0;
+          return false;
+        }
+        const payload = {
+          agent_id: agentId,
+          order_id: Number.isFinite(packingOrderId) ? packingOrderId : null,
+          box_id: 'packing',
+          force: !!force,
+        };
+        if (agentContextId) {
+          payload.context_id = agentContextId;
+        }
+        try {
+          const previousContextId = agentContextId;
+          const resp = await postJson(agentContextUrl, payload);
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || data.ok === false) {
+            if (data && data.error === 'busy') {
+              const owner = data.owner || {};
+              const ownerLabel = owner.user ? `Сканер занят: ${owner.user}` : 'Сканер занят другим пользователем.';
+              setPrintAgentStatus('занят', 'warn');
+              setPrintAgentHint(ownerLabel, true);
+            } else {
+              setPrintAgentStatus('ошибка', 'error');
+              setPrintAgentHint('Не удалось подключиться к агенту сканера.', true);
+            }
+            agentContextId = '';
+            schedulePackingAgentContext(5000);
+            return false;
+          }
+          agentContextId = data.context_id || agentContextId;
+          const lastScanEventId = Number(data && data.last_scan_event_id) || 0;
+          if (agentContextId && agentContextId !== previousContextId) {
+            agentSinceId = lastScanEventId;
+          }
+          const online = data && data.agent_online !== undefined ? !!data.agent_online : true;
+          setPrintAgentStatus(online ? 'подключен' : 'нет связи', online ? 'ok' : 'warn');
+          setPrintAgentHint(online ? 'Пикните короб: он сразу запишется в открытую паллету.' : 'Агент не в сети.', !online);
+          schedulePackingAgentContext(10000);
+          return true;
+        } catch (error) {
+          setPrintAgentStatus('ошибка', 'error');
+          setPrintAgentHint('Нет соединения с агентом сканера.', true);
+          agentContextId = '';
+          schedulePackingAgentContext(5000);
+          return false;
+        }
+      };
+      const pollPackingAgentStatus = async () => {
+        const agentId = normalize(state.selectedAgentId);
+        if (!agentId) {
+          schedulePackingAgentStatus(3000);
+          return;
+        }
+        try {
+          const resp = await fetch(`${agentStatusUrl}?agent_id=${encodeURIComponent(agentId)}`, {
+            credentials: 'same-origin',
+          });
+          if (resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            const online = data && data.agent_online !== undefined ? !!data.agent_online : true;
+            if (!online) {
+              setPrintAgentStatus('нет связи', 'error');
+              setPrintAgentHint('Агент не в сети.', true);
+            }
+          }
+        } catch (error) {
+          // ignore status poll errors
+        } finally {
+          schedulePackingAgentStatus(5000);
+        }
+      };
+      const pollPackingAgentEvents = async () => {
+        const agentId = normalize(state.selectedAgentId);
+        if (document.hidden) {
+          schedulePackingAgentPoll(1500);
+          return;
+        }
+        if (!agentId || !agentContextId) {
+          schedulePackingAgentPoll(1200);
+          return;
+        }
+        const params = new URLSearchParams();
+        params.set('since', String(agentSinceId || 0));
+        params.set('type', 'scan');
+        params.set('context_id', agentContextId);
+        try {
+          const resp = await fetch(`${agentEventsUrl}?${params.toString()}`, {
+            credentials: 'same-origin',
+          });
+          if (resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            if (data && Array.isArray(data.events) && data.events.length) {
+              data.events.forEach((evt) => {
+                handlePackingAgentEvent(evt);
+              });
+            }
+          }
+        } catch (error) {
+          // ignore poll errors
+        } finally {
+          schedulePackingAgentPoll(1000);
+        }
+      };
+      const scannerAgentSync = () => {
+        clearPackingAgentTimers();
+        agentContextId = '';
+        agentSinceId = 0;
+        if (supportsDesktopMode) {
+          void refreshDesktopPackingStatus();
+          return;
+        }
+        const agentId = normalize(state.selectedAgentId);
+        if (!agentId) {
+          setPrintAgentStatus('авто', 'warn');
+          setPrintAgentHint('Агент будет выбран по принтеру.');
+          return;
+        }
+        schedulePackingAgentStatus(1000);
+        schedulePackingAgentPoll(800);
+        void claimPackingAgentContext(false);
+      };
+      window.addEventListener('beforeunload', clearPackingAgentTimers);
+      const boxDisplayRows = (box) => {
+        const rows = Array.isArray(box?.items) ? box.items.filter((item) => item && Number(item.qty || 0) > 0) : [];
+        if (rows.length) return rows;
+        return [{ sku_code: '-', name: '-', size: '-', barcode: normalize(box?.barcode_preview) || '-', qty: Number(box?.qty || 0) || 0 }];
+      };
+      const renderBoxViewQr = (box) => {
+        if (!boxViewQrEl) return;
+        boxViewQrEl.innerHTML = '';
+        const code = normalize(box?.code);
+        if (!code) {
+          boxViewQrEl.textContent = '-';
+          return;
+        }
+        if (!window.QRCode) {
+          boxViewQrEl.textContent = code;
+          return;
+        }
+        new QRCode(boxViewQrEl, { text: code, width: 144, height: 144, correctLevel: QRCode.CorrectLevel.M });
+      };
+      const openBoxViewModal = (rowKey) => {
+        const box = getBox(rowKey);
+        if (!box || !boxViewModalEl) return;
+        state.previewBoxRowKey = boxRowKey(box);
+        if (boxViewCodeEl) boxViewCodeEl.textContent = box.code || '-';
+        if (boxViewMetaEl) {
+          const pallet = getPallet(box.pallet_code);
+          boxViewMetaEl.textContent = `${Number(box.qty || 0)} шт. · ${pallet ? `паллета ${pallet.label || pallet.code}` : 'без паллеты'}`;
+        }
+        if (boxViewItemsEl) {
+          const rows = boxDisplayRows(box);
+          boxViewItemsEl.innerHTML = rows.map((item) => `
+            <tr>
+              <td>${escapeHtml(item.sku_code || '-')}</td>
+              <td>${escapeHtml(item.name || '-')}</td>
+              <td>${escapeHtml(item.size || '-')}</td>
+              <td>${escapeHtml(item.barcode || '-')}</td>
+              <td>${escapeHtml(item.qty || 0)}</td>
+            </tr>
+          `).join('');
+        }
+        renderBoxViewQr(box);
+        boxViewModalEl.classList.add('is-open');
+        boxViewModalEl.setAttribute('aria-hidden', 'false');
+      };
+      const closeBoxViewModal = () => {
+        state.previewBoxRowKey = '';
+        boxViewModalEl?.classList.remove('is-open');
+        boxViewModalEl?.setAttribute('aria-hidden', 'true');
+      };
+      const buildBoxQrLabelImage = async (box, numberLabel) => {
+        if (!window.html2canvas || !window.QRCode) {
+          throw new Error('Библиотеки печати QR не загружены.');
+        }
+        const code = normalize(box?.code);
+        if (!code) throw new Error('Код короба не найден.');
+        const holder = document.createElement('div');
+        holder.className = 'qr-label-capture';
+        holder.innerHTML = `
+          <div style="width:58mm;height:60mm;box-sizing:border-box;padding:4mm 4mm 4mm 8mm;position:relative;background:#fff;color:#111;font-family:Arial,sans-serif;">
+            <div style="font-size:10pt;text-transform:uppercase;letter-spacing:.6px;">Короб</div>
+            <div style="margin-top:1.5mm;font-size:12pt;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(code)}</div>
+            <div data-qr-box style="position:absolute;left:50%;top:50%;width:30mm;height:30mm;transform:translate(-50%,-40%);display:grid;place-items:center;"></div>
+            <div style="position:absolute;left:3mm;bottom:3mm;transform:rotate(-90deg);transform-origin:left bottom;font-size:10pt;font-weight:600;white-space:nowrap;max-width:52mm;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(clientLabel || '-')}</div>
+            <div style="position:absolute;right:3mm;bottom:3mm;font-size:12pt;font-weight:700;">${escapeHtml(numberLabel || '')}</div>
+          </div>
+        `;
+        document.body.appendChild(holder);
+        try {
+          const root = holder.firstElementChild;
+          const qrBox = root?.querySelector('[data-qr-box]');
+          if (!root || !qrBox) throw new Error('Не удалось подготовить QR.');
+          const size = Math.floor(Math.min(qrBox.clientWidth || 0, qrBox.clientHeight || 0)) || 120;
+          new QRCode(qrBox, { text: code, width: size, height: size, correctLevel: QRCode.CorrectLevel.M });
+          await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+          const canvas = await window.html2canvas(root, {
+            backgroundColor: '#ffffff',
+            scale: 2.12,
+            logging: false,
+            useCORS: true,
+          });
+          return canvas.toDataURL('image/png');
+        } finally {
+          holder.remove();
+        }
+      };
+      const queueBoxQrLabels = async (boxes) => {
+        const rows = Array.isArray(boxes) ? boxes.filter((box) => box && normalize(box.code)) : [];
+        if (!rows.length) {
+          alert('Короба для печати не найдены.');
+          return false;
+        }
+        if (state.qrPrinting) return false;
+        const target = ensureQrPrintTarget();
+        if (!target) return false;
+        state.qrPrinting = true;
+        boxViewPrintQrEl?.setAttribute('disabled', 'disabled');
+        try {
+          for (let index = 0; index < rows.length; index += 1) {
+            const box = rows[index];
+            const image = await buildBoxQrLabelImage(box, String(index + 1));
+            const base64 = String(image || '').split(',')[1] || '';
+            if (!base64) throw new Error(`Не удалось сформировать QR для короба ${box.code}.`);
+            const response = await fetch(printJobUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+              },
+              credentials: 'same-origin',
+              body: JSON.stringify({
+                order_id: String(orderLabel || ''),
+                card_id: '',
+                article: 'shipping_box_qr',
+                barcode: String(box.code || ''),
+                size: '',
+                printer_name: target.printerName,
+                agent_id: target.agentId,
+                label_png_base64: base64,
+                label_width_mm: 60,
+                label_height_mm: 58,
+              }),
+            });
+            if (!response.ok) {
+              const text = await response.text();
+              throw new Error(text || `Ошибка очереди печати: ${response.status}`);
+            }
+          }
+          alert(rows.length > 1 ? `QR коробов отправлены в печать: ${rows.length}` : 'QR короба отправлен в печать.');
+          return true;
+        } catch (error) {
+          alert(error?.message || 'Не удалось отправить QR в печать.');
+          return false;
+        } finally {
+          state.qrPrinting = false;
+          boxViewPrintQrEl?.removeAttribute('disabled');
+        }
+      };
+      const baseSlipRows = (slip) => [
+        ['Номер паллеты', slip.pallet_label],
+        ['Тип поставки', slip.supply_type],
+        ['Кол-во паллет в поставке', slip.total_pallets],
+        ['Номер поставки', slip.supply_number],
+        ['ШК поставки', slip.shipping_barcode],
+        ['Кол-во коробов на паллете', slip.box_count],
+        ['Склад назначения', slip.destination_warehouse],
+        ['Транзитный склад', slip.transit_address],
+        ['Поставщик', slip.supplier_name],
+        ['Дата поставки', slip.delivery_date],
+      ];
+      const renderPackingSlipMarkup = (slip, mode = 'card') => {
+        const sizeMap = {
+          card: { width: 240, font: 12.4 },
+          modal: { width: 430, font: 22 },
+          capture: { width: 750, font: 38 },
+        };
+        const size = sizeMap[mode] || sizeMap.card;
+        const rowsMarkup = baseSlipRows(slip).map(([label, value]) => (
+          `<div class="packing-slip-row"><div class="packing-slip-label">${escapeHtml(label)}</div><div class="packing-slip-value${String(label).includes('короб') ? ' left' : ''}">${escapeHtml(value || '-')}</div></div>`
+        )).join('');
+        return `
+          <div class="packing-slip-sheet packing-slip-sheet-${mode}" style="width:${size.width}px;font-size:${size.font}px">
+            <div class="packing-slip-title">УПАКОВОЧНЫЙ ЛИСТ</div>
+            <div class="packing-slip-marketplace">${escapeHtml(slip.marketplace_name || '-')}</div>
+            <div class="packing-slip-qr-wrap">
+              <div class="packing-slip-qr-main">
+                <div class="packing-slip-qr" data-slip-qr aria-label="${escapeHtml(slip.shipping_barcode || '')}"></div>
+              </div>
+              <div class="packing-slip-qr-caption">${escapeHtml(slip.shipping_barcode || '-')}</div>
+            </div>
+            <div class="packing-slip-rows">${rowsMarkup}</div>
+            <div class="packing-slip-footer">FULLBOX</div>
+          </div>
+        `;
+      };
+      const renderSlipQr = (root, barcodeValue, mode) => {
+        const qr = root?.querySelector?.('[data-slip-qr]');
+        if (!qr || !barcodeValue || barcodeValue === '-' || !window.QRCode) return;
+        qr.innerHTML = '';
+        const size = mode === 'capture' ? 180 : mode === 'modal' ? 104 : 58;
+        new window.QRCode(qr, {
+          text: String(barcodeValue),
+          width: size,
+          height: size,
+          correctLevel: window.QRCode.CorrectLevel.M,
+        });
+      };
+      const packingSlips = () => {
+        const pallets = state.pallets.filter((pallet) => boxesForPallet(pallet.code).length > 0);
+        return pallets.map((pallet, index) => {
+          const boxes = boxesForPallet(pallet.code).sort((a, b) => boxNo(a) - boxNo(b));
+          return {
+            slip_key: normalize(pallet.code) || `PAL-${index + 1}`,
+            pallet_label: normalize(pallet.label) || normalize(pallet.code) || String(index + 1),
+            total_pallets: String(pallets.length),
+            box_count: String(boxes.length),
+            marketplace_name: String(packingSlipMeta.marketplace_name || '-').toUpperCase(),
+            supply_type: String(packingSlipMeta.supply_type || '-'),
+            supply_number: String(packingSlipMeta.supply_number || '-'),
+            shipping_barcode: String(packingSlipMeta.shipping_barcode || '-'),
+            destination_warehouse: String(packingSlipMeta.destination_warehouse || '-'),
+            transit_address: String(packingSlipMeta.transit_address || '-'),
+            supplier_name: String(packingSlipMeta.supplier_name || '-'),
+            delivery_date: String(packingSlipMeta.delivery_date || '-'),
+          };
+        });
+      };
+      const getSlip = (slipKey) => packingSlips().find((item) => normalize(item.slip_key) === normalize(slipKey)) || null;
+
+      const uniquePalletCode = () => {
+        const existing = new Set(state.pallets.map((item) => normalize(item.code)));
+        let index = state.pallets.length + 1;
+        let code = `PAL-${index}`;
+        while (existing.has(code)) { index += 1; code = `PAL-${index}`; }
+        return code;
+      };
+
+      const createPallet = () => {
+        const pallet = { code: uniquePalletCode(), label: `Паллета ${state.pallets.length + 1}`, sealed: false };
+        state.pallets.push(pallet);
+        state.activePalletCode = pallet.code;
+        return pallet;
+      };
+
+      const ensureOpenPallet = () => {
+        let active = getActivePallet();
+        if (!active) {
+          active = state.pallets.find((item) => !item.sealed) || null;
+          if (active) state.activePalletCode = active.code;
+        }
+        if (!active) active = createPallet();
+        state.pallets.forEach((item) => { item.sealed = normalize(item.code) !== normalize(active.code); });
+        return active;
+      };
+
+      const pruneEmptyPallets = () => {
+        const used = usedCodes();
+        state.pallets = state.pallets.filter((item) => used.has(normalize(item.code)) || normalize(item.code) === normalize(state.activePalletCode));
+      };
+
+      const assignToActive = (rowKey) => {
+        if (guardRemovalBlocked()) return;
+        const pallet = ensureOpenPallet();
+        const box = getBox(rowKey);
+        if (box) box.pallet_code = pallet.code;
+      };
+
+      const unassignBox = (rowKey) => {
+        if (guardRemovalBlocked()) return;
+        const box = getBox(rowKey);
+        if (box) box.pallet_code = '';
+      };
+
+      const closeActivePallet = () => {
+        const active = getActivePallet();
+        if (!active) return void ensureOpenPallet();
+        const activeBoxes = boxesForPallet(active.code);
+        if (!activeBoxes.length) {
+          state.pallets = state.pallets.filter((item) => normalize(item.code) !== normalize(active.code));
+          state.activePalletCode = '';
+          return void ensureOpenPallet();
+        }
+        active.sealed = true;
+        const next = createPallet();
+        state.pallets.forEach((item) => { item.sealed = normalize(item.code) !== normalize(next.code); });
+      };
+
+      const setPalletCloseError = (message) => {
+        if (!palletCloseErrorEl) return;
+        const text = normalize(message);
+        palletCloseErrorEl.textContent = text;
+        palletCloseErrorEl.classList.toggle('is-open', Boolean(text));
+      };
+
+      const closePalletCloseModal = () => {
+        state.pendingClosePalletCode = '';
+        setPalletCloseError('');
+        if (palletCloseInputEl) palletCloseInputEl.value = '';
+        palletCloseModalEl?.classList.remove('is-open');
+        palletCloseModalEl?.setAttribute('aria-hidden', 'true');
+      };
+
+      const openPalletCloseConfirm = () => {
+        if (guardRemovalBlocked()) return;
+        const active = getActivePallet();
+        if (!active) {
+          ensureOpenPallet();
+          render();
+          return;
+        }
+        const activeBoxes = boxesForPallet(active.code);
+        if (!activeBoxes.length) {
+          closeActivePallet();
+          render();
+          return;
+        }
+        state.pendingClosePalletCode = active.code;
+        if (palletCloseCaptionEl) {
+          palletCloseCaptionEl.textContent = `Сколько коробов в паллете ${normalize(active.label) || active.code}?`;
+        }
+        setPalletCloseError('');
+        if (palletCloseInputEl) palletCloseInputEl.value = '';
+        palletCloseModalEl?.classList.add('is-open');
+        palletCloseModalEl?.setAttribute('aria-hidden', 'false');
+        window.setTimeout(() => palletCloseInputEl?.focus(), 0);
+      };
+
+      const confirmPalletClose = () => {
+        if (guardRemovalBlocked()) return;
+        const target = getPallet(state.pendingClosePalletCode);
+        if (!target) {
+          closePalletCloseModal();
+          render();
+          return;
+        }
+        const expectedCount = boxesForPallet(target.code).length;
+        const rawCount = normalize(palletCloseInputEl?.value);
+        const submittedCount = Number(rawCount);
+        if (!rawCount || !Number.isInteger(submittedCount) || submittedCount < 0) {
+          setPalletCloseError('Введите целое количество коробов.');
+          palletCloseInputEl?.focus();
+          return;
+        }
+        if (submittedCount !== expectedCount) {
+          setPalletCloseError('Количество не совпадает. Проверьте короба в паллете и попробуйте снова.');
+          palletCloseInputEl?.select();
+          return;
+        }
+        state.activePalletCode = target.code;
+        closePalletCloseModal();
+        closeActivePallet();
+        render();
+      };
+
+      const reopenPallet = (code) => {
+        if (guardRemovalBlocked()) return;
+        const target = getPallet(code);
+        if (!target) return;
+        const active = getActivePallet();
+        if (active && normalize(active.code) !== normalize(target.code)) {
+          if (!boxesForPallet(active.code).length) state.pallets = state.pallets.filter((item) => normalize(item.code) !== normalize(active.code));
+          else active.sealed = true;
+        }
+        target.sealed = false;
+        state.activePalletCode = target.code;
+        ensureOpenPallet();
+      };
+
+      const removePallet = (code) => {
+        if (guardRemovalBlocked()) return;
+        if (boxesForPallet(code).length) {
+          alert('Нельзя удалить непустую паллету. Сначала уберите из нее короба.');
+          return;
+        }
+        state.pallets = state.pallets.filter((item) => normalize(item.code) !== normalize(code));
+        if (normalize(state.activePalletCode) === normalize(code)) state.activePalletCode = '';
+        ensureOpenPallet();
+      };
+
+      const setPalletRemovalError = (message) => {
+        if (!palletRemovalErrorEl) return;
+        const text = normalize(message);
+        palletRemovalErrorEl.textContent = text;
+        palletRemovalErrorEl.classList.toggle('is-open', Boolean(text));
+      };
+
+      const closePalletRemovalModal = () => {
+        if (state.removalSubmitting) return;
+        state.pendingRemovalPalletCode = '';
+        setPalletRemovalError('');
+        if (palletRemovalReasonEl) palletRemovalReasonEl.value = '';
+        palletRemovalModalEl?.classList.remove('is-open');
+        palletRemovalModalEl?.setAttribute('aria-hidden', 'true');
+      };
+
+      const openPalletRemovalModal = (code) => {
+        if (guardRemovalBlocked()) return;
+        const pallet = getPallet(code);
+        if (!pallet) return;
+        const boxes = boxesForPallet(pallet.code);
+        if (!boxes.length) {
+          alert('В этой паллете нет коробов для изъятия.');
+          return;
+        }
+        state.pendingRemovalPalletCode = pallet.code;
+        if (palletRemovalCaptionEl) {
+          palletRemovalCaptionEl.textContent = `Паллета ${normalize(pallet.label) || pallet.code}: ${boxes.length} коробов. Укажите причину отмены.`;
+        }
+        setPalletRemovalError('');
+        if (palletRemovalReasonEl) palletRemovalReasonEl.value = '';
+        palletRemovalModalEl?.classList.add('is-open');
+        palletRemovalModalEl?.setAttribute('aria-hidden', 'false');
+        window.setTimeout(() => palletRemovalReasonEl?.focus(), 0);
+      };
+
+      const submitPalletRemovalRequest = async () => {
+        if (state.removalSubmitting) return;
+        if (guardRemovalBlocked()) return;
+        const pallet = getPallet(state.pendingRemovalPalletCode);
+        if (!pallet) {
+          setPalletRemovalError('Паллета не найдена.');
+          return;
+        }
+        const reason = normalize(palletRemovalReasonEl?.value);
+        if (!reason) {
+          setPalletRemovalError('Укажите причину отмены.');
+          palletRemovalReasonEl?.focus();
+          return;
+        }
+        state.removalSubmitting = true;
+        try {
+          const response = await fetch(palletRemovalRequestUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({
+              pallet_code: pallet.code,
+              reason,
+              boxes: state.boxes,
+              pallets: state.pallets,
+            }),
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok || !payload.ok) {
+            throw new Error(payload.error || 'Не удалось отправить запрос менеджеру.');
+          }
+          alert('Запрос отправлен менеджеру. Паллетизация заблокирована до решения.');
+          window.location.reload();
+        } catch (error) {
+          setPalletRemovalError(error?.message || 'Не удалось отправить запрос менеджеру.');
+        } finally {
+          state.removalSubmitting = false;
+        }
+      };
+
+      const showMenu = (menu, event) => {
+        if (!menu) return;
+        event.preventDefault();
+        const width = menu.offsetWidth || 230;
+        const height = menu.offsetHeight || 150;
+        menu.style.left = `${Math.min(event.clientX, window.innerWidth - width - 8)}px`;
+        menu.style.top = `${Math.min(event.clientY, window.innerHeight - height - 8)}px`;
+        menu.classList.add('is-open');
+        menu.setAttribute('aria-hidden', 'false');
+      };
+
+      const closeContextMenus = () => {
+        [boxContextMenuEl, palletContextMenuEl].forEach((menu) => {
+          if (!menu) return;
+          menu.classList.remove('is-open');
+          menu.setAttribute('aria-hidden', 'true');
+        });
+      };
+
+      const openBoxContextMenu = (event, rowKey) => {
+        const box = getBox(rowKey);
+        if (!box) return;
+        closeContextMenus();
+        state.contextBoxRowKey = boxRowKey(box);
+        const unassignBtn = boxContextMenuEl?.querySelector('[data-action="unassign-box"]');
+        if (unassignBtn) unassignBtn.disabled = !normalize(box.pallet_code);
+        showMenu(boxContextMenuEl, event);
+      };
+
+      const openPalletContextMenu = (event, code) => {
+        const pallet = getPallet(code);
+        if (!pallet) return;
+        closeContextMenus();
+        state.contextPalletCode = pallet.code;
+        const openBtn = palletContextMenuEl?.querySelector('[data-action="open-pallet"]');
+        const closeBtn = palletContextMenuEl?.querySelector('[data-action="close-pallet"]');
+        const deleteBtn = palletContextMenuEl?.querySelector('[data-action="delete-pallet"]');
+        const printBoxesBtn = palletContextMenuEl?.querySelector('[data-action="print-pallet-boxes-qr"]');
+        const printSlipBtn = palletContextMenuEl?.querySelector('[data-action="print-pallet-slip"]');
+        const requestRemovalBtn = palletContextMenuEl?.querySelector('[data-action="request-pallet-removal"]');
+        const blocked = removalBlocked();
+        const boxCount = boxesForPallet(pallet.code).length;
+        if (openBtn) openBtn.disabled = blocked || !pallet.sealed;
+        if (closeBtn) closeBtn.disabled = blocked || pallet.sealed || !boxCount;
+        if (deleteBtn) {
+          deleteBtn.disabled = blocked || boxCount > 0;
+          deleteBtn.title = boxCount > 0 ? 'Сначала уберите короба из паллеты.' : '';
+        }
+        if (printBoxesBtn) printBoxesBtn.disabled = !boxesForPallet(pallet.code).length;
+        if (printSlipBtn) printSlipBtn.disabled = !boxCount;
+        if (requestRemovalBtn) requestRemovalBtn.disabled = blocked || !boxCount;
+        showMenu(palletContextMenuEl, event);
+      };
+
+      const syncInputs = () => {
+        boxesInput.value = JSON.stringify(state.boxes.map((box) => ({ row_key: box.row_key, code: box.code, qty: box.qty, barcode_preview: box.barcode_preview, pallet_code: box.pallet_code })));
+        palletsInput.value = JSON.stringify(state.pallets.map((pallet) => ({ code: pallet.code, label: pallet.label, sealed: !!pallet.sealed })));
+      };
+
+      const renderSummary = () => {
+        const packed = state.pallets.filter((pallet) => boxesForPallet(pallet.code).length > 0);
+        const active = ensureOpenPallet();
+        summaryEl.textContent = `По заявке ${orderLabel} доставлено ${state.boxes.length} коробов, собрано ${packed.length} паллет.`;
+        openPillEl.textContent = normalize(active.label) || active.code;
+        unassignedPillEl.textContent = String(unassignedBoxes().length);
+      };
+
+      const renderRemaining = () => {
+        const rows = unassignedBoxes().sort((a, b) => boxNo(a) - boxNo(b));
+        remainingCountEl.textContent = String(rows.length);
+        remainingEl.innerHTML = rows.length ? '' : '<tr><td colspan="4" class="muted">Все короба размещены по паллетам.</td></tr>';
+        rows.forEach((box) => {
+          const row = document.createElement('tr');
+          row.dataset.boxRow = box.row_key;
+          row.innerHTML = `<td><b>${box.code}</b></td><td>${box.qty}</td><td>${normalize(box.barcode_preview) || '-'}</td><td><button type="button" class="btn small" data-assign-row="${box.row_key}">В открытую паллету</button></td>`;
+          remainingEl.appendChild(row);
+        });
+        remainingEl.querySelectorAll('[data-assign-row]').forEach((btn) => btn.addEventListener('click', () => { assignToActive(btn.dataset.assignRow || ''); render(); }));
+      };
+
+      const renderCurrent = () => {
+        const active = ensureOpenPallet();
+        const boxes = boxesForPallet(active.code).sort((a, b) => boxNo(a) - boxNo(b));
+        currentCountEl.textContent = String(boxes.length);
+        currentCodeEl.textContent = normalize(active.label) || active.code;
+        currentStatusEl.textContent = `Открыта · ${boxes.length} коробов`;
+        currentBadgeEl.textContent = normalize(active.label) || active.code;
+        currentBoxesEl.innerHTML = boxes.length ? '' : '<div class="box-item muted">В открытую паллету пока не добавлены короба.</div>';
+        boxes.forEach((box) => {
+          const row = document.createElement('div');
+          row.className = 'box-item';
+          row.dataset.currentBoxRow = box.row_key;
+          row.innerHTML = `<div><div><b>${box.code}</b></div><small>${normalize(box.barcode_preview) || '-'}</small></div><div style="display:flex;align-items:center;gap:8px;"><span class="qty">${box.qty} шт.</span><button type="button" class="btn small" data-unassign-row="${box.row_key}">Убрать</button></div>`;
+          currentBoxesEl.appendChild(row);
+        });
+        currentBoxesEl.querySelectorAll('[data-unassign-row]').forEach((btn) => btn.addEventListener('click', () => { unassignBox(btn.dataset.unassignRow || ''); render(); }));
+      };
+
+      const palletCard = (pallet) => {
+        const boxes = boxesForPallet(pallet.code).sort((a, b) => boxNo(a) - boxNo(b));
+        const active = normalize(pallet.code) === normalize(state.activePalletCode);
+        const open = !pallet.sealed;
+        const chips = boxes.map((box) => {
+          if (!open) {
+            return `<span class="box-chip closed" data-box-row="${box.row_key}" title="${box.code}"><span class="box-chip-number">${boxChipLabel(box)}</span><span class="box-chip-count">${box.qty}</span></span>`;
+          }
+          return `<button type="button" class="box-chip open" data-box-row="${box.row_key}" title="${box.code}"><span class="box-chip-number">${boxChipLabel(box)}</span><span class="box-chip-count">${box.qty}</span></button>`;
+        }).join('');
+        const card = document.createElement('div');
+        card.className = `pallet${open ? ' open' : ''}${active ? ' active' : ''}`;
+        card.dataset.palletCode = pallet.code;
+        card.innerHTML = `<div class="p-head"><div class="p-left"><div class="p-chip"><div class="p-chip-top">${open ? 'OPEN' : 'PAL'}</div><div class="p-chip-bottom">${boxes.length}</div></div><div><div class="p-code">${normalize(pallet.label) || pallet.code}</div><div class="p-status">${open ? 'Открытая паллета' : 'Закрытая паллета'}</div></div></div></div><div class="p-meta"><div>Коробов: <span>${boxes.length}</span></div><div>Количество: <span>${boxes.reduce((sum, box) => sum + Number(box.qty || 0), 0)}</span></div></div><div class="box-grid">${chips || '<div class="muted">Коробов нет.</div>'}</div>`;
+        return card;
+      };
+
+      const renderBoard = () => {
+        boardEl.innerHTML = state.pallets.length ? '' : '<div class="muted">Паллеты пока не созданы.</div>';
+        state.pallets.forEach((pallet) => boardEl.appendChild(palletCard(pallet)));
+        boardEl.querySelectorAll('[data-box-row]').forEach((btn) => btn.addEventListener('click', () => { unassignBox(btn.dataset.boxRow || ''); render(); }));
+      };
+
+      const renderClosed = () => {
+        const closed = state.pallets.filter((pallet) => pallet.sealed && boxesForPallet(pallet.code).length > 0);
+        closedEl.innerHTML = closed.length ? '' : '<div class="closed-row muted">Закрытых паллет пока нет.</div>';
+        closed.forEach((pallet) => {
+          const row = document.createElement('div');
+          const boxes = boxesForPallet(pallet.code);
+          row.className = 'closed-row';
+          row.dataset.closedPalletCode = pallet.code;
+          row.innerHTML = `<div><div><b>${normalize(pallet.label) || pallet.code}</b></div><div class="muted">${boxes.length} коробов</div></div><button type="button" class="btn small" data-reopen="${pallet.code}">Открыть</button>`;
+          closedEl.appendChild(row);
+        });
+        closedEl.querySelectorAll('[data-reopen]').forEach((btn) => btn.addEventListener('click', () => { reopenPallet(btn.dataset.reopen || ''); render(); }));
+      };
+
+      const renderPreviewModal = () => {
+        if (!slipsEnabled) return;
+        const slip = getSlip(state.previewSlipKey);
+        if (!slip) {
+          slipModalEl?.classList.remove('is-open');
+          slipModalBodyEl.innerHTML = '';
+          slipModalCaptionEl.textContent = '-';
+          state.previewSlipKey = '';
+          return;
+        }
+        slipModalBodyEl.innerHTML = renderPackingSlipMarkup(slip, 'modal');
+        renderSlipQr(slipModalBodyEl, slip.shipping_barcode, 'modal');
+        slipModalCaptionEl.textContent = `Паллета ${slip.pallet_label} · ${slip.box_count} коробов`;
+        slipModalEl?.classList.add('is-open');
+      };
+
+      const openPreviewModal = (slipKey) => {
+        if (!slipsEnabled) return;
+        state.previewSlipKey = normalize(slipKey);
+        renderPreviewModal();
+      };
+
+      const closePreviewModal = () => {
+        if (!slipsEnabled) return;
+        state.previewSlipKey = '';
+        renderPreviewModal();
+      };
+
+      const ensurePrinter = () => {
+        if (!slipsEnabled) return '';
+        const printer = String(printerInputEl?.value || '').trim() || readStoredPrinter();
+        if (!printer) {
+          alert('Укажи принтер этикеток для печати упаковочных листов.');
+          printerInputEl?.focus();
+          return '';
+        }
+        if (printerInputEl) {
+          printerInputEl.value = printer;
+        }
+        persistPrinter(printer);
+        return printer;
+      };
+
+      const captureSlipImage = async (slip) => {
+        if (!slipsEnabled) {
+          throw new Error('Страница упаковочных листов недоступна');
+        }
+        if (!window.html2canvas) {
+          throw new Error('html2canvas недоступен');
+        }
+        if (document.fonts?.ready) {
+          await document.fonts.ready.catch(() => null);
+        }
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = renderPackingSlipMarkup(slip, 'capture');
+        const root = wrapper.firstElementChild;
+        if (!root) {
+          throw new Error('Не удалось подготовить шаблон упаковочного листа');
+        }
+        slipCaptureHostEl.innerHTML = '';
+        slipCaptureHostEl.appendChild(root);
+        renderSlipQr(root, slip.shipping_barcode, 'capture');
+        await new Promise((resolve) => window.requestAnimationFrame(resolve));
+        const canvas = await window.html2canvas(root, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          useCORS: true,
+          logging: false,
+        });
+        slipCaptureHostEl.innerHTML = '';
+        return canvas.toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
+      };
+
+      const queueSlipPrint = async (slip) => {
+        const printer = ensurePrinter();
+        if (!printer) return false;
+        const image = await captureSlipImage(slip);
+        const response = await fetch(printJobUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+          },
+          body: JSON.stringify({
+            order_id: String(packingSlipMeta.order_number || orderLabel || ''),
+            card_id: String(slip.pallet_label || ''),
+            article: 'shipping_packing_slip',
+            barcode: `${String(packingSlipMeta.order_number || orderLabel || 'shipping')}::${String(slip.pallet_label || '')}`,
+            size: 'pallet',
+            printer_name: printer,
+            label_png_base64: image,
+            label_width_mm: 75,
+            label_height_mm: 120,
+          }),
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || 'Не удалось поставить задание печати в очередь');
+        }
+        return true;
+      };
+
+      const withPrintLock = async (work) => {
+        if (state.printing) return;
+        state.printing = true;
+        printAllSlipsBtn?.setAttribute('disabled', 'disabled');
+        slipModalPrintEl?.setAttribute('disabled', 'disabled');
+        try {
+          await work();
+        } finally {
+          state.printing = false;
+          printAllSlipsBtn?.removeAttribute('disabled');
+          slipModalPrintEl?.removeAttribute('disabled');
+        }
+      };
+
+      const printSlip = async (slipKey) => withPrintLock(async () => {
+        const slip = getSlip(slipKey);
+        if (!slip) {
+          alert('Паллета для печати не найдена.');
+          return;
+        }
+        try {
+          await queueSlipPrint(slip);
+          alert(`Упаковочный лист паллеты ${slip.pallet_label} отправлен в печать.`);
+        } catch (error) {
+          alert(error?.message || 'Не удалось отправить упаковочный лист в печать.');
+        }
+      });
+
+      const printAllSlips = async () => withPrintLock(async () => {
+        const slips = packingSlips();
+        if (!slips.length) {
+          alert('Нет паллет с коробами для печати.');
+          return;
+        }
+        const printer = ensurePrinter();
+        if (!printer) {
+          return;
+        }
+        for (const slip of slips) {
+          try {
+            await queueSlipPrint(slip);
+          } catch (error) {
+            alert(`Печать остановлена на паллете ${slip.pallet_label}: ${error?.message || 'ошибка без описания'}`);
+            return;
+          }
+        }
+        alert(`В очередь печати отправлено ${slips.length} упаковочных листов.`);
+      });
+
+      const renderSlips = () => {
+        if (!slipsEnabled) return;
+        const slips = packingSlips();
+        slipGridEl.innerHTML = slips.length ? '' : '<div class="packing-slip-empty">Появятся после того, как хотя бы одна паллета получит короба.</div>';
+        slips.forEach((slip) => {
+          const card = document.createElement('div');
+          card.className = 'slip-card';
+          card.innerHTML = `
+            <div class="slip-card-head">
+              <div>
+                <div class="slip-card-title">Паллета ${escapeHtml(slip.pallet_label)}</div>
+                <div class="slip-card-meta">${escapeHtml(slip.box_count)} коробов · поставка ${escapeHtml(slip.supply_number)}</div>
+              </div>
+              <div class="slip-card-actions">
+                <button class="btn small" type="button" data-slip-preview="${escapeHtml(slip.slip_key)}">Предпросмотр</button>
+                <button class="btn small" type="button" data-slip-print="${escapeHtml(slip.slip_key)}">Печать</button>
+              </div>
+            </div>
+            ${renderPackingSlipMarkup(slip, 'card')}
+          `;
+          slipGridEl.appendChild(card);
+          renderSlipQr(card, slip.shipping_barcode, 'card');
+        });
+        slipGridEl.querySelectorAll('[data-slip-preview]').forEach((btn) => btn.addEventListener('click', () => openPreviewModal(btn.dataset.slipPreview || '')));
+        slipGridEl.querySelectorAll('[data-slip-print]').forEach((btn) => btn.addEventListener('click', () => { void printSlip(btn.dataset.slipPrint || ''); }));
+        renderPreviewModal();
+      };
+
+      const applyRemovalLock = () => {
+        const blocked = removalBlocked();
+        document.getElementById('close-pallet-btn')?.toggleAttribute('disabled', blocked);
+        document.getElementById('close-current-pallet-btn')?.toggleAttribute('disabled', blocked);
+        document.querySelector('button[form="packing-form"][type="submit"]')?.toggleAttribute('disabled', blocked);
+        document.querySelectorAll('[data-assign-row], [data-unassign-row], [data-reopen]').forEach((btn) => {
+          btn.toggleAttribute('disabled', blocked);
+        });
+      };
+
+      let autosaveReady = false;
+      let autosaveTimer = null;
+      let autosaveInFlight = false;
+      let autosaveQueued = false;
+      let autosaveLastPayload = '';
+
+      const setAutosaveStatus = (text) => {
+        if (autosaveStatusEl) autosaveStatusEl.textContent = text || '';
+      };
+
+      const currentDraftPayloadKey = () => {
+        syncInputs();
+        return `${boxesInput.value || '[]'}\n${palletsInput.value || '[]'}`;
+      };
+
+      const autosavePackingDraft = async () => {
+        if (!autosaveReady || !autosaveUrl || !csrfToken) return;
+        const payloadKey = currentDraftPayloadKey();
+        if (payloadKey === autosaveLastPayload) return;
+        if (autosaveInFlight) {
+          autosaveQueued = true;
+          return;
+        }
+        autosaveInFlight = true;
+        setAutosaveStatus('\u0421\u043e\u0445\u0440\u0430\u043d\u044f\u0435\u043c...');
+        const body = new URLSearchParams();
+        body.set('boxes_json', boxesInput.value || '[]');
+        body.set('pallets_json', palletsInput.value || '[]');
+        try {
+          const response = await fetch(autosaveUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'X-CSRFToken': csrfToken,
+              'X-Requested-With': 'XMLHttpRequest',
+            },
+            body,
+          });
+          if (!response.ok) throw new Error(`Autosave failed: ${response.status}`);
+          autosaveLastPayload = payloadKey;
+          setAutosaveStatus('\u0427\u0435\u0440\u043d\u043e\u0432\u0438\u043a \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d');
+        } catch (error) {
+          console.error(error);
+          setAutosaveStatus('\u0410\u0432\u0442\u043e\u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435 \u043d\u0435 \u043f\u0440\u043e\u0448\u043b\u043e');
+        } finally {
+          autosaveInFlight = false;
+          if (autosaveQueued) {
+            autosaveQueued = false;
+            window.setTimeout(() => { void autosavePackingDraft(); }, 150);
+          }
+        }
+      };
+
+      const schedulePackingAutosave = () => {
+        if (!autosaveReady) return;
+        window.clearTimeout(autosaveTimer);
+        autosaveTimer = window.setTimeout(() => { void autosavePackingDraft(); }, 800);
+      };
+
+      const render = () => { pruneEmptyPallets(); ensureOpenPallet(); renderSummary(); renderRemaining(); renderCurrent(); renderBoard(); renderClosed(); renderSlips(); applyRemovalLock(); syncInputs(); schedulePackingAutosave(); };
+
+      document.getElementById('close-pallet-btn')?.addEventListener('click', openPalletCloseConfirm);
+      document.getElementById('close-current-pallet-btn')?.addEventListener('click', openPalletCloseConfirm);
+      const submitTsdScanInput = () => {
+        window.clearTimeout(tsdScanInputTimer);
+        tsdScanInputTimer = null;
+        const value = normalize(tsdScanInputEl?.value);
+        if (!value) {
+          setTsdScanState('Введите или пикните ШК короба', 'warn');
+          return false;
+        }
+        if (tsdScanInputEl) tsdScanInputEl.value = '';
+        handlePackingScan(value, 'manual');
+        tsdScanInputEl?.focus({ preventScroll: true });
+        return true;
+      };
+      let tsdScanInputTimer = null;
+      let tsdScanWatchedValue = '';
+      const scheduleTsdScanInput = () => {
+        if (!tsdScanInputEl) return;
+        window.clearTimeout(tsdScanInputTimer);
+        const snapshot = normalize(tsdScanInputEl.value);
+        tsdScanWatchedValue = snapshot;
+        if (!snapshot) return;
+        tsdScanInputTimer = window.setTimeout(() => {
+          if (normalize(tsdScanInputEl.value) !== snapshot) return;
+          submitTsdScanInput();
+        }, 180);
+      };
+      tsdScanFormEl?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        submitTsdScanInput();
+      });
+      tsdScanInputEl?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== 'Tab') return;
+        event.preventDefault();
+        event.stopPropagation();
+        submitTsdScanInput();
+      });
+      tsdScanInputEl?.addEventListener('input', scheduleTsdScanInput);
+      tsdScanInputEl?.addEventListener('change', scheduleTsdScanInput);
+      window.setInterval(() => {
+        if (!tsdScanInputEl || document.hidden) return;
+        const value = normalize(tsdScanInputEl.value);
+        if (value && value !== tsdScanWatchedValue) scheduleTsdScanInput();
+        if (!value) tsdScanWatchedValue = '';
+        const active = document.activeElement;
+        if ((!active || active === document.body) && !directScanModalsOpen()) {
+          tsdScanInputEl.focus({ preventScroll: true });
+        }
+      }, 160);
+      document.addEventListener('keydown', captureDirectTsdScan, true);
+      palletCloseFormEl?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        confirmPalletClose();
+      });
+      palletCloseCancelEl?.addEventListener('click', closePalletCloseModal);
+      palletCloseModalEl?.addEventListener('click', (event) => {
+        if (event.target === palletCloseModalEl) closePalletCloseModal();
+      });
+      palletRemovalFormEl?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        void submitPalletRemovalRequest();
+      });
+      palletRemovalCancelEl?.addEventListener('click', closePalletRemovalModal);
+      palletRemovalModalEl?.addEventListener('click', (event) => {
+        if (event.target === palletRemovalModalEl) closePalletRemovalModal();
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && palletCloseModalEl?.classList.contains('is-open')) {
+          closePalletCloseModal();
+        }
+        if (event.key === 'Escape' && palletRemovalModalEl?.classList.contains('is-open')) {
+          closePalletRemovalModal();
+        }
+        if (event.key === 'Escape' && boxViewModalEl?.classList.contains('is-open')) {
+          closeBoxViewModal();
+        }
+        if (event.key === 'Escape') closeContextMenus();
+      });
+      remainingEl?.addEventListener('contextmenu', (event) => {
+        const row = event.target.closest('[data-box-row]');
+        if (row) openBoxContextMenu(event, row.dataset.boxRow || '');
+      });
+      boardEl?.addEventListener('contextmenu', (event) => {
+        const boxTarget = event.target.closest('[data-box-row]');
+        if (boxTarget) {
+          openBoxContextMenu(event, boxTarget.dataset.boxRow || '');
+          return;
+        }
+        const palletTarget = event.target.closest('[data-pallet-code]');
+        if (palletTarget) openPalletContextMenu(event, palletTarget.dataset.palletCode || '');
+      });
+      currentBoxesEl?.addEventListener('contextmenu', (event) => {
+        const boxRowEl = event.target.closest('[data-current-box-row]');
+        const boxButton = event.target.closest('[data-unassign-row]');
+        const boxRow = boxRowEl?.dataset.currentBoxRow || boxButton?.dataset.unassignRow || '';
+        if (boxRow) openBoxContextMenu(event, boxRow);
+      });
+      closedEl?.addEventListener('contextmenu', (event) => {
+        const row = event.target.closest('[data-closed-pallet-code]');
+        if (row) openPalletContextMenu(event, row.dataset.closedPalletCode || '');
+      });
+      boxContextMenuEl?.addEventListener('click', (event) => {
+        const action = event.target.closest('[data-action]')?.dataset.action || '';
+        const box = getBox(state.contextBoxRowKey);
+        closeContextMenus();
+        if (!box) return;
+        if (action === 'view-box') {
+          openBoxViewModal(boxRowKey(box));
+        }
+        if (action === 'print-box-qr') {
+          void queueBoxQrLabels([box]);
+        }
+        if (action === 'unassign-box') {
+          unassignBox(boxRowKey(box));
+          render();
+        }
+      });
+      palletContextMenuEl?.addEventListener('click', (event) => {
+        const action = event.target.closest('[data-action]')?.dataset.action || '';
+        const code = state.contextPalletCode;
+        closeContextMenus();
+        if (!code) return;
+        if (action === 'open-pallet') {
+          reopenPallet(code);
+          render();
+        }
+        if (action === 'close-pallet') {
+          state.activePalletCode = code;
+          openPalletCloseConfirm();
+          render();
+        }
+        if (action === 'print-pallet-boxes-qr') {
+          void queueBoxQrLabels(boxesForPallet(code).sort((a, b) => boxNo(a) - boxNo(b)));
+        }
+        if (action === 'print-pallet-slip') {
+          void printSlip(code);
+        }
+        if (action === 'request-pallet-removal') {
+          openPalletRemovalModal(code);
+        }
+        if (action === 'delete-pallet') {
+          removePallet(code);
+          render();
+        }
+      });
+      document.addEventListener('click', (event) => {
+        if (!boxContextMenuEl?.contains(event.target) && !palletContextMenuEl?.contains(event.target)) {
+          closeContextMenus();
+        }
+      });
+      printerInputEl && (printerInputEl.value = readStoredPrinter());
+      printerInputEl?.addEventListener('change', () => persistPrinter(printerInputEl.value));
+      printerInputEl?.addEventListener('blur', () => persistPrinter(printerInputEl.value));
+      printAllSlipsBtn?.addEventListener('click', () => { void printAllSlips(); });
+      boxViewCloseEl?.addEventListener('click', closeBoxViewModal);
+      boxViewModalEl?.addEventListener('click', (event) => {
+        if (event.target === boxViewModalEl) closeBoxViewModal();
+      });
+      boxViewPrintQrEl?.addEventListener('click', () => {
+        const box = getBox(state.previewBoxRowKey);
+        if (box) void queueBoxQrLabels([box]);
+      });
+      slipModalCloseEl?.addEventListener('click', closePreviewModal);
+      slipModalEl?.addEventListener('click', (event) => {
+        if (event.target === slipModalEl) closePreviewModal();
+      });
+      slipModalPrintEl?.addEventListener('click', () => {
+        if (!state.previewSlipKey) return;
+        void printSlip(state.previewSlipKey);
+      });
+
+      document.getElementById('packing-form')?.addEventListener('submit', async (event) => {
+        if (guardRemovalBlocked()) { event.preventDefault(); return; }
+        if (unassignedBoxes().length) { event.preventDefault(); alert('Нельзя завершить паллетизацию, пока все короба не размещены по паллетам.'); return; }
+        const active = getActivePallet();
+        if (active && !boxesForPallet(active.code).length) { state.pallets = state.pallets.filter((item) => normalize(item.code) !== normalize(active.code)); state.activePalletCode = ''; }
+        pruneEmptyPallets();
+        state.pallets.forEach((pallet) => { pallet.sealed = true; });
+        const used = usedCodes();
+        for (const pallet of state.pallets) {
+          if (!used.has(normalize(pallet.code))) continue;
+          if (!normalize(pallet.label)) { event.preventDefault(); alert('Укажите название для каждой паллеты, в которой есть короба.'); return; }
+        }
+        syncInputs();
+      });
+
+      initPrintAgentPanel();
+      render();
+      autosaveLastPayload = currentDraftPayloadKey();
+      autosaveReady = true;
+      window.setTimeout(() => tsdScanInputEl?.focus({ preventScroll: true }), 120);
+    })();
+  </script>
+</body>
+</html>

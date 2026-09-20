@@ -1,0 +1,67 @@
+{% extends "teammanager/_base.html" %}
+{% load billing_tags %}
+{% block title %}Клиенты — Биллинг{% endblock %}
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.table-card { overflow:auto; background:#fff; border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:1050px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:1px solid var(--line); text-transform:uppercase; }
+td { padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+tr:last-child td { border-bottom:0; }
+.money { font-weight:800; font-family:"Bricolage Grotesque","Manrope",sans-serif; }
+.count { font-weight:900; font-family:"Bricolage Grotesque","Manrope",sans-serif; }
+.count.alert { color:#b42318; }
+.client-link { color:var(--ink); text-decoration:none; }
+.client-link:hover { color:#9a5600; text-decoration:underline; }
+{% endblock %}
+{% block content %}
+<div>
+  <h1 class="page-title">Финансовые клиенты</h1>
+  <div class="page-sub">Работы, готовность начислений и деньги по каждому закреплённому клиенту.</div>
+</div>
+{% include "billing/_billing_nav.html" %}
+<form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+  <input class="field" style="max-width:320px" type="search" name="q" value="{{ filter_q }}" placeholder="Поиск: название, ИНН">
+  <label><span class="page-sub">С даты</span><input class="field" type="date" name="date_from" value="{{ filter_date_from }}"></label>
+  <label><span class="page-sub">По дату</span><input class="field" type="date" name="date_to" value="{{ filter_date_to }}"></label>
+  <button class="btn primary" type="submit">Показать</button>
+  <a class="btn" href="/team-manager/billing/clients/">Сбросить</a>
+</form>
+<div class="table-card">
+  <table>
+    <thead>
+      <tr>
+        <th>Клиент</th>
+        <th>Тариф</th>
+        <th>Работ за период</th>
+        <th>Нет цены</th>
+        <th>Ждут подтверждения</th>
+        <th>Начислено</th>
+        <th>Выставлено</th>
+        <th>Оплачено</th>
+        <th>Долг</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in client_rows %}
+      <tr>
+        <td><a class="client-link" href="{% url 'billing-client-detail' row.client.id %}"><strong>{{ row.client.short_name|default:row.client.agn_name }}</strong></a></td>
+        <td>{% if row.tariff %}v{{ row.tariff.version_number }} · {{ row.tariff.get_status_display }}{% else %}<span class="count alert">Нет действующего</span>{% endif %}</td>
+        <td class="count">{{ row.work_count }}</td>
+        <td class="count {% if row.missing_price %}alert{% endif %}">{{ row.missing_price }}</td>
+        <td class="count {% if row.waiting_confirmation %}alert{% endif %}">{{ row.waiting_confirmation }}</td>
+        <td class="money">{{ row.accrued_total|rub_fmt }}</td>
+        <td class="money">{{ row.invoiced_total|rub_fmt }}</td>
+        <td class="money">{{ row.paid_total|rub_fmt }}</td>
+        <td class="money">{{ row.debt_total|rub_fmt }}</td>
+        <td><a class="btn" href="{% url 'billing-client-detail' row.client.id %}">Карточка</a></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="10" style="padding:28px;text-align:center;color:var(--muted);font-weight:700">Нет клиентов в портфеле</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

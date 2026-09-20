@@ -1,0 +1,59 @@
+<article class="location-row" data-code="{{ location.location_code }}" data-name="{{ location.display_name }}" data-zone="{{ location.zone_code }}" data-active="{{ location.is_active|yesno:'1,0' }}" data-fbs="{{ location.is_fbs_visible|yesno:'1,0' }}" data-shipping="{{ location.is_shipping|yesno:'1,0' }}" data-occupied="{{ location.occupancy.occupied }}" data-capacity="{{ location.occupancy.capacity }}" aria-label="Место {{ location.location_code }}">
+  <div class="location-row-summary">
+    <label class="location-check location-select" title="Выбрать место для печати">
+      <input type="checkbox" name="print_selected" value="{{ location.id }}" form="warehouse-location-print-selected">
+      <span class="sr-only">Выбрать {{ location.location_code }}</span>
+    </label>
+    <div class="location-identity">
+      <strong class="location-code">{{ location.location_code }}</strong>
+      <span>{{ location.display_name }}</span>
+    </div>
+    <div class="location-occupancy">
+      <span class="muted">Занято / вместимость</span>
+      <strong>{{ location.occupancy.occupied }} / {% if location.occupancy.capacity %}{{ location.occupancy.capacity }}{% else %}без лимита{% endif %}</strong>
+      {% if location.occupancy.capacity %}<meter min="0" max="{{ location.occupancy.capacity }}" value="{{ location.occupancy.occupied }}" aria-label="Занятость {{ location.location_code }}"></meter>{% endif %}
+    </div>
+    <div class="location-status">
+      {% if not location.is_active %}<span class="location-badge inactive">Выключено</span>
+      {% elif location.occupancy.capacity and location.occupancy.occupied >= location.occupancy.capacity %}<span class="location-badge full">Заполнено</span>
+      {% elif location.occupancy.occupied %}<span class="location-badge occupied">Частично занято</span>
+      {% else %}<span class="location-badge free">Не занято</span>{% endif %}
+      <small>{% if location.is_fbs_visible %}FBS: да{% else %}FBS: нет{% endif %} · {% if location.is_shipping %}Отгрузки: да{% else %}Отгрузки: нет{% endif %}{% if location.allow_mixed_client_pallets %} · Паллеты разных клиентов разрешены{% endif %}{% if location.fbs_rack_config %} · Ячеек: {{ location.fbs_rack_cell_count }}{% endif %}</small>
+    </div>
+    <div class="location-actions">
+      <a class="btn" href="/head-manager/settings/warehouse-locations/?print={{ location.id }}" aria-label="Этикетка {{ location.location_code }}">Этикетка</a>
+      <button class="btn" type="button" data-location-edit="location-editor-{{ location.id }}" aria-controls="location-editor-{{ location.id }}" aria-expanded="false" aria-label="Настроить {{ location.location_code }}">Настроить</button>
+    </div>
+  </div>
+  <div class="location-editor" id="location-editor-{{ location.id }}" hidden>
+    <div class="location-detail-line"><strong>{{ location.location_code }} · настройки</strong><span>Тара: {{ location.occupancy.current_containers }} · ожидает: {{ location.occupancy.pending_containers }} · остатки с кодом тары: {{ location.occupancy.unregistered_container_codes }}</span></div>
+    <p class="muted">QR: <code>{{ location.qr_value }}</code>. Код и зона неизменяемы. Выключить занятое место нельзя.</p>
+    <form class="location-edit-form" method="post" action="/head-manager/settings/warehouse-locations/{{ location.id }}/update/">
+      {% csrf_token %}
+      <label>Название {{ location.location_code }}<input name="display_name" value="{{ location.display_name }}" maxlength="255" required></label>
+      <label>Вместимость<input name="capacity_containers" type="number" min="1" value="{{ location.capacity_containers }}" required></label>
+      <div class="location-flags">
+        <label class="location-check"><input type="checkbox" name="is_fbs_visible" value="1"{% if location.is_fbs_visible %} checked{% endif %}><span>Участвует в FBS</span></label>
+        <label class="location-check"><input type="checkbox" name="is_shipping" value="1"{% if location.is_shipping %} checked{% endif %}><span>Участвует в отгрузках</span></label>
+        <label class="location-check"><input type="checkbox" name="allow_mixed_client_pallets" value="1"{% if location.allow_mixed_client_pallets %} checked{% endif %}><span>Разрешить паллеты разных клиентов</span></label>
+        <label class="location-check"><input type="checkbox" name="is_active" value="1"{% if location.is_active %} checked{% endif %}><span>Активно</span></label>
+      </div>
+      <button class="btn primary" type="submit">Сохранить место</button>
+    </form>
+    {% if location.zone_code == "PR" %}
+      <details class="location-rack-config">
+        <summary>{% if location.fbs_rack_config %}Ячейки места · {{ location.fbs_rack_cell_count }} активных{% else %}Создать ячейки места{% endif %}</summary>
+        <form class="location-rack-editor" method="post" action="/head-manager/settings/warehouse-locations/{{ location.id }}/fbs-rack/">
+          {% csrf_token %}
+          <label>Количество активных ячеек<input name="fbs_rack_cell_count" type="number" min="1" max="200" value="{{ location.fbs_rack_cell_count|default:1 }}" required></label>
+          <button class="btn primary" type="submit">Сохранить ячейки</button>
+          {% if location.fbs_rack_config %}<a class="btn" href="/head-manager/settings/warehouse-locations/?print_rack={{ location.id }}">Этикетки ячеек</a>{% endif %}
+          <p class="muted">Это вложенные ячейки одного места, не создание нового ряда. Занятые ячейки защищены от выключения.</p>
+          <div class="location-rack-cells" aria-label="Ячейки места {{ location.location_code }}">
+            {% for cell in location.fbs_rack_cells %}<span class="location-rack-cell{% if not cell.is_active %} inactive{% endif %}">{{ cell.cell_code }}{% if not cell.is_active %} · выключена{% endif %}</span>{% empty %}<span class="muted">Ячейки пока не созданы.</span>{% endfor %}
+          </div>
+        </form>
+      </details>
+    {% endif %}
+  </div>
+</article>

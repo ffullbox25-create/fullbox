@@ -1,0 +1,154 @@
+<a class="nav-link {% if active_nav == 'queue' %}active{% endif %}" href="/team-manager/queue/">
+  <span class="nav-ico">≡</span>
+  <span>
+    <div class="nav-title">Очередь</div>
+  </span>
+  {% if manager_queue_nav_count %}
+    <span class="nav-badge">{{ manager_queue_nav_count }}</span>
+  {% elif manager_task_total %}
+    <span class="nav-badge">{{ manager_task_total }}</span>
+  {% endif %}
+</a>
+<a class="nav-link {% if active_nav == 'desk' %}active{% endif %}" href="/team-manager/?section=desk">
+  <span class="nav-ico">▣</span>
+  <span>
+    <div class="nav-title">Рабочий стол</div>
+  </span>
+</a>
+<a class="nav-link {% if active_nav == 'todo' %}active{% endif %}" href="/team-manager/?section=tasks">
+  <span class="nav-ico">☑</span>
+  <span>
+    <div class="nav-title">Задачи</div>
+  </span>
+</a>
+<a class="nav-link {% if active_nav == 'orders' and request.GET.type != 'receiving' %}active{% endif %}" href="/team-manager/orders/">
+  <span class="nav-ico">☰</span>
+  <span>
+    <div class="nav-title">Заявки</div>
+  </span>
+</a>
+<a class="nav-link {% if active_nav == 'orders' and request.GET.type == 'receiving' %}active{% endif %}" href="/team-manager/orders/?type=receiving">
+  <span class="nav-ico">⇩</span>
+  <span>
+    <div class="nav-title">Приёмка</div>
+    <div class="nav-sub">План и фактическое количество</div>
+  </span>
+</a>
+<details class="nav-group" {% if active_nav == 'fbs_movements' or active_nav == 'fbs_clients' %}open{% endif %}>
+  <summary class="nav-group-toggle {% if active_nav == 'fbs_movements' or active_nav == 'fbs_clients' %}active{% endif %}">
+    <span class="nav-ico">F</span>
+    <span class="nav-title">FBS</span>
+    <span class="nav-group-chevron" aria-hidden="true">›</span>
+  </summary>
+  <div class="nav-group-items">
+    <a class="nav-link nav-child {% if active_nav == 'fbs_movements' %}active{% endif %}" href="/team-manager/fbs/movements/">
+      <span class="nav-ico">•</span>
+      <span><div class="nav-title">FBS заявки</div></span>
+    </a>
+    {% if show_billing_nav %}
+    <a class="nav-link nav-child {% if active_nav == 'fbs_clients' %}active{% endif %}" href="/team-manager/fbs/clients/">
+      <span class="nav-ico">•</span>
+      <span>
+        <div class="nav-title">Клиенты FBS</div>
+        <div class="nav-sub">Подключение и настройки</div>
+      </span>
+    </a>
+    {% endif %}
+  </div>
+</details>
+{% if show_trips_nav %}
+<a class="nav-link {% if active_nav == 'trips' %}active{% endif %}" href="/logistics/">
+  <span class="nav-ico">⇢</span>
+  <span>
+    <div class="nav-title">Рейсы</div>
+  </span>
+</a>
+{% endif %}
+<details class="nav-group" {% if active_nav == 'reports' or active_nav == 'marking_report' %}open{% endif %}>
+  <summary class="nav-group-toggle {% if active_nav == 'reports' or active_nav == 'marking_report' %}active{% endif %}">
+    <span class="nav-ico">↗</span>
+    <span class="nav-title">Отчёты</span>
+    <span class="nav-group-chevron" aria-hidden="true">›</span>
+  </summary>
+  <div class="nav-group-items">
+    <a class="nav-link nav-child {% if active_nav == 'reports' and request.path != '/head-manager/goods/' %}active{% endif %}" href="/team-manager/reports/">
+      <span class="nav-ico">•</span>
+      <span><div class="nav-title">Все отчёты</div></span>
+    </a>
+    <a class="nav-link nav-child {% if request.path == '/head-manager/goods/' %}active{% endif %}" href="/head-manager/goods/">
+      <span class="nav-ico">▦</span>
+      <span>
+        <div class="nav-title">Товары</div>
+        <div class="nav-sub">Складской реестр товаров</div>
+      </span>
+    </a>
+    <a class="nav-link nav-child {% if active_nav == 'marking_report' %}active{% endif %}" href="/marking/report/">
+      <span class="nav-ico">•</span>
+      <span><div class="nav-title">Отчёт ЧЗ</div></span>
+    </a>
+  </div>
+</details>
+<a class="nav-link {% if active_nav == 'clients' %}active{% endif %}" href="/team-manager/clients/">
+  <span class="nav-ico">◎</span>
+  <span>
+    <div class="nav-title">Клиенты</div>
+  </span>
+</a>
+<a class="nav-link {% if active_nav == 'references' %}active{% endif %}" href="/team-manager/references/logistics/">
+  <span class="nav-ico">⌁</span>
+  <span>
+    <div class="nav-title">Справочники</div>
+  </span>
+</a>
+<a class="nav-link {% if active_nav == 'knowledge' %}active{% endif %}" href="/team-manager/knowledge/">
+  <span class="nav-ico">?</span>
+  <span>
+    <div class="nav-title">База знаний</div>
+  </span>
+</a>
+{% if show_billing_nav %}
+<a class="nav-link {% if active_nav == 'billing' or active_nav == 'billing_storage' %}active{% endif %}" href="/team-manager/billing/">
+  <span class="nav-ico">₽</span>
+  <span>
+    <div class="nav-title">Биллинг</div>
+    <div class="nav-sub">Услуги, начисления, акты и счета</div>
+  </span>
+  {% if billing_badges.overdue %}
+    <span class="nav-badge">{{ billing_badges.overdue }}</span>
+  {% elif billing_badges.no_price %}
+    <span class="nav-badge">{{ billing_badges.no_price }}</span>
+  {% elif billing_badges.acts_without_invoice %}
+    <span class="nav-badge">{{ billing_badges.acts_without_invoice }}</span>
+  {% elif billing_badges.charges_review %}
+    <span class="nav-badge">{{ billing_badges.charges_review }}</span>
+  {% elif billing_badges.docs_submitted %}
+    <span class="nav-badge">{{ billing_badges.docs_submitted }}</span>
+  {% elif billing_badges.discrepancies %}
+    <span class="nav-badge">{{ billing_badges.discrepancies }}</span>
+  {% elif billing_badges.notifications %}
+    <span class="nav-badge">{{ billing_badges.notifications }}</span>
+  {% endif %}
+</a>
+{% endif %}
+{% if show_head_manager_nav %}
+<a class="nav-link" href="/head-manager/">
+  <span class="nav-ico">▦</span>
+  <span>
+    <div class="nav-title">Главный менеджер</div>
+  </span>
+</a>
+{% endif %}
+{% if show_accountant_cabinet_nav %}
+<a class="nav-link" href="/accountant/">
+  <span class="nav-ico">₽</span>
+  <span>
+    <div class="nav-title">Кабинет бухгалтера</div>
+  </span>
+</a>
+{% endif %}
+<a class="nav-link {% if active_nav == 'settings' %}active{% endif %}" href="/team-manager/settings/">
+  <span class="nav-ico">⚙</span>
+  <span>
+    <div class="nav-title">Настройки</div>
+  </span>
+</a>

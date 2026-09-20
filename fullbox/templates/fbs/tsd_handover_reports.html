@@ -1,0 +1,69 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Отчеты по отгрузкам FBS{% endblock %}
+{% block workspace_page_class %}handover-report-page handover-report-v1{% endblock %}
+{% block workspace_actions %}<a class="button button-secondary" href="{% url 'fbs:tsd_handover' %}">К отгрузкам</a><a class="button button-primary" href="?{{ handover_report_export_query }}">Скачать Excel</a>{% endblock %}
+
+{% block workspace_body %}
+  <section class="handover-report-head">
+    <div>
+      <span class="section-kicker">FBS · Отчеты</span>
+      <h2>{{ handover_report_title }}</h2>
+      <p>Отгрузки, заказы и товары строятся только по отдельному контуру FBS.</p>
+    </div>
+    <a class="button button-secondary" href="?{{ handover_report_export_query }}">Скачать Excel</a>
+  </section>
+
+  <nav class="handover-report-tabs" aria-label="Отчеты FBS">
+    {% for value, label in handover_report_choices %}
+      <a class="{% if handover_report_type == value %}is-active{% endif %}" href="?report={{ value }}&amp;date_from={{ handover_report_date_from }}&amp;date_to={{ handover_report_date_to }}{% if handover_report_agency_filter %}&amp;agency_id={{ handover_report_agency_filter }}{% endif %}{% if handover_report_marketplace_filter %}&amp;marketplace={{ handover_report_marketplace_filter }}{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+
+  <form class="handover-report-filters" method="get">
+    <input type="hidden" name="report" value="{{ handover_report_type }}">
+    <label for="report-client">Клиент<select id="report-client" name="agency_id"><option value="">Все клиенты</option>{% for client in handover_report_clients %}<option value="{{ client.id }}"{% if client.id|stringformat:"s" == handover_report_agency_filter %} selected{% endif %}>{{ client }}</option>{% endfor %}</select></label>
+    <label for="report-marketplace">Площадка<select id="report-marketplace" name="marketplace"><option value="">Все площадки</option>{% for value, label in handover_report_marketplace_choices %}<option value="{{ value }}"{% if value == handover_report_marketplace_filter %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <div><span>Период</span><strong>{{ handover_report_period_label }}</strong></div>
+    <label for="report-date-from">С<input id="report-date-from" type="date" name="date_from" value="{{ handover_report_date_from }}" required></label>
+    <label for="report-date-to">По<input id="report-date-to" type="date" name="date_to" value="{{ handover_report_date_to }}" required></label>
+    <label for="report-page-size">Строк<select id="report-page-size" name="page_size">{% for size in handover_report_page_size_choices %}<option value="{{ size }}"{% if size == handover_report_page_size %} selected{% endif %}>{{ size }}</option>{% endfor %}</select></label>
+    <div><button class="button button-primary" type="submit">Сформировать</button><a class="button button-secondary" href="{% url 'fbs:tsd_handover_reports' %}?report={{ handover_report_type }}">Сбросить</a></div>
+  </form>
+  {% if filter_error %}<div class="notice notice-error" role="alert">{{ filter_error }}</div>{% endif %}
+
+  {% if not filter_error %}
+    <section class="handover-report-totals" aria-label="Итоги отчета">
+      <div><span>Отгрузки</span><strong>{{ handover_report_totals.shipments }}</strong></div>
+      <div><span>Заказы</span><strong>{{ handover_report_totals.orders }}</strong></div>
+      {% if handover_report_type != 'status' %}<div><span>Товары</span><strong>{{ handover_report_totals.units }}</strong></div>{% endif %}
+      <div><span>Короба</span><strong>{{ handover_report_totals.boxes }}</strong></div>
+    </section>
+
+    {% if handover_report_truncation_warning %}<div class="notice notice-warn" role="status">{{ handover_report_truncation_warning }}</div>{% endif %}
+
+    <section class="handover-report-table-band">
+      <div class="handover-report-table-head"><strong>{{ handover_report_title }}</strong><span>{{ page_obj.paginator.count }} строк</span></div>
+      <div class="handover-report-table-scroll">
+        <table class="handover-report-table">
+        {% if handover_report_type == 'status' %}
+          <thead><tr><th>Статус</th><th>Отгрузки</th><th>Заказы</th><th>Короба</th></tr></thead>
+          <tbody>{% for row in handover_report_rows %}<tr><td><span class="status status-{{ row.status }}">{{ row.label }}</span></td><td>{{ row.shipment_count }}</td><td>{{ row.order_count }}</td><td>{{ row.box_count }}</td></tr>{% empty %}<tr><td colspan="4">Нет данных</td></tr>{% endfor %}</tbody>
+        {% elif handover_report_type == 'count' %}
+          <thead><tr><th>Клиент</th><th>Площадка</th><th>Отгрузки</th><th>Заказы</th><th>Товары</th></tr></thead>
+          <tbody>{% for row in handover_report_rows %}<tr><td><strong>{{ row.agency }}</strong></td><td>{{ row.marketplace }}</td><td>{{ row.shipment_count }}</td><td>{{ row.order_count }}</td><td>{{ row.unit_count }}</td></tr>{% empty %}<tr><td colspan="5">За выбранный период отправленных заказов нет.</td></tr>{% endfor %}</tbody>
+        {% elif handover_report_type == 'orders' %}
+          <thead><tr><th>Отправлена</th><th>Отгрузка</th><th>Клиент</th><th>Площадка / склад</th><th>Заказ</th><th>Короб</th><th>Товары</th><th>Статус Fullbox</th><th>Статус площадки</th></tr></thead>
+          <tbody>{% for row in handover_report_rows %}<tr><td>{{ row.box.batch.dispatched_at|date:"d.m.Y H:i" }}</td><td><a href="{% url 'fbs:tsd_handover_detail' row.box.batch_id %}">#{{ row.box.batch_id }}</a></td><td>{{ row.box.batch.profile.agency }}</td><td>{{ row.box.batch.profile.get_marketplace_display }}<small>Склад {{ row.box.batch.profile.external_warehouse_id }}</small></td><td><a href="{% url 'fbs:operator_order_detail' row.order_id %}">{{ row.order.external_order_id }}</a></td><td>{{ row.box.qr_code }}</td><td>{{ row.report_unit_count }}</td><td>{{ row.order.get_internal_status_display }}</td><td>{{ row.order.marketplace_status|default:"-" }}</td></tr>{% empty %}<tr><td colspan="9">За выбранный период отправленных заказов нет.</td></tr>{% endfor %}</tbody>
+        {% else %}
+          <thead><tr><th>Отправлена</th><th>Отгрузка</th><th>Клиент</th><th>Площадка</th><th>Заказ</th><th>Артикул</th><th>Штрихкод</th><th>Товар</th><th>Количество</th></tr></thead>
+          <tbody>{% for row in handover_report_rows %}<tr><td>{{ row.dispatched_at|date:"d.m.Y H:i" }}</td><td><a href="{% url 'fbs:tsd_handover_detail' row.link.box.batch_id %}">#{{ row.link.box.batch_id }}</a></td><td>{{ row.link.box.batch.profile.agency }}</td><td>{{ row.link.box.batch.profile.get_marketplace_display }}</td><td><a href="{% url 'fbs:operator_order_detail' row.link.order_id %}">{{ row.link.order.external_order_id }}</a></td><td>{{ row.item.external_sku }}</td><td>{{ row.item.barcode|default:"-" }}</td><td>{{ row.item.product_name|default:row.item.external_sku }}</td><td>{{ row.item.quantity }}</td></tr>{% empty %}<tr><td colspan="9">За выбранный период отгруженных товаров нет.</td></tr>{% endfor %}</tbody>
+        {% endif %}
+        </table>
+      </div>
+      {% if page_obj.paginator.num_pages > 1 %}<nav class="handover-v5-pagination" aria-label="Страницы отчета">{% if page_obj.has_previous %}<a href="?{% if handover_report_query_without_page %}{{ handover_report_query_without_page }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Назад</a>{% endif %}<span>Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?{% if handover_report_query_without_page %}{{ handover_report_query_without_page }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Дальше</a>{% endif %}</nav>{% endif %}
+    </section>
+  {% else %}
+    <section class="handover-report-table-band"><div class="empty-state">Исправьте период и сформируйте отчет повторно.</div></section>
+  {% endif %}
+{% endblock %}

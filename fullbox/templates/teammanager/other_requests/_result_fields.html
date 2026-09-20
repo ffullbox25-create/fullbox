@@ -1,0 +1,50 @@
+{% if result_kind == 'measure' %}
+  <div class="or-form-grid">
+    <label>Длина, см<input type="number" step="0.1" min="0" name="measure_length_cm"></label>
+    <label>Ширина, см<input type="number" step="0.1" min="0" name="measure_width_cm"></label>
+    <label>Высота, см<input type="number" step="0.1" min="0" name="measure_height_cm"></label>
+    <label>Вес, кг<input type="number" step="0.01" min="0" name="measure_weight_kg"></label>
+    <label>Тип упаковки
+      <select name="measure_package_type">
+        <option value="">—</option>
+        <option value="короб">Короб</option>
+        <option value="палета">Палета</option>
+        <option value="мягкая упаковка">Мягкая упаковка</option>
+      </select>
+    </label>
+  </div>
+  <textarea name="result_comment" rows="2" placeholder="Дополнительный комментарий исполнителя"></textarea>
+{% elif result_kind == 'recount' %}
+  <div class="or-form-grid">
+    <label>Фактическое количество<input type="number" step="0.001" min="0" name="recount_actual_qty" {% if item.category.require_qty %}required{% endif %}></label>
+    <label>Единица<input type="text" name="recount_unit" value="шт"></label>
+  </div>
+  <input type="text" name="recount_reason" placeholder="Причина расхождения (если есть)">
+  <textarea name="result_comment" rows="2" placeholder="Комментарий исполнителя"></textarea>
+{% elif result_kind == 'check' %}
+  <div class="or-form-grid">
+    <label>Результат проверки
+      <select name="check_matches">
+        <option value="yes">Соответствует норме</option>
+        <option value="no">Обнаружено расхождение</option>
+      </select>
+    </label>
+  </div>
+  <input type="text" name="check_discrepancy" placeholder="Детали расхождения (если есть)">
+  <textarea name="result_comment" rows="2" placeholder="Комментарий исполнителя"></textarea>
+{% elif result_kind == 'photo' %}
+  <input type="text" name="photo_note" placeholder="Что снято на фото / видео">
+  <textarea name="result_comment" rows="2" placeholder="Комментарий исполнителя"></textarea>
+  {% if item.category.require_result_photo %}
+    <p class="or-hint">Прикрепите фото результата в блоке «Фото и файлы» ниже — без них завершить заявку нельзя.</p>
+  {% endif %}
+{% else %}
+  <select name="result_outcome">
+    <option value="done_full">Выполнено полностью</option>
+    <option value="done_partial">Выполнено частично</option>
+    <option value="impossible">Невозможно выполнить</option>
+    <option value="mismatch">Обнаружено расхождение</option>
+    <option value="need_manager">Требуется решение менеджера</option>
+  </select>
+  <textarea name="result_comment" rows="2" placeholder="Комментарий исполнителя"></textarea>
+{% endif %}

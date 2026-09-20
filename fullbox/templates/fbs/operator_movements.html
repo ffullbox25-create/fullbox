@@ -1,0 +1,49 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Заявки на перемещение FBS{% endblock %}
+
+{% block workspace_body %}
+  <nav class="module-tabs" aria-label="Источник FBS-перемещения">
+    <a class="button button-primary" href="{% url 'fbs:operator_movements' %}" aria-current="page">Клиентские заявки</a>
+    <a class="button button-secondary" href="{% url 'fbs:operator_movement_from_receiving' %}">Из приёмки</a>
+  </nav>
+
+  <form class="operator-filters" method="get">
+    <label><span>Клиент</span><input type="search" name="q" value="{{ query }}" placeholder="Название или ИНН"></label>
+    <label><span>Статус</span><select name="status"><option value="">Все</option>{% for value, label in status_choices %}<option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label><span>Режим</span><select name="mode"><option value="">Все</option>{% for value, label in mode_choices %}<option value="{{ value }}"{% if selected_mode == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label><span>На странице</span><select name="page_size">{% for size in page_sizes %}<option value="{{ size }}"{% if page_size == size %} selected{% endif %}>{{ size }}</option>{% endfor %}</select></label>
+    <div class="filter-actions"><button class="button button-primary button-compact" type="submit">Показать</button><a class="button button-secondary button-compact" href="{% url 'fbs:operator_movements' %}">Сбросить</a></div>
+  </form>
+
+  <section class="operator-summary">
+    <a href="?q={{ query|urlencode }}&amp;status=&amp;mode={{ selected_mode|urlencode }}&amp;page_size={{ page_size }}"{% if not selected_status %} aria-current="page"{% endif %}><span>Всего</span><strong>{{ summary.total }}</strong></a>
+    <a href="?q={{ query|urlencode }}&amp;status=waiting_warehouse&amp;mode={{ selected_mode|urlencode }}&amp;page_size={{ page_size }}"{% if selected_status == "waiting_warehouse" %} aria-current="page"{% endif %}><span>Ждут склада</span><strong>{{ summary.waiting_warehouse }}</strong></a>
+    <a href="?q={{ query|urlencode }}&amp;status=active&amp;mode={{ selected_mode|urlencode }}&amp;page_size={{ page_size }}"{% if selected_status == "active" %} aria-current="page"{% endif %}><span>В перемещении</span><strong>{{ summary.active }}</strong></a>
+    <a href="?q={{ query|urlencode }}&amp;status=completed&amp;mode={{ selected_mode|urlencode }}&amp;page_size={{ page_size }}"{% if selected_status == "completed" %} aria-current="page"{% endif %}><span>Выполнено</span><strong>{{ summary.completed }}</strong></a>
+  </section>
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading"><div><span class="section-kicker">Общий склад → FBS</span><h2>Клиентские заявки</h2></div><strong>{{ page.paginator.count }}</strong></div>
+    <div class="operator-table-scroll">
+      <table class="operator-table">
+        <thead><tr><th>Заявка</th><th>Клиент</th><th>Режим</th><th>Количество</th><th>Планы ТСД</th><th>Статус</th><th>Создана</th><th></th></tr></thead>
+        <tbody>
+          {% for movement in page.object_list %}
+            <tr>
+              <td><a class="table-main-link" href="{% url 'fbs:operator_movement_detail' request_id=movement.id %}">{{ movement.number }}</a><small>{{ movement.line_count }} поз.</small></td>
+              <td><strong>{{ movement.agency }}</strong><small>ID {{ movement.agency_id }}</small></td>
+              <td>{{ movement.get_mode_display }}</td>
+              <td><strong>{{ movement.requested_qty }} шт.</strong>{% if movement.requested_box_count %}<small>{{ movement.requested_box_count }} физ. кор.{% if movement.requested_mixed_box_count %} · микс {{ movement.requested_mixed_box_count }}{% endif %}</small>{% endif %}</td>
+              <td><strong>{{ movement.plan_count }}</strong><small>перемещено {{ movement.moved_qty }}</small></td>
+              <td><span class="status status-{{ movement.status }}">{{ movement.get_status_display }}</span></td>
+              <td>{{ movement.created_at|date:"d.m.Y H:i" }}</td>
+              <td class="row-action"><a class="button button-secondary button-compact" href="{% url 'fbs:operator_movement_detail' request_id=movement.id %}">Открыть</a></td>
+            </tr>
+          {% empty %}<tr><td class="empty-row" colspan="8">Заявок не найдено</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% if page.paginator.num_pages > 1 %}<nav class="operator-pagination">{% if page.has_previous %}<a class="button button-secondary button-compact" href="?q={{ query|urlencode }}&status={{ selected_status }}&mode={{ selected_mode }}&page_size={{ page_size }}&page={{ page.previous_page_number }}">Назад</a>{% endif %}<span>Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>{% if page.has_next %}<a class="button button-secondary button-compact" href="?q={{ query|urlencode }}&status={{ selected_status }}&mode={{ selected_mode }}&page_size={{ page_size }}&page={{ page.next_page_number }}">Далее</a>{% endif %}</nav>{% endif %}
+{% endblock %}

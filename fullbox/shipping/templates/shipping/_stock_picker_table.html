@@ -1,0 +1,169 @@
+<input type="hidden" name="stock_partial_box_splits_json" id="stock-partial-box-splits" value="{{ partial_box_splits_json|default:'[]' }}">
+{% if stock_rows %}
+  <div class="stock-picker-heading" style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin:10px 0 12px;">
+    <div>
+      <h3 class="card-title" style="font-size:16px;margin:0 0 4px;">Все товары на остатках клиента</h3>
+      <p class="hint" style="margin:0;">
+        Выбранные позиции поднимаются наверх. Ниже остаётся весь доступный список, чтобы клиент мог вручную добавить товар в заявку.
+      </p>
+    </div>
+    <span class="stock-picker-count" style="white-space:nowrap;border:1px solid var(--stroke,#e5dfd3);border-radius:999px;padding:6px 10px;background:var(--surface-2,#f6f2ea);font-size:13px;color:var(--muted,#6f6a60);">
+      {{ stock_rows|length }} строк
+    </span>
+  </div>
+  <div class="stock-table-wrap" id="shipping-stock-picker-wrap">
+    <table class="stock-table stock-picker-table" id="shipping-stock-picker-table">
+      <colgroup>
+        <col class="stock-col-sku">
+        <col class="stock-col-name">
+        <col class="stock-col-size">
+        <col class="stock-col-barcode">
+        <col class="stock-col-type">
+        <col class="stock-col-boxqty">
+        <col class="stock-col-available">
+        <col class="stock-col-ship">
+        <col class="stock-col-boxes">
+        <col class="stock-col-total">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="stock-th">
+            <div class="th-top">
+              <button type="button" class="th-sort" data-sort-key="sku_code" data-sort-type="text">Артикул <span class="th-sort-ind">⇅</span></button>
+            </div>
+            <input class="th-filter" type="text" data-filter-key="sku_code" data-filter-type="text" placeholder="Артикул">
+          </th>
+          <th class="stock-th wide">
+            <div class="th-top">
+              <button type="button" class="th-sort" data-sort-key="name" data-sort-type="text">Наименование <span class="th-sort-ind">⇅</span></button>
+            </div>
+            <input class="th-filter" type="text" data-filter-key="name" data-filter-type="text" placeholder="Название">
+          </th>
+          <th class="stock-th narrow">
+            <div class="th-top">
+              <button type="button" class="th-sort" data-sort-key="size" data-sort-type="text">Размер <span class="th-sort-ind">⇅</span></button>
+            </div>
+            <input class="th-filter" type="text" data-filter-key="size" data-filter-type="text" placeholder="Размер">
+          </th>
+          <th class="stock-th wide">
+            <div class="th-top">
+              <button type="button" class="th-sort" data-sort-key="barcode" data-sort-type="text">ШК <span class="th-sort-ind">⇅</span></button>
+            </div>
+            <input class="th-filter" type="text" data-filter-key="barcode" data-filter-type="text" placeholder="ШК">
+          </th>
+          <th class="stock-th">
+            <div class="th-top">
+              <button type="button" class="th-sort" data-sort-key="goods_type" data-sort-type="text">Тип <span class="th-sort-ind">⇅</span></button>
+            </div>
+            <input class="th-filter" type="text" data-filter-key="goods_type" data-filter-type="text" placeholder="Тип">
+          </th>
+          <th class="stock-th compact">
+            <div class="th-top">
+              <button type="button" class="th-sort" data-sort-key="box_qty" data-sort-type="number">В коробе <span class="th-sort-ind">⇅</span></button>
+            </div>
+          </th>
+          <th class="stock-th compact">
+            <div class="th-top">
+              <button type="button" class="th-sort" data-sort-key="available_boxes" data-sort-type="number">Доступно <span class="th-sort-ind">⇅</span></button>
+            </div>
+          </th>
+          <th class="stock-th action-col">
+            <div class="th-top">
+              <button type="button" class="th-sort" data-sort-key="ship_total" data-sort-type="number">К отгрузке, шт. <span class="th-sort-ind">⇅</span></button>
+            </div>
+            <div class="th-hint">введите штуки</div>
+          </th>
+          <th class="stock-th compact">
+            <div class="th-top">
+              <button type="button" class="th-sort" data-sort-key="ship_boxes" data-sort-type="number">Коробов <span class="th-sort-ind">⇅</span></button>
+            </div>
+            <div class="th-hint">расчёт</div>
+          </th>
+          <th class="stock-th compact">
+            <div class="th-top">
+              <button type="button" class="th-sort" data-sort-key="ship_total" data-sort-type="number">Итого, шт. <span class="th-sort-ind">⇅</span></button>
+            </div>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in stock_rows %}
+          <tr
+            data-is-mixed="{% if row.is_mixed_box %}1{% else %}0{% endif %}"
+            data-mix-group="{{ row.mixed_group|default:'' }}"
+            data-mix-color="{{ row.mixed_color|default:'-1' }}"
+            data-stock-key="{{ row.key }}"
+            data-sku-code="{{ row.sku_code|default:'' }}"
+            data-name="{{ row.name|default:'' }}"
+            data-size="{{ row.size|default:'' }}"
+            data-barcode="{{ row.barcode|default:'' }}"
+            data-goods-type="{{ row.goods_type|default:'' }}"
+            data-box-qty="{{ row.box_qty|default:0 }}"
+            data-available-boxes="{{ row.available_boxes|default:0 }}"
+            data-available-qty="{{ row.available_qty|default:0 }}"
+            data-partial-only="{% if row.partial_only %}1{% else %}0{% endif %}"
+            data-split-available-qty="{{ row.split_available_qty|default:0 }}"
+            data-ship-boxes="{{ row.selected_boxes|default:'0' }}"
+            data-ship-total="0"
+          >
+            <td>
+              <input type="hidden" name="stock_key_all[]" value="{{ row.key }}">
+              <b>{{ row.sku_code }}</b>
+            </td>
+            <td>{{ row.name|default:"-" }}</td>
+            <td>{{ row.size|default:"-" }}</td>
+            <td>{{ row.barcode|default:"-" }}</td>
+            <td>
+              {{ row.goods_type|default:"-" }}
+              {% if row.is_mixed_box %}
+                <span class="mix-badge" title="Один физический короб содержит несколько артикулов">Смешанный короб</span>
+              {% endif %}
+            </td>
+            <td>{{ row.box_qty }}</td>
+            <td>{{ row.available_boxes }} кор. / {{ row.available_qty }} шт</td>
+            <td>
+              <div class="ship-box-control">
+                <input type="hidden" name="stock_boxes[]" class="stock-boxes-hidden" value="{{ row.selected_boxes|default:'0' }}">
+                <input
+                  type="number"
+                  min="0"
+                  max="{{ row.available_qty }}"
+                  step="1"
+                  inputmode="numeric"
+                  value="0"
+                  data-box-qty="{{ row.box_qty }}"
+                  data-input-mode="units"
+                  data-selected-boxes="{{ row.selected_boxes|default:'0' }}"
+                  class="ship-boxes-input"
+                  data-selected="{{ row.selected_boxes|default:'0' }}"
+                  placeholder="шт."
+                  title="Введите количество в штуках. Система возьмёт только целые короба и не превысит введённое количество."
+                >
+                <button
+                  type="button"
+                  class="split-box-trigger"
+                  data-split-box
+                  data-tooltip="Разбить короб"
+                  title="Разбить короб"
+                  aria-label="Разбить короб"
+                >
+                  <img src="/static/shipping/split_box_icon.jpg" alt="" aria-hidden="true">
+                </button>
+              </div>
+              <div class="split-summary" data-split-summary></div>
+              <div class="ship-box-hint">кратно {{ row.box_qty }} шт.</div>
+              <div class="ship-rounding-warning" data-rounding-warning></div>
+            </td>
+            <td class="stock-box-count-cell">
+              <span class="ship-box-count-cell">0</span>
+              <div class="ship-box-hint ship-box-count-hint">по кратности</div>
+            </td>
+            <td><span class="ship-total-cell">0</span></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="error-item">Нет доступного товара к отгрузке.</div>
+{% endif %}

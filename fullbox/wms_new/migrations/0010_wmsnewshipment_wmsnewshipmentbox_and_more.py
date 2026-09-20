@@ -1,0 +1,101 @@
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+    dependencies = [
+        ("sku", "0010_sku_weight_gross_kg_sku_weight_net_kg"),
+        ("wms_new", "0009_wmsnewassemblysession_wmsnewassemblyline"),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name="WmsNewShipment",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("source_batch_id", models.BigIntegerField(blank=True, null=True, unique=True)),
+                ("source_profile_id", models.BigIntegerField(blank=True, null=True)),
+                ("delivery_type", models.CharField(blank=True, max_length=128)),
+                ("integration_name", models.CharField(blank=True, max_length=128)),
+                ("external_supply_id", models.CharField(blank=True, max_length=128)),
+                ("external_name", models.CharField(blank=True, max_length=128)),
+                ("status", models.CharField(choices=[("new", "Новая"), ("checking", "Проверяется"), ("checked", "Проверена"), ("in_transit", "В пути"), ("accepted", "Принята маркетплейсом"), ("rejected", "Отклонена маркетплейсом"), ("partial", "Принята частично")], default="new", max_length=24)),
+                ("marketplace_state", models.CharField(blank=True, max_length=32)),
+                ("order_count", models.PositiveIntegerField(default=0)),
+                ("item_count", models.PositiveIntegerField(default=0)),
+                ("total_weight_kg", models.DecimalField(decimal_places=3, default=0, max_digits=14)),
+                ("checked_at", models.DateTimeField(blank=True, null=True)),
+                ("dispatched_at", models.DateTimeField(blank=True, null=True)),
+                ("accepted_at", models.DateTimeField(blank=True, null=True)),
+                ("source_created_at", models.DateTimeField(blank=True, null=True)),
+                ("source_updated_at", models.DateTimeField(blank=True, null=True)),
+                ("last_synced_at", models.DateTimeField(blank=True, null=True)),
+                ("source_snapshot", models.JSONField(blank=True, default=dict)),
+                ("is_manual", models.BooleanField(default=False)),
+                ("pilot_revision", models.PositiveIntegerField(default=0)),
+                ("tariff_finalized", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("agency", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="wms_new_shipments", to="sku.agency")),
+                ("checked_by", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="checked_wms_new_shipments", to=settings.AUTH_USER_MODEL)),
+                ("created_by", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="created_wms_new_shipments", to=settings.AUTH_USER_MODEL)),
+                ("dispatched_by", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="dispatched_wms_new_shipments", to=settings.AUTH_USER_MODEL)),
+            ],
+            options={"db_table": "wms_new_shipment", "ordering": ("-source_created_at", "-id")},
+        ),
+        migrations.CreateModel(
+            name="WmsNewShipmentBox",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("source_box_id", models.BigIntegerField(blank=True, null=True, unique=True)),
+                ("qr_code", models.CharField(max_length=256)),
+                ("external_box_id", models.CharField(blank=True, max_length=128)),
+                ("status", models.CharField(default="open", max_length=32)),
+                ("problem_reason", models.TextField(blank=True)),
+                ("source_snapshot", models.JSONField(blank=True, default=dict)),
+                ("is_manual", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("shipment", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="boxes", to="wms_new.wmsnewshipment")),
+            ],
+            options={"db_table": "wms_new_shipment_box", "ordering": ("shipment_id", "id")},
+        ),
+        migrations.CreateModel(
+            name="WmsNewShipmentService",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("name", models.CharField(max_length=255)),
+                ("unit_price", models.DecimalField(decimal_places=2, default=0, max_digits=12)),
+                ("quantity", models.DecimalField(decimal_places=3, default=1, max_digits=12)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("created_by", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="created_wms_new_shipment_services", to=settings.AUTH_USER_MODEL)),
+                ("shipment", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="services", to="wms_new.wmsnewshipment")),
+            ],
+            options={"db_table": "wms_new_shipment_service", "ordering": ("id",)},
+        ),
+        migrations.CreateModel(
+            name="WmsNewShipmentOrder",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("source_assignment_id", models.BigIntegerField(blank=True, null=True, unique=True)),
+                ("source_handover_order_id", models.BigIntegerField(blank=True, null=True, unique=True)),
+                ("assignment_status", models.CharField(default="confirmed", max_length=32)),
+                ("verification_status", models.CharField(choices=[("not_checked", "Не проверен"), ("checked", "Проверен"), ("error", "Ошибка")], default="not_checked", max_length=24)),
+                ("sticker_number", models.CharField(blank=True, max_length=128)),
+                ("weight_kg", models.DecimalField(decimal_places=3, default=0, max_digits=12)),
+                ("order_total", models.DecimalField(decimal_places=2, default=0, max_digits=14)),
+                ("source_snapshot", models.JSONField(blank=True, default=dict)),
+                ("verified_at", models.DateTimeField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("added_by", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="added_wms_new_shipment_orders", to=settings.AUTH_USER_MODEL)),
+                ("box", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="shipment_orders", to="wms_new.wmsnewshipmentbox")),
+                ("order", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="shipment_links", to="wms_new.wmsneworder")),
+                ("shipment", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="shipment_orders", to="wms_new.wmsnewshipment")),
+                ("verified_by", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="verified_wms_new_shipment_orders", to=settings.AUTH_USER_MODEL)),
+            ],
+            options={"db_table": "wms_new_shipment_order", "ordering": ("shipment_id", "id"), "constraints": [models.UniqueConstraint(fields=("shipment", "order"), name="uniq_wms_new_shipment_order")]},
+        ),
+    ]

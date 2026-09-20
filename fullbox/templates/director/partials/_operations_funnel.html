@@ -1,0 +1,16 @@
+<article class="dir-card">
+  <h2 class="dir-card-title">Заявки</h2>
+  <p class="dir-card-sub">Операционная воронка · WMS</p>
+  <div class="dir-funnel">
+    {% for step in funnel %}
+      <div class="dir-funnel-row">
+        <div class="dir-funnel-top">
+          <strong>{{ step.label }}</strong>
+          <span>{{ step.count }}</span>
+        </div>
+        <div class="dir-funnel-bar"><span style="width:{{ step.pct }}%"></span></div>
+        <div class="dir-funnel-meta">ср. {{ step.avg }} · просрочено {{ step.overdue }}</div>
+      </div>
+    {% endfor %}
+  </div>
+</article>

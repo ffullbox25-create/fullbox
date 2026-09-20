@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Кабинет {{ title|lower }} | Фуллбокс</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f6f6f4;
+      --surface: #ffffff;
+      --ink: #303030;
+      --muted: #737373;
+      --line: #e8e8e5;
+      --accent: #f89000;
+      --accent-strong: #f86800;
+      --accent-soft: rgba(248, 144, 0, 0.13);
+      --success: #159a61;
+      --success-soft: #e8f7ef;
+      --warning: #b7791f;
+      --warning-soft: #fff5d9;
+      --info: #2878c8;
+      --info-soft: #eaf3fc;
+      --shadow: 0 12px 30px rgba(48, 48, 48, 0.07);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-y: auto;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: "Manrope", system-ui, sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input { font: inherit; }
+    .shell {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 24px 18px;
+      background: var(--surface);
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+    }
+    .fullbox-brand-mark { display: inline-flex; align-items: center; }
+    .fullbox-brand-img { display: block; width: auto; height: 44px; max-width: 150px; object-fit: contain; }
+    .profile {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fbfbfa;
+    }
+    .profile-label { margin-bottom: 6px; color: var(--muted); font-size: 12px; }
+    .profile-name { font-weight: 800; line-height: 1.35; }
+    .profile-role { margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .nav { display: grid; gap: 8px; }
+    .nav-link {
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-weight: 700;
+      color: #555;
+    }
+    .nav-link.active {
+      color: #8c5200;
+      background: var(--accent-soft);
+    }
+    .logout {
+      margin-top: auto;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .main {
+      min-width: 0;
+      padding: 28px;
+    }
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+    h1 {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: clamp(25px, 2.2vw, 34px);
+    }
+    .subtitle { margin-top: 5px; color: var(--muted); font-size: 14px; }
+    .worker-pill {
+      padding: 11px 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      font-weight: 800;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .metric {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .metric-label { color: var(--muted); font-size: 13px; }
+    .metric-value { margin-top: 3px; font-size: 28px; font-weight: 800; }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      margin-bottom: 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .subzone-strip {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      padding: 12px;
+      margin-bottom: 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .subzone-step {
+      min-width: 0;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fbfbfa;
+    }
+    .subzone-code {
+      color: #8c5200;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .subzone-name {
+      margin-top: 2px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .subzone-count {
+      margin-top: 5px;
+      font-size: 20px;
+      font-weight: 900;
+    }
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tab {
+      padding: 9px 12px;
+      border-radius: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .tab.active { color: #8c5200; background: var(--accent-soft); }
+    .search { display: flex; gap: 8px; min-width: min(100%, 390px); }
+    .search input {
+      width: 100%;
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      outline: none;
+    }
+    .search input:focus { border-color: var(--accent); }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .btn.primary {
+      border-color: var(--accent);
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+    }
+    .btn.disabled {
+      color: var(--muted);
+      background: #f1f1ef;
+      cursor: default;
+    }
+    .section {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .section + .section { margin-top: 18px; }
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .section-title { margin: 0; font-size: 19px; }
+    .section-help { margin-top: 3px; color: var(--muted); font-size: 13px; }
+    .queue { display: grid; gap: 10px; }
+    .queue-card {
+      display: grid;
+      grid-template-columns: 74px minmax(220px, 1.3fr) minmax(190px, 1fr) minmax(180px, 0.9fr) auto;
+      gap: 16px;
+      align-items: center;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--accent);
+      border-radius: 14px;
+      background: #fff;
+    }
+    .queue-card.done { border-left-color: var(--success); }
+    .photo {
+      width: 64px;
+      height: 64px;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      border: 1px dashed #d9d9d4;
+      border-radius: 12px;
+      color: var(--muted);
+      background: #fafaf8;
+      font-size: 12px;
+    }
+    .photo img { width: 100%; height: 100%; object-fit: cover; }
+    .order { color: var(--muted); font-size: 12px; }
+    .article { margin: 3px 0; font-size: 16px; font-weight: 800; overflow-wrap: anywhere; }
+    .product { color: #555; font-size: 13px; }
+    .meta { display: grid; gap: 5px; font-size: 13px; }
+    .meta span { color: var(--muted); }
+    .params { display: grid; gap: 4px; color: #555; font-size: 12px; }
+    .badge {
+      display: inline-flex;
+      width: fit-content;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: #f1f1ef;
+      color: #626262;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .badge.success { color: var(--success); background: var(--success-soft); }
+    .badge.warning { color: var(--warning); background: var(--warning-soft); }
+    .badge.info { color: var(--info); background: var(--info-soft); }
+    .badge.subzone {
+      margin-bottom: 6px;
+      color: #8c5200;
+      background: var(--accent-soft);
+    }
+    .empty {
+      padding: 34px 16px;
+      border: 1px dashed #d9d9d4;
+      border-radius: 14px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .packaging-row {
+      display: grid;
+      grid-template-columns: minmax(220px, 1.2fr) minmax(190px, 1fr) minmax(180px, 0.8fr) auto;
+      gap: 14px;
+      align-items: center;
+      padding: 12px 0;
+      border-top: 1px solid var(--line);
+    }
+    .packaging-row:first-child { border-top: 0; }
+    .packaging-title, .packaging-actions { display: grid; gap: 7px; }
+    .packaging-actions { justify-items: end; }
+    .assignment-back {
+      display: inline-flex;
+      margin-bottom: 14px;
+      color: #8c5200;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .assignment-summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .assignment-summary-item {
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fbfbfa;
+    }
+    .assignment-summary-label { color: var(--muted); font-size: 12px; }
+    .assignment-summary-value {
+      margin-top: 4px;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+    .assignment-notice {
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      border: 1px solid #f0dca0;
+      border-radius: 12px;
+      color: #73500d;
+      background: var(--warning-soft);
+      font-size: 13px;
+    }
+    @media (max-width: 1180px) {
+      .subzone-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .queue-card { grid-template-columns: 64px minmax(220px, 1fr) minmax(180px, 1fr) auto; }
+      .queue-card .params { grid-column: 2 / 4; }
+    }
+    @media (max-width: 860px) {
+      .shell { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+      .main { padding: 18px; }
+      .metrics { grid-template-columns: 1fr; }
+      .subzone-strip { grid-template-columns: 1fr 1fr; }
+      .toolbar, .topbar { align-items: stretch; flex-direction: column; }
+      .search { min-width: 0; }
+      .queue-card { grid-template-columns: 58px minmax(0, 1fr); }
+      .queue-card .meta, .queue-card .params, .queue-card .actions { grid-column: 1 / -1; }
+      .packaging-row { grid-template-columns: 1fr; }
+      .packaging-actions { justify-items: start; }
+      .assignment-summary { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div>{% include "partials/fullbox_brand.html" %}</div>
+      <div class="profile">
+        <div class="profile-label">Текущий пользователь</div>
+        <div class="profile-name">{{ employee.full_name|default:title }}</div>
+        <div class="profile-role">
+          {% if is_packer %}Упаковщица участка обработки{% else %}Формировщик коробов{% endif %}
+        </div>
+      </div>
+      <nav class="nav">
+        <a class="nav-link active" href="/processing-worker/">Мои задания</a>
+      </nav>
+      <a class="logout" href="/logout/">Выход</a>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1>Кабинет {{ title|lower }}</h1>
+          <div class="subtitle">
+            {% if is_packer %}
+              Проверка товара, упаковка, маркировка и другие операции по техкартам
+            {% else %}
+              Персональные задания на формирование коробов после готовности товара
+            {% endif %}
+          </div>
+        </div>
+        <div class="worker-pill">{{ employee.full_name|default:title }}</div>
+      </header>
+
+      {% for message in messages %}
+        <div class="assignment-notice" role="status">{{ message }}</div>
+      {% endfor %}
+
+      {% if selected_assignment %}
+        <section class="section">
+          <a class="assignment-back" href="/processing-worker/?status={{ status_filter }}">← К списку заданий</a>
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Задание руководителя · {{ selected_assignment.order_number }}</h2>
+              <div class="section-help">Все товарные позиции этой заявки выполняются в рамках одного задания.</div>
+            </div>
+            <span class="badge {{ selected_assignment.status_tone }}">{{ selected_assignment.status_label }}</span>
+          </div>
+          <div class="assignment-summary">
+            <div class="assignment-summary-item">
+              <div class="assignment-summary-label">Клиент</div>
+              <div class="assignment-summary-value">{{ selected_assignment.client }}</div>
+            </div>
+            <div class="assignment-summary-item">
+              <div class="assignment-summary-label">Позиции</div>
+              <div class="assignment-summary-value">{{ selected_assignment.cards_done }} из {{ selected_assignment.cards_total }}</div>
+            </div>
+            <div class="assignment-summary-item">
+              <div class="assignment-summary-label">Количество</div>
+              <div class="assignment-summary-value">{{ selected_assignment.declared_qty }} шт.</div>
+            </div>
+            <div class="assignment-summary-item">
+              <div class="assignment-summary-label">Исполнители</div>
+              <div class="assignment-summary-value">{{ selected_assignment.assigned_workers|join:", "|default:"-" }}</div>
+            </div>
+          </div>
+          {% if selected_assignment.pending_packaging %}
+            <div class="assignment-notice">
+              Следующий этап «Формирование коробов» уже назначен. Он станет доступен после завершения всех товарных позиций.
+            </div>
+          {% endif %}
+          <div class="section-header">
+            <div>
+              <h3 class="section-title">Состав задания</h3>
+              <div class="section-help">Техническая карта открывается только для выполнения выбранной товарной позиции.</div>
+            </div>
+          </div>
+          <div class="queue">
+            {% for item in selected_assignment.cards %}
+              <article class="queue-card{% if item.is_done %} done{% endif %}">
+                <div class="photo">
+                  {% if item.photo_url %}
+                    <img src="{{ item.photo_url }}" alt="{{ item.product_name }}">
+                  {% else %}
+                    Нет фото
+                  {% endif %}
+                </div>
+                <div>
+                  <div class="article">{{ item.article }}</div>
+                  {% if item.result_article %}
+                    <div class="product">Новый артикул: <strong>{{ item.result_article }}</strong></div>
+                  {% endif %}
+                  <div class="product">{{ item.product_name }}</div>
+                </div>
+                <div class="meta">
+                  <div><span>Количество:</span> {{ item.declared_qty }} шт.</div>
+                  <div><span>ШК:</span> {{ item.barcodes|join:", "|default:"-" }}</div>
+                  <div><span>Исполнители:</span> {{ item.assignees|join:", "|default:"-" }}</div>
+                  <div><span>Срок:</span> {{ item.due_date|date:"d.m.Y H:i"|default:"-" }}</div>
+                </div>
+                <div class="params">
+                  {% for param in item.params %}
+                    <div>{{ param }}</div>
+                  {% empty %}
+                    <div>Технические параметры не указаны.</div>
+                  {% endfor %}
+                </div>
+                <div class="actions">
+                  {% if item.operational_subzone.code %}
+                    <div class="badge subzone">{{ item.operational_subzone.code }}</div>
+                  {% endif %}
+                  <div class="badge {{ item.status_tone }}">{{ item.status_label }}</div>
+                  <div style="height:8px;"></div>
+                  <a class="btn primary" href="{{ item.url }}?return={{ selected_assignment.url|urlencode }}">Открыть техкарту</a>
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        </section>
+      {% else %}
+        <section class="metrics">
+          <div class="metric">
+            <div class="metric-label">Активные задания</div>
+            <div class="metric-value">{{ queue_counts.active }}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Завершено</div>
+            <div class="metric-value">{{ queue_counts.done }}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Всего назначено</div>
+            <div class="metric-value">{{ queue_counts.all }}</div>
+          </div>
+        </section>
+
+        <section class="toolbar">
+          <div class="tabs">
+            <a class="tab{% if status_filter == 'active' %} active{% endif %}" href="?status=active{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">
+              Активные {{ queue_counts.active }}
+            </a>
+            <a class="tab{% if status_filter == 'done' %} active{% endif %}" href="?status=done{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">
+              Готово {{ queue_counts.done }}
+            </a>
+            <a class="tab{% if status_filter == 'all' %} active{% endif %}" href="?status=all{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">
+              Все {{ queue_counts.all }}
+            </a>
+          </div>
+          <form class="search" method="get">
+            <input type="hidden" name="status" value="{{ status_filter }}">
+            <input
+              type="search"
+              name="q"
+              value="{{ search_query }}"
+              placeholder="Заявка, клиент, артикул, ШК..."
+            >
+            <button class="btn primary" type="submit">Найти</button>
+          </form>
+        </section>
+
+        <section class="subzone-strip" aria-label="Операционные подзоны OBR">
+          {% for zone in processing_subzone_steps %}
+            <div class="subzone-step">
+              <div class="subzone-code">{{ zone.code }}</div>
+              <div class="subzone-name">{{ zone.label }}</div>
+              <div class="subzone-count">{{ zone.count }}</div>
+            </div>
+          {% endfor %}
+        </section>
+
+        {% if order_assignments or packaging_tasks %}
+          <section class="section">
+            <div class="section-header">
+              <div>
+                <h2 class="section-title">
+                  {% if is_packer %}Товарные задания руководителя{% else %}Формирование коробов{% endif %}
+                </h2>
+                <div class="section-help">
+                  {% if is_packer %}
+                    Одна заявка показывается одним заданием. Технические карты находятся внутри.
+                  {% else %}
+                    Заявка видна сразу после назначения. Открыть поток можно после готовности обработанного товара.
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            {% for assignment in order_assignments %}
+              <div class="packaging-row">
+                <div class="packaging-title">
+                  <strong>Формирование товара по заявке {{ assignment.order_number }}</strong>
+                  {% if assignment.operational_subzone.code %}
+                    <span class="badge subzone">{{ assignment.operational_subzone.code }}</span>
+                  {% endif %}
+                </div>
+                <div class="meta">
+                  <span>Клиент: {{ assignment.client }}</span>
+                  <span>Позиции: {{ assignment.cards_done }} из {{ assignment.cards_total }}</span>
+                </div>
+                <div class="meta">
+                  <span>Количество: {{ assignment.declared_qty }} шт.</span>
+                  <span>Исполнители: {{ assignment.assigned_workers|join:", "|default:"-" }}</span>
+                </div>
+                <div class="packaging-actions">
+                  <span class="badge {{ assignment.status_tone }}">{{ assignment.status_label }}</span>
+                  {% if assignment.is_done %}
+                    <a class="btn primary" href="{{ assignment.url }}">Открыть результат</a>
+                  {% else %}
+                    <a class="btn primary" href="{{ assignment.start_url }}">Начать обработку</a>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+            {% for task in packaging_tasks %}
+              <div class="packaging-row">
+                <div class="packaging-title">
+                  <strong>Формирование коробов по заявке {{ task.order_number }}</strong>
+                  <span class="badge subzone">{{ task.operational_subzone.code }}</span>
+                </div>
+                <div class="meta">
+                  <span>Клиент: {{ task.client }}</span>
+                  <span>Товарные позиции: {{ task.cards_done }} из {{ task.cards_total }}</span>
+                </div>
+                <div class="meta">
+                  <span>Заявлено: {{ task.declared_qty }} шт.</span>
+                  <span>Обработано: {{ task.processed_qty }} шт.</span>
+                </div>
+                <div class="packaging-actions">
+                  <span class="badge {{ task.status_tone }}">{{ task.status_label }}</span>
+                  {% if task.is_done %}
+                    <a class="btn primary" href="{{ task.url }}">Открыть результат</a>
+                  {% elif task.can_start %}
+                    <a class="btn primary" href="{{ task.url }}">Открыть задание</a>
+                  {% else %}
+                    <span class="btn disabled" aria-disabled="true">Товар ещё не готов</span>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </section>
+        {% endif %}
+
+        {% if not packaging_tasks and not order_assignments %}
+          <section class="section">
+            <div class="empty">
+              {% if search_query %}
+                Поиск не нашёл назначенных заданий.
+              {% elif status_filter == "done" %}
+                Завершённых заданий пока нет.
+              {% else %}
+                Активных заданий руководителя пока нет.
+              {% endif %}
+            </div>
+          </section>
+        {% endif %}
+      {% endif %}
+    </main>
+  </div>
+  {% include "partials/request_voice_alerts.html" %}
+</body>
+</html>

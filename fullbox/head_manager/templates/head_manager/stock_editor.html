@@ -1,0 +1,2600 @@
+﻿<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Складские остатки | FULLBOX</title>
+  <style>
+    :root {
+      --bg: #f3f1eb;
+      --card: #ffffff;
+      --card-soft: #faf8f2;
+      --stroke: rgba(15, 23, 42, 0.12);
+      --stroke-strong: rgba(15, 23, 42, 0.18);
+      --text: #171717;
+      --muted: #666f7a;
+      --accent: #c69a1f;
+      --accent-soft: rgba(198, 154, 31, 0.14);
+      --ok: #1f7a52;
+      --warn: #9a6b00;
+      --shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      width: 100%;
+      max-width: none;
+      padding: 16px 18px 28px;
+    }
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .title-block {
+      display: grid;
+      gap: 4px;
+    }
+    .eyebrow {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+    h1 {
+      margin: 0;
+      font-size: 32px;
+      line-height: 1.05;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 40px;
+      padding: 0 14px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke-strong);
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn:hover {
+      border-color: var(--accent);
+      background: #fffdf6;
+    }
+    .btn.primary {
+      background: #f8f1d8;
+      border-color: #e2c36c;
+    }
+    .focus-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .focus-main {
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+    }
+    .focus-title {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.1;
+      word-break: break-word;
+    }
+    .focus-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 30px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .chip.muted {
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .chip.ok {
+      color: var(--ok);
+      background: rgba(31, 122, 82, 0.08);
+      border-color: rgba(31, 122, 82, 0.18);
+    }
+    .chip.warn {
+      color: var(--warn);
+      background: rgba(198, 154, 31, 0.12);
+      border-color: rgba(198, 154, 31, 0.22);
+    }
+    .focus-skus {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .focus-aside {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+    .focus-metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .focus-metric {
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      padding: 10px;
+      background: var(--card-soft);
+      display: grid;
+      gap: 4px;
+    }
+    .focus-metric .value {
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .focus-metric .label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(320px, 1.8fr) 170px 170px auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .input {
+      width: 100%;
+      min-height: 42px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke-strong);
+      background: #fff;
+      padding: 0 12px;
+      font: inherit;
+      color: var(--text);
+    }
+    .input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    .mini-input {
+      width: 100%;
+      min-width: 72px;
+      min-height: 34px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke-strong);
+      background: #fff;
+      padding: 0 10px;
+      font: inherit;
+      color: var(--text);
+      font-size: 12px;
+    }
+    .mini-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    .table-card {
+      padding: 0;
+      overflow: hidden;
+    }
+    .table-head {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--stroke);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .table-title {
+      margin: 0;
+      font-size: 18px;
+    }
+    .table-head-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .toggle-btn {
+      min-height: 34px;
+      padding: 0 12px;
+      font-size: 13px;
+    }
+    .toggle-btn .icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+    }
+    .toggle-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .table-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .table-wrap {
+      overflow: auto;
+      max-height: calc(100vh - 340px);
+    }
+    .pallet-cell,
+    .box-cell {
+      cursor: context-menu;
+    }
+    .box-cell.processing-source-box {
+      background: #ddebf7;
+      color: #174a73;
+      font-weight: 700;
+    }
+    .pallet-cell .code {
+      position: relative;
+    }
+    .pallet-context-menu {
+      position: fixed;
+      display: none;
+      min-width: 230px;
+      padding: 8px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke-strong);
+      background: rgba(255, 255, 255, 0.98);
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+      z-index: 1200;
+    }
+    .pallet-context-menu.is-open {
+      display: grid;
+      gap: 6px;
+    }
+    .pallet-context-menu-title {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 4px 6px 0;
+    }
+    .pallet-context-menu-button {
+      width: 100%;
+      min-height: 42px;
+      border: 0;
+      border-radius: 10px;
+      background: #fff8dd;
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      text-align: left;
+      padding: 0 12px;
+      cursor: pointer;
+    }
+    .pallet-context-menu-button:hover {
+      background: #f7edd0;
+    }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 1900px;
+      font-size: 13px;
+    }
+    .head-row th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: #f7f5ef;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--stroke-strong);
+      border-right: 1px solid var(--stroke);
+      white-space: nowrap;
+    }
+    .filter-row th {
+      position: sticky;
+      top: 41px;
+      z-index: 2;
+      background: #fbfaf6;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--stroke-strong);
+      border-right: 1px solid var(--stroke);
+    }
+    tbody td {
+      padding: 9px 10px;
+      vertical-align: top;
+      border-bottom: 1px solid var(--stroke);
+      border-right: 1px solid var(--stroke);
+      background: #fff;
+    }
+    tbody tr:nth-child(even) td {
+      background: #fcfbf8;
+    }
+    tbody tr:hover td {
+      background: #fff8e8;
+    }
+    tbody tr.is-processing-consumed td {
+      background: #eef0f2;
+      color: #6b7280;
+    }
+    tbody tr.is-processing-consumed:nth-child(even) td {
+      background: #e9ecef;
+    }
+    tbody tr.is-processing-consumed:hover td {
+      background: #e1e5e8;
+    }
+    tbody tr.is-processing-consumed .code,
+    tbody tr.is-processing-consumed .primary {
+      color: #4b5563;
+    }
+    .state-pill {
+      display: inline-flex;
+      width: fit-content;
+      margin-top: 4px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: #d8dde3;
+      color: #4b5563;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    th:last-child,
+    td:last-child {
+      border-right: none;
+    }
+    .idx {
+      width: 58px;
+      text-align: right;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .code {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+    .primary {
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    .secondary {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .qty {
+      font-weight: 800;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .qty.ok { color: var(--ok); }
+    .qty.warn { color: var(--warn); }
+    .empty {
+      padding: 24px 16px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .sort-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: inherit;
+      text-decoration: none;
+    }
+    .col-head-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      min-width: 100%;
+    }
+    .col-visibility-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      min-width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: #fff;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    }
+    .col-visibility-btn:hover {
+      border-color: var(--accent);
+      color: var(--text);
+      background: #fffdf6;
+    }
+    .col-visibility-btn svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .col-visibility-btn .icon-closed {
+      display: none;
+    }
+    .col-visibility-btn.is-collapsed .icon-open {
+      display: none;
+    }
+    .col-visibility-btn.is-collapsed .icon-closed {
+      display: block;
+    }
+    .sort-link:hover {
+      color: var(--text);
+    }
+    .sort-link.active {
+      color: var(--text);
+    }
+    .sort-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: #fff;
+      font-size: 10px;
+      line-height: 1;
+    }
+    .sort-link.active .sort-icon {
+      border-color: #d8b14a;
+      background: #fff5d8;
+      color: #8a6510;
+    }
+    th.collapsible-col,
+    td.collapsible-col {
+      transition: width 0.18s ease, min-width 0.18s ease, max-width 0.18s ease, padding 0.18s ease;
+    }
+    .head-row th.collapsible-col.is-collapsed,
+    .filter-row th.collapsible-col.is-collapsed,
+    tbody td.collapsible-col.is-collapsed {
+      width: 42px;
+      min-width: 42px;
+      max-width: 42px;
+      padding-left: 6px;
+      padding-right: 6px;
+    }
+    .head-row th.collapsible-col.is-collapsed .sort-link,
+    .filter-row th.collapsible-col.is-collapsed .mini-input {
+      display: none;
+    }
+    .head-row th.collapsible-col.is-collapsed .col-head-controls {
+      justify-content: center;
+    }
+    tbody td.collapsible-col.is-collapsed {
+      color: transparent !important;
+      font-size: 0;
+      line-height: 0;
+      user-select: none;
+    }
+    tbody td.collapsible-col.is-collapsed * {
+      visibility: hidden;
+    }
+    .filter-row .idx {
+      color: transparent;
+    }
+    .right {
+      text-align: right;
+    }
+    @media (max-width: 1200px) {
+      .controls {
+        grid-template-columns: 1fr 1fr;
+      }
+      .focus-card {
+        grid-template-columns: 1fr;
+      }
+      .table-wrap {
+        max-height: none;
+      }
+    }
+{% include "labels/_label_styles.css" %}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="stack">
+      <section class="card">
+        <div class="topbar">
+          <div class="title-block">
+            <div class="eyebrow">FULLBOX · {% include "partials/current_user.html" %}</div>
+            <h1>Складские остатки</h1>
+          </div>
+          <div class="actions">
+            <a class="btn primary" href="{{ export_excel_url }}">Выгрузить в Excel</a>
+            <a class="btn" href="/head-manager/reports/warehouse/">Складские отчёты</a>
+            <a class="btn" href="/logout/">Выход</a>
+          </div>
+        </div>
+      </section>
+
+      {% if journal_focus %}
+        <section class="card focus-card">
+          <div class="focus-main">
+            <div class="eyebrow">Фокус поиска</div>
+            <h2 class="focus-title">{{ journal_focus.label }} · {{ journal_focus.value }}</h2>
+            <div class="focus-meta">
+              <span class="chip muted">Запрос: {{ journal_focus.query }}</span>
+              {% if journal_focus.client_label %}
+                <span class="chip">Клиент: {{ journal_focus.client_label }}</span>
+              {% endif %}
+              {% if journal_focus.order_label %}
+                <span class="chip">Заявка: {{ journal_focus.order_label }}</span>
+              {% endif %}
+              {% if journal_focus.zone_label %}
+                <span class="chip">Зона: {{ journal_focus.zone_label }}</span>
+              {% endif %}
+              {% if journal_focus.location_label %}
+                <span class="chip">Полное место: {{ journal_focus.location_label }}</span>
+              {% endif %}
+            </div>
+            {% if journal_focus.sku_labels %}
+              <div class="focus-skus">
+                {% for sku_label in journal_focus.sku_labels %}
+                  <span class="chip ok">{{ sku_label }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+          <div class="focus-aside">
+            <div class="focus-metric-grid">
+              <div class="focus-metric">
+                <div class="value">{{ journal_focus.summary.total_qty }}</div>
+                <div class="label">Всего</div>
+              </div>
+              <div class="focus-metric">
+                <div class="value">{{ journal_focus.summary.total_available_qty }}</div>
+                <div class="label">Доступно</div>
+              </div>
+              <div class="focus-metric">
+                <div class="value">{{ journal_focus.summary.pallet_count }}</div>
+                <div class="label">Паллет</div>
+              </div>
+              <div class="focus-metric">
+                <div class="value">{{ journal_focus.summary.box_count }}</div>
+                <div class="label">Коробов</div>
+              </div>
+              <div class="focus-metric">
+                <div class="value">{{ journal_focus.summary.total_processing_reserved_qty }}</div>
+                <div class="label">Резерв OBR</div>
+              </div>
+              <div class="focus-metric">
+                <div class="value">{{ journal_focus.summary.total_stock_otg_qty }}</div>
+                <div class="label">Склад OTG</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      {% endif %}
+
+      <section class="card">
+        <form id="journalFilters" class="controls" method="get">
+          {% if request.GET.client %}
+            <input type="hidden" name="client" value="{{ request.GET.client }}">
+          {% endif %}
+          {% if request.GET.agency %}
+            <input type="hidden" name="agency" value="{{ request.GET.agency }}">
+          {% endif %}
+          <input type="hidden" name="sort" value="{{ journal_sort_key }}">
+          <input type="hidden" name="dir" value="{{ journal_sort_dir }}">
+          <div class="field">
+            <label for="q">Поиск</label>
+            <input id="q" class="input" type="search" name="q" value="{{ q }}" placeholder="Паллета, короб, SKU, место, заявка, клиент">
+          </div>
+          <div class="field">
+            <label for="date_from">Дата с</label>
+            <input id="date_from" class="input" type="date" name="date_from" value="{{ date_from }}">
+          </div>
+          <div class="field">
+            <label for="date_to">Дата по</label>
+            <input id="date_to" class="input" type="date" name="date_to" value="{{ date_to }}">
+          </div>
+          <button class="btn primary" type="submit">Найти</button>
+          <a class="btn" href="{{ journal_reset_url }}">Сброс</a>
+        </form>
+      </section>
+
+      <section class="card table-card">
+        <div class="table-head">
+          <div class="table-head-main">
+            <h2 class="table-title">Позиции склада</h2>
+            <a
+              class="btn toggle-btn"
+              href="{{ journal_toggle_consumed_url }}"
+              title="{% if journal_hide_processing_consumed %}Показать списанные{% else %}Скрыть списанные{% endif %}"
+            >
+              <span class="icon" aria-hidden="true">
+                {% if journal_hide_processing_consumed %}
+                  <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                    <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                {% else %}
+                  <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                    <path d="M3 3l18 18"></path>
+                    <path d="M10.6 5.2A11 11 0 0 1 12 5c6.4 0 10 7 10 7a18.7 18.7 0 0 1-4 4.8"></path>
+                    <path d="M6.7 6.7A18.3 18.3 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.1-.9"></path>
+                    <path d="M9.9 9.9A3 3 0 0 0 12 15a3 3 0 0 0 2.1-.9"></path>
+                  </svg>
+                {% endif %}
+              </span>
+              <span>{% if journal_hide_processing_consumed %}Показать списанные{% else %}Скрыть списанные{% endif %}</span>
+            </a>
+          </div>
+          <div class="chip warn">
+            {% if journal_has_filters %}
+              По фильтру: {{ journal_summary.row_count }}
+            {% else %}
+              Всего строк: {{ journal_summary.row_count }}
+            {% endif %}
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr class="head-row">
+                <th class="idx">#</th>
+                <th>
+                  <a class="sort-link{% if journal_sort_key == 'created_at' %} active{% endif %}" href="{{ journal_sort_urls.created_at }}">
+                    <span>Когда</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'created_at' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th>
+                  <a class="sort-link{% if journal_sort_key == 'pallet_code' %} active{% endif %}" href="{{ journal_sort_urls.pallet_code }}">
+                    <span>Паллета</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'pallet_code' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th>
+                  <a class="sort-link{% if journal_sort_key == 'box_code' %} active{% endif %}" href="{{ journal_sort_urls.box_code }}">
+                    <span>Короб</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'box_code' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th>
+                  <a class="sort-link{% if journal_sort_key == 'order_display' %} active{% endif %}" href="{{ journal_sort_urls.order_display }}">
+                    <span>Заявка</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'order_display' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th>
+                  <a class="sort-link{% if journal_sort_key == 'client_label' %} active{% endif %}" href="{{ journal_sort_urls.client_label }}">
+                    <span>Клиент</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'client_label' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th>
+                  <a class="sort-link{% if journal_sort_key == 'sku' %} active{% endif %}" href="{{ journal_sort_urls.sku }}">
+                    <span>SKU</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'sku' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th>
+                  <a class="sort-link{% if journal_sort_key == 'name' %} active{% endif %}" href="{{ journal_sort_urls.name }}">
+                    <span>Наименование</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'name' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th>
+                  <a class="sort-link{% if journal_sort_key == 'size' %} active{% endif %}" href="{{ journal_sort_urls.size }}">
+                    <span>Размер</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'size' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th>
+                  <a class="sort-link{% if journal_sort_key == 'box_weight' %} active{% endif %}" href="{{ journal_sort_urls.box_weight }}">
+                    <span>Вес, г</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'box_weight' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th>
+                  <a class="sort-link{% if journal_sort_key == 'goods_type' %} active{% endif %}" href="{{ journal_sort_urls.goods_type }}">
+                    <span>Тип товара</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'goods_type' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th>
+                  <a class="sort-link{% if journal_sort_key == 'location' %} active{% endif %}" href="{{ journal_sort_urls.location }}">
+                    <span>Место</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'location' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th class="right">
+                  <a class="sort-link{% if journal_sort_key == 'qty' %} active{% endif %}" href="{{ journal_sort_urls.qty }}">
+                    <span>Всего</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'qty' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th class="right">
+                  <a class="sort-link{% if journal_sort_key == 'stock_main_qty' %} active{% endif %}" href="{{ journal_sort_urls.stock_main_qty }}">
+                    <span>Основной</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'stock_main_qty' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th class="right collapsible-col" data-col-key="stock_processing_qty">
+                  <div class="col-head-controls">
+                    <a class="sort-link{% if journal_sort_key == 'stock_processing_qty' %} active{% endif %}" href="{{ journal_sort_urls.stock_processing_qty }}">
+                      <span>Склад OBR</span>
+                      <span class="sort-icon">{% if journal_sort_key == 'stock_processing_qty' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                    </a>
+                    <button class="col-visibility-btn" type="button" data-col-key="stock_processing_qty" data-column-label="Склад OBR" title="Скрыть столбец Склад OBR" aria-label="Скрыть столбец Склад OBR" aria-pressed="false">
+                      <svg class="icon-open" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                      <svg class="icon-closed" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 5.2A11 11 0 0 1 12 5c6.4 0 10 7 10 7a18.7 18.7 0 0 1-4 4.8"></path><path d="M6.7 6.7A18.3 18.3 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.1-.9"></path><path d="M9.9 9.9A3 3 0 0 0 12 15a3 3 0 0 0 2.1-.9"></path></svg>
+                    </button>
+                  </div>
+                </th>
+                <th class="right collapsible-col" data-col-key="stock_otg_qty">
+                  <div class="col-head-controls">
+                    <a class="sort-link{% if journal_sort_key == 'stock_otg_qty' %} active{% endif %}" href="{{ journal_sort_urls.stock_otg_qty }}">
+                      <span>Склад OTG</span>
+                      <span class="sort-icon">{% if journal_sort_key == 'stock_otg_qty' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                    </a>
+                    <button class="col-visibility-btn" type="button" data-col-key="stock_otg_qty" data-column-label="Склад OTG" title="Скрыть столбец Склад OTG" aria-label="Скрыть столбец Склад OTG" aria-pressed="false">
+                      <svg class="icon-open" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                      <svg class="icon-closed" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 5.2A11 11 0 0 1 12 5c6.4 0 10 7 10 7a18.7 18.7 0 0 1-4 4.8"></path><path d="M6.7 6.7A18.3 18.3 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.1-.9"></path><path d="M9.9 9.9A3 3 0 0 0 12 15a3 3 0 0 0 2.1-.9"></path></svg>
+                    </button>
+                  </div>
+                </th>
+                <th class="right collapsible-col" data-col-key="available_qty">
+                  <div class="col-head-controls">
+                    <a class="sort-link{% if journal_sort_key == 'available_qty' %} active{% endif %}" href="{{ journal_sort_urls.available_qty }}">
+                      <span>Доступно</span>
+                      <span class="sort-icon">{% if journal_sort_key == 'available_qty' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                    </a>
+                    <button class="col-visibility-btn" type="button" data-col-key="available_qty" data-column-label="Доступно" title="Скрыть столбец Доступно" aria-label="Скрыть столбец Доступно" aria-pressed="false">
+                      <svg class="icon-open" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                      <svg class="icon-closed" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 5.2A11 11 0 0 1 12 5c6.4 0 10 7 10 7a18.7 18.7 0 0 1-4 4.8"></path><path d="M6.7 6.7A18.3 18.3 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.1-.9"></path><path d="M9.9 9.9A3 3 0 0 0 12 15a3 3 0 0 0 2.1-.9"></path></svg>
+                    </button>
+                  </div>
+                </th>
+                <th class="right collapsible-col" data-col-key="processing_reserved_qty">
+                  <div class="col-head-controls">
+                    <a class="sort-link{% if journal_sort_key == 'processing_reserved_qty' %} active{% endif %}" href="{{ journal_sort_urls.processing_reserved_qty }}">
+                      <span>Резерв OBR</span>
+                      <span class="sort-icon">{% if journal_sort_key == 'processing_reserved_qty' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                    </a>
+                    <button class="col-visibility-btn" type="button" data-col-key="processing_reserved_qty" data-column-label="Резерв OBR" title="Скрыть столбец Резерв OBR" aria-label="Скрыть столбец Резерв OBR" aria-pressed="false">
+                      <svg class="icon-open" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                      <svg class="icon-closed" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 5.2A11 11 0 0 1 12 5c6.4 0 10 7 10 7a18.7 18.7 0 0 1-4 4.8"></path><path d="M6.7 6.7A18.3 18.3 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.1-.9"></path><path d="M9.9 9.9A3 3 0 0 0 12 15a3 3 0 0 0 2.1-.9"></path></svg>
+                    </button>
+                  </div>
+                </th>
+                <th class="right collapsible-col" data-col-key="processing_in_progress_qty">
+                  <div class="col-head-controls">
+                    <a class="sort-link{% if journal_sort_key == 'processing_in_progress_qty' %} active{% endif %}" href="{{ journal_sort_urls.processing_in_progress_qty }}">
+                      <span>В обработке</span>
+                      <span class="sort-icon">{% if journal_sort_key == 'processing_in_progress_qty' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                    </a>
+                    <button class="col-visibility-btn" type="button" data-col-key="processing_in_progress_qty" data-column-label="В обработке" title="Скрыть столбец В обработке" aria-label="Скрыть столбец В обработке" aria-pressed="false">
+                      <svg class="icon-open" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                      <svg class="icon-closed" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 5.2A11 11 0 0 1 12 5c6.4 0 10 7 10 7a18.7 18.7 0 0 1-4 4.8"></path><path d="M6.7 6.7A18.3 18.3 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.1-.9"></path><path d="M9.9 9.9A3 3 0 0 0 12 15a3 3 0 0 0 2.1-.9"></path></svg>
+                    </button>
+                  </div>
+                </th>
+                <th class="right collapsible-col" data-col-key="shipping_reserved_qty">
+                  <div class="col-head-controls">
+                    <a class="sort-link{% if journal_sort_key == 'shipping_reserved_qty' %} active{% endif %}" href="{{ journal_sort_urls.shipping_reserved_qty }}">
+                      <span>Резерв OTG</span>
+                      <span class="sort-icon">{% if journal_sort_key == 'shipping_reserved_qty' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                    </a>
+                    <button class="col-visibility-btn" type="button" data-col-key="shipping_reserved_qty" data-column-label="Резерв OTG" title="Скрыть столбец Резерв OTG" aria-label="Скрыть столбец Резерв OTG" aria-pressed="false">
+                      <svg class="icon-open" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                      <svg class="icon-closed" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 5.2A11 11 0 0 1 12 5c6.4 0 10 7 10 7a18.7 18.7 0 0 1-4 4.8"></path><path d="M6.7 6.7A18.3 18.3 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.1-.9"></path><path d="M9.9 9.9A3 3 0 0 0 12 15a3 3 0 0 0 2.1-.9"></path></svg>
+                    </button>
+                  </div>
+                </th>
+              </tr>
+              <tr class="filter-row">
+                <th class="idx"></th>
+                <th><input class="mini-input" type="text" name="f_when" value="{{ column_filters.f_when }}" form="journalFilters" placeholder="Дата"></th>
+                <th><input class="mini-input" type="text" name="f_pallet" value="{{ column_filters.f_pallet }}" form="journalFilters" placeholder="Паллета"></th>
+                <th><input class="mini-input" type="text" name="f_box" value="{{ column_filters.f_box }}" form="journalFilters" placeholder="Короб"></th>
+                <th><input class="mini-input" type="text" name="f_order" value="{{ column_filters.f_order }}" form="journalFilters" placeholder="Заявка"></th>
+                <th><input class="mini-input" type="text" name="f_client" value="{{ column_filters.f_client }}" form="journalFilters" placeholder="Клиент"></th>
+                <th><input class="mini-input" type="text" name="f_sku" value="{{ column_filters.f_sku }}" form="journalFilters" placeholder="SKU"></th>
+                <th><input class="mini-input" type="text" name="f_name" value="{{ column_filters.f_name }}" form="journalFilters" placeholder="Наименование"></th>
+                <th><input class="mini-input" type="text" name="f_size" value="{{ column_filters.f_size }}" form="journalFilters" placeholder="Размер"></th>
+                <th><input class="mini-input" type="text" name="f_weight" value="{{ column_filters.f_weight }}" form="journalFilters" placeholder="Вес"></th>
+                <th><input class="mini-input" type="text" name="f_goods_type" value="{{ column_filters.f_goods_type }}" form="journalFilters" placeholder="Тип"></th>
+                <th><input class="mini-input" type="text" name="f_location" value="{{ column_filters.f_location }}" form="journalFilters" placeholder="Место"></th>
+                <th class="collapsible-col" data-col-key="stock_processing_qty"></th>
+                <th class="collapsible-col" data-col-key="stock_otg_qty"></th>
+                <th class="collapsible-col" data-col-key="available_qty"></th>
+                <th class="collapsible-col" data-col-key="processing_reserved_qty"></th>
+                <th class="collapsible-col" data-col-key="processing_in_progress_qty"></th>
+                <th class="collapsible-col" data-col-key="shipping_reserved_qty"></th>
+                <th></th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+                <tr{% if row.is_processing_consumed %} class="is-processing-consumed"{% endif %} data-snapshot-id="{{ row.snapshot_id }}">
+                  <td class="idx">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                  <td>
+                    <div class="primary">{{ row.created_at|date:"d.m.Y H:i" }}</div>
+                  </td>
+                  <td
+                    class="pallet-cell editable-cell"
+                    title="{{ row.pallet_code }}"
+                    data-pallet-code="{{ row.pallet_code }}"
+                    data-client-label="{{ row.client_label }}"
+                    data-snapshot-id="{{ row.snapshot_id }}"
+                    data-container-id="{{ row.container_id }}"
+                    data-parent-container-id="{{ row.parent_container_id }}"
+                    data-lock-reason="{{ row.edit_lock_reason }}"
+                    data-edit-field="rename_pallet"
+                    data-edit-label="Номер паллеты"
+                  >
+                    <div class="code">{{ row.pallet_code }}</div>
+                  </td>
+                  <td
+                    class="box-cell editable-cell{% if row.is_processing_source_box %} processing-source-box{% endif %}"
+                    title="{% if row.is_processing_source_box %}Исходный короб обработки: {{ row.box_code }}{% else %}{{ row.box_code }}{% endif %}"
+                    data-box-code="{{ row.box_code }}"
+                    data-client-label="{{ row.client_label }}"
+                    data-pallet-code="{{ row.pallet_code }}"
+                    data-snapshot-id="{{ row.snapshot_id }}"
+                    data-container-id="{{ row.container_id }}"
+                    data-parent-container-id="{{ row.parent_container_id }}"
+                    data-lock-reason="{{ row.edit_lock_reason }}"
+                    data-edit-field="box_code"
+                    data-edit-label="Номер короба"
+                  >
+                    <div class="code">{{ row.box_code }}</div>
+                  </td>
+                  <td>
+                    <div class="code">{{ row.order_display }}</div>
+                    {% if row.state_label %}
+                      <div class="state-pill" title="{{ row.state_note }}">{{ row.state_label }}</div>
+                    {% endif %}
+                  </td>
+                  <td title="{{ row.client_label }}">
+                    <div class="primary">{{ row.client_label }}</div>
+                  </td>
+                  <td title="{{ row.sku }}"><div class="code">{{ row.sku }}</div></td>
+                  <td title="{{ row.name }}">
+                    <div class="primary">{{ row.name }}</div>
+                  </td>
+                  <td
+                    class="box-size-cell box-metrics-cell editable-cell"
+                    data-snapshot-id="{{ row.snapshot_id }}"
+                    data-container-id="{{ row.container_id }}"
+                    data-parent-container-id="{{ row.parent_container_id }}"
+                    data-box-code="{{ row.box_code }}"
+                    data-lock-reason="{{ row.edit_lock_reason }}"
+                    data-edit-field="box_metrics"
+                    data-edit-label="ОВХ короба"
+                    data-box-size="{{ row.box_size|default:'' }}"
+                    data-box-weight="{{ row.box_weight|default:'' }}"
+                  >
+                    <div class="code">{% if row.box_size %}{{ row.box_size }}{% else %}-{% endif %}</div>
+                  </td>
+                  <td
+                    class="box-weight-cell box-metrics-cell editable-cell"
+                    data-snapshot-id="{{ row.snapshot_id }}"
+                    data-container-id="{{ row.container_id }}"
+                    data-parent-container-id="{{ row.parent_container_id }}"
+                    data-box-code="{{ row.box_code }}"
+                    data-lock-reason="{{ row.edit_lock_reason }}"
+                    data-edit-field="box_metrics"
+                    data-edit-label="ОВХ короба"
+                    data-box-size="{{ row.box_size|default:'' }}"
+                    data-box-weight="{{ row.box_weight|default:'' }}"
+                  >
+                    <div class="code">{{ row.box_weight|default:"-" }}</div>
+                  </td>
+                  <td
+                    class="goods-type-cell editable-cell"
+                    title="Правый клик — изменить тип товара"
+                    data-snapshot-id="{{ row.snapshot_id }}"
+                    data-container-id="{{ row.container_id }}"
+                    data-parent-container-id="{{ row.parent_container_id }}"
+                    data-lock-reason="{{ row.edit_lock_reason }}"
+                    data-edit-field="goods_type"
+                    data-edit-label="Тип товара"
+                    data-goods-type="{{ row.goods_type }}"
+                  ><div class="primary">{{ row.goods_type }}</div></td>
+                  <td
+                    class="location-cell editable-cell"
+                    title="{{ row.location }}"
+                    data-snapshot-id="{{ row.snapshot_id }}"
+                    data-container-id="{{ row.container_id }}"
+                    data-parent-container-id="{{ row.parent_container_id }}"
+                    data-lock-reason="{{ row.edit_lock_reason }}"
+                    data-edit-field="location"
+                    data-edit-label="Место хранения"
+                  >
+                    <div class="code">{{ row.location_short }}</div>
+                  </td>
+                  <td
+                    class="qty box-qty-cell editable-cell"
+                    data-snapshot-id="{{ row.snapshot_id }}"
+                    data-container-id="{{ row.container_id }}"
+                    data-parent-container-id="{{ row.parent_container_id }}"
+                    data-lock-reason="{{ row.edit_lock_reason }}"
+                    data-edit-field="qty"
+                    data-edit-label="Количество в коробе"
+                  >{{ row.qty }}</td>
+                  <td class="qty">{{ row.stock_main_qty|default:0 }}</td>
+                  <td class="qty collapsible-col" data-col-key="stock_processing_qty">{{ row.stock_processing_qty|default:0 }}</td>
+                  <td class="qty collapsible-col" data-col-key="stock_otg_qty">{{ row.stock_otg_qty|default:0 }}</td>
+                  <td class="qty ok collapsible-col" data-col-key="available_qty">{{ row.available_qty|default:0 }}</td>
+                  <td class="qty collapsible-col" data-col-key="processing_reserved_qty">{{ row.processing_reserved_qty|default:0 }}</td>
+                  <td class="qty warn collapsible-col" data-col-key="processing_in_progress_qty">{{ row.processing_in_progress_qty|default:0 }}</td>
+                  <td class="qty collapsible-col" data-col-key="shipping_reserved_qty">{{ row.shipping_reserved_qty|default:0 }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="20" class="empty">Записей по текущему фильтру нет.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if page_obj.paginator.num_pages > 1 %}
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; flex-wrap:wrap;">
+            <span class="muted">Показаны строки {{ page_obj.start_index }}–{{ page_obj.end_index }} из {{ page_obj.paginator.count }}</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              {% if page_obj.has_previous %}
+                <a class="btn" href="?{% if page_query %}{{ page_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Назад</a>
+              {% endif %}
+              <span class="muted">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+              {% if page_obj.has_next %}
+                <a class="btn" href="?{% if page_query %}{{ page_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Вперед</a>
+              {% endif %}
+            </div>
+          </div>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+  <div class="pallet-context-menu" id="containerContextMenu" role="menu" aria-hidden="true">
+    <div class="pallet-context-menu-title" id="containerContextMenuTitle">&#1050;&#1086;&#1085;&#1090;&#1077;&#1081;&#1085;&#1077;&#1088;</div>
+    <button type="button" class="pallet-context-menu-button" data-action="print-container-qr">
+      &#1056;&#1072;&#1089;&#1087;&#1077;&#1095;&#1072;&#1090;&#1072;&#1090;&#1100; QR
+    </button>
+    <button type="button" class="pallet-context-menu-button" data-action="edit-stock-cell">
+      &#1056;&#1077;&#1076;&#1072;&#1082;&#1090;&#1080;&#1088;&#1086;&#1074;&#1072;&#1090;&#1100;
+    </button>
+    <button type="button" class="pallet-context-menu-button" data-action="move-box-to-pallet" hidden>
+      Перенести короб на существующую паллету
+    </button>
+    <button type="button" class="pallet-context-menu-button" data-action="move-box-to-new-pallet" hidden>
+      Поставить короб на новую паллету
+    </button>
+    <button type="button" class="pallet-context-menu-button" data-action="merge-pallets" hidden>
+      Объединить паллеты
+    </button>
+    <button type="button" class="pallet-context-menu-button" data-action="rename-pallet" hidden>
+      Изменить номер паллеты
+    </button>
+    <button type="button" class="pallet-context-menu-button" data-action="edit-box-metrics" hidden>
+      Ввести ОВХ
+    </button>
+    <button type="button" class="pallet-context-menu-button" data-action="edit-box-metrics-analog" hidden>
+      Ввести ОВХ для всех аналогичных
+    </button>
+    <div class="pallet-context-menu-note" data-role="edit-lock-reason" hidden style="padding:10px 14px 0; font-size:13px; line-height:1.4; color:#9a5a00;"></div>
+  </div>
+  <div id="stockEditModal" hidden style="position:fixed; inset:0; z-index:2000;">
+    <div data-action="close-stock-edit-modal" style="position:absolute; inset:0; background:rgba(18,26,43,.32);"></div>
+    <div role="dialog" aria-modal="true" aria-labelledby="stockEditModalTitle" style="position:relative; width:min(460px, calc(100vw - 32px)); margin:10vh auto 0; background:#fffdf8; border:1px solid rgba(191,160,90,.26); border-radius:20px; box-shadow:0 24px 80px rgba(18,26,43,.18); padding:24px;">
+      <h3 id="stockEditModalTitle" style="margin:0 0 18px; font-size:24px; line-height:1.15;">&#1056;&#1077;&#1076;&#1072;&#1082;&#1090;&#1080;&#1088;&#1086;&#1074;&#1072;&#1085;&#1080;&#1077;</h3>
+      <form id="stockEditForm">
+        <input type="hidden" name="snapshot_id" id="stockEditSnapshotId">
+        <input type="hidden" name="field" id="stockEditFieldName">
+        <label id="stockEditFieldLabel" for="stockEditValue" style="display:block; margin-bottom:8px; font-size:14px; font-weight:700; color:#5f6d86;">&#1047;&#1085;&#1072;&#1095;&#1077;&#1085;&#1080;&#1077;</label>
+        <input id="stockEditValue" name="value" type="text" autocomplete="off" style="width:100%; height:48px; padding:0 14px; border:1px solid rgba(95,109,134,.28); border-radius:12px; font-size:16px; color:#12223b; background:#fff;">
+        <datalist id="stockGoodsTypeOptions">
+          <option value="gv">Готовый</option>
+          <option value="no">Не обработанный</option>
+          <option value="op">Оптовый</option>
+          <option value="br">Брак</option>
+          <option value="vz">Возврат</option>
+          <option value="rh">Расходный</option>
+          <option value="votg">Возврат с отгрузки</option>
+        </datalist>
+        <button type="button" id="stockEditOpenMapButton" hidden style="width:100%; height:44px; margin-top:10px; padding:0 14px; border:1px solid rgba(198,154,31,.42); border-radius:12px; background:#fff8dd; color:#12223b; font-weight:700; cursor:pointer;">&#1042;&#1099;&#1073;&#1088;&#1072;&#1090;&#1100; &#1085;&#1072; &#1082;&#1072;&#1088;&#1090;&#1077; &#1089;&#1082;&#1083;&#1072;&#1076;&#1072;</button>
+        <div id="stockEditNote" style="margin-top:10px; min-height:20px; font-size:13px; line-height:1.45; color:#7a879d;"></div>
+        <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px;">
+          <button type="button" data-action="close-stock-edit-modal" style="height:46px; padding:0 18px; border:1px solid rgba(95,109,134,.24); border-radius:12px; background:#fff; color:#12223b; font-weight:700; cursor:pointer;">&#1054;&#1090;&#1084;&#1077;&#1085;&#1072;</button>
+          <button type="submit" id="stockEditSubmitButton" style="height:46px; padding:0 18px; border:1px solid #d4a62b; border-radius:12px; background:#f3c54c; color:#12223b; font-weight:700; cursor:pointer;">&#1057;&#1086;&#1093;&#1088;&#1072;&#1085;&#1080;&#1090;&#1100;</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div id="stockMetricsModal" hidden style="position:fixed; inset:0; z-index:2000;">
+    <div data-action="close-stock-metrics-modal" style="position:absolute; inset:0; background:rgba(18,26,43,.32);"></div>
+    <div role="dialog" aria-modal="true" aria-labelledby="stockMetricsModalTitle" style="position:relative; width:min(520px, calc(100vw - 32px)); margin:10vh auto 0; background:#fffdf8; border:1px solid rgba(191,160,90,.26); border-radius:20px; box-shadow:0 24px 80px rgba(18,26,43,.18); padding:24px;">
+      <h3 id="stockMetricsModalTitle" style="margin:0 0 18px; font-size:24px; line-height:1.15;">Ввести ОВХ</h3>
+      <form id="stockMetricsForm">
+        <input type="hidden" name="snapshot_id" id="stockMetricsSnapshotId">
+        <input type="hidden" name="field" id="stockMetricsFieldName" value="box_metrics">
+        <input type="hidden" name="apply_mode" id="stockMetricsApplyMode" value="single">
+        <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px;">
+          <label style="display:block;">
+            <span style="display:block; margin-bottom:8px; font-size:14px; font-weight:700; color:#5f6d86;">Вес, г</span>
+            <input id="stockMetricsWeight" name="gross_weight_g" type="number" min="1" step="1" autocomplete="off" style="width:100%; height:48px; padding:0 14px; border:1px solid rgba(95,109,134,.28); border-radius:12px; font-size:16px; color:#12223b; background:#fff;">
+          </label>
+          <label style="display:block;">
+            <span style="display:block; margin-bottom:8px; font-size:14px; font-weight:700; color:#5f6d86;">Ширина, мм</span>
+            <input id="stockMetricsWidth" name="width_mm" type="number" min="1" step="1" autocomplete="off" style="width:100%; height:48px; padding:0 14px; border:1px solid rgba(95,109,134,.28); border-radius:12px; font-size:16px; color:#12223b; background:#fff;">
+          </label>
+          <label style="display:block;">
+            <span style="display:block; margin-bottom:8px; font-size:14px; font-weight:700; color:#5f6d86;">Высота, мм</span>
+            <input id="stockMetricsHeight" name="height_mm" type="number" min="1" step="1" autocomplete="off" style="width:100%; height:48px; padding:0 14px; border:1px solid rgba(95,109,134,.28); border-radius:12px; font-size:16px; color:#12223b; background:#fff;">
+          </label>
+          <label style="display:block;">
+            <span style="display:block; margin-bottom:8px; font-size:14px; font-weight:700; color:#5f6d86;">Глубина, мм</span>
+            <input id="stockMetricsDepth" name="depth_mm" type="number" min="1" step="1" autocomplete="off" style="width:100%; height:48px; padding:0 14px; border:1px solid rgba(95,109,134,.28); border-radius:12px; font-size:16px; color:#12223b; background:#fff;">
+          </label>
+        </div>
+        <div id="stockMetricsNote" style="margin-top:12px; min-height:20px; font-size:13px; line-height:1.45; color:#7a879d;"></div>
+        <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px;">
+          <button type="button" data-action="close-stock-metrics-modal" style="height:46px; padding:0 18px; border:1px solid rgba(95,109,134,.24); border-radius:12px; background:#fff; color:#12223b; font-weight:700; cursor:pointer;">Отмена</button>
+          <button type="submit" id="stockMetricsSubmitButton" style="height:46px; padding:0 18px; border:1px solid #d4a62b; border-radius:12px; background:#f3c54c; color:#12223b; font-weight:700; cursor:pointer;">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div id="inventory-box-label-template" hidden aria-hidden="true">
+    <div
+      class="label-preview"
+      data-label-root
+      data-label-type="box"
+      data-label-width="58"
+      data-label-height="60"
+    >
+      {% include "labels/_label_box.html" %}
+    </div>
+  </div>
+  <div id="inventory-pallet-label-template" hidden aria-hidden="true">
+    <div
+      class="label-preview"
+      data-label-root
+      data-label-type="pallet"
+      data-label-width="58"
+      data-label-height="60"
+    >
+      {% include "labels/_label_pallet.html" %}
+    </div>
+  </div>
+  {{ label_settings|json_script:"inventory-label-settings-data" }}
+  <script src="/static/vendor/html2canvas.min.js"></script>
+  <script src="/static/vendor/qrcode.min.js"></script>
+  <script>
+    (() => {
+      const menu = document.getElementById('containerContextMenu');
+      if (!menu) {
+        return;
+      }
+      const menuTitle = document.getElementById('containerContextMenuTitle');
+      const printButton = menu.querySelector('[data-action="print-container-qr"]');
+      const editButton = menu.querySelector('[data-action="edit-stock-cell"]');
+      const moveBoxToPalletButton = menu.querySelector('[data-action="move-box-to-pallet"]');
+      const moveBoxToNewPalletButton = menu.querySelector('[data-action="move-box-to-new-pallet"]');
+      const mergePalletsButton = menu.querySelector('[data-action="merge-pallets"]');
+      const renamePalletButton = menu.querySelector('[data-action="rename-pallet"]');
+      const editBoxMetricsButton = menu.querySelector('[data-action="edit-box-metrics"]');
+      const editBoxMetricsAnalogButton = menu.querySelector('[data-action="edit-box-metrics-analog"]');
+      const editLockReason = menu.querySelector('[data-role="edit-lock-reason"]');
+      const editModal = document.getElementById('stockEditModal');
+      const editForm = document.getElementById('stockEditForm');
+      const editFieldInput = document.getElementById('stockEditValue');
+      const editFieldLabel = document.getElementById('stockEditFieldLabel');
+      const editFieldName = document.getElementById('stockEditFieldName');
+      const editSnapshotId = document.getElementById('stockEditSnapshotId');
+      const editModalTitle = document.getElementById('stockEditModalTitle');
+      const editNote = document.getElementById('stockEditNote');
+      const editSubmitButton = document.getElementById('stockEditSubmitButton');
+      const editOpenMapButton = document.getElementById('stockEditOpenMapButton');
+      const metricsModal = document.getElementById('stockMetricsModal');
+      const metricsForm = document.getElementById('stockMetricsForm');
+      const metricsModalTitle = document.getElementById('stockMetricsModalTitle');
+      const metricsSnapshotId = document.getElementById('stockMetricsSnapshotId');
+      const metricsFieldName = document.getElementById('stockMetricsFieldName');
+      const metricsApplyMode = document.getElementById('stockMetricsApplyMode');
+      const metricsWeightInput = document.getElementById('stockMetricsWeight');
+      const metricsWidthInput = document.getElementById('stockMetricsWidth');
+      const metricsHeightInput = document.getElementById('stockMetricsHeight');
+      const metricsDepthInput = document.getElementById('stockMetricsDepth');
+      const metricsNote = document.getElementById('stockMetricsNote');
+      const metricsSubmitButton = document.getElementById('stockMetricsSubmitButton');
+      let activeCell = null;
+      let activeType = '';
+      let activeEditConfig = null;
+      const inventoryPrintAgentStorageKey = 'labels_print_agent_id';
+      const processingFlowAgentStorageKey = 'fullbox_agent_id';
+      const labelImageCache = new Map();
+      const pendingPrints = new Set();
+      const localAgentBridgeState = {
+        payload: null,
+        pending: null,
+      };
+      const localAgentBridgeUrls = [
+        'http://127.0.0.1:17841/whoami',
+        'http://localhost:17841/whoami',
+      ];
+      const virtualPrinterMarkers = [
+        'pdf',
+        'xps',
+        'onenote',
+        'fax',
+        'microsoft print',
+        'save to pdf',
+        'anydesk',
+        'rustdesk',
+        'remote desktop',
+        'redirected',
+      ];
+      const labelSettingsNode = document.getElementById('inventory-label-settings-data');
+      let labelSettingsData = {};
+      try {
+        labelSettingsData = labelSettingsNode ? JSON.parse(labelSettingsNode.textContent || '{}') : {};
+      } catch (error) {
+        labelSettingsData = {};
+      }
+
+      const hideMenu = () => {
+        menu.classList.remove('is-open');
+        menu.setAttribute('aria-hidden', 'true');
+        activeCell = null;
+        activeType = '';
+        activeEditConfig = null;
+      };
+
+      const getCsrfToken = () => {
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+      };
+
+      const closeEditModal = () => {
+        if (!editModal) {
+          return;
+        }
+        editModal.hidden = true;
+        document.body.style.removeProperty('overflow');
+        if (editForm) {
+          editForm.reset();
+        }
+        if (editNote) {
+          editNote.textContent = '';
+        }
+        if (editOpenMapButton) {
+          editOpenMapButton.hidden = true;
+        }
+      };
+
+      const closeMetricsModal = () => {
+        if (!metricsModal) {
+          return;
+        }
+        metricsModal.hidden = true;
+        document.body.style.removeProperty('overflow');
+        if (metricsForm) {
+          metricsForm.reset();
+        }
+        if (metricsFieldName) {
+          metricsFieldName.value = 'box_metrics';
+        }
+        if (metricsApplyMode) {
+          metricsApplyMode.value = 'single';
+        }
+        if (metricsNote) {
+          metricsNote.textContent = '';
+        }
+      };
+
+      const osSectionLabels = {
+        1: '0',
+        2: 'A',
+        3: 'B',
+        4: 'C',
+        5: 'D',
+        6: 'E',
+        7: 'F',
+        8: 'G',
+        9: 'I',
+      };
+
+      const parseOsLocationCode = (value) => {
+        const normalized = String(value || '')
+          .trim()
+          .toUpperCase()
+          .replace(/^\s*OS\s*[·.-]\s*/i, '')
+          .replace(/\s+/g, '');
+        const match = normalized.match(/^([0A-ZА-Я])-([0-9]+)\/([0-9]+)-([0-9]+)$/i);
+        if (!match) {
+          return null;
+        }
+        const reverseSections = {
+          '0': 1,
+          A: 2,
+          'А': 2,
+          B: 3,
+          'В': 3,
+          C: 4,
+          'С': 4,
+          D: 5,
+          'Д': 5,
+          E: 6,
+          'Е': 6,
+          F: 7,
+          'Ф': 7,
+          G: 8,
+          'Г': 8,
+          I: 9,
+          'И': 9,
+        };
+        const section = reverseSections[match[1]];
+        const row = Number.parseInt(match[2], 10) || 0;
+        const tier = Number.parseInt(match[3], 10) || 0;
+        const cell = Number.parseInt(match[4], 10) || 0;
+        return section && row && tier && cell ? { section, row, tier, cell } : null;
+      };
+
+      const formatPickedStockMapLocation = (payload) => {
+        const location = payload && typeof payload === 'object' ? (payload.location || {}) : {};
+        const zone = String(location.zone || '').trim().toUpperCase();
+        if (zone && zone !== 'OS') {
+          return '';
+        }
+        const row = Number.parseInt(String(location.row || '').trim(), 10) || 0;
+        const section = Number.parseInt(String(location.section || '').trim(), 10) || 0;
+        const tier = Number.parseInt(String(location.tier || '').trim(), 10) || 0;
+        const cell = Number.parseInt(String(location.cell || '').trim(), 10) || 0;
+        const sectionLabel = osSectionLabels[section] || '';
+        if (sectionLabel && row && tier && cell) {
+          return `${sectionLabel}-${row}/${tier}-${cell}`;
+        }
+        return String(payload?.label || '')
+          .replace(/^\s*OS\s*[·.-]\s*/i, '')
+          .trim();
+      };
+
+      const handleStockMapLocationPicked = (payload) => {
+        if (!payload || payload.type !== 'stockmap-location-picked') {
+          return;
+        }
+        const currentField = String(editFieldName?.value || activeEditConfig?.field || '').trim();
+        if (!editModal || editModal.hidden || currentField !== 'location') {
+          return;
+        }
+        const value = formatPickedStockMapLocation(payload);
+        if (!value) {
+          if (editNote) {
+            editNote.textContent = '\u0414\u043b\u044f \u043c\u0435\u0441\u0442\u0430 \u0432 \u044d\u0442\u043e\u043c \u0440\u0435\u0434\u0430\u043a\u0442\u043e\u0440\u0435 \u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043a\u043e\u043d\u043a\u0440\u0435\u0442\u043d\u0443\u044e OS-\u044f\u0447\u0435\u0439\u043a\u0443.';
+          }
+          return;
+        }
+        editFieldInput.value = value;
+        editFieldInput.focus();
+        editFieldInput.select();
+        if (editNote) {
+          editNote.textContent = '\u041c\u0435\u0441\u0442\u043e \u0432\u044b\u0431\u0440\u0430\u043d\u043e \u043d\u0430 \u043a\u0430\u0440\u0442\u0435. \u041d\u0430\u0436\u043c\u0438\u0442\u0435 "\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c", \u0447\u0442\u043e\u0431\u044b \u043f\u0440\u0438\u043c\u0435\u043d\u0438\u0442\u044c.';
+        }
+      };
+
+      const openStockMapPicker = () => {
+        const url = new URL('/stockmap/visual/', window.location.origin);
+        url.searchParams.set('picker', '1');
+        url.searchParams.set('editor', 'stock-editor');
+        const current = parseOsLocationCode(editFieldInput?.value || '');
+        if (current) {
+          url.searchParams.set('near_zone', 'OS');
+          url.searchParams.set('near_row', String(current.row));
+          url.searchParams.set('near_section', String(current.section));
+          url.searchParams.set('near_tier', String(current.tier));
+          url.searchParams.set('near_cell', String(current.cell));
+        }
+        const picker = window.open(
+          `${url.pathname}?${url.searchParams.toString()}`,
+          'fullboxStockMapPicker',
+          'width=1500,height=920,resizable=yes,scrollbars=yes',
+        );
+        if (!picker && editNote) {
+          editNote.textContent = '\u0411\u0440\u0430\u0443\u0437\u0435\u0440 \u0437\u0430\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u0430\u043b \u043e\u043a\u043d\u043e \u043a\u0430\u0440\u0442\u044b. \u0420\u0430\u0437\u0440\u0435\u0448\u0438\u0442\u0435 \u0432\u0441\u043f\u043b\u044b\u0432\u0430\u044e\u0449\u0438\u0435 \u043e\u043a\u043d\u0430 \u0438 \u043f\u043e\u0432\u0442\u043e\u0440\u0438\u0442\u0435.';
+        }
+      };
+
+      const openEditModal = (config) => {
+        if (!editModal || !editForm || !editFieldInput || !editFieldName || !editSnapshotId) {
+          return;
+        }
+        activeEditConfig = config;
+        editSnapshotId.value = String(config.snapshotId || '');
+        editFieldName.value = config.field;
+        editFieldInput.value = config.value;
+        editFieldInput.type = config.field === 'qty' ? 'number' : 'text';
+        if (config.field === 'goods_type') {
+          editFieldInput.setAttribute('list', 'stockGoodsTypeOptions');
+          editFieldInput.placeholder = 'Выберите тип товара';
+        } else {
+          editFieldInput.removeAttribute('list');
+          editFieldInput.removeAttribute('placeholder');
+        }
+        if (config.field === 'qty') {
+          editFieldInput.step = '1';
+          editFieldInput.min = '0';
+        } else {
+          editFieldInput.removeAttribute('step');
+          editFieldInput.removeAttribute('min');
+        }
+        if (editFieldLabel) {
+          editFieldLabel.textContent = config.label;
+        }
+        if (editModalTitle) {
+          editModalTitle.textContent = config.title || `Редактировать: ${config.label}`;
+        }
+        if (editNote) {
+          editNote.textContent = config.note || '';
+        }
+        if (editOpenMapButton) {
+          editOpenMapButton.hidden = config.field !== 'location';
+        }
+        if (editSubmitButton) {
+          editSubmitButton.textContent = config.submitLabel || 'Сохранить';
+        }
+        editModal.hidden = false;
+        document.body.style.overflow = 'hidden';
+        window.setTimeout(() => {
+          editFieldInput.focus();
+          editFieldInput.select();
+        }, 0);
+      };
+
+      const parseMetricsConfig = (cell) => {
+        if (!cell) {
+          return null;
+        }
+        const snapshotId = Number.parseInt(String(cell.dataset.snapshotId || '').trim(), 10) || 0;
+        const containerId = Number.parseInt(String(cell.dataset.containerId || '').trim(), 10) || 0;
+        if (!snapshotId || !containerId) {
+          return null;
+        }
+        const sizeText = String(cell.dataset.boxSize || '').trim();
+        const sizeParts = sizeText ? sizeText.split('/').map((part) => String(part || '').trim()) : [];
+        return {
+          cell,
+          field: 'box_metrics',
+          label: String(cell.dataset.editLabel || '').trim() || 'ОВХ короба',
+          snapshotId,
+          containerId,
+          boxCode: String(cell.dataset.boxCode || '').trim(),
+          lockReason: String(cell.dataset.lockReason || '').trim(),
+          weight: String(cell.dataset.boxWeight || '').trim(),
+          width: sizeParts[0] || '',
+          height: sizeParts[1] || '',
+          depth: sizeParts[2] || '',
+        };
+      };
+
+      const openMetricsModal = (config, applyMode = 'single') => {
+        if (!metricsModal || !metricsForm || !metricsSnapshotId || !metricsApplyMode) {
+          return;
+        }
+        activeEditConfig = {
+          ...config,
+          field: 'box_metrics',
+          applyMode,
+        };
+        metricsSnapshotId.value = String(config.snapshotId || '');
+        metricsFieldName.value = 'box_metrics';
+        metricsApplyMode.value = applyMode;
+        if (metricsWeightInput) {
+          metricsWeightInput.value = config.weight || '';
+        }
+        if (metricsWidthInput) {
+          metricsWidthInput.value = config.width || '';
+        }
+        if (metricsHeightInput) {
+          metricsHeightInput.value = config.height || '';
+        }
+        if (metricsDepthInput) {
+          metricsDepthInput.value = config.depth || '';
+        }
+        if (metricsModalTitle) {
+          metricsModalTitle.textContent = applyMode === 'analog'
+            ? `Ввести ОВХ для аналогичных: ${config.boxCode || 'короб'}`
+            : `Ввести ОВХ: ${config.boxCode || 'короб'}`;
+        }
+        if (metricsSubmitButton) {
+          metricsSubmitButton.textContent = applyMode === 'analog' ? 'Сохранить для аналогичных' : 'Сохранить';
+        }
+        if (metricsNote) {
+          metricsNote.textContent = applyMode === 'analog'
+            ? 'Новые ОВХ будут записаны для всех аналогичных коробов на этой паллете.'
+            : '';
+        }
+        metricsModal.hidden = false;
+        document.body.style.overflow = 'hidden';
+        window.setTimeout(() => {
+          metricsWeightInput?.focus();
+          metricsWeightInput?.select();
+        }, 0);
+      };
+
+      const buildEditConfig = (cell) => {
+        if (!cell) {
+          return null;
+        }
+        const field = String(cell.dataset.editField || '').trim();
+        const snapshotId = Number.parseInt(String(cell.dataset.snapshotId || '').trim(), 10) || 0;
+        const lockReason = String(cell.dataset.lockReason || '').trim();
+        if (!field || !snapshotId) {
+          return null;
+        }
+        let value = '';
+        if (field === 'pallet_code' || field === 'rename_pallet') {
+          value = String(cell.dataset.palletCode || '').trim();
+        } else if (field === 'box_code') {
+          value = String(cell.dataset.boxCode || '').trim();
+        } else if (field === 'location') {
+          value = String(cell.textContent || cell.getAttribute('title') || '').trim();
+          value = value.replace(/^OS\s*[·.-]\s*/i, '').trim();
+        } else if (field === 'goods_type') {
+          value = String(cell.dataset.goodsType || '').trim();
+        } else {
+          value = String(cell.textContent || '').trim();
+        }
+        return {
+          cell,
+          field,
+          label: String(cell.dataset.editLabel || '').trim() || 'Значение',
+          snapshotId,
+          value: value === '-' ? '' : value,
+          lockReason,
+          palletCode: String(cell.dataset.palletCode || '').trim(),
+          boxCode: String(cell.dataset.boxCode || '').trim(),
+          note: field === 'location'
+            ? '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044e\u0449\u0443\u044e OS-\u044f\u0447\u0435\u0439\u043a\u0443 \u043d\u0430 \u043a\u0430\u0440\u0442\u0435 \u0438\u043b\u0438 \u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u043a\u043e\u0434 \u0432\u0438\u0434\u0430 F-4/2-3.'
+            : (field === 'goods_type' ? 'Допустимые типы: gv — готовый; no — не обработанный; op — оптовый; br — брак; vz — возврат; rh — расходный; votg — возврат с отгрузки.' : ''),
+        };
+      };
+
+      const buildContainerOperationConfig = (field) => {
+        const base = activeEditConfig;
+        if (!base) {
+          return null;
+        }
+        if (field === 'move_box_to_pallet') {
+          return {
+            ...base,
+            field,
+            label: 'Номер существующей паллеты',
+            value: '',
+            title: `Перенести короб ${base.boxCode || ''} на существующую паллету`.trim(),
+            note: 'Будет перенесён только выбранный короб со всеми его позициями. Укажите существующую паллету.',
+            submitLabel: 'Перенести на существующую',
+          };
+        }
+        if (field === 'move_box_to_new_pallet') {
+          return {
+            ...base,
+            field,
+            label: 'Номер новой паллеты',
+            value: '',
+            title: `Поставить короб ${base.boxCode || ''} на новую паллету`.trim(),
+            note: 'Будет создана новая паллета в зоне PR. На неё перейдёт только выбранный короб со всеми позициями; номер и QR короба не изменятся. Исходная паллета останется на прежнем месте.',
+            submitLabel: 'Создать и перенести',
+          };
+        }
+        if (field === 'merge_pallets') {
+          return {
+            ...base,
+            field,
+            label: 'Номер паллеты назначения',
+            value: '',
+            title: 'Объединить паллеты',
+            note: `Все короба и товар паллеты ${base.palletCode || ''} будут перенесены на существующую паллету. Исходная паллета будет помечена как объединённая.`.trim(),
+            submitLabel: 'Объединить',
+          };
+        }
+        if (field === 'rename_pallet') {
+          return {
+            ...base,
+            field,
+            label: 'Новый номер паллеты',
+            value: base.palletCode === '-' ? '' : base.palletCode,
+            title: 'Изменить номер паллеты',
+            note: 'Укажите новый свободный номер. Товар и место хранения не изменятся.',
+            submitLabel: 'Изменить номер',
+          };
+        }
+        return null;
+      };
+
+      const setMenuState = (config) => {
+        if (!editButton) {
+          return;
+        }
+        const isEditable = Boolean(config);
+        const isMetrics = Boolean(config && config.field === 'box_metrics');
+        const isBox = activeType === 'box';
+        const isPallet = activeType === 'pallet';
+        editButton.hidden = !isEditable || isMetrics || isPallet;
+        if (moveBoxToPalletButton) {
+          moveBoxToPalletButton.hidden = !isBox;
+          moveBoxToPalletButton.disabled = Boolean(config && config.lockReason);
+        }
+        if (moveBoxToNewPalletButton) {
+          moveBoxToNewPalletButton.hidden = !isBox;
+          moveBoxToNewPalletButton.disabled = Boolean(config && config.lockReason);
+        }
+        if (mergePalletsButton) {
+          mergePalletsButton.hidden = !isPallet;
+          mergePalletsButton.disabled = Boolean(config && config.lockReason);
+        }
+        if (renamePalletButton) {
+          renamePalletButton.hidden = !isPallet;
+          renamePalletButton.disabled = Boolean(config && config.lockReason);
+        }
+        if (editBoxMetricsButton) {
+          editBoxMetricsButton.hidden = !isMetrics;
+        }
+        if (editBoxMetricsAnalogButton) {
+          editBoxMetricsAnalogButton.hidden = !isMetrics;
+        }
+        if (!isEditable) {
+          if (editLockReason) {
+            editLockReason.hidden = true;
+            editLockReason.textContent = '';
+          }
+          return;
+        }
+        editButton.hidden = isMetrics || isPallet;
+        editButton.textContent = isBox && config.field === 'box_code'
+          ? 'Изменить номер короба'
+          : `Редактировать: ${config.label.toLowerCase()}`;
+        if (editBoxMetricsButton) {
+          editBoxMetricsButton.disabled = Boolean(config.lockReason);
+        }
+        if (editBoxMetricsAnalogButton) {
+          editBoxMetricsAnalogButton.disabled = Boolean(config.lockReason);
+        }
+        editButton.disabled = Boolean(config.lockReason);
+        if (editLockReason) {
+          editLockReason.textContent = config.lockReason || '';
+          editLockReason.hidden = !config.lockReason;
+        }
+      };
+
+      const updateMatchingCells = (selector, updater) => {
+        document.querySelectorAll(selector).forEach((node) => updater(node));
+      };
+
+      const applyUpdatedRow = (config, row) => {
+        if (!config || !row) {
+          return;
+        }
+        const snapshotId = String(row.snapshot_id || config.snapshotId || '');
+        const containerId = String(row.container_id || '');
+        const parentContainerId = String(row.parent_container_id || '');
+        const lockReason = String(row.edit_lock_reason || '').trim();
+        const boxSize = String(row.box_size || '').trim();
+        const boxWeight = String(row.box_weight || '').trim();
+        const rowNode = document.querySelector(`tr[data-snapshot-id="${snapshotId}"]`);
+        if (rowNode) {
+          const rowPalletCell = rowNode.querySelector('.pallet-cell');
+          const rowBoxCell = rowNode.querySelector('.box-cell');
+          const rowSizeCell = rowNode.querySelector('.box-size-cell');
+          const rowWeightCell = rowNode.querySelector('.box-weight-cell');
+          const rowGoodsTypeCell = rowNode.querySelector('.goods-type-cell');
+          const rowLocationCell = rowNode.querySelector('.location-cell');
+          const rowQtyCell = rowNode.querySelector('.box-qty-cell');
+          if (rowPalletCell) {
+            rowPalletCell.dataset.palletCode = row.pallet_code || '-';
+            rowPalletCell.dataset.parentContainerId = parentContainerId;
+            rowPalletCell.dataset.containerId = containerId;
+            rowPalletCell.dataset.lockReason = lockReason;
+            rowPalletCell.title = row.pallet_code || '-';
+            const codeNode = rowPalletCell.querySelector('.code');
+            if (codeNode) {
+              codeNode.textContent = row.pallet_code || '-';
+            }
+          }
+          if (rowBoxCell) {
+            rowBoxCell.dataset.boxCode = row.box_code || '-';
+            rowBoxCell.dataset.palletCode = row.pallet_code || '-';
+            rowBoxCell.dataset.parentContainerId = parentContainerId;
+            rowBoxCell.dataset.containerId = containerId;
+            rowBoxCell.dataset.lockReason = lockReason;
+            rowBoxCell.classList.toggle('processing-source-box', !!row.is_processing_source_box);
+            rowBoxCell.title = row.is_processing_source_box
+              ? `Исходный короб обработки: ${row.box_code || '-'}`
+              : row.box_code || '-';
+            const codeNode = rowBoxCell.querySelector('.code');
+            if (codeNode) {
+              codeNode.textContent = row.box_code || '-';
+            }
+          }
+          if (rowSizeCell) {
+            rowSizeCell.dataset.parentContainerId = parentContainerId;
+            rowSizeCell.dataset.containerId = containerId;
+            rowSizeCell.dataset.boxCode = row.box_code || '-';
+            rowSizeCell.dataset.boxSize = boxSize;
+            rowSizeCell.dataset.boxWeight = boxWeight;
+            rowSizeCell.dataset.lockReason = lockReason;
+            const codeNode = rowSizeCell.querySelector('.code');
+            if (codeNode) {
+              codeNode.textContent = boxSize || '-';
+            }
+          }
+          if (rowWeightCell) {
+            rowWeightCell.dataset.parentContainerId = parentContainerId;
+            rowWeightCell.dataset.containerId = containerId;
+            rowWeightCell.dataset.boxCode = row.box_code || '-';
+            rowWeightCell.dataset.boxSize = boxSize;
+            rowWeightCell.dataset.boxWeight = boxWeight;
+            rowWeightCell.dataset.lockReason = lockReason;
+            const codeNode = rowWeightCell.querySelector('.code');
+            if (codeNode) {
+              codeNode.textContent = boxWeight || '-';
+            }
+          }
+          if (rowGoodsTypeCell) {
+            rowGoodsTypeCell.dataset.parentContainerId = parentContainerId;
+            rowGoodsTypeCell.dataset.containerId = containerId;
+            rowGoodsTypeCell.dataset.lockReason = lockReason;
+            rowGoodsTypeCell.dataset.goodsType = row.goods_type || '';
+            const valueNode = rowGoodsTypeCell.querySelector('.primary');
+            if (valueNode) {
+              valueNode.textContent = row.goods_type || '-';
+            }
+          }
+          if (rowLocationCell) {
+            rowLocationCell.dataset.parentContainerId = parentContainerId;
+            rowLocationCell.dataset.containerId = containerId;
+            rowLocationCell.dataset.lockReason = lockReason;
+            rowLocationCell.title = row.location || '';
+            const codeNode = rowLocationCell.querySelector('.code');
+            if (codeNode) {
+              codeNode.textContent = row.location_short || '';
+            }
+          }
+          if (rowQtyCell) {
+            rowQtyCell.dataset.parentContainerId = parentContainerId;
+            rowQtyCell.dataset.containerId = containerId;
+            rowQtyCell.dataset.lockReason = lockReason;
+            rowQtyCell.textContent = row.qty ?? 0;
+          }
+          const rowAvailableCell = rowNode.querySelector('[data-col-key="available_qty"]');
+          if (rowAvailableCell) {
+            rowAvailableCell.textContent = row.available_qty ?? row.qty ?? 0;
+          }
+        }
+        if (parentContainerId) {
+          updateMatchingCells(`.pallet-cell[data-parent-container-id="${parentContainerId}"]`, (node) => {
+            node.dataset.palletCode = row.pallet_code || '-';
+            node.dataset.lockReason = lockReason;
+            node.title = row.pallet_code || '-';
+            const codeNode = node.querySelector('.code');
+            if (codeNode) {
+              codeNode.textContent = row.pallet_code || '-';
+            }
+          });
+          updateMatchingCells(`.box-cell[data-parent-container-id="${parentContainerId}"]`, (node) => {
+            node.dataset.palletCode = row.pallet_code || '-';
+            node.dataset.lockReason = lockReason;
+          });
+        }
+        if (containerId) {
+          updateMatchingCells(`.box-cell[data-container-id="${containerId}"]`, (node) => {
+            node.dataset.boxCode = row.box_code || '-';
+            node.dataset.lockReason = lockReason;
+            node.title = row.box_code || '-';
+            const codeNode = node.querySelector('.code');
+            if (codeNode) {
+              codeNode.textContent = row.box_code || '-';
+            }
+          });
+          updateMatchingCells(`.box-size-cell[data-container-id="${containerId}"]`, (node) => {
+            node.dataset.boxCode = row.box_code || '-';
+            node.dataset.boxSize = boxSize;
+            node.dataset.boxWeight = boxWeight;
+            node.dataset.lockReason = lockReason;
+            const codeNode = node.querySelector('.code');
+            if (codeNode) {
+              codeNode.textContent = boxSize || '-';
+            }
+          });
+          updateMatchingCells(`.box-weight-cell[data-container-id="${containerId}"]`, (node) => {
+            node.dataset.boxCode = row.box_code || '-';
+            node.dataset.boxSize = boxSize;
+            node.dataset.boxWeight = boxWeight;
+            node.dataset.lockReason = lockReason;
+            const codeNode = node.querySelector('.code');
+            if (codeNode) {
+              codeNode.textContent = boxWeight || '-';
+            }
+          });
+          updateMatchingCells(`.location-cell[data-container-id="${containerId}"]`, (node) => {
+            node.dataset.lockReason = lockReason;
+            node.title = row.location || '';
+            const codeNode = node.querySelector('.code');
+            if (codeNode) {
+              codeNode.textContent = row.location_short || '';
+            }
+          });
+          updateMatchingCells(`.box-qty-cell[data-container-id="${containerId}"][data-snapshot-id="${snapshotId}"]`, (node) => {
+            node.dataset.lockReason = lockReason;
+            node.textContent = row.qty ?? 0;
+          });
+        } else {
+          updateMatchingCells(`.location-cell[data-snapshot-id="${snapshotId}"]`, (node) => {
+            node.dataset.lockReason = lockReason;
+            node.title = row.location || '';
+            const codeNode = node.querySelector('.code');
+            if (codeNode) {
+              codeNode.textContent = row.location_short || '';
+            }
+          });
+          updateMatchingCells(`.box-qty-cell[data-snapshot-id="${snapshotId}"]`, (node) => {
+            node.dataset.lockReason = lockReason;
+            node.textContent = row.qty ?? 0;
+          });
+        }
+      };
+
+      const submitEdit = async () => {
+        const config = activeEditConfig || {
+          snapshotId: Number.parseInt(String(editSnapshotId?.value || '').trim(), 10) || 0,
+          field: String(editFieldName?.value || '').trim(),
+        };
+        if (!config.snapshotId || !config.field || !editFieldInput || !editSubmitButton) {
+          if (editNote) {
+            editNote.textContent = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0438\u0442\u044c \u0441\u0442\u0440\u043e\u043a\u0443 \u0434\u043b\u044f \u0440\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u044f. \u0417\u0430\u043a\u0440\u043e\u0439\u0442\u0435 \u043e\u043a\u043d\u043e \u0438 \u043e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u0435\u0433\u043e \u0441\u043d\u043e\u0432\u0430.';
+          }
+          return;
+        }
+        const payload = {
+          snapshot_id: config.snapshotId,
+          field: config.field,
+          value: editFieldInput.value,
+        };
+        editSubmitButton.disabled = true;
+        if (editNote) {
+          editNote.textContent = '\u0421\u043e\u0445\u0440\u0430\u043d\u044f\u044e...';
+        }
+        try {
+          const response = await fetch(window.location.pathname, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCsrfToken(),
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.ok) {
+            throw new Error(data.message || '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f.');
+          }
+          const rows = Array.isArray(data.rows) && data.rows.length ? data.rows : [data.row || {}];
+          rows.forEach((row) => applyUpdatedRow(config, row));
+          closeEditModal();
+        } catch (error) {
+          if (editNote) {
+            editNote.textContent = error.message || String(error || '');
+          } else {
+            alert(error.message || error);
+          }
+        } finally {
+          editSubmitButton.disabled = false;
+        }
+      };
+
+      const submitMetricsEdit = async () => {
+        const config = activeEditConfig || {
+          snapshotId: Number.parseInt(String(metricsSnapshotId?.value || '').trim(), 10) || 0,
+          field: 'box_metrics',
+          applyMode: String(metricsApplyMode?.value || 'single').trim() || 'single',
+        };
+        if (!config.snapshotId || !metricsSubmitButton) {
+          if (metricsNote) {
+            metricsNote.textContent = 'Не удалось определить строку для редактирования. Закройте окно и откройте его снова.';
+          }
+          return;
+        }
+        const payload = {
+          snapshot_id: config.snapshotId,
+          field: 'box_metrics',
+          apply_mode: config.applyMode || 'single',
+          value: {
+            gross_weight_g: metricsWeightInput?.value || '',
+            width_mm: metricsWidthInput?.value || '',
+            height_mm: metricsHeightInput?.value || '',
+            depth_mm: metricsDepthInput?.value || '',
+          },
+        };
+        metricsSubmitButton.disabled = true;
+        if (metricsNote) {
+          metricsNote.textContent = 'Сохраняю...';
+        }
+        try {
+          const response = await fetch(window.location.pathname, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCsrfToken(),
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.ok) {
+            throw new Error(data.message || 'Не удалось сохранить ОВХ.');
+          }
+          const rows = Array.isArray(data.rows) && data.rows.length ? data.rows : [data.row || {}];
+          rows.forEach((row) => applyUpdatedRow(config, row));
+          closeMetricsModal();
+        } catch (error) {
+          if (metricsNote) {
+            metricsNote.textContent = error.message || String(error || '');
+          } else {
+            alert(error.message || error);
+          }
+        } finally {
+          metricsSubmitButton.disabled = false;
+        }
+      };
+
+      const isVirtualPrinterName = (value) => {
+        const normalized = String(value || '').trim().toLowerCase();
+        return normalized && virtualPrinterMarkers.some((marker) => normalized.includes(marker));
+      };
+
+      const getStoredPrinter = () => (
+        localStorage.getItem('processing_label_printer')
+        || localStorage.getItem('label_printer')
+        || ''
+      ).trim();
+
+      const getStoredAgentId = () => (
+        localStorage.getItem(inventoryPrintAgentStorageKey)
+        || localStorage.getItem(processingFlowAgentStorageKey)
+        || ''
+      ).trim();
+
+      const parseLabelFont = (value, fallback) => {
+        const parsed = Number.parseFloat(String(value ?? '').replace(',', '.'));
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+      };
+
+      const shortenClientLabel = (value) => {
+        const normalized = String(value || '')
+          .replace(/\u00a0/g, ' ')
+          .replace(/^клиент\s*:\s*/i, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (!normalized) {
+          return '';
+        }
+        const ipMatch = normalized.match(/^(?:ип|индивидуальный\s+предприниматель)\s+(.+)$/i);
+        if (!ipMatch) {
+          return normalized;
+        }
+        const parts = String(ipMatch[1] || '').trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) {
+          return 'ИП';
+        }
+        const surname = parts[0];
+        const initials = parts.slice(1, 3).map((part) => `${part.charAt(0).toUpperCase()}.`).join('');
+        return initials ? `ИП ${surname} ${initials}` : `ИП ${surname}`;
+      };
+
+      const buildInventoryContainerLabelSettings = (key) => {
+        const source = labelSettingsData && typeof labelSettingsData === 'object'
+          ? labelSettingsData
+          : {};
+        const entry = source && typeof source[key] === 'object' ? source[key] : {};
+        const text = entry && typeof entry.text === 'object' ? entry.text : {};
+        const fonts = entry && typeof entry.fonts === 'object' ? entry.fonts : {};
+        const enabled = entry && typeof entry.enabled === 'object' ? entry.enabled : {};
+        return {
+          text,
+          fonts: {
+            barcode: parseLabelFont(fonts.barcode, 3),
+            box_client: parseLabelFont(fonts.box_client, 2.1),
+            box_basis: parseLabelFont(fonts.box_basis, 1),
+            box_pallet_number: parseLabelFont(fonts.box_pallet_number, 4),
+          },
+          enabled: {
+            barcode: enabled.barcode !== false,
+            box_client: enabled.box_client !== false,
+            box_basis: enabled.box_basis !== false,
+            box_pallet_number: enabled.box_pallet_number !== false,
+          },
+        };
+      };
+
+      const setPalletLabelHeader = (target, prefix, barcode) => {
+        if (!target) {
+          return;
+        }
+        const normalizedPrefix = String(prefix || '').trim();
+        const normalizedBarcode = String(barcode || '').trim();
+        target.replaceChildren();
+        const strong = document.createElement('span');
+        strong.className = 'label-box-header-prefix';
+        strong.textContent = normalizedPrefix;
+        target.appendChild(strong);
+        target.appendChild(document.createTextNode(normalizedBarcode ? ` - ${normalizedBarcode}` : ' -'));
+      };
+
+      const applyPalletLabelDimensions = (target, dims) => {
+        if (!target || !dims) {
+          return;
+        }
+        target.style.setProperty('--label-width', `${dims.width}mm`);
+        target.style.setProperty('--label-height', `${dims.height}mm`);
+        target.style.setProperty('--label-scale', '1');
+      };
+
+      const applyPalletLabelFontVar = (root, name, value) => {
+        if (!root) {
+          return;
+        }
+        const parsed = Number.parseFloat(String(value ?? '').replace(',', '.'));
+        if (Number.isFinite(parsed) && parsed > 0) {
+          root.style.setProperty(name, `${parsed}mm`);
+        } else {
+          root.style.removeProperty(name);
+        }
+      };
+
+      const setPalletLabelField = (root, field, value, prefix = null) => {
+        if (!root) {
+          return;
+        }
+        const target = root.querySelector(`[data-info="${field}"]`);
+        if (!target) {
+          return;
+        }
+        const normalized = String(value || '').trim();
+        target.textContent = normalized ? `${prefix || ''}${normalized}` : '';
+        const wrapper = target.closest('.label-box-cell, .label-box-number');
+        if (wrapper) {
+          wrapper.style.display = normalized ? '' : 'none';
+        }
+      };
+
+      const getPalletSequenceNumber = (palletCode) => {
+        const normalizedTarget = String(palletCode || '').trim();
+        if (!normalizedTarget || normalizedTarget === '-') {
+          return '';
+        }
+        const seen = new Set();
+        const cells = Array.from(document.querySelectorAll('.pallet-cell[data-pallet-code]'));
+        for (const cell of cells) {
+          const value = String(cell.dataset.palletCode || '').trim();
+          if (!value || value === '-' || seen.has(value)) {
+            continue;
+          }
+          seen.add(value);
+          if (value === normalizedTarget) {
+            return String(seen.size);
+          }
+        }
+        return '';
+      };
+
+      const getBoxSequenceNumber = (boxCode, palletCode) => {
+        const normalizedBox = String(boxCode || '').trim();
+        const normalizedPallet = String(palletCode || '').trim();
+        if (!normalizedBox || normalizedBox === '-' || !normalizedPallet || normalizedPallet === '-') {
+          return '';
+        }
+        const seen = new Set();
+        const cells = Array.from(document.querySelectorAll('.box-cell[data-box-code]'));
+        for (const cell of cells) {
+          const rowPallet = String(cell.dataset.palletCode || '').trim();
+          const value = String(cell.dataset.boxCode || '').trim();
+          if (rowPallet !== normalizedPallet || !value || value === '-' || seen.has(value)) {
+            continue;
+          }
+          seen.add(value);
+          if (value === normalizedBox) {
+            return String(seen.size);
+          }
+        }
+        return '';
+      };
+
+      const buildContainerLabelData = (type, cell) => {
+        const isPallet = type === 'pallet';
+        const code = String(
+          isPallet
+            ? cell?.dataset?.palletCode || ''
+            : cell?.dataset?.boxCode || ''
+        ).trim();
+        if (!code || code === '-') {
+          return null;
+        }
+        const settings = buildInventoryContainerLabelSettings(isPallet ? 'pallet' : 'box');
+        const templateClientLabel = shortenClientLabel(String(settings.text.box_client || '').trim());
+        const rowClientLabel = shortenClientLabel(String(cell?.dataset?.clientLabel || '').trim());
+        const clientLabel = templateClientLabel || rowClientLabel;
+        const clientFont = templateClientLabel
+          ? settings.fonts.box_client
+          : (clientLabel.length > 14 ? Math.min(settings.fonts.box_client, 2.1) : settings.fonts.box_client);
+        const basisText = settings.enabled.box_basis ? String(settings.text.box_basis || '').trim() : '';
+        const palletCode = String(cell?.dataset?.palletCode || '').trim();
+        return {
+          barcode: settings.enabled.barcode ? code : '',
+          box_client: settings.enabled.box_client ? clientLabel : '',
+          box_basis: basisText,
+          box_pallet_number: settings.enabled.box_pallet_number
+            ? (isPallet ? getPalletSequenceNumber(code) : getBoxSequenceNumber(code, palletCode))
+            : '',
+          fonts: {
+            ...settings.fonts,
+            box_client: clientFont,
+          },
+        };
+      };
+
+      const makeContainerLabelImageCacheKey = (type, data) => {
+        if (!data) {
+          return '';
+        }
+        return JSON.stringify({
+          type,
+          barcode: String(data.barcode || '').trim(),
+          box_client: String(data.box_client || '').trim(),
+          box_basis: String(data.box_basis || '').trim(),
+          box_pallet_number: String(data.box_pallet_number || '').trim(),
+          fonts: data.fonts || {},
+        });
+      };
+
+      const waitForLabelRender = async () => {
+        await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+        await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+        await new Promise((resolve) => window.setTimeout(resolve, 40));
+      };
+
+      const buildContainerLabelBase64 = async (type, cell) => {
+        if (!window.html2canvas || !window.QRCode) {
+          throw new Error('Модуль печати не загружен.');
+        }
+        const data = buildContainerLabelData(type, cell);
+        if (!data || !data.barcode) {
+          throw new Error('Нет данных контейнера для печати.');
+        }
+        const cacheKey = makeContainerLabelImageCacheKey(type, data);
+        const cachedBase64 = cacheKey ? labelImageCache.get(cacheKey) || '' : '';
+        if (cachedBase64) {
+          return cachedBase64;
+        }
+        const templateSelector = type === 'pallet'
+          ? '#inventory-pallet-label-template .label-preview'
+          : '#inventory-box-label-template .label-preview';
+        const templateRoot = document.querySelector(templateSelector);
+        if (!templateRoot) {
+          throw new Error('Не найден общий шаблон этикетки.');
+        }
+        const dims = { width: 58, height: 60 };
+        const clone = templateRoot.cloneNode(true);
+        clone.dataset.renderMode = 'print';
+        applyPalletLabelDimensions(clone, dims);
+        applyPalletLabelFontVar(clone, '--font-barcode', data.fonts.barcode);
+        applyPalletLabelFontVar(clone, '--font-box-client', data.fonts.box_client);
+        applyPalletLabelFontVar(clone, '--font-box-basis', data.fonts.box_basis);
+        applyPalletLabelFontVar(clone, '--font-box-pallet-number', data.fonts.box_pallet_number);
+        const holder = document.createElement('div');
+        holder.style.position = 'fixed';
+        holder.style.left = '-9999px';
+        holder.style.top = '0';
+        holder.style.background = '#ffffff';
+        holder.style.padding = '0';
+        holder.style.margin = '0';
+        holder.appendChild(clone);
+        document.body.appendChild(holder);
+        try {
+          const boxHeader = clone.querySelector('[data-box-header]');
+          if (boxHeader) {
+            setPalletLabelHeader(boxHeader, type === 'pallet' ? 'Паллет' : 'Короб', data.barcode);
+          }
+          setPalletLabelField(clone, 'box_client', data.box_client, null);
+          setPalletLabelField(clone, 'box_basis', data.box_basis, 'Основание: ');
+          setPalletLabelField(clone, 'box_pallet_number', data.box_pallet_number, null);
+          const qrBox = clone.querySelector('[data-qr-box]');
+          if (!qrBox) {
+            throw new Error('QR-блок паллеты не найден.');
+          }
+          qrBox.innerHTML = '';
+          const qrHost = qrBox.parentElement || qrBox;
+          const rawSize = Math.min(qrHost.clientWidth || 0, qrHost.clientHeight || 0);
+          const size = Math.floor(rawSize * 1.0) || 64;
+          qrBox.style.width = `${size}px`;
+          qrBox.style.height = `${size}px`;
+          new QRCode(qrBox, {
+            text: data.barcode,
+            width: size,
+            height: size,
+            correctLevel: QRCode.CorrectLevel.M,
+          });
+          await waitForLabelRender();
+          const canvas = await window.html2canvas(clone, {
+            backgroundColor: '#ffffff',
+            scale: 2.12,
+            logging: false,
+            useCORS: true,
+          });
+          const base64 = canvas.toDataURL('image/png').split(',')[1] || '';
+          if (cacheKey && base64) {
+            labelImageCache.set(cacheKey, base64);
+          }
+          return base64;
+        } finally {
+          holder.remove();
+        }
+      };
+
+      const fetchLocalAgentBridgePayload = async (url) => {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), 1200);
+        try {
+          const resp = await fetch(url, {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-store',
+            signal: controller.signal,
+          });
+          if (!resp.ok) {
+            return null;
+          }
+          const data = await resp.json();
+          return data && typeof data === 'object' ? data : null;
+        } catch (err) {
+          return null;
+        } finally {
+          window.clearTimeout(timer);
+        }
+      };
+
+      const detectLocalAgentBridge = async () => {
+        const fallbackAgentId = getStoredAgentId();
+        if (localAgentBridgeState.payload) {
+          return localAgentBridgeState.payload;
+        }
+        if (localAgentBridgeState.pending) {
+          return localAgentBridgeState.pending;
+        }
+        localAgentBridgeState.pending = (async () => {
+          for (const url of localAgentBridgeUrls) {
+            const payload = await fetchLocalAgentBridgePayload(url);
+            if (payload && payload.agentId) {
+              localStorage.setItem(inventoryPrintAgentStorageKey, String(payload.agentId || '').trim());
+              localAgentBridgeState.payload = payload;
+              window.__fullboxLocalAgentBridgePayload = payload;
+              return payload;
+            }
+          }
+          if (fallbackAgentId) {
+            return { agentId: fallbackAgentId };
+          }
+          return null;
+        })();
+        try {
+          return await localAgentBridgeState.pending;
+        } finally {
+          localAgentBridgeState.pending = null;
+        }
+      };
+
+      const getPreferredPrinter = async () => {
+        const stored = getStoredPrinter();
+        if (stored && !isVirtualPrinterName(stored)) {
+          return stored;
+        }
+        const payload = await detectLocalAgentBridge();
+        const defaultPrinter = String(payload?.defaultPrinter || '').trim();
+        if (defaultPrinter && !isVirtualPrinterName(defaultPrinter)) {
+          return defaultPrinter;
+        }
+        const printers = Array.isArray(payload?.printers)
+          ? payload.printers
+            .map((item) => String(item || '').trim())
+            .filter((item) => item && !isVirtualPrinterName(item))
+          : [];
+        return printers[0] || '';
+      };
+
+      const enqueueContainerQrPrint = async (type, cell) => {
+        const isPallet = type === 'pallet';
+        const code = String(
+          isPallet
+            ? cell?.dataset?.palletCode || ''
+            : cell?.dataset?.boxCode || ''
+        ).trim();
+        if (!code || code === '-') {
+          return;
+        }
+        const pendingKey = `${type}:${code}`;
+        if (pendingPrints.has(pendingKey)) {
+          return;
+        }
+        const printer = await getPreferredPrinter();
+        if (!printer) {
+          alert('Принтер этикеток не выбран. Сначала настройте печать в модуле FULLBOX.');
+          return;
+        }
+        pendingPrints.add(pendingKey);
+        try {
+          const payload = await detectLocalAgentBridge();
+          const targetAgentId = String(payload?.agentId || getStoredAgentId() || '').trim();
+          if (targetAgentId) {
+            localStorage.setItem(inventoryPrintAgentStorageKey, targetAgentId);
+          }
+          const base64 = await buildContainerLabelBase64(type, cell);
+          if (!base64) {
+            throw new Error('Не удалось сформировать этикетку.');
+          }
+          const resp = await fetch('/orders/processing/print-jobs/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCsrfToken(),
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+              order_id: '',
+              card_id: '',
+              article: '',
+              barcode: code,
+              size: '',
+              printer_name: printer,
+              agent_id: targetAgentId,
+              label_png_base64: base64,
+              label_width_mm: 58,
+              label_height_mm: 60,
+            }),
+          });
+          if (!resp.ok) {
+            const message = await resp.text();
+            throw new Error(message || 'Очередь печати недоступна.');
+          }
+        } catch (error) {
+          alert(`Не удалось отправить в модуль печати: ${error.message || error}`);
+        } finally {
+          pendingPrints.delete(pendingKey);
+        }
+      };
+
+      document.addEventListener('contextmenu', (event) => {
+        const palletCell = event.target.closest('.pallet-cell[data-pallet-code]');
+        const boxCell = event.target.closest('.box-cell[data-box-code]');
+        const metricsCell = event.target.closest('.box-metrics-cell[data-edit-field="box_metrics"]');
+        const locationCell = event.target.closest('.location-cell[data-edit-field="location"]');
+        const qtyCell = event.target.closest('.box-qty-cell[data-edit-field="qty"]');
+        const goodsTypeCell = event.target.closest('.goods-type-cell[data-edit-field="goods_type"]');
+        const cell = metricsCell || qtyCell || locationCell || goodsTypeCell || boxCell || palletCell;
+        if (!cell) {
+          hideMenu();
+          return;
+        }
+
+        const isBox = Boolean(boxCell);
+        const isPallet = Boolean(palletCell) && !isBox;
+        const isMetrics = Boolean(metricsCell);
+        const type = isBox ? 'box' : (isPallet ? 'pallet' : '');
+        const code = String(
+          isBox
+            ? cell.dataset.boxCode || ''
+            : (isPallet ? cell.dataset.palletCode || '' : (cell.dataset.boxCode || cell.textContent || ''))
+        ).trim();
+        const editConfig = isMetrics ? parseMetricsConfig(cell) : buildEditConfig(cell);
+        if ((isBox || isPallet) && (!code || code === '-') && !editConfig) {
+          hideMenu();
+          return;
+        }
+
+        event.preventDefault();
+        activeCell = cell;
+        activeType = type;
+        activeEditConfig = editConfig;
+        if (menuTitle) {
+          menuTitle.textContent = isBox
+            ? '\u041a\u043e\u0440\u043e\u0431'
+            : (isPallet ? '\u041f\u0430\u043b\u043b\u0435\u0442\u0430' : (editConfig?.label || '\u0417\u043d\u0430\u0447\u0435\u043d\u0438\u0435'));
+        }
+        if (printButton) {
+          printButton.hidden = isMetrics || !(isBox || isPallet);
+          if (!printButton.hidden) {
+            printButton.textContent = isBox ? '\u0420\u0430\u0441\u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c QR \u043a\u043e\u0440\u043e\u0431\u0430' : '\u0420\u0430\u0441\u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c QR \u043f\u0430\u043b\u043b\u0435\u0442\u044b';
+          }
+        }
+        setMenuState(editConfig);
+        menu.classList.add('is-open');
+        menu.setAttribute('aria-hidden', 'false');
+        const menuWidth = menu.offsetWidth || 250;
+        const menuHeight = menu.offsetHeight || 104;
+        const maxLeft = Math.max(8, window.innerWidth - menuWidth - 8);
+        const maxTop = Math.max(8, window.innerHeight - menuHeight - 8);
+        menu.style.left = `${Math.min(event.clientX, maxLeft)}px`;
+        menu.style.top = `${Math.min(event.clientY, maxTop)}px`;
+      });
+
+      printButton?.addEventListener('click', () => {
+        const cell = activeCell;
+        const type = activeType;
+        hideMenu();
+        if (cell && type) {
+          void enqueueContainerQrPrint(type, cell);
+        }
+      });
+
+      editButton?.addEventListener('click', () => {
+        const config = activeEditConfig;
+        hideMenu();
+        if (!config) {
+          return;
+        }
+        if (config.lockReason) {
+          alert(config.lockReason);
+          return;
+        }
+        openEditModal(config);
+      });
+
+      const openContainerOperation = (field) => {
+        const config = buildContainerOperationConfig(field);
+        hideMenu();
+        if (!config) {
+          return;
+        }
+        if (config.lockReason) {
+          alert(config.lockReason);
+          return;
+        }
+        openEditModal(config);
+      };
+
+      moveBoxToPalletButton?.addEventListener('click', () => {
+        openContainerOperation('move_box_to_pallet');
+      });
+
+      moveBoxToNewPalletButton?.addEventListener('click', () => {
+        openContainerOperation('move_box_to_new_pallet');
+      });
+
+      mergePalletsButton?.addEventListener('click', () => {
+        openContainerOperation('merge_pallets');
+      });
+
+      renamePalletButton?.addEventListener('click', () => {
+        openContainerOperation('rename_pallet');
+      });
+
+      editBoxMetricsButton?.addEventListener('click', () => {
+        const config = activeEditConfig;
+        hideMenu();
+        if (!config) {
+          return;
+        }
+        if (config.lockReason) {
+          alert(config.lockReason);
+          return;
+        }
+        openMetricsModal(config, 'single');
+      });
+
+      editBoxMetricsAnalogButton?.addEventListener('click', () => {
+        const config = activeEditConfig;
+        hideMenu();
+        if (!config) {
+          return;
+        }
+        if (config.lockReason) {
+          alert(config.lockReason);
+          return;
+        }
+        openMetricsModal(config, 'analog');
+      });
+
+      editForm?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        void submitEdit();
+      });
+
+      editSubmitButton?.addEventListener('click', (event) => {
+        event.preventDefault();
+        void submitEdit();
+      });
+
+      editOpenMapButton?.addEventListener('click', (event) => {
+        event.preventDefault();
+        openStockMapPicker();
+      });
+
+      metricsForm?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        void submitMetricsEdit();
+      });
+
+      metricsSubmitButton?.addEventListener('click', (event) => {
+        event.preventDefault();
+        void submitMetricsEdit();
+      });
+
+      document.querySelectorAll('[data-action="close-stock-metrics-modal"]').forEach((button) => {
+        button.addEventListener('click', closeMetricsModal);
+      });
+
+      window.addEventListener('message', (event) => {
+        if (event.origin !== window.location.origin) {
+          return;
+        }
+        handleStockMapLocationPicked(event.data);
+      });
+
+      window.addEventListener('storage', (event) => {
+        if (event.key !== 'stockmap_location_pick' || !event.newValue) {
+          return;
+        }
+        try {
+          handleStockMapLocationPicked(JSON.parse(event.newValue));
+        } catch (error) {
+        }
+      });
+
+      document.querySelectorAll('[data-action="close-stock-edit-modal"]').forEach((node) => {
+        node.addEventListener('click', () => closeEditModal());
+      });
+
+      document.addEventListener('click', (event) => {
+        if (!menu.contains(event.target)) {
+          hideMenu();
+        }
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          hideMenu();
+          closeEditModal();
+          closeMetricsModal();
+        }
+      });
+      window.addEventListener('resize', hideMenu);
+      window.addEventListener('scroll', hideMenu, true);
+      window.addEventListener('blur', hideMenu);
+
+      const collapsedColumnStorageKey = `inventory-journal-collapsed-columns:${window.location.pathname}`;
+      const columnToggleButtons = Array.from(document.querySelectorAll('.col-visibility-btn[data-col-key]'));
+
+      const loadCollapsedColumns = () => {
+        try {
+          const raw = window.localStorage.getItem(collapsedColumnStorageKey);
+          const parsed = raw ? JSON.parse(raw) : [];
+          return new Set(Array.isArray(parsed) ? parsed.map((item) => String(item || '').trim()).filter(Boolean) : []);
+        } catch (error) {
+          return new Set();
+        }
+      };
+
+      const saveCollapsedColumns = (collapsedKeys) => {
+        try {
+          window.localStorage.setItem(collapsedColumnStorageKey, JSON.stringify(Array.from(collapsedKeys)));
+        } catch (error) {
+        }
+      };
+
+      const setColumnCollapsedState = (columnKey, collapsed) => {
+        document.querySelectorAll(`[data-col-key="${columnKey}"]`).forEach((cell) => {
+          cell.classList.toggle('is-collapsed', collapsed);
+        });
+        document.querySelectorAll(`.col-visibility-btn[data-col-key="${columnKey}"]`).forEach((button) => {
+          button.classList.toggle('is-collapsed', collapsed);
+          button.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
+          const columnLabel = String(button.dataset.columnLabel || '').trim();
+          const nextAction = collapsed ? 'Показать' : 'Скрыть';
+          button.setAttribute('title', `${nextAction} столбец ${columnLabel}`.trim());
+          button.setAttribute('aria-label', `${nextAction} столбец ${columnLabel}`.trim());
+        });
+      };
+
+      const initColumnCollapseControls = () => {
+        const collapsedColumns = loadCollapsedColumns();
+        columnToggleButtons.forEach((button) => {
+          const columnKey = String(button.dataset.colKey || '').trim();
+          if (!columnKey) {
+            return;
+          }
+          setColumnCollapsedState(columnKey, collapsedColumns.has(columnKey));
+          button.addEventListener('click', (event) => {
+            event.preventDefault();
+            const isCollapsed = collapsedColumns.has(columnKey);
+            if (isCollapsed) {
+              collapsedColumns.delete(columnKey);
+            } else {
+              collapsedColumns.add(columnKey);
+            }
+            setColumnCollapsedState(columnKey, !isCollapsed);
+            saveCollapsedColumns(collapsedColumns);
+          });
+        });
+      };
+
+      initColumnCollapseControls();
+    })();
+  </script>
+</body>
+</html>
+

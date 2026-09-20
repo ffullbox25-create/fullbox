@@ -1,0 +1,181 @@
+{% extends "teammanager/_base.html" %}
+{% load billing_tags %}
+
+{% block title %}Обещания оплаты — Биллинг{% endblock %}
+
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.grid-2 { display:grid; grid-template-columns:minmax(0,360px) minmax(0,1fr); gap:14px; }
+.card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px; display:grid; gap:10px; }
+.card-title { margin:0; font-size:16px; font-weight:800; font-family:"Bricolage Grotesque","Manrope",sans-serif; }
+.field { width:100%; border:1px solid var(--line); border-radius:10px; background:#fff; padding:9px 12px; font:inherit; font-size:13px; box-sizing:border-box; }
+.label { font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; }
+.filter-card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+.filter-card .field { width:auto; }
+.table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:820px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:2px solid var(--line); }
+td { padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+.money { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-weight:800; }
+.badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900; }
+.badge.orange { background:var(--orange-soft); color:#b45309; }
+.badge.green { background:var(--green-soft); color:var(--green-strong); }
+.badge.red { background:#fff0f0; color:var(--red); }
+.badge.gray { background:var(--surface-2); color:var(--muted); }
+.badge.blue { background:#eff6ff; color:var(--blue); }
+.hint { font-size:12px; color:var(--muted); }
+.row-sub { color:var(--muted); font-size:11px; margin-top:2px; }
+@media (max-width:960px){ .grid-2 { grid-template-columns:1fr; } }
+{% endblock %}
+
+{% block content %}
+{% include "billing/_billing_nav.html" %}
+
+<div>
+  <h1 class="page-title">Обещания оплаты</h1>
+  <div class="page-sub">Фиксация договорённости с клиентом. Не уменьшает задолженность и не создаёт оплату.</div>
+</div>
+
+<form class="filter-card" method="get">
+  <select class="field" name="client">
+    <option value="">Все клиенты</option>
+    {% for c in promise_clients %}
+      <option value="{{ c.id }}" {% if filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>
+    {% endfor %}
+  </select>
+  <select class="field" name="status">
+    <option value="">Все статусы</option>
+    {% for val, label in promise_status_choices %}
+      <option value="{{ val }}" {% if filter_status == val %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn primary" type="submit">Найти</button>
+</form>
+
+<div class="grid-2">
+  <form class="card" id="js-promise-form">
+    <h2 class="card-title">Новое обещание</h2>
+    <div>
+      <div class="label">Клиент</div>
+      <select class="field" name="client_id" required>
+        <option value="">Выберите клиента</option>
+        {% for c in promise_clients %}
+          <option value="{{ c.id }}">{{ c.short_name|default:c.agn_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <div class="label">Счёт (необязательно)</div>
+      <select class="field" name="invoice_id">
+        <option value="">Без привязки к счёту</option>
+        {% for inv in promise_invoices %}
+          <option value="{{ inv.id }}" data-client="{{ inv.client_id }}">{{ inv.number }} · долг {{ inv.debt_amount }} · {{ inv.client.short_name|default:inv.client.agn_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <div class="label">Сумма</div>
+        <input class="field" type="number" name="amount" step="0.01" min="0.01" required>
+      </div>
+      <div>
+        <div class="label">Обещанная дата</div>
+        <input class="field" type="date" name="promised_date" value="{{ today|date:'Y-m-d' }}" required>
+      </div>
+    </div>
+    <div>
+      <div class="label">Контакт</div>
+      <input class="field" name="contact_person" placeholder="ФИО / телефон">
+    </div>
+    <div>
+      <div class="label">Комментарий менеджера</div>
+      <textarea class="field" name="manager_comment" rows="2"></textarea>
+    </div>
+    <div class="hint">Обещание не списывает долг. Факт оплаты регистрирует бухгалтер.</div>
+    <button class="btn primary" type="submit">Сохранить</button>
+    <div id="js-promise-msg" class="hint"></div>
+  </form>
+
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>Клиент</th>
+          <th>Сумма</th>
+          <th>Счёт</th>
+          <th>Статус</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in promises %}
+          <tr>
+            <td>
+              <div>{{ p.promised_date|date:"d.m.Y" }}</div>
+              <div class="row-sub">создано {{ p.created_at|date:"d.m.Y" }}</div>
+            </td>
+            <td>{{ p.client.short_name|default:p.client.agn_name|truncatechars:24 }}</td>
+            <td><span class="money">{{ p.amount|money_fmt }}</span></td>
+            <td>{% if p.invoice_id %}<a href="/team-manager/billing/invoices/{{ p.invoice_id }}/">{{ p.invoice.number }}</a>{% else %}—{% endif %}</td>
+            <td>
+              {% if p.status == "pending" %}<span class="badge orange">{{ p.get_status_display }}</span>
+              {% elif p.status == "fulfilled" %}<span class="badge green">{{ p.get_status_display }}</span>
+              {% elif p.status == "overdue" %}<span class="badge red">{{ p.get_status_display }}</span>
+              {% elif p.status == "partial" %}<span class="badge blue">{{ p.get_status_display }}</span>
+              {% else %}<span class="badge gray">{{ p.get_status_display }}</span>{% endif %}
+            </td>
+            <td style="white-space:nowrap">
+              {% if p.status == "pending" or p.status == "overdue" or p.status == "partial" %}
+                <button class="btn js-promise-status" data-id="{{ p.id }}" data-status="fulfilled" type="button" style="font-size:11px;padding:5px 8px">Выполнено</button>
+                <button class="btn js-promise-status" data-id="{{ p.id }}" data-status="cancelled" type="button" style="font-size:11px;padding:5px 8px">Отмена</button>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" style="padding:28px;text-align:center;color:var(--muted);font-weight:700">Обещаний пока нет</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function(){
+  const form = document.getElementById("js-promise-form");
+  const msg = document.getElementById("js-promise-msg");
+  const csrf = (document.cookie.match(/csrftoken=([^;]+)/)||[])[1] || "";
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    msg.textContent = "Сохраняю…";
+    const fd = new FormData(form);
+    const body = Object.fromEntries(fd.entries());
+    if (!body.invoice_id) delete body.invoice_id;
+    const resp = await fetch("/team-manager/billing/api/promises/", {
+      method: "POST",
+      headers: {"Content-Type":"application/json", "X-CSRFToken": csrf},
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) { msg.textContent = data.error || data.detail || "Ошибка"; return; }
+    location.reload();
+  });
+  document.querySelectorAll(".js-promise-status").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const resp = await fetch(`/team-manager/billing/api/promises/${btn.dataset.id}/`, {
+        method: "PATCH",
+        headers: {"Content-Type":"application/json", "X-CSRFToken": csrf},
+        body: JSON.stringify({status: btn.dataset.status}),
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        alert(data.error || data.detail || "Ошибка");
+        return;
+      }
+      location.reload();
+    });
+  });
+})();
+</script>
+{% endblock %}

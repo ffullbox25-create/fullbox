@@ -1,0 +1,2148 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page_title|default:"Новая заявка на обработку" }}</title>
+  <style>
+    :root {
+      --blue: #0e6b5b;
+      --blue-soft: rgba(14,107,91,0.12);
+      --line: rgba(28,31,26,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      overflow: hidden;
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image:
+        linear-gradient(rgba(28,31,26,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(28,31,26,0.06) 1px, transparent 1px);
+      background-size: 36px 36px;
+      opacity: 0.08;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input, select, textarea { font: inherit; }
+    .wrap { position: relative; z-index: 1; padding: 24px; }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      min-height: calc(100vh - 96px);
+    }
+    .side {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 16px;
+      align-content: start;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+    }
+    .brand-title {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.6px;
+    }
+    .profile {
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+    }
+    .profile-value { font-weight: 600; }
+    .nav { display: grid; gap: 10px; }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    .nav-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 12px 24px rgba(14,107,91,0.12);
+    }
+    .nav-link.primary {
+      background: linear-gradient(135deg, rgba(242,183,71,0.45), rgba(14,107,91,0.15));
+      border-color: transparent;
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub { font-size: 12px; color: var(--muted); }
+    .content {
+      display: grid;
+      gap: 14px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .page-head h1 {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 24px;
+    }
+    .page-head p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+    .card, .extras-card, .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+    }
+    .card-title, .extras-card h3 {
+      margin: 0 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 800;
+    }
+    .num {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      background: rgba(14,107,91,0.12);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .meta-columns {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+    .meta-card {
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: var(--surface-2);
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+    .meta-title { margin: 0; font-size: 13px; font-weight: 800; }
+    .field { display: grid; gap: 6px; }
+    .field label { font-size: 12px; font-weight: 700; color: var(--muted); }
+    .cz-file-panel {
+      display: grid;
+      gap: 7px;
+      margin-top: 3px;
+      padding: 9px;
+      border: 1px solid rgba(14,107,91,0.22);
+      border-radius: 10px;
+      background: rgba(14,107,91,0.06);
+    }
+    .cz-file-panel[hidden] { display: none; }
+    .cz-file-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .cz-file-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 6px 10px;
+      border: 1px solid rgba(14,107,91,0.28);
+      border-radius: 9px;
+      background: #fff;
+      color: var(--accent-strong);
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .cz-file-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+    .cz-file-name { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+    .cz-file-format { margin: 0; font-size: 11px; color: var(--muted); }
+    .required { color: var(--danger); }
+    .field input[type="text"],
+    .field input[type="number"],
+    .field input[type="date"],
+    .field select,
+    .field textarea,
+    .comment-box textarea,
+    .box-input {
+      width: 100%;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      padding: 9px 11px;
+      background: #fff;
+    }
+    .box-input { max-width: 96px; }
+    .stat-box {
+      border-radius: 12px;
+      border: 1px solid rgba(14,107,91,0.22);
+      background: rgba(14,107,91,0.08);
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+    .stat-box h5 { margin: 0; color: var(--accent-strong); font-size: 12px; font-weight: 900; }
+    .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .stat-grid div {
+      background: rgba(255,255,255,0.7);
+      border-radius: 10px;
+      padding: 8px 6px;
+      text-align: center;
+    }
+    .stat-grid strong { display: block; font-size: 16px; }
+    .stat-grid span { color: var(--muted); font-size: 11px; }
+    .hint { color: var(--muted); font-size: 12px; }
+    .errors {
+      border: 1px solid rgba(212,84,60,0.35);
+      background: rgba(212,84,60,0.12);
+      border-radius: 12px;
+      padding: 12px;
+      color: #7f1d1d;
+    }
+    .alert {
+      border-radius: 12px;
+      padding: 12px;
+      font-weight: 700;
+    }
+    .alert.success { background: rgba(14,107,91,0.12); color: var(--accent-strong); }
+    .alert.error { background: rgba(212,84,60,0.12); color: #7f1d1d; }
+    .edit-alert {
+      border: 1px solid rgba(242,183,71,0.42);
+      background: rgba(242,183,71,0.18);
+      color: #6b4a00;
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: grid;
+      gap: 4px;
+      font-size: 13px;
+    }
+    .edit-alert strong { font-size: 15px; }
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(15,23,42,0.45);
+    }
+    .modal.is-open { display: flex; }
+    .modal-card {
+      width: min(440px, 94vw);
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+    .modal-title { font-weight: 800; font-size: 16px; }
+    .modal-note { color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .extras-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      gap: 12px;
+    }
+    .extras-card { display: grid; gap: 8px; align-content: start; padding: 12px; }
+    .extras-card h3 { margin: 0; font-size: 13px; }
+    .dropzone {
+      border: 1.5px dashed rgba(14,107,91,0.35);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: rgba(14,107,91,0.06);
+      color: var(--muted);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+    }
+    .dropzone-label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 7px 12px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .dropzone input[type="file"] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      overflow: hidden;
+    }
+    .attachment-title {
+      margin-top: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .attachment-list {
+      display: grid;
+      gap: 6px;
+    }
+    .attachment-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: var(--surface-2);
+      font-size: 12px;
+    }
+    .attachment-item a {
+      color: var(--accent);
+      font-weight: 800;
+      word-break: break-word;
+    }
+    .checkbox-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      color: var(--danger);
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .comment-box textarea {
+      min-height: 72px;
+      resize: vertical;
+      font-size: 13px;
+    }
+    .positions-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 260px;
+      gap: 14px;
+      align-items: start;
+    }
+    .summary-card {
+      position: sticky;
+      top: 0;
+      display: grid;
+      gap: 12px;
+    }
+    .summary-card h4 { margin: 0; font-size: 14px; }
+    .summary-rows {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .summary-rows div {
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      padding: 10px 8px;
+      background: var(--surface-2);
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .summary-rows strong {
+      display: block;
+      margin-top: 4px;
+      color: var(--ink);
+      font-size: 18px;
+    }
+    .summary-actions { display: grid; gap: 8px; }
+    .btn {
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .btn.link {
+      background: transparent;
+      border: 0;
+      color: var(--accent);
+      padding: 8px 0;
+      font-weight: 800;
+    }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .stock-filter {
+      display: grid;
+      grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(140px, 0.8fr)) auto;
+      gap: 10px;
+      align-items: center;
+      margin: 12px 0;
+    }
+    .stock-filter input,
+    .stock-filter select {
+      width: 100%;
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+    }
+    .stock-filter input:focus,
+    .stock-filter select:focus {
+      border-color: rgba(14,107,91,0.5);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(14,107,91,0.12);
+    }
+    .stock-filter-count {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .stock-filter-empty {
+      display: none;
+      margin: 8px 0 0;
+      padding: 12px 14px;
+      border: 1px dashed rgba(14,107,91,0.28);
+      border-radius: 12px;
+      background: rgba(14,107,91,0.04);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .stock-table-wrap { overflow: auto; border: 1px solid var(--stroke); border-radius: 14px; }
+    .stock-table { width: 100%; border-collapse: collapse; min-width: 980px; }
+    .stock-table th, .stock-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--stroke);
+      text-align: left;
+      font-size: 13px;
+      vertical-align: top;
+    }
+    .stock-table th {
+      background: var(--surface-2);
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .stock-table tbody tr:hover { background: rgba(14,107,91,0.04); }
+    .stock-table tbody tr.is-selected {
+      background: rgba(248, 144, 0, 0.10);
+      box-shadow: inset 4px 0 0 var(--accent-warm, #f89000);
+    }
+    .stock-table tbody tr.is-selected:hover { background: rgba(248, 144, 0, 0.15); }
+    .selection-summary {
+      position: sticky;
+      top: 8px;
+      z-index: 12;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 12px 0;
+      padding: 10px 12px;
+      border: 1px solid rgba(248, 144, 0, 0.32);
+      border-radius: 12px;
+      background: rgba(255, 250, 240, 0.96);
+      box-shadow: 0 8px 20px rgba(48, 48, 48, 0.06);
+      backdrop-filter: blur(6px);
+    }
+    .selection-summary > strong { margin-right: auto; font-size: 13px; }
+    .selection-summary-stat {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 4px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: rgba(248, 144, 0, 0.13);
+      color: var(--ink);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .selection-summary-stat strong { font-size: 15px; }
+    .selection-summary.has-selection {
+      border-color: rgba(248, 104, 0, 0.48);
+      background: rgba(255, 247, 229, 0.98);
+    }
+    .selected-total { color: var(--muted); font-weight: 700; }
+    .is-selected .selected-total { color: #8a4b08; }
+    .empty-stock {
+      border: 1.5px dashed rgba(14,107,91,0.28);
+      border-radius: 14px;
+      padding: 28px 18px;
+      text-align: center;
+      color: var(--muted);
+      background: rgba(14,107,91,0.04);
+    }
+    .status-pill {
+      display: inline-flex;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(242,183,71,0.22);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .wizard-steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    .wizard-step {
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: var(--surface);
+      display: grid;
+      gap: 4px;
+    }
+    .wizard-step strong { font-size: 13px; }
+    .wizard-step span { font-size: 12px; color: var(--muted); }
+    .wizard-step.is-active {
+      border-color: transparent;
+      background: linear-gradient(135deg, rgba(242,183,71,0.35), rgba(14,107,91,0.12));
+    }
+    .wizard-step.is-done {
+      border-color: rgba(14,107,91,0.35);
+      background: rgba(14,107,91,0.08);
+    }
+    .wizard-pane[hidden] { display: none !important; }
+    .wizard-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      position: sticky;
+      bottom: 0;
+      z-index: 20;
+      margin-top: 4px;
+      padding: 12px 14px;
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      background: rgba(242, 239, 232, 0.96);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 -8px 24px rgba(28, 31, 26, 0.08);
+    }
+    .wizard-footer .right { display: flex; gap: 10px; flex-wrap: wrap; }
+    .review-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 12px;
+    }
+    .review-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .review-list li {
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fff;
+      display: grid;
+      gap: 2px;
+    }
+    .review-list b { font-size: 13px; }
+    .review-list span { font-size: 12px; color: var(--muted); }
+    .review-empty { color: var(--muted); font-size: 13px; }
+    .article-change-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: var(--surface-2);
+      padding: 12px 14px;
+      margin: 12px 0;
+    }
+    .article-change-bar .copy { display: grid; gap: 4px; }
+    .article-change-bar strong { font-size: 14px; }
+    .article-change-bar span { font-size: 12px; color: var(--muted); }
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .toggle-track {
+      width: 46px;
+      height: 26px;
+      border-radius: 999px;
+      background: rgba(28,31,26,0.16);
+      position: relative;
+      transition: background .2s ease;
+      flex: 0 0 auto;
+    }
+    .toggle-track::after {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      transition: transform .2s ease;
+    }
+    .toggle input:checked + .toggle-track {
+      background: var(--accent);
+    }
+    .toggle input:checked + .toggle-track::after {
+      transform: translateX(20px);
+    }
+    .target-article-input {
+      width: 140px;
+      min-width: 120px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: #fff;
+    }
+    .target-article-input:disabled {
+      opacity: 0.45;
+      background: var(--surface-2);
+    }
+    .target-article-input.is-invalid {
+      border-color: rgba(212,84,60,0.7);
+      background: rgba(212,84,60,0.08);
+    }
+    .stock-row-filtered { display: none; }
+    .stock-table .article-b-col { white-space: nowrap; }
+    .excel-import-status {
+      margin-top: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .excel-import-status.is-error { color: var(--danger); }
+    .excel-import-status.is-success { color: #7a4700; }
+    .excel-apply-btn {
+      border: 1px solid rgba(248,144,0,0.4);
+      border-radius: 8px;
+      padding: 5px 8px;
+      background: rgba(248,144,0,0.1);
+      color: #7a4700;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .excel-plan {
+      margin: 12px 0;
+      border: 1px solid rgba(248,144,0,0.45);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: rgba(248,144,0,0.08);
+      display: grid;
+      gap: 10px;
+    }
+    .excel-plan[hidden] { display: none; }
+    .excel-plan h4 { margin: 0; font-size: 14px; }
+    .excel-plan-summary { font-size: 13px; color: var(--ink); }
+    .excel-plan-table-wrap { overflow-x: auto; }
+    .excel-plan-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .excel-plan-table th, .excel-plan-table td {
+      padding: 7px 8px;
+      border-bottom: 1px solid rgba(48,48,48,0.1);
+      text-align: left;
+      vertical-align: top;
+    }
+    .excel-plan-table th { color: var(--muted); font-weight: 800; }
+    .piece-pick-tariff {
+      margin: 12px 0;
+      border: 1px solid rgba(248,144,0,0.55);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: rgba(248,184,0,0.12);
+    }
+    .piece-pick-tariff[hidden] { display: none; }
+    .piece-pick-tariff .checkbox-inline {
+      align-items: flex-start;
+      white-space: normal;
+      color: var(--ink);
+      line-height: 1.45;
+    }
+
+    @media (max-width: 1100px) {
+      body { overflow: auto; }
+      .layout { grid-template-columns: 1fr; }
+      .side, .content { max-height: none; }
+      .meta-columns, .extras-row, .positions-grid, .wizard-steps, .review-grid { grid-template-columns: 1fr; }
+      .stock-filter { grid-template-columns: 1fr; }
+      .stock-filter-count { justify-self: start; }
+    }
+  </style>
+</head>
+<body>
+  {% with cid=selected_client.id|default:agency.id %}
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand-title">FULLBOX</div>
+        <div class="profile">
+          <div class="profile-value">
+            Кабинет клиента<br>
+            {{ selected_client.agn_name|default:agency.agn_name|default:agency.fio_agn|default:"клиента" }}
+          </div>
+          <div class="status-pill">{{ status_label|default:"Подготовка заявки" }}</div>
+        </div>
+        <nav class="nav">
+          <a class="nav-link" href="/orders/?client={{ cid }}">
+            <span class="nav-title">Журнал заявок</span>
+            <span class="nav-sub">Все заявки</span>
+          </a>
+          <a class="nav-link" href="/client/dashboard/lk/?client={{ cid }}">
+            <span class="nav-title">В кабинет</span>
+            <span class="nav-sub">Главная клиента</span>
+          </a>
+          <a class="nav-link" href="/client/{{ cid }}/sku/">
+            <span class="nav-title">Номенклатура</span>
+            <span class="nav-sub">SKU и карточки</span>
+          </a>
+          <a class="nav-link primary" href="/orders/processing/?client={{ cid }}">
+            <span class="nav-title">Заявка на обработку</span>
+            <span class="nav-sub">Создание заявки</span>
+          </a>
+          <a class="nav-link" href="/sklad/journal/?client={{ cid }}">
+            <span class="nav-title">Складские остатки</span>
+            <span class="nav-sub">Актуальные стоки</span>
+          </a>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <header class="page-head">
+          <h1>{{ page_title|default:"Новая заявка на обработку" }}</h1>
+          <p>Шаг за шагом: услуги → товар со склада → проверка и отправка.</p>
+          <p class="hint" id="draft-autosave-status" style="margin-top:8px;font-weight:700;"></p>
+        </header>
+
+        <div class="wizard-steps" id="wizard-steps" aria-label="Этапы заявки">
+          <div class="wizard-step is-active" data-step-indicator="1">
+            <strong>1. Услуги</strong>
+            <span>Что нужно сделать</span>
+          </div>
+          <div class="wizard-step" data-step-indicator="2">
+            <strong>2. Товар</strong>
+            <span>Выбор со склада</span>
+          </div>
+          <div class="wizard-step" data-step-indicator="3">
+            <strong>3. Итого</strong>
+            <span>Проверка и отправка</span>
+          </div>
+        </div>
+
+        {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+        {% if draft_saved %}<div class="alert success">Черновик сохранен.</div>{% endif %}
+        {% if submitted %}<div class="alert success">Заявка на обработку отправлена.</div>{% endif %}
+        {% if edit_order_id %}
+          <div class="edit-alert">
+            <strong>Вы редактируете заявку №{{ edit_order_id }}</strong>
+            <span>После сохранения менеджер получит уведомление об изменениях.</span>
+          </div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" id="processing-form" data-processing-excel-preview-url="{% url 'processing_app:processing-excel-preview' %}">
+          {% csrf_token %}
+          <input type="hidden" name="agency_id" value="{{ cid }}">
+          <input type="hidden" name="email" value="{{ agency.email|default:'' }}">
+          <input type="hidden" name="fio" value="{{ agency.fio_agn|default:'' }}">
+          <input type="hidden" name="org" value="{{ agency.agn_name|default:'' }}">
+          <input type="hidden" name="cards_json" id="cards-json" value="">
+          {% if client_processing_unit_picker %}<input type="hidden" name="client_unit_picker_v1" value="1">{% endif %}
+          {% if edit_order_id %}
+            <input type="hidden" name="edit_order_id" value="{{ edit_order_id }}">
+          {% endif %}
+          {% if draft_order_id %}
+            <input type="hidden" name="draft_order_id" value="{{ draft_order_id }}">
+          {% endif %}
+
+          <section class="card wizard-pane" data-step="1">
+            <h3 class="card-title"><span class="num">1</span> Выбор услуг</h3>
+            <div class="meta-columns">
+              <div class="meta-card">
+                <h4 class="meta-title">Маркетплейс и контроль</h4>
+                <div class="field">
+                  <label>Маркетплейс <span class="required">*</span></label>
+                  <select name="marketplace" id="id_marketplace" required>
+                    <option value="" {% if not draft_payload.marketplace %}selected{% endif %}>-</option>
+                    <option value="WB" {% if draft_payload.marketplace == "WB" %}selected{% endif %}>Wildberries</option>
+                    <option value="Ozon" {% if draft_payload.marketplace == "Ozon" %}selected{% endif %}>Ozon</option>
+                    <option value="Yandex" {% if draft_payload.marketplace == "Yandex" %}selected{% endif %}>Яндекс Маркет</option>
+                    <option value="Sber" {% if draft_payload.marketplace == "Sber" %}selected{% endif %}>СберМегаМаркет</option>
+                    <option value="AliExpress" {% if draft_payload.marketplace == "AliExpress" %}selected{% endif %}>AliExpress</option>
+                    <option value="Lamoda" {% if draft_payload.marketplace == "Lamoda" %}selected{% endif %}>Lamoda</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Проверка на брак</label>
+                  <select name="defect_percent">
+                    <option value="" {% if not draft_payload.defect_percent %}selected{% endif %}>-</option>
+                    <option value="10" {% if draft_payload.defect_percent|stringformat:"s" == "10" %}selected{% endif %}>10%</option>
+                    <option value="50" {% if draft_payload.defect_percent|stringformat:"s" == "50" %}selected{% endif %}>50%</option>
+                    <option value="100" {% if draft_payload.defect_percent|stringformat:"s" == "100" %}selected{% endif %}>100%</option>
+                  </select>
+                  <input type="hidden" name="defect_check" value="{{ draft_payload.defect_check|default:'' }}">
+                </div>
+                <div class="field">
+                  <label>Маркировка 58/40</label>
+                  <select name="marking_5840_qty">
+                    <option value="" {% if not draft_payload.marking_5840_qty %}selected{% endif %}>-</option>
+                    <option value="1" {% if draft_payload.marking_5840_qty|stringformat:"s" == "1" %}selected{% endif %}>1</option>
+                    <option value="2" {% if draft_payload.marking_5840_qty|stringformat:"s" == "2" %}selected{% endif %}>2</option>
+                    <option value="3" {% if draft_payload.marking_5840_qty|stringformat:"s" == "3" %}selected{% endif %}>3</option>
+                  </select>
+                  <input type="hidden" name="marking_5840_needed" value="{{ draft_payload.marking_5840_needed|default:'' }}">
+                </div>
+                <div class="field">
+                  <label>Маркировка 58/40 (шт/чз)</label>
+                  <select name="marking_5840_each_qty">
+                    <option value="" {% if not draft_payload.marking_5840_each_qty %}selected{% endif %}>-</option>
+                    <option value="1" {% if draft_payload.marking_5840_each_qty|stringformat:"s" == "1" %}selected{% endif %}>1</option>
+                    <option value="2" {% if draft_payload.marking_5840_each_qty|stringformat:"s" == "2" %}selected{% endif %}>2</option>
+                  </select>
+                  <input type="hidden" name="marking_5840_each_needed" value="{{ draft_payload.marking_5840_each_needed|default:'' }}">
+                  <div class="cz-file-panel" data-marking-cz-fields hidden>
+                    <div class="cz-file-actions">
+                      <a class="cz-file-action" href="{% url 'processing_app:processing-marking-template' %}" download>Образец файла</a>
+                      <label class="cz-file-action" for="client-marking-cz-file">Загрузить файлы с ЧЗ</label>
+                      <input id="client-marking-cz-file" class="cz-file-input" type="file" name="marking_cz_file" accept=".xlsx" multiple data-marking-cz-file>
+                      <span class="cz-file-name" data-marking-cz-filename>Файлы не выбраны</span>
+                    </div>
+                    <p class="cz-file-format">Excel (.xlsx): «Баркод» и «КИ (код идентификации)».</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="meta-card">
+                <h4 class="meta-title">Бирки и упаковка</h4>
+                <div class="field">
+                  <label>Замена бирок</label>
+                  <select name="tag_owner">
+                    <option value="" {% if not draft_payload.tag_owner %}selected{% endif %}>-</option>
+                    <option value="Фуллбокс" {% if draft_payload.tag_owner == "Фуллбокс" %}selected{% endif %}>Фуллбокс</option>
+                    <option value="Клиент" {% if draft_payload.tag_owner == "Клиент" %}selected{% endif %}>Клиент</option>
+                  </select>
+                  <input type="hidden" name="tag_replace_needed" value="{{ draft_payload.tag_replace_needed|default:'' }}">
+                </div>
+                <div class="field">
+                  <label>Замена пакета</label>
+                  <select name="bag_replace_type">
+                    <option value="" {% if not draft_payload.bag_replace_type %}selected{% endif %}>-</option>
+                    <option value="Стандартный" {% if draft_payload.bag_replace_type == "Стандартный" %}selected{% endif %}>Стандартный</option>
+                    <option value="Zip" {% if draft_payload.bag_replace_type == "Zip" %}selected{% endif %}>Zip</option>
+                    <option value="Клеевой клапан" {% if draft_payload.bag_replace_type == "Клеевой клапан" %}selected{% endif %}>Клеевой клапан</option>
+                    <option value="Другое" {% if draft_payload.bag_replace_type == "Другое" %}selected{% endif %}>Другое</option>
+                  </select>
+                  <input type="hidden" name="bag_replace_needed" value="{{ draft_payload.bag_replace_needed|default:'' }}">
+                </div>
+                <div class="field">
+                  <label>Чей пакет</label>
+                  <select name="bag_replace_supply">
+                    <option value="" {% if not draft_payload.bag_replace_supply %}selected{% endif %}>-</option>
+                    <option value="Фуллбокс" {% if draft_payload.bag_replace_supply == "Фуллбокс" %}selected{% endif %}>Фуллбокс</option>
+                    <option value="Клиент" {% if draft_payload.bag_replace_supply == "Клиент" %}selected{% endif %}>Клиент</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Формирование короба</label>
+                  <select name="box_forming">
+                    <option value="" {% if not draft_payload.box_forming %}selected{% endif %}>-</option>
+                    <option value="60*4*40" {% if draft_payload.box_forming == "60*4*40" %}selected{% endif %}>60*4*40</option>
+                    <option value="60*40*25" {% if draft_payload.box_forming == "60*40*25" %}selected{% endif %}>60*40*25</option>
+                    <option value="other" {% if draft_payload.box_forming == "other" or draft_payload.box_forming_other %}selected{% endif %}>Другое</option>
+                  </select>
+                  <input type="text" name="box_forming_other" value="{{ draft_payload.box_forming_other|default:'' }}" placeholder="Свой размер">
+                </div>
+              </div>
+
+              <div class="meta-card">
+                <h4 class="meta-title">Доп. операции</h4>
+                <div class="field">
+                  <label>Бабл-плёнка</label>
+                  <select name="bubble_wrap_size">
+                    <option value="" {% if not draft_payload.bubble_wrap_size %}selected{% endif %}>-</option>
+                    <option value="Малый" {% if draft_payload.bubble_wrap_size == "Малый" %}selected{% endif %}>Малый</option>
+                    <option value="Средний" {% if draft_payload.bubble_wrap_size == "Средний" %}selected{% endif %}>Средний</option>
+                    <option value="Большой" {% if draft_payload.bubble_wrap_size == "Большой" %}selected{% endif %}>Большой</option>
+                  </select>
+                  <input type="hidden" name="bubble_wrap_needed" value="{{ draft_payload.bubble_wrap_needed|default:'' }}">
+                </div>
+                <div class="field">
+                  <label>Термоплёнка</label>
+                  <select name="shrink_wrap_size">
+                    <option value="" {% if not draft_payload.shrink_wrap_size %}selected{% endif %}>-</option>
+                    <option value="Малый" {% if draft_payload.shrink_wrap_size == "Малый" %}selected{% endif %}>Малый</option>
+                    <option value="Средний" {% if draft_payload.shrink_wrap_size == "Средний" %}selected{% endif %}>Средний</option>
+                    <option value="Большой" {% if draft_payload.shrink_wrap_size == "Большой" %}selected{% endif %}>Большой</option>
+                  </select>
+                  <input type="hidden" name="shrink_wrap_needed" value="{{ draft_payload.shrink_wrap_needed|default:'' }}">
+                </div>
+                <div class="field">
+                  <label>Индивидуальная коробка</label>
+                  <select name="individual_box_needed">
+                    <option value="" {% if not draft_payload.individual_box_needed %}selected{% endif %}>-</option>
+                    <option value="Да" {% if draft_payload.individual_box_needed and draft_payload.individual_box_needed != "Нет" %}selected{% endif %}>Да</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Вакуумная упаковка</label>
+                  <select name="vacuum_pack_needed">
+                    <option value="" {% if not draft_payload.vacuum_pack_needed %}selected{% endif %}>-</option>
+                    <option value="Да" {% if draft_payload.vacuum_pack_needed and draft_payload.vacuum_pack_needed != "Нет" %}selected{% endif %}>Да</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Сборка набора</label>
+                  <select name="set_build" id="id_set_build">
+                    <option value="" {% if not draft_payload.set_build and not draft_payload.set_qty %}selected{% endif %}>-</option>
+                    <option value="Да" {% if draft_payload.set_build and draft_payload.set_build != "Нет" or draft_payload.set_qty %}selected{% endif %}>Да</option>
+                  </select>
+                </div>
+                <div class="field" id="set-qty-field" {% if not draft_payload.set_build and not draft_payload.set_qty %}hidden{% endif %}>
+                  <label>Кол-во в наборе</label>
+                  <input type="number" min="0" name="set_qty" id="id_set_qty" value="{{ draft_payload.set_qty|default:'' }}">
+                </div>
+                <div class="field">
+                  <label>Вложение, шт</label>
+                  <input type="number" min="0" name="insert_qty" value="{{ draft_payload.insert_qty|default:'' }}">
+                  <input type="hidden" name="insert_needed" value="{% if draft_payload.insert_qty %}Да{% else %}{{ draft_payload.insert_needed|default:'' }}{% endif %}">
+                </div>
+              </div>
+            </div>
+
+            <div class="extras-row" style="margin-top:12px;">
+              <section class="extras-card">
+                <h3>Комментарий</h3>
+                <div class="field comment-box">
+                  <textarea name="comments" id="processing-comments" rows="3" placeholder="Комментарий будет виден менеджерам">{{ draft_payload.comments|default:'' }}</textarea>
+                </div>
+              </section>
+              <section class="extras-card">
+                <h3>Прикрепить файлы</h3>
+                <div class="dropzone" id="processing-documents-dropzone">
+                  <div>Перетащите файлы сюда</div>
+                  <label class="dropzone-label" for="processing-documents">Выбрать</label>
+                  <input id="processing-documents" type="file" name="documents" multiple accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.doc,.docx,.txt">
+                  <span class="hint">XLSX заполнит товар автоматически; остальные файлы сохранятся как документы</span>
+                </div>
+                <div class="excel-import-status" id="processing-excel-import-status" role="status" aria-live="polite"></div>
+                {% if existing_attachments %}
+                  <div class="attachment-title">Уже загружены на сервер</div>
+                  <div class="attachment-list">
+                    {% for attachment in existing_attachments %}
+                      <div class="attachment-item">
+                        <a href="{% url 'processing_app:processing-attachment-download' attachment_order_id attachment.pk %}">{{ attachment.filename }}</a>
+                        <span>до {{ attachment.expires_at|date:"d.m.Y H:i" }}</span>
+                        <button class="excel-apply-btn" type="button" data-processing-excel-attachment="{{ attachment.pk }}">Заполнить товар</button>
+                        <label class="checkbox-inline" title="Удалить файл после сохранения заявки">
+                          <input type="checkbox" name="delete_attachment_ids" value="{{ attachment.pk }}">
+                          <span>Удалить</span>
+                        </label>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </section>
+            </div>
+          </section>
+
+          <section class="card wizard-pane" data-step="2" hidden>
+            <h3 class="card-title"><span class="num">2</span> Выбор товара</h3>
+            <p class="hint" style="margin-top:-6px;">Укажите количество к обработке: можно выбрать целые короба или штучный подбор.</p>
+            <div class="stat-box" style="margin:12px 0;">
+              <h5>Доступно на складе</h5>
+              <div class="stat-grid">
+                <div><strong>{{ stock_available_lines|default:0 }}</strong><span>позиций</span></div>
+                <div><strong>{{ stock_available_boxes|default:0 }}</strong><span>коробов</span></div>
+                <div><strong>{{ stock_available_qty|default:0 }}</strong><span>штук</span></div>
+              </div>
+            </div>
+            <section class="excel-plan" id="processing-excel-plan" hidden>
+              <h4>Подбор по Excel</h4>
+              <div class="excel-plan-summary" id="processing-excel-plan-summary"></div>
+              <div class="excel-plan-table-wrap">
+                <table class="excel-plan-table">
+                  <thead>
+                    <tr>
+                      <th>Перемаркировка</th>
+                      <th>Запрошено</th>
+                      <th>Целые короба</th>
+                      <th>Штучный добор</th>
+                    </tr>
+                  </thead>
+                  <tbody id="processing-excel-plan-body"></tbody>
+                </table>
+              </div>
+              <div class="hint" id="processing-excel-plan-warnings"></div>
+            </section>
+            <div
+              class="selection-summary"
+              id="processing-selection-summary"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <strong>Выбрано в заявку</strong>
+              <span class="selection-summary-stat"><strong id="selected-line-count">0</strong> позиций</span>
+              <span class="selection-summary-stat"><strong id="selected-box-count">0</strong> коробов</span>
+              <span class="selection-summary-stat"><strong id="selected-item-count">0</strong> штук</span>
+            </div>
+            <div class="article-change-bar">
+              <div class="copy">
+                <strong>Сменить артикул А → Б</strong>
+                <span>Если после обработки нужен другой артикул — включите переключатель и укажите арт Б из номенклатуры.</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="article-change-toggle" {% if draft_payload.article_change_needed == "Да" %}checked{% endif %}>
+                <span class="toggle-track" aria-hidden="true"></span>
+                <span>Нужна смена</span>
+              </label>
+              <input type="hidden" name="article_change_needed" id="article-change-needed" value="{% if draft_payload.article_change_needed == 'Да' %}Да{% endif %}">
+            </div>
+            {% include "processing/_client_stock_picker.html" %}
+          </section>
+
+          <section class="card wizard-pane" data-step="3" hidden>
+            <h3 class="card-title"><span class="num">3</span> Итого по заявке</h3>
+            <p class="hint" style="margin-top:-6px;">Проверьте выбранные услуги и товар перед отправкой.</p>
+            <section class="piece-pick-tariff" id="processing-piece-pick-tariff" hidden>
+              <label class="checkbox-inline">
+                <input type="checkbox" name="processing_piece_pick_tariff_confirmed" value="1" id="processing-piece-pick-tariff-confirmed">
+                <span>
+                  <strong>Подтверждение отдельной тарификации штучного добора</strong><br>
+                  <span id="processing-piece-pick-tariff-text"></span>
+                  Система сначала подбирает целые короба, затем добирает остаток из одного неполного короба. Штучный добор тарифицируется отдельно.
+                </span>
+              </label>
+            </section>
+            <div class="review-grid" style="margin-top:12px;">
+              <div class="meta-card">
+                <h4 class="meta-title">Выбранные услуги</h4>
+                <ul class="review-list" id="review-services"></ul>
+                <div class="review-empty" id="review-services-empty" hidden>Услуги не выбраны.</div>
+              </div>
+              <div class="meta-card">
+                <h4 class="meta-title">Выбранный товар</h4>
+                <ul class="review-list" id="review-products"></ul>
+                <div class="review-empty" id="review-products-empty" hidden>Товар не выбран.</div>
+                <div class="stat-box" style="margin-top:10px;">
+                  <h5>Итого</h5>
+                  <div class="stat-grid">
+                    <div><strong id="footer-line-count">0</strong><span>позиций</span></div>
+                    <div><strong id="footer-box-count">0</strong><span>коробов</span></div>
+                    <div><strong id="footer-item-count">0</strong><span>штук</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="hint" id="draft-autosave-status-side" style="margin-top:12px;font-weight:700;"></div>
+          </section>
+
+          <div class="wizard-footer">
+            <button class="btn" type="button" id="wizard-back-btn" hidden>Назад</button>
+            <div class="right">
+              {% if edit_order_id %}
+                <button class="btn link" type="button" id="cancel-edit-btn">Отменить редактирование</button>
+              {% else %}
+                <button class="btn link" type="submit" name="submit_action" value="draft" id="submit-draft-btn" formnovalidate>Сохранить черновик</button>
+              {% endif %}
+              <button class="btn primary" type="button" id="wizard-next-btn">Дальше</button>
+              <button class="btn primary" type="submit" name="submit_action" value="send" id="submit-send-btn" hidden>{% if edit_order_id %}Сохранить изменения{% else %}Отправить заявку{% endif %}</button>
+            </div>
+          </div>
+        </form>
+      </main>
+    </div>
+  </div>
+  {% endwith %}
+
+  {% if edit_order_id %}
+    <div class="modal" id="cancel-edit-modal" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-title">Отменить редактирование?</div>
+        <div class="modal-note">Внесённые изменения не будут сохранены. Текущая версия заявки останется без изменений.</div>
+        <div class="modal-actions">
+          <button class="btn primary" type="button" id="continue-edit-btn">Продолжить редактирование</button>
+          <a class="btn link" id="exit-without-save-link" href="/orders/processing/{{ edit_order_id }}/{% if cid %}?client={{ cid }}{% endif %}">Выйти без сохранения</a>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <script type="application/json" id="processing-stock-rows-data">{{ stock_rows_json|default:"[]"|safe }}</script>
+  <script type="application/json" id="processing-client-sku-options">{{ client_sku_options_json|default:"[]"|safe }}</script>
+  <script type="application/json" id="processing-draft-data">{{ draft_payload_json|default:"{}"|safe }}</script>
+  <script>
+  (function () {
+    const form = document.getElementById('processing-form');
+    const cardsInput = document.getElementById('cards-json');
+    const table = document.getElementById('client-processing-stock-table');
+    const sendBtn = document.getElementById('submit-send-btn');
+    const nextBtn = document.getElementById('wizard-next-btn');
+    const backBtn = document.getElementById('wizard-back-btn');
+    const marketplace = document.getElementById('id_marketplace');
+    const articleToggle = document.getElementById('article-change-toggle');
+    const articleNeeded = document.getElementById('article-change-needed');
+    const stockFilters = Array.from(document.querySelectorAll('[data-stock-filter]'));
+    const stockFilterCount = document.getElementById('client-processing-stock-filter-count');
+    const stockFilterEmpty = document.getElementById('client-processing-stock-filter-empty');
+    const skuDatalist = document.getElementById('client-sku-datalist');
+    const documentsInput = document.getElementById('processing-documents');
+    const excelImportStatus = document.getElementById('processing-excel-import-status');
+    const excelPlan = document.getElementById('processing-excel-plan');
+    const excelPlanSummary = document.getElementById('processing-excel-plan-summary');
+    const excelPlanBody = document.getElementById('processing-excel-plan-body');
+    const excelPlanWarnings = document.getElementById('processing-excel-plan-warnings');
+    const piecePickTariff = document.getElementById('processing-piece-pick-tariff');
+    const piecePickTariffText = document.getElementById('processing-piece-pick-tariff-text');
+    const piecePickTariffConfirmed = document.getElementById('processing-piece-pick-tariff-confirmed');
+    const excelPreviewUrl = String(form.dataset.processingExcelPreviewUrl || '').trim();
+    const isEditMode = Boolean(form?.querySelector('input[name="edit_order_id"]'));
+    const cancelEditBtn = document.getElementById('cancel-edit-btn');
+    const cancelEditModal = document.getElementById('cancel-edit-modal');
+    const continueEditBtn = document.getElementById('continue-edit-btn');
+    if (!form || !cardsInput) return;
+
+    let currentStep = 1;
+    const totalSteps = 3;
+    let formDirty = false;
+    let allowLeave = false;
+
+    const openCancelEditModal = () => {
+      if (!cancelEditModal) return;
+      cancelEditModal.classList.add('is-open');
+      cancelEditModal.setAttribute('aria-hidden', 'false');
+    };
+    const closeCancelEditModal = () => {
+      if (!cancelEditModal) return;
+      cancelEditModal.classList.remove('is-open');
+      cancelEditModal.setAttribute('aria-hidden', 'true');
+    };
+    if (isEditMode) {
+      form.addEventListener('input', () => { formDirty = true; });
+      form.addEventListener('change', () => { formDirty = true; });
+      form.addEventListener('submit', () => { allowLeave = true; });
+      cancelEditBtn?.addEventListener('click', () => {
+        if (formDirty) {
+          openCancelEditModal();
+          return;
+        }
+        allowLeave = true;
+        window.location.href = document.getElementById('exit-without-save-link')?.href || '/orders/';
+      });
+      continueEditBtn?.addEventListener('click', closeCancelEditModal);
+      document.getElementById('exit-without-save-link')?.addEventListener('click', () => {
+        allowLeave = true;
+      });
+      cancelEditModal?.addEventListener('click', (event) => {
+        if (event.target === cancelEditModal) closeCancelEditModal();
+      });
+      window.addEventListener('beforeunload', (event) => {
+        if (!formDirty || allowLeave) return;
+        event.preventDefault();
+        event.returnValue = '';
+      });
+    }
+
+    const intVal = (v) => {
+      const n = Number.parseInt(String(v || '').trim(), 10);
+      return Number.isFinite(n) ? n : 0;
+    };
+    const clean = (v) => String(v || '').trim();
+    const fieldLabel = (name) => {
+      const el = form.querySelector('[name="' + name + '"]');
+      const wrap = el && el.closest('.field');
+      const label = wrap && wrap.querySelector('label');
+      return clean(label ? label.textContent.replace('*', '') : name);
+    };
+    const fieldDisplay = (name) => {
+      const el = form.querySelector('[name="' + name + '"]');
+      if (!el) return '';
+      if (el.tagName === 'SELECT') {
+        const opt = el.options[el.selectedIndex];
+        const text = clean(opt && opt.textContent);
+        if (!text || text === '-') return '';
+        return text;
+      }
+      return clean(el.value);
+    };
+
+    let clientSkuOptions = [];
+    try {
+      clientSkuOptions = JSON.parse(document.getElementById('processing-client-sku-options')?.textContent || '[]');
+    } catch (err) {
+      clientSkuOptions = [];
+    }
+    clientSkuOptions = Array.isArray(clientSkuOptions) ? clientSkuOptions.map((item) => ({
+      article: clean(item.article),
+      name: clean(item.name),
+      size: clean(item.size),
+      barcode: clean(item.barcode),
+      barcodes: Array.isArray(item.barcodes) ? item.barcodes.map((b) => ({
+        value: clean(b.value),
+        size: clean(b.size),
+        primary: Boolean(b.primary),
+      })).filter((b) => b.value) : [],
+    })).filter((item) => item.article) : [];
+    const skuByArticle = new Map(clientSkuOptions.map((item) => [item.article, item]));
+    const skuByArticleLower = new Map(clientSkuOptions.map((item) => [item.article.toLowerCase(), item]));
+    const resolveSku = (article) => {
+      const value = clean(article);
+      return skuByArticle.get(value) || skuByArticleLower.get(value.toLowerCase()) || null;
+    };
+    const sameArticle = (source, target) => (
+      Boolean(clean(source))
+      && clean(source).toLowerCase() === clean(target).toLowerCase()
+    );
+    const goodsTypeLabel = (value) => {
+      const raw = clean(value);
+      const key = raw.toLowerCase();
+      const labels = {
+        gv: 'Готовый',
+        ready: 'Готовый',
+        processed: 'Обработанный',
+        obr: 'Обработанный',
+        op: 'Обработанный',
+        no: 'Не обработанный',
+        raw: 'Не обработанный',
+        draft: 'Черновой',
+        br: 'Брак',
+      };
+      return labels[key] || raw || 'Не указан';
+    };
+    const selectedRows = () => Array.from(table?.querySelectorAll('tbody tr') || []);
+    const rowProcessInput = (tr) => tr?.querySelector('[data-process-input], [data-box-input]');
+    const rowProcessMode = (tr) => clean(tr?.querySelector('[data-process-mode]')?.value || 'units');
+    const rowSelection = (tr) => {
+      const input = rowProcessInput(tr);
+      const mode = rowProcessMode(tr);
+      const boxQty = Math.max(intVal(tr?.dataset.boxQty), 1);
+      const availableBoxes = Math.max(intVal(tr?.dataset.availableBoxes), 0);
+      const postedAvailableQty = Math.max(intVal(tr?.dataset.availableQty), 0);
+      const availableQty = postedAvailableQty || (availableBoxes * boxQty);
+      let raw = Math.max(intVal(input?.value), 0);
+      if (mode === 'boxes') {
+        const fullBoxes = Math.min(availableBoxes, Math.floor(availableQty / boxQty));
+        raw = Math.min(raw, fullBoxes);
+        const qty = raw * boxQty;
+        return { mode, inputValue: raw, boxes: raw, looseQty: 0, qty, boxQty, availableBoxes, availableQty };
+      }
+      raw = Math.min(raw, availableQty);
+      const boxes = Math.min(Math.floor(raw / boxQty), availableBoxes);
+      const looseQty = Math.max(raw - boxes * boxQty, 0);
+      return { mode, inputValue: raw, boxes, looseQty, qty: raw, boxQty, availableBoxes, availableQty };
+    };
+    const normalizeBoxCodes = (value) => clean(value).split(',').map((x) => clean(x)).filter(Boolean);
+    const rowBoxCodes = (tr, count) => normalizeBoxCodes(tr?.dataset.boxCodes).slice(0, Math.max(intVal(count), 0));
+    function groupStockTableRows() {
+      if (!table) return;
+      const tbody = table.querySelector('tbody');
+      if (!tbody || tbody.dataset.grouped === '1') return;
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const groups = new Map();
+      rows.forEach((tr) => {
+        const key = [
+          clean(tr.dataset.skuCode).toLowerCase(),
+          clean(tr.dataset.name).toLowerCase(),
+          clean(tr.dataset.size).toLowerCase(),
+          clean(tr.dataset.barcode).toLowerCase(),
+          clean(tr.dataset.goodsType).toLowerCase(),
+          intVal(tr.dataset.boxQty),
+          clean(tr.dataset.mixGroup).toLowerCase(),
+          clean(tr.dataset.isMixed),
+        ].join('||');
+        const codes = normalizeBoxCodes(tr.dataset.boxCodes);
+        if (!groups.has(key)) {
+          groups.set(key, { tr, boxes: 0, qty: 0, codes: [], sourceCount: 0 });
+        }
+        const group = groups.get(key);
+        group.boxes += intVal(tr.dataset.availableBoxes);
+        group.qty += intVal(tr.dataset.availableQty);
+        group.codes.push(...codes);
+        group.sourceCount += 1;
+      });
+      tbody.innerHTML = '';
+      groups.forEach((group) => {
+        const tr = group.tr;
+        tr.dataset.availableBoxes = String(group.boxes);
+        tr.dataset.availableQty = String(group.qty);
+        tr.dataset.boxCodes = Array.from(new Set(group.codes)).join(',');
+        tr.dataset.groupedCount = String(group.sourceCount);
+        const cells = tr.querySelectorAll('td');
+        if (cells[3]) cells[3].textContent = goodsTypeLabel(tr.dataset.goodsType);
+        if (cells[4]) cells[4].textContent = group.boxes + ' кор. / ' + group.qty + ' шт';
+        const input = rowProcessInput(tr);
+        if (input) {
+          input.max = String(group.qty);
+          input.disabled = group.qty <= 0;
+        }
+        const mode = tr.querySelector('[data-process-mode]');
+        if (mode) mode.disabled = group.qty <= 0;
+        tbody.appendChild(tr);
+      });
+      tbody.dataset.grouped = '1';
+    }
+    function populateGoodsTypeFilter() {
+      const select = document.getElementById('client-processing-stock-filter-type');
+      if (!select || !table) return;
+      const current = clean(select.value);
+      const values = Array.from(new Set(selectedRows().map((tr) => clean(tr.dataset.goodsType)).filter(Boolean)))
+        .sort((a, b) => goodsTypeLabel(a).localeCompare(goodsTypeLabel(b), 'ru'));
+      select.innerHTML = '<option value="">Все типы</option>' + values.map((value) => (
+        '<option value="' + value.replace(/"/g, '&quot;') + '">' + goodsTypeLabel(value) + '</option>'
+      )).join('');
+      if (current && values.includes(current)) select.value = current;
+    }
+    populateGoodsTypeFilter();
+
+    const barcodeForSize = (item, size) => {
+      if (!item) return '';
+      const sizeKey = clean(size).toLowerCase();
+      if (sizeKey) {
+        const sized = (item.barcodes || []).find((b) => clean(b.size).toLowerCase() === sizeKey);
+        if (sized?.value) return sized.value;
+      }
+      const primary = (item.barcodes || []).find((b) => b.primary);
+      return clean(primary?.value || item.barcode || item.barcodes?.[0]?.value || '');
+    };
+    if (skuDatalist) {
+      skuDatalist.innerHTML = clientSkuOptions.slice(0, 500).map((item) => {
+        const label = [item.article, item.name].filter(Boolean).join(' — ');
+        return '<option value="' + item.article.replace(/"/g, '&quot;') + '" label="' + label.replace(/"/g, '&quot;') + '"></option>';
+      }).join('');
+    }
+
+    let draftPayload = {};
+    try {
+      draftPayload = JSON.parse(document.getElementById('processing-draft-data')?.textContent || '{}') || {};
+    } catch (err) {
+      draftPayload = {};
+    }
+
+    function articleChangeEnabled() {
+      return Boolean(articleToggle?.checked);
+    }
+
+    function syncArticleChangeMode() {
+      const on = articleChangeEnabled();
+      if (articleNeeded) articleNeeded.value = on ? 'Да' : '';
+      document.querySelectorAll('.article-b-col').forEach((el) => {
+        el.hidden = !on;
+      });
+      table?.querySelectorAll('[data-target-article]').forEach((input) => {
+        const tr = input.closest('tr');
+        const selection = rowSelection(tr);
+        input.disabled = !on || selection.qty <= 0;
+        if (!on) {
+          input.value = '';
+          input.classList.remove('is-invalid');
+        }
+      });
+      refreshTotals();
+    }
+
+    function syncNeeded(selectName, hiddenName) {
+      const select = form.querySelector('[name="' + selectName + '"]');
+      const hidden = form.querySelector('[name="' + hiddenName + '"]');
+      if (!select || !hidden) return;
+      const on = () => { hidden.value = select.value ? 'Да' : ''; };
+      select.addEventListener('change', on);
+      on();
+    }
+    [
+      ['defect_percent', 'defect_check'],
+      ['marking_5840_qty', 'marking_5840_needed'],
+      ['marking_5840_each_qty', 'marking_5840_each_needed'],
+      ['tag_owner', 'tag_replace_needed'],
+      ['bag_replace_type', 'bag_replace_needed'],
+      ['bubble_wrap_size', 'bubble_wrap_needed'],
+      ['shrink_wrap_size', 'shrink_wrap_needed'],
+    ].forEach(([a, b]) => syncNeeded(a, b));
+
+    const markingCzSelect = form.querySelector('[name="marking_5840_each_qty"]');
+    const markingCzFields = form.querySelector('[data-marking-cz-fields]');
+    const markingCzFile = form.querySelector('[data-marking-cz-file]');
+    const markingCzFilename = form.querySelector('[data-marking-cz-filename]');
+    const syncMarkingCzFields = () => {
+      const enabled = Boolean(markingCzSelect?.value);
+      if (markingCzFields) markingCzFields.hidden = !enabled;
+      if (markingCzFile) markingCzFile.disabled = !enabled;
+    };
+    markingCzSelect?.addEventListener('change', syncMarkingCzFields);
+    markingCzFile?.addEventListener('change', () => {
+      if (markingCzFilename) {
+        const names = Array.from(markingCzFile.files || []).map((file) => file.name);
+        markingCzFilename.textContent = names.length ? names.join(', ') : 'Файлы не выбраны';
+      }
+    });
+    syncMarkingCzFields();
+
+    const insertQty = form.querySelector('[name="insert_qty"]');
+    const insertNeeded = form.querySelector('[name="insert_needed"]');
+    if (insertQty && insertNeeded) {
+      const syncInsert = () => { insertNeeded.value = intVal(insertQty.value) > 0 ? 'Да' : ''; };
+      insertQty.addEventListener('input', syncInsert);
+      syncInsert();
+    }
+
+    const setBuild = form.querySelector('[name="set_build"]');
+    const setQty = form.querySelector('[name="set_qty"]');
+    const setQtyField = document.getElementById('set-qty-field');
+    const syncSetBuild = () => {
+      const on = clean(setBuild?.value) === 'Да' || intVal(setQty?.value) > 0;
+      if (setQtyField) setQtyField.hidden = !on;
+      if (setBuild && on && clean(setBuild.value) !== 'Да') setBuild.value = 'Да';
+      if (setBuild && !on) setBuild.value = '';
+      if (setQty && !on) setQty.value = '';
+    };
+    setBuild?.addEventListener('change', syncSetBuild);
+    setQty?.addEventListener('input', () => {
+      if (intVal(setQty.value) > 0 && setBuild) setBuild.value = 'Да';
+      syncSetBuild();
+    });
+    syncSetBuild();
+
+    function rowTargetArticle(tr) {
+      return clean(tr.querySelector('[data-target-article]')?.value);
+    }
+
+    function rowFilterText(tr, field) {
+      if (field === 'name') {
+        return [tr.dataset.name, tr.dataset.size, tr.dataset.goodsType, tr.dataset.mixGroup].map(clean).join(' ').toLowerCase();
+      }
+      if (field === 'article') {
+        return clean(tr.dataset.skuCode).toLowerCase();
+      }
+      if (field === 'barcode') {
+        return clean(tr.dataset.barcode).toLowerCase();
+      }
+      return [
+        tr.dataset.name,
+        tr.dataset.skuCode,
+        tr.dataset.barcode,
+        tr.dataset.size,
+        tr.dataset.goodsType,
+        tr.dataset.mixGroup,
+      ].map(clean).join(' ').toLowerCase();
+    }
+
+    function applyStockFilter() {
+      if (!table) return;
+      const queries = stockFilters.map((input) => ({
+        field: input.dataset.stockFilter || '',
+        value: clean(input.value).toLowerCase(),
+      })).filter((item) => item.value);
+      let visible = 0;
+      let total = 0;
+      table.querySelectorAll('tbody tr').forEach((tr) => {
+        total += 1;
+        const selected = rowSelection(tr).qty > 0;
+        const matches = !queries.length || queries.every((query) => rowFilterText(tr, query.field).includes(query.value));
+        const show = matches || selected;
+        tr.classList.toggle('stock-row-filtered', !show);
+        if (show) visible += 1;
+      });
+      if (stockFilterCount) {
+        stockFilterCount.textContent = queries.length ? ('Показано: ' + visible + ' из ' + total) : ('Показано: ' + total);
+      }
+      if (stockFilterEmpty) {
+        stockFilterEmpty.style.display = queries.length && visible === 0 ? 'block' : 'none';
+      }
+    }
+
+    function buildCards() {
+      const cards = new Map();
+      if (!table) return [];
+      const changeOn = articleChangeEnabled();
+      table.querySelectorAll('tbody tr').forEach((tr) => {
+        const selection = rowSelection(tr);
+        if (selection.qty <= 0) return;
+        const boxQty = intVal(tr.dataset.boxQty);
+        const qty = selection.qty;
+        if (qty <= 0) return;
+        const article = clean(tr.dataset.skuCode);
+        const name = clean(tr.dataset.name);
+        const goodsType = clean(tr.dataset.goodsType);
+        const size = clean(tr.dataset.size);
+        const resultRaw = changeOn ? rowTargetArticle(tr) : '';
+        const resultSku = resultRaw ? resolveSku(resultRaw) : null;
+        const resultArticle = resultSku?.article || '';
+        const resultName = resultSku?.name || '';
+        const resultBarcode = barcodeForSize(resultSku, size);
+        const key = [article, name, goodsType, resultArticle].join('||');
+        if (!cards.has(key)) {
+          cards.set(key, {
+            article,
+            product_name: name,
+            goods_type: goodsType,
+            photo_url: '',
+            result_article: resultArticle,
+            result_product_name: resultName,
+            result_barcode: resultBarcode,
+            rows: [],
+          });
+        }
+        const codes = rowBoxCodes(tr, Math.max(selection.boxes, selection.looseQty > 0 ? 1 : 0));
+        const rowPayload = {
+          article,
+          sku: article,
+          size,
+          barcode: clean(tr.dataset.barcode),
+          qty,
+          maxQty: qty,
+          box_qty: boxQty,
+          boxes: selection.boxes,
+          partial_boxes: selection.looseQty > 0 ? 1 : 0,
+          box_codes: codes,
+          is_mixed_box: tr.dataset.isMixed === '1',
+          mixed_group: clean(tr.dataset.mixGroup),
+          source_state: clean(tr.dataset.sourceState),
+          source_zone: clean(tr.dataset.sourceZone),
+        };
+        if (selection.looseQty > 0) {
+          rowPayload.allow_partial_box_reserve = true;
+          rowPayload.partial_box_split = {
+            qty: selection.looseQty,
+            box_qty: boxQty,
+            mode: 'units',
+          };
+        }
+        if (resultArticle) {
+          rowPayload.result_article = resultArticle;
+          if (resultName) rowPayload.result_product_name = resultName;
+          if (resultBarcode) rowPayload.result_barcode = resultBarcode;
+        }
+        cards.get(key).rows.push(rowPayload);
+      });
+      return Array.from(cards.values()).map((card, index) => ({ ...card, id: 'c' + (index + 1) }));
+    }
+
+    const escapeHtml = (value) => String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+    let lastPiecePickQty = 0;
+    function currentPiecePickQty() {
+      return buildCards().reduce((total, card) => total + (card.rows || []).reduce(
+        (subtotal, row) => subtotal + (intVal(row.partial_boxes) > 0 ? intVal(row.qty) : 0),
+        0
+      ), 0);
+    }
+    function syncPiecePickTariff() {
+      const pieceQty = currentPiecePickQty();
+      if (piecePickTariff) piecePickTariff.hidden = pieceQty <= 0;
+      if (piecePickTariffText) {
+        piecePickTariffText.textContent = pieceQty > 0
+          ? ('Штучный добор: ' + pieceQty + ' шт. ')
+          : '';
+      }
+      if (piecePickTariffConfirmed && pieceQty !== lastPiecePickQty) {
+        piecePickTariffConfirmed.checked = false;
+      }
+      if (piecePickTariffConfirmed && pieceQty <= 0) {
+        piecePickTariffConfirmed.checked = false;
+      }
+      lastPiecePickQty = pieceQty;
+      return pieceQty;
+    }
+    function setExcelImportStatus(message, tone) {
+      if (!excelImportStatus) return;
+      excelImportStatus.textContent = message || '';
+      excelImportStatus.classList.toggle('is-error', tone === 'error');
+      excelImportStatus.classList.toggle('is-success', tone === 'success');
+    }
+    function renderExcelPlan(payload) {
+      if (!excelPlan || !excelPlanBody || !excelPlanSummary) return;
+      const lines = Array.isArray(payload?.lines) ? payload.lines : [];
+      const totals = payload?.totals || {};
+      excelPlan.hidden = !lines.length;
+      excelPlanSummary.textContent = lines.length
+        ? (
+          'Запрошено ' + intVal(totals.requested_qty) + ' шт. Система подобрала '
+          + intVal(totals.whole_box_count) + ' целых кор. (' + intVal(totals.whole_box_qty) + ' шт.)'
+          + (intVal(totals.piece_pick_qty) > 0 ? (' и штучно ' + intVal(totals.piece_pick_qty) + ' шт.') : '.')
+        )
+        : '';
+      excelPlanBody.innerHTML = lines.map((line) => {
+        const source = escapeHtml(line.source_article || line.source_barcode || '—');
+        const target = escapeHtml(line.target_article || line.target_barcode || 'без изменения');
+        const whole = intVal(line.whole_box_count)
+          ? (intVal(line.whole_box_count) + ' кор. / ' + intVal(line.whole_box_qty) + ' шт.')
+          : '0';
+        const piece = intVal(line.piece_pick_qty) ? (intVal(line.piece_pick_qty) + ' шт.') : 'нет';
+        return '<tr><td><b>' + source + '</b> → ' + target + '</td><td>'
+          + intVal(line.qty) + ' шт.</td><td>' + whole + '</td><td>' + piece + '</td></tr>';
+      }).join('');
+      if (excelPlanWarnings) {
+        const warnings = Array.isArray(payload?.warnings) ? payload.warnings : [];
+        excelPlanWarnings.textContent = warnings.join(' ');
+        excelPlanWarnings.hidden = !warnings.length;
+      }
+    }
+    function applyExcelPlan(payload) {
+      const rowsByKey = new Map(selectedRows().map((tr) => [clean(tr.dataset.stockKey), tr]));
+      const allocations = [];
+      (Array.isArray(payload?.lines) ? payload.lines : []).forEach((line) => {
+        (Array.isArray(line.allocations) ? line.allocations : []).forEach((allocation) => {
+          allocations.push({ ...allocation, targetArticle: clean(line.target_article) });
+        });
+      });
+      const missing = allocations.filter((item) => !rowsByKey.has(clean(item.stock_key)));
+      if (missing.length) {
+        throw new Error('Остатки на странице изменились. Обновите страницу и повторите загрузку Excel.');
+      }
+      selectedRows().forEach((tr) => {
+        const input = rowProcessInput(tr);
+        const mode = tr.querySelector('[data-process-mode]');
+        const target = tr.querySelector('[data-target-article]');
+        if (input && !input.disabled) input.value = '0';
+        if (mode && !mode.disabled) mode.value = 'units';
+        if (target) target.value = '';
+      });
+      let hasArticleChange = false;
+      allocations.forEach((allocation) => {
+        const tr = rowsByKey.get(clean(allocation.stock_key));
+        const input = rowProcessInput(tr);
+        const mode = tr?.querySelector('[data-process-mode]');
+        if (!tr || !input || input.disabled || !mode || mode.disabled) return;
+        const whole = clean(allocation.mode) === 'whole';
+        mode.value = whole ? 'boxes' : 'units';
+        input.value = String(whole ? 1 : intVal(allocation.qty));
+        if (allocation.targetArticle && !sameArticle(tr.dataset.skuCode, allocation.targetArticle)) {
+          hasArticleChange = true;
+          const target = tr.querySelector('[data-target-article]');
+          if (target) target.value = allocation.targetArticle;
+        }
+      });
+      if (articleToggle) articleToggle.checked = hasArticleChange;
+      syncArticleChangeMode();
+      refreshTotals();
+      renderExcelPlan(payload);
+    }
+    async function previewProcessingExcel({ file, attachmentId } = {}) {
+      if (!excelPreviewUrl) return;
+      setExcelImportStatus('Проверяем Excel и подбираем короба…', '');
+      const data = new FormData();
+      const csrf = form.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+      data.set('agency_id', form.querySelector('[name=agency_id]')?.value || '');
+      data.set('draft_order_id', form.querySelector('[name=draft_order_id]')?.value || '');
+      data.set('edit_order_id', form.querySelector('[name=edit_order_id]')?.value || '');
+      if (file) data.set('processing_excel_file', file);
+      if (attachmentId) data.set('attachment_id', String(attachmentId));
+      try {
+        const response = await fetch(excelPreviewUrl, {
+          method: 'POST',
+          body: data,
+          credentials: 'same-origin',
+          headers: csrf ? { 'X-CSRFToken': csrf } : {},
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          const errors = Array.isArray(payload.errors) ? payload.errors : ['Не удалось обработать Excel.'];
+          throw new Error(errors.join(' '));
+        }
+        applyExcelPlan(payload);
+        dirty = true;
+        const totals = payload.totals || {};
+        setExcelImportStatus(
+          'Excel применён: ' + intVal(totals.whole_box_count) + ' целых кор., '
+          + intVal(totals.piece_pick_qty) + ' шт. штучного добора.',
+          'success'
+        );
+      } catch (error) {
+        setExcelImportStatus(error?.message || 'Не удалось обработать Excel.', 'error');
+      }
+    }
+
+    function selectedProductLines() {
+      const lines = [];
+      if (!table) return lines;
+      const changeOn = articleChangeEnabled();
+      table.querySelectorAll('tbody tr').forEach((tr) => {
+        const selection = rowSelection(tr);
+        if (selection.qty <= 0) return;
+        const qty = selection.qty;
+        const article = clean(tr.dataset.skuCode);
+        const target = changeOn ? rowTargetArticle(tr) : '';
+        const targetSku = target ? resolveSku(target) : null;
+        lines.push({
+          name: clean(tr.dataset.name) || 'Товар',
+          article,
+          size: clean(tr.dataset.size),
+          barcode: clean(tr.dataset.barcode),
+          boxes: selection.boxes,
+          looseQty: selection.looseQty,
+          qty,
+          resultArticle: targetSku?.article || '',
+          resultName: targetSku?.name || '',
+        });
+      });
+      return lines;
+    }
+
+    function refreshReview() {
+      const services = [
+        ['marketplace', 'Маркетплейс'],
+        ['defect_percent', 'Проверка на брак'],
+        ['marking_5840_qty', 'Маркировка 58/40'],
+        ['marking_5840_each_qty', 'Маркировка 58/40 (шт/чз)'],
+        ['tag_owner', 'Замена бирок'],
+        ['bag_replace_type', 'Замена пакета'],
+        ['bag_replace_supply', 'Чей пакет'],
+        ['box_forming', 'Формирование короба'],
+        ['box_forming_other', 'Свой размер короба'],
+        ['bubble_wrap_size', 'Бабл-плёнка'],
+        ['shrink_wrap_size', 'Термоплёнка'],
+        ['individual_box_needed', 'Индивидуальная коробка'],
+        ['vacuum_pack_needed', 'Вакуумная упаковка'],
+        ['set_build', 'Сборка набора'],
+        ['set_qty', 'Кол-во в наборе'],
+        ['insert_qty', 'Вложение, шт'],
+      ].map(([name, fallback]) => {
+        const value = fieldDisplay(name);
+        if (!value) return null;
+        if (name === 'set_build' && value === 'Да' && fieldDisplay('set_qty')) return null;
+        return { label: fieldLabel(name) || fallback, value };
+      }).filter(Boolean);
+
+      const comments = clean(form.querySelector('[name="comments"]')?.value);
+      if (comments) services.push({ label: 'Комментарий', value: comments });
+      if (articleChangeEnabled()) {
+        services.push({ label: 'Изменение артикула', value: 'Да' });
+      }
+
+      const servicesUl = document.getElementById('review-services');
+      const servicesEmpty = document.getElementById('review-services-empty');
+      if (servicesUl) {
+        servicesUl.innerHTML = services.map((item) => (
+          '<li><b>' + item.label + '</b><span>' + item.value + '</span></li>'
+        )).join('');
+      }
+      if (servicesEmpty) servicesEmpty.hidden = services.length > 0;
+
+      const products = selectedProductLines();
+      const productsUl = document.getElementById('review-products');
+      const productsEmpty = document.getElementById('review-products-empty');
+      if (productsUl) {
+        productsUl.innerHTML = products.map((item) => {
+          const meta = [item.article, item.size, item.barcode].filter(Boolean).join(' · ');
+          const change = item.resultArticle
+            ? ('<span>Арт А → Б: ' + item.article + ' → ' + item.resultArticle + (item.resultName ? ' (' + item.resultName + ')' : '') + '</span>')
+            : '';
+          const pieces = [
+            item.boxes ? (item.boxes + ' кор.') : '',
+            item.looseQty ? (item.looseQty + ' штучно') : '',
+            item.qty + ' шт всего',
+          ].filter(Boolean).join(' · ');
+          return '<li><b>' + item.name + '</b><span>' + meta + '</span>' + change + '<span>' + pieces + '</span></li>';
+        }).join('');
+      }
+      if (productsEmpty) productsEmpty.hidden = products.length > 0;
+    }
+
+    function setStep(step) {
+      currentStep = Math.min(totalSteps, Math.max(1, step));
+      form.querySelectorAll('.wizard-pane').forEach((pane) => {
+        const n = intVal(pane.getAttribute('data-step'));
+        pane.hidden = n !== currentStep;
+      });
+      document.querySelectorAll('[data-step-indicator]').forEach((el) => {
+        const n = intVal(el.getAttribute('data-step-indicator'));
+        el.classList.toggle('is-active', n === currentStep);
+        el.classList.toggle('is-done', n < currentStep);
+      });
+      if (backBtn) backBtn.hidden = currentStep === 1;
+      if (nextBtn) nextBtn.hidden = currentStep === totalSteps;
+      if (sendBtn) sendBtn.hidden = currentStep !== totalSteps;
+      if (currentStep === totalSteps) refreshReview();
+      refreshTotals();
+    }
+
+    function validateArticleChange() {
+      if (!articleChangeEnabled()) return true;
+      let missing = false;
+      let unknown = false;
+      let unchanged = false;
+      table?.querySelectorAll('tbody tr').forEach((tr) => {
+        const selection = rowSelection(tr);
+        if (selection.qty <= 0) return;
+        const input = tr.querySelector('[data-target-article]');
+        const target = clean(input?.value);
+        if (!target) {
+          missing = true;
+          input?.classList.add('is-invalid');
+          return;
+        }
+        if (!resolveSku(target)) {
+          unknown = true;
+          input?.classList.add('is-invalid');
+          return;
+        }
+        if (sameArticle(tr.dataset.skuCode, target)) {
+          unchanged = true;
+          input?.classList.add('is-invalid');
+          return;
+        }
+        input?.classList.remove('is-invalid');
+      });
+      if (missing) {
+        alert('Укажите артикул Б для каждой выбранной позиции.');
+        return false;
+      }
+      if (unknown) {
+        alert('Артикул Б должен быть из номенклатуры клиента.');
+        return false;
+      }
+      if (unchanged) {
+        alert('Артикул Б должен отличаться от артикула А.');
+        return false;
+      }
+      return true;
+    }
+
+    function validateStep(step) {
+      if (step === 1) {
+        if (!clean(marketplace?.value)) {
+          alert('Выберите маркетплейс.');
+          marketplace?.focus();
+          return false;
+        }
+        return true;
+      }
+      if (step === 2) {
+        refreshTotals();
+        if (!buildCards().length) {
+          alert('Выберите хотя бы один товар со склада.');
+          return false;
+        }
+        return validateArticleChange();
+      }
+      return true;
+    }
+
+    nextBtn?.addEventListener('click', () => {
+      if (!validateStep(currentStep)) return;
+      setStep(currentStep + 1);
+    });
+    backBtn?.addEventListener('click', () => setStep(currentStep - 1));
+    articleToggle?.addEventListener('change', syncArticleChangeMode);
+    stockFilters.forEach((input) => {
+      input.addEventListener('input', applyStockFilter);
+      input.addEventListener('change', applyStockFilter);
+    });
+
+    function refreshTotals() {
+      let lines = 0;
+      let boxes = 0;
+      let items = 0;
+      const changeOn = articleChangeEnabled();
+      if (table) {
+        table.querySelectorAll('tbody tr').forEach((tr) => {
+          const input = rowProcessInput(tr);
+          const targetInput = tr.querySelector('[data-target-article]');
+          const mode = rowProcessMode(tr);
+          const selectionBefore = rowSelection(tr);
+          let value = selectionBefore.inputValue;
+          if (input && String(input.value) !== String(value || '')) input.value = value ? String(value) : '0';
+          const selection = rowSelection(tr);
+          const total = selection.qty;
+          const cell = tr.querySelector('[data-total-cell]');
+          tr.classList.toggle('is-selected', total > 0);
+          if (cell) {
+            cell.classList.add('selected-total');
+            if (total > 0) {
+              const bits = [];
+              if (selection.boxes) bits.push(selection.boxes + ' кор.');
+              if (selection.looseQty) bits.push(selection.looseQty + ' штучно');
+              cell.textContent = 'Выбрано: ' + total + ' шт.' + (bits.length ? ' (' + bits.join(' + ') + ')' : '');
+            } else {
+              cell.textContent = '0';
+            }
+          }
+          const hint = tr.querySelector('[data-process-hint]');
+          if (hint) hint.textContent = mode === 'boxes' ? 'целыми коробами' : 'по штукам';
+          if (targetInput) {
+            targetInput.disabled = !changeOn || total <= 0;
+            if (!changeOn || total <= 0) {
+              if (!changeOn) targetInput.value = '';
+              targetInput.classList.remove('is-invalid');
+            }
+          }
+          if (total > 0) {
+            lines += 1;
+            boxes += selection.boxes;
+            items += total;
+          }
+        });
+      }
+      const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(value);
+      };
+      setText('footer-line-count', lines);
+      setText('footer-box-count', boxes);
+      setText('footer-item-count', items);
+      setText('selected-line-count', lines);
+      setText('selected-box-count', boxes);
+      setText('selected-item-count', items);
+      document.getElementById('processing-selection-summary')?.classList.toggle('has-selection', lines > 0);
+      cardsInput.value = JSON.stringify(buildCards());
+      syncPiecePickTariff();
+      applyStockFilter();
+      if (sendBtn) {
+        sendBtn.disabled = !(clean(marketplace?.value) && lines > 0);
+      }
+    }
+
+    const handleStockEdit = (event) => {
+      if (event.target.matches('[data-process-input], [data-box-input], [data-process-mode]') || event.target.matches('[data-target-article]')) {
+        if (event.target.matches('[data-target-article]')) {
+          const row = event.target.closest('tr');
+          const target = clean(event.target.value);
+          const invalid = Boolean(
+            target
+            && (!resolveSku(target) || sameArticle(row?.dataset.skuCode, target))
+          );
+          event.target.classList.toggle('is-invalid', invalid);
+        }
+        refreshTotals();
+      }
+    };
+    table?.addEventListener('input', handleStockEdit);
+    table?.addEventListener('change', handleStockEdit);
+    marketplace?.addEventListener('change', refreshTotals);
+    documentsInput?.addEventListener('change', () => {
+      const excelFiles = Array.from(documentsInput.files || []).filter((file) => (
+        clean(file.name).toLowerCase().endsWith('.xlsx')
+      ));
+      if (excelFiles.length) {
+        previewProcessingExcel({ file: excelFiles[excelFiles.length - 1] });
+      }
+    });
+    document.querySelectorAll('[data-processing-excel-attachment]').forEach((button) => {
+      button.addEventListener('click', () => {
+        previewProcessingExcel({ attachmentId: button.dataset.processingExcelAttachment });
+      });
+    });
+
+    let dirty = false;
+    let submitInFlight = false;
+    form.addEventListener('submit', (event) => {
+      refreshTotals();
+      const action = (event.submitter && event.submitter.value) || 'send';
+      if (action === 'send') {
+        if (!clean(marketplace?.value)) {
+          event.preventDefault();
+          alert('Выберите маркетплейс.');
+          setStep(1);
+          return;
+        }
+        if (!buildCards().length) {
+          event.preventDefault();
+          alert('Выберите хотя бы одну позицию со склада.');
+          setStep(2);
+          return;
+        }
+        if (!validateArticleChange()) {
+          event.preventDefault();
+          setStep(2);
+          return;
+        }
+        const piecePickQty = syncPiecePickTariff();
+        if (piecePickQty > 0 && !piecePickTariffConfirmed?.checked) {
+          event.preventDefault();
+          setStep(3);
+          alert(
+            'В заявке есть штучный добор: ' + piecePickQty + ' шт. '
+            + 'Подтвердите отдельную тарификацию перед отправкой.'
+          );
+          piecePickTariffConfirmed?.focus();
+          return;
+        }
+        // Не даём autosave создать новый draft-* после/во время отправки.
+        submitInFlight = true;
+        dirty = false;
+      }
+    });
+
+    // Restore draft boxes / article map if present.
+    (function restoreDraftSelection() {
+      const cards = Array.isArray(draftPayload.cards) ? draftPayload.cards : [];
+      if (!table || !cards.length) return;
+      const wantedByBox = new Map();
+      const legacyWanted = [];
+      cards.forEach((card) => {
+        if (!card || typeof card !== 'object') return;
+        const cardArticle = clean(card.article || card.sku);
+        const cardResult = clean(card.result_article);
+        (Array.isArray(card.rows) ? card.rows : []).forEach((row) => {
+          if (!row || typeof row !== 'object') return;
+          const article = clean(row.article || row.sku || cardArticle);
+          const barcode = clean(row.barcode);
+          const size = clean(row.size);
+          const boxes = intVal(row.boxes);
+          const qty = intVal(row.qty);
+          if (!article || qty <= 0) return;
+          const codes = Array.isArray(row.box_codes)
+            ? row.box_codes.map(clean).filter(Boolean)
+            : normalizeBoxCodes(row.box_codes || row.box_code);
+          const result = clean(row.result_article || cardResult);
+          if (codes.length) {
+            let remaining = qty;
+            codes.forEach((code, index) => {
+              const nominal = Math.max(intVal(row.box_qty), 1);
+              const take = Math.min(nominal, Math.max(remaining, 0));
+              if (take <= 0) return;
+              remaining -= take;
+              wantedByBox.set(code.toLowerCase(), {
+                qty: take,
+                mode: take === nominal && index < Math.max(boxes, 0) ? 'boxes' : 'units',
+                result,
+              });
+            });
+            return;
+          }
+          legacyWanted.push({
+            key: [article, barcode, size].join('||'),
+            remaining: qty,
+            result,
+          });
+        });
+      });
+      if (!wantedByBox.size && !legacyWanted.length) return;
+      let hasResult = false;
+      table.querySelectorAll('tbody tr').forEach((tr) => {
+        const identityKey = [
+          clean(tr.dataset.skuCode),
+          clean(tr.dataset.barcode),
+          clean(tr.dataset.size),
+        ].join('||');
+        const boxCode = normalizeBoxCodes(tr.dataset.boxCodes)[0] || '';
+        let hit = wantedByBox.get(boxCode.toLowerCase());
+        if (!hit) {
+          const legacy = legacyWanted.find((item) => item.key === identityKey && item.remaining > 0);
+          if (legacy) {
+            const take = Math.min(legacy.remaining, intVal(tr.dataset.availableQty));
+            legacy.remaining -= take;
+            hit = {
+              qty: take,
+              mode: take === intVal(tr.dataset.boxQty) ? 'boxes' : 'units',
+              result: legacy.result,
+            };
+          }
+        }
+        if (!hit) return;
+        const modeInput = tr.querySelector('[data-process-mode]');
+        const processInput = rowProcessInput(tr);
+        if (modeInput) modeInput.value = hit.mode || 'boxes';
+        if (processInput && !processInput.disabled) {
+          const max = hit.mode === 'boxes' ? intVal(tr.dataset.availableBoxes) : intVal(tr.dataset.availableQty);
+          processInput.value = String(Math.min(hit.mode === 'boxes' ? 1 : hit.qty, max));
+        }
+        if (hit.result) {
+          hasResult = true;
+          const targetInput = tr.querySelector('[data-target-article]');
+          if (targetInput) targetInput.value = hit.result;
+        }
+      });
+      if (hasResult && articleToggle) articleToggle.checked = true;
+    })();
+
+    let saving = false;
+    const statusEl = document.getElementById('draft-autosave-status');
+    const statusSide = document.getElementById('draft-autosave-status-side');
+    const setStatus = (text) => {
+      if (statusEl) statusEl.textContent = text || '';
+      if (statusSide) statusSide.textContent = text || '';
+    };
+    form.addEventListener('input', () => { if (!submitInFlight) dirty = true; });
+    form.addEventListener('change', () => { if (!submitInFlight) dirty = true; });
+
+    async function autosave() {
+      if (isEditMode || submitInFlight) return;
+      if (!dirty || saving) return;
+      refreshTotals();
+      if (!buildCards().length && !clean(marketplace?.value)) return;
+      saving = true;
+      setStatus('Автосохранение…');
+      try {
+        const data = new FormData(form);
+        data.delete('marking_cz_file');
+        data.set('submit_action', 'draft');
+        data.set('draft_autosave', '1');
+        data.set('cards_json', cardsInput.value || '[]');
+        const csrf = form.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+        const response = await fetch(window.location.href, {
+          method: 'POST',
+          body: data,
+          credentials: 'same-origin',
+          headers: csrf ? { 'X-CSRFToken': csrf } : {},
+        });
+        if (response.ok) {
+          dirty = false;
+          setStatus('Черновик сохранён ' + new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
+          const url = new URL(response.url || window.location.href, window.location.origin);
+          if (url.searchParams.get('order') && url.href !== window.location.href) {
+            window.history.replaceState({}, '', url.pathname + url.search);
+            let draftInput = form.querySelector('input[name="draft_order_id"]');
+            if (!draftInput) {
+              draftInput = document.createElement('input');
+              draftInput.type = 'hidden';
+              draftInput.name = 'draft_order_id';
+              form.appendChild(draftInput);
+            }
+            draftInput.value = url.searchParams.get('order') || '';
+          }
+        } else {
+          setStatus('Не удалось автосохранить');
+        }
+      } catch (err) {
+        setStatus('Не удалось автосохранить');
+      } finally {
+        saving = false;
+      }
+    }
+    if (!isEditMode) {
+      setInterval(autosave, 30000);
+    }
+    syncArticleChangeMode();
+    setStep(1);
+  })();
+  </script>
+</body>
+</html>

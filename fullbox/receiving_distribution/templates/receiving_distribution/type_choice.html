@@ -1,0 +1,88 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Создать заявку на приёмку — Fullbox</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <style>
+    :root { --blue: #0e6b5b; --orange: #f2b747; --line: rgba(28,31,26,0.12); }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: Manrope, system-ui, sans-serif; color: var(--ink);
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1440px; margin: 0 auto; padding: 24px; }
+    .layout { display: grid; grid-template-columns: 260px minmax(0,1fr); gap: 20px; }
+    @media (max-width: 1024px){ .layout { grid-template-columns: 1fr; } }
+    .side, .card {
+      background: var(--surface); border: 1px solid var(--stroke); border-radius: 22px;
+      box-shadow: var(--shadow);
+    }
+    .side { padding: 18px; display: grid; gap: 12px; align-content: start; }
+    .brand { font-family: "Bricolage Grotesque", Manrope, sans-serif; font-size: 22px; }
+    .nav-link {
+      display: grid; gap: 4px; padding: 12px; border-radius: 16px;
+      border: 1px solid var(--stroke); background: var(--surface-2); text-decoration: none; color: inherit;
+    }
+    .nav-link.primary { background: linear-gradient(135deg, rgba(242,183,71,0.45), rgba(14,107,91,0.15)); border-color: transparent; }
+    .nav-title { font-weight: 700; }
+    .nav-sub { font-size: 12px; color: var(--muted); }
+    .content { display: grid; gap: 16px; }
+    .crumbs { color: var(--muted); font-size: 13px; }
+    .crumbs a { color: var(--accent); text-decoration: none; font-weight: 700; }
+    h1 { margin: 0; font-family: "Bricolage Grotesque", Manrope, sans-serif; font-size: 32px; }
+    .sub { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; }
+    .grid { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 900px){ .grid { grid-template-columns: 1fr; } }
+    .card { padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+    .card h2 { margin: 0; font-family: "Bricolage Grotesque", Manrope, sans-serif; font-size: 22px; }
+    .card p { margin: 0; color: var(--muted); line-height: 1.45; font-size: 15px; flex: 1; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 0; border-radius: 12px; padding: 12px 16px; font-weight: 800; text-decoration: none;
+      color: #1c1f1a; background: linear-gradient(135deg, #f2b747, #e8c878); min-height: 48px;
+    }
+    .btn.secondary { background: #f7f2ea; color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand">Fullbox</div>
+        <a class="nav-link" href="{{ cabinet_url }}"><span class="nav-title">Кабинет</span><span class="nav-sub">Главная страница ЛК</span></a>
+        <a class="nav-link" href="{{ sku_url }}"><span class="nav-title">Номенклатура</span><span class="nav-sub">Артикулы и штрихкоды</span></a>
+        <a class="nav-link primary" href="#"><span class="nav-title">Новая приёмка</span><span class="nav-sub">Выбор типа заявки</span></a>
+      </aside>
+      <main class="content">
+        <div class="crumbs">
+          <a href="{{ cabinet_url }}">Кабинет</a> / Приёмка / Выбор типа
+        </div>
+        <div>
+          <h1>Создать заявку на приёмку</h1>
+          <p class="sub">Выберите тип заявки. Складская обработка после подтверждения останется прежней.</p>
+        </div>
+        <div class="grid">
+          <div class="card">
+            <h2>Обычная приёмка</h2>
+            <p>Товар принимается по стандартному действующему процессу.</p>
+            <a class="btn secondary" href="{{ ordinary_url }}">Создать обычную приёмку</a>
+          </div>
+          <div class="card">
+            <h2>Приёмка с распределением</h2>
+            <p>Клиент заранее указывает артикулы, количество и несколько направлений отгрузки. После отправки создаётся одна приёмка и несколько связанных черновиков по направлениям.</p>
+            <a class="btn" href="{{ distribution_url }}">Создать приёмку с распределением</a>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

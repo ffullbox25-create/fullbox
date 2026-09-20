@@ -1,0 +1,189 @@
+{% extends "logistics/driver_base.html" %}
+{% block title %}Рейс {{ trip.number }}{% endblock %}
+{% block content %}
+  <a href="/logistics/driver/trips/" class="muted" style="text-decoration:none;">← Мои рейсы</a>
+  <div class="trip-title-row" style="margin-top:10px;">
+    <div><h1 class="page-title">Рейс {{ trip.number }}</h1><p class="page-sub">Назначен {{ trip.driver_assigned_at|date:"d.m.Y H:i"|default:"—" }}</p></div>
+    <span class="status{% if trip.driver_status == 'delivered' %} ok{% elif trip.driver_status == 'problem' %} bad{% endif %}">{{ trip.get_driver_status_display }}</span>
+  </div>
+
+  {% if trip.driver_status == "preliminary" %}
+    <section class="card" style="background:#fff6df;border-color:rgba(248,144,0,.35);">
+      <strong>Предварительный план — рейс еще не подтвержден.</strong>
+      <div class="muted" style="margin-top:5px;">Вы уже поставлены в план на указанную дату. Дождитесь отдельного уведомления логиста о подтверждении рейса.</div>
+    </section>
+  {% endif %}
+
+  <section class="card">
+    <h2 class="card-title">Маршрут и груз</h2>
+    <div class="facts">
+      <div class="fact"><div class="fact-label">Плановая подача</div><div class="fact-value">{% if trip.scheduled_at %}{{ trip.scheduled_at|date:"d.m.Y H:i" }}{% elif trip.trip_date %}{{ trip.trip_date|date:"d.m.Y" }}{% else %}—{% endif %}</div></div>
+      {% if summary.is_external %}
+        <div class="fact"><div class="fact-label">Тип</div><div class="fact-value">Внешний рейс</div></div>
+        <div class="fact"><div class="fact-label">Клиент</div><div class="fact-value">{{ summary.external_client }}</div></div>
+        <div class="fact"><div class="fact-label">Точка А · забрать</div><div class="fact-value">{{ summary.pickup_address }}</div></div>
+        <div class="fact"><div class="fact-label">Точка Б · доставить</div><div class="fact-value">{{ summary.delivery_address }}</div></div>
+        <div class="fact"><div class="fact-label">Груз</div><div class="fact-value">{{ summary.cargo_description }}</div></div>
+        <div class="fact"><div class="fact-label">Контакт А</div><div class="fact-value">{{ summary.pickup_contact|default:"—" }}{% if summary.pickup_phone %} · {{ summary.pickup_phone }}{% endif %}</div></div>
+        <div class="fact"><div class="fact-label">Контакт Б</div><div class="fact-value">{{ summary.delivery_contact|default:"—" }}{% if summary.delivery_phone %} · {{ summary.delivery_phone }}{% endif %}</div></div>
+      {% else %}
+        <div class="fact"><div class="fact-label">Слот сдачи</div><div class="fact-value">{{ summary.delivery_slots_label }}</div></div>
+        <div class="fact"><div class="fact-label">Маркетплейс</div><div class="fact-value">{{ summary.marketplaces }}</div></div>
+        <div class="fact"><div class="fact-label">Адрес</div><div class="fact-value">{{ summary.destinations }}</div></div>
+        <div class="fact"><div class="fact-label">Груз</div><div class="fact-value">{{ summary.total_pallets }} палл. · {{ summary.total_boxes }} мест</div></div>
+      {% endif %}
+      <div class="fact"><div class="fact-label">Машина</div><div class="fact-value">{{ trip.vehicle_name|default:"—" }} · {{ trip.vehicle_number|default:"—" }}</div></div>
+      <div class="fact"><div class="fact-label">Комментарий логиста</div><div class="fact-value">{{ trip.route_comment|default:"—" }}</div></div>
+    </div>
+  </section>
+
+  {% for row in summary.orders %}
+    <details class="card"{% if forloop.first %} open{% endif %}>
+      <summary>Заявка {{ row.number }} · {{ row.marketplace }}</summary>
+      <div class="facts" style="margin-top:12px;">
+        <div class="fact"><div class="fact-label">Клиент</div><div class="fact-value">{{ row.client }}</div></div>
+        <div class="fact"><div class="fact-label">Тип поставки</div><div class="fact-value">{{ row.supply_type }}</div></div>
+        <div class="fact"><div class="fact-label">Слот сдачи</div><div class="fact-value">{{ row.slot_label }}</div></div>
+        <div class="fact"><div class="fact-label">Склад</div><div class="fact-value">{{ row.warehouse }}</div></div>
+        <div class="fact"><div class="fact-label">Адрес</div><div class="fact-value">{{ row.address }}</div></div>
+        <div class="fact"><div class="fact-label">Номер поставки</div><div class="fact-value">{{ row.supply_number }}</div></div>
+        <div class="fact"><div class="fact-label">Короба / места</div><div class="fact-value">{{ row.boxes }}</div></div>
+        <div class="fact"><div class="fact-label">Контактное лицо</div><div class="fact-value">—</div></div>
+        <div class="fact"><div class="fact-label">Телефон</div><div class="fact-value">—</div></div>
+      </div>
+      {% if row.documents %}
+        <div class="grid" style="margin-top:10px;">
+          {% for document in row.documents %}<a class="btn" href="{{ document.file.url }}" target="_blank" rel="noopener">Документ: {{ document.filename }}</a>{% endfor %}
+        </div>
+      {% endif %}
+    </details>
+  {% endfor %}
+
+  <section class="card">
+    <h2 class="card-title">Действие</h2>
+    <div id="pending-note" class="pending-note">Ожидает отправки. Не закрывайте страницу: после восстановления сети данные отправятся автоматически.</div>
+    {% if trip.driver_status == 'preliminary' %}
+      <div class="status">Ожидайте подтверждения логиста. Принять и начать рейс пока нельзя.</div>
+    {% elif trip.driver_status == 'assigned' %}
+      <form method="post" data-offline-form="driver-status">{% csrf_token %}<input type="hidden" name="action" value="accept"><button class="btn primary" type="submit">Принять рейс</button></form>
+    {% elif trip.driver_status == 'accepted' %}
+      <form method="post" data-offline-form="driver-status">{% csrf_token %}<input type="hidden" name="action" value="depart"><button class="btn primary" type="submit">Выехал</button></form>
+    {% elif trip.driver_status == 'en_route' %}
+      <form method="post" data-offline-form="driver-status">{% csrf_token %}<input type="hidden" name="action" value="arrive"><button class="btn primary" type="submit">{% if summary.is_external %}Прибыл в точку Б{% else %}Прибыл на склад{% endif %}</button></form>
+    {% elif trip.driver_status == 'awaiting_delivery' %}
+      <div class="grid">
+        <details class="card" style="margin:0;background:#fffaf1;" open>
+          <summary>Груз сдан</summary>
+          <form id="delivery-form" class="grid" method="post" enctype="multipart/form-data" data-offline-form="driver-result" style="margin-top:14px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="deliver">
+            <input type="hidden" name="submission_id" value="">
+            <input type="hidden" name="photo_created_at" value="">
+            <input type="hidden" name="latitude" value="">
+            <input type="hidden" name="longitude" value="">
+            <input type="hidden" name="logistics_service_facts" value="">
+            <label>{% if summary.is_external %}Фотография точки сдачи *{% else %}Фотография ворот *{% endif %}<input id="gate-photo" type="file" name="gate_photo" accept="image/*" capture="environment" required></label>
+            <label>Фактические дата и время сдачи *<input id="handover-at" type="datetime-local" name="actual_handover_at" value="{{ now_input }}" required></label>
+            <label>Причина изменения времени<input type="text" name="handover_time_change_reason" placeholder="Обязательно, если время изменено вручную"></label>
+            <label>{% if summary.is_external %}Место / ворота{% else %}Номер ворот{% endif %}<input type="text" name="gate_number"></label>
+            <label>Начало ожидания<input type="datetime-local" name="waiting_started_at"></label>
+            <label>Окончание разгрузки<input type="datetime-local" name="unloading_finished_at"></label>
+            <label>Номер документа приемки<input type="text" name="receipt_number"></label>
+            <label>Фотографии документов<input type="file" name="receipt_photos" accept="image/*" capture="environment" multiple></label>
+            <label>Комментарий водителя<textarea name="driver_comment"></textarea></label>
+            <label style="display:flex;grid-template-columns:auto 1fr;align-items:center;"><input id="result-confirmed" type="checkbox" name="result_confirmed" value="1" style="width:22px;min-height:22px;"> Подтверждаю, что груз сдан *</label>
+            <button id="confirm-delivery" class="btn primary" type="submit" disabled>Подтвердить сдачу</button>
+          </form>
+        </details>
+
+        <details class="card" style="margin:0;background:#fff7f6;">
+          <summary>Груз не сдан</summary>
+          <form class="grid" method="post" enctype="multipart/form-data" data-offline-form="driver-result" style="margin-top:14px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="fail">
+            <input type="hidden" name="submission_id" value="">
+            <label>Причина несдачи *<select name="reason_code" required><option value="">Выберите причину</option>{% for value,label in failure_reasons %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+            <label>Подробный комментарий *<textarea name="comment" required></textarea></label>
+            <label>Дата и время отказа *<input type="datetime-local" name="refusal_at" value="{{ now_input }}" required></label>
+            <label>Фотографии подтверждения *<input type="file" name="evidence_photos" accept="image/*" capture="environment" multiple required></label>
+            <label>Документы / экран ошибки<input type="file" name="problem_documents" accept="image/*,application/pdf" multiple></label>
+            <label>Сотрудник, отказавший в приемке<input type="text" name="rejecting_employee"></label>
+            <label>Номер ворот<input type="text" name="gate_number"></label>
+            <label>Номер обращения в поддержку<input type="text" name="support_case_number"></label>
+            <label>Предполагаемая ответственная сторона<select name="responsible_party">{% for value,label in party_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+            <button class="btn danger" type="submit">Зафиксировать несдачу</button>
+          </form>
+        </details>
+      </div>
+    {% elif trip.driver_status == 'delivered' %}
+      <div class="status ok">Рейс успешно сдан и закрыт {{ trip.actual_handover_at|date:"d.m.Y H:i" }}</div>
+    {% elif trip.driver_status == 'problem' %}
+      <div class="status bad">Несдача зафиксирована. Рейс передан логисту в раздел проблемных.</div>
+    {% else %}
+      <div class="muted">Действия появятся после назначения и подготовки рейса.</div>
+    {% endif %}
+  </section>
+
+  {% if attachments %}
+    <section class="card"><h2 class="card-title">Фотографии и документы</h2><div class="grid">{% for attachment in attachments %}<a class="btn" href="{{ attachment.file.url }}" target="_blank" rel="noopener">{{ attachment.get_attachment_type_display }} · {{ attachment.created_at|date:"d.m.Y H:i" }}</a>{% endfor %}</div></section>
+  {% endif %}
+
+  <details class="card"><summary>История рейса</summary><div class="timeline" style="margin-top:14px;">{% for item in history %}<div class="timeline-row"><strong>{{ item.description }}</strong><div class="muted">{{ item.created_at|date:"d.m.Y H:i" }} · {{ item.actor.get_full_name|default:item.actor.username|default:"Система" }}</div></div>{% empty %}<div class="muted">История появится после первого действия.</div>{% endfor %}</div></details>
+  {% if trip.driver_status == 'awaiting_delivery' %}
+    {{ trip_service_targets|json_script:"driver-trip-service-targets" }}
+    {% include "billing/_warehouse_services_modal.html" %}
+  {% endif %}
+{% endblock %}
+{% block page_js %}
+<script>
+(function () {
+  const form = document.getElementById('delivery-form');
+  if (!form) return;
+  const photo = document.getElementById('gate-photo');
+  const time = document.getElementById('handover-at');
+  const confirmed = document.getElementById('result-confirmed');
+  const submit = document.getElementById('confirm-delivery');
+  const serviceFacts = form.querySelector('[name="logistics_service_facts"]');
+  const targetsNode = document.getElementById('driver-trip-service-targets');
+  const serviceTargets = targetsNode ? JSON.parse(targetsNode.textContent || '[]') : [];
+  let servicesOpening = false;
+  form.addEventListener('submit', function (event) {
+    if (form.dataset.servicesReady === '1') return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (servicesOpening) return;
+    if (!window.FullboxWarehouseServicesModal) {
+      window.alert('Не удалось открыть перечень услуг. Обновите страницу и повторите.');
+      return;
+    }
+    servicesOpening = true;
+    window.FullboxWarehouseServicesModal.openSequence(serviceTargets, {deferredSave: true}).then(function (results) {
+      if (serviceFacts) {
+        serviceFacts.value = JSON.stringify((results || []).map(function (item) {
+          return {
+            client_id: item.clientId,
+            lines: (item.result && item.result.lines) || []
+          };
+        }));
+      }
+      form.dataset.servicesReady = '1';
+      servicesOpening = false;
+      form.requestSubmit(submit);
+    }).catch(function (error) {
+      servicesOpening = false;
+      if (!error || error.message !== 'cancelled') {
+        window.alert((error && error.message) || 'Не удалось сохранить услуги рейса.');
+      }
+    });
+  }, true);
+  const refresh = function () { submit.disabled = !(photo.files.length && time.value && confirmed.checked); };
+  [photo, time, confirmed].forEach(function (node) { node.addEventListener('change', refresh); node.addEventListener('input', refresh); });
+  photo.addEventListener('change', function () { form.querySelector('[name="photo_created_at"]').value = new Date().toISOString(); });
+  if (navigator.geolocation) navigator.geolocation.getCurrentPosition(function (position) {
+    form.querySelector('[name="latitude"]').value = position.coords.latitude.toFixed(6);
+    form.querySelector('[name="longitude"]').value = position.coords.longitude.toFixed(6);
+  });
+  refresh();
+})();
+</script>
+{% endblock %}

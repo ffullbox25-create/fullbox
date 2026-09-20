@@ -1,0 +1,29 @@
+<section aria-label="Главные показатели">
+  <div class="dir-kpi-grid">
+    {% for kpi in kpis %}
+      <button type="button"
+              class="dir-kpi"
+              data-kpi-id="{{ kpi.id }}"
+              data-kpi-label="{{ kpi.label }}"
+              data-kpi-value="{{ kpi.value }}"
+              data-kpi-source="{{ kpi.source }}"
+              data-kpi-formula="{{ kpi.formula }}"
+              data-kpi-updated="{{ kpi.updated }}"
+              data-kpi-extra="{{ kpi.extra }}"
+              data-kpi-delta="{{ kpi.delta }}">
+        <div class="dir-kpi-head">
+          <span class="dir-kpi-label">{{ kpi.label }}</span>
+          <span class="dir-kpi-ico" aria-hidden="true">{{ kpi.icon }}</span>
+        </div>
+        <div class="dir-kpi-value">{{ kpi.value }}</div>
+        <div class="dir-kpi-foot">
+          <span class="dir-kpi-delta {{ kpi.delta_class }}">{{ kpi.delta }}</span>
+          <span>{{ kpi.extra }}</span>
+        </div>
+        {% if kpi.progress %}
+          <div class="dir-kpi-bar" aria-hidden="true"><span style="width:{{ kpi.progress }}%"></span></div>
+        {% endif %}
+      </button>
+    {% endfor %}
+  </div>
+</section>

@@ -1,0 +1,128 @@
+{% if stock_rows %}
+  <div class="stock-filter">
+    <input
+      type="search"
+      id="client-processing-stock-filter-name"
+      data-stock-filter="name"
+      placeholder="Товар / название"
+      autocomplete="off"
+      aria-label="Фильтр по товару или названию"
+    >
+    <input
+      type="search"
+      id="client-processing-stock-filter-article"
+      data-stock-filter="article"
+      placeholder="Артикул"
+      autocomplete="off"
+      aria-label="Фильтр по артикулу"
+    >
+    <input
+      type="search"
+      id="client-processing-stock-filter-barcode"
+      data-stock-filter="barcode"
+      placeholder="ШК"
+      autocomplete="off"
+      aria-label="Фильтр по штрихкоду"
+    >
+    <select
+      id="client-processing-stock-filter-type"
+      data-stock-filter="goods_type"
+      aria-label="Фильтр по типу товара"
+    >
+      <option value="">Все типы</option>
+    </select>
+    <span class="stock-filter-count" id="client-processing-stock-filter-count"></span>
+  </div>
+  <div class="stock-filter-empty" id="client-processing-stock-filter-empty">
+    По фильтру ничего не найдено. Измените запрос или очистите поле.
+  </div>
+  <div class="stock-table-wrap">
+    <table class="stock-table" id="client-processing-stock-table">
+      <thead>
+        <tr>
+          <th>Товар</th>
+          <th>Артикул А / ШК</th>
+          <th>Размер</th>
+          <th>Тип</th>
+          <th>Доступно</th>
+          <th>В коробе, шт</th>
+          <th>К обработке</th>
+          <th>Режим</th>
+          <th>Штук</th>
+          <th class="article-b-col" hidden>Артикул Б</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in stock_rows %}
+          <tr
+            data-stock-key="{{ row.key }}"
+            data-sku-code="{{ row.sku_code|default:'' }}"
+            data-name="{{ row.name|default:'' }}"
+            data-size="{{ row.size|default:'' }}"
+            data-barcode="{{ row.barcode|default:'' }}"
+            data-goods-type="{{ row.goods_type|default:'' }}"
+            data-box-qty="{{ row.box_qty|default:0 }}"
+            data-available-boxes="{{ row.available_boxes|default:0 }}"
+            data-available-qty="{{ row.available_qty|default:0 }}"
+            data-is-mixed="{% if row.is_mixed_box %}1{% else %}0{% endif %}"
+            data-mix-group="{{ row.mixed_group|default:'' }}"
+            data-box-codes="{{ row.box_codes|join:',' }}"
+            data-source-state="{{ row.source_state|default:'' }}"
+            data-source-zone="{{ row.source_zone|default:'' }}"
+            data-source-row="1"
+          >
+            <td>
+              <b>{{ row.name|default:"—" }}</b>
+              <div class="hint">Короб: {{ row.box_codes|join:", "|default:"—" }}</div>
+              {% if row.is_mixed_box %}<div class="hint">микс-короб</div>{% endif %}
+            </td>
+            <td>
+              <div><b>{{ row.sku_code }}</b></div>
+              <div class="hint">{{ row.barcode|default:"—" }}</div>
+            </td>
+            <td>{{ row.size|default:"—" }}</td>
+            <td>{{ row.goods_type|default:"—" }}</td>
+            <td>{{ row.available_boxes|default:0 }} кор. / {{ row.available_qty|default:0 }} шт</td>
+            <td>{{ row.box_qty|default:0 }}</td>
+            <td>
+              <input
+                class="box-input"
+                type="number"
+                min="0"
+                max="{{ row.available_qty|default:0 }}"
+                value="0"
+                data-process-input
+                {% if not row.available_boxes %}disabled{% endif %}
+              >
+            </td>
+            <td>
+              <select class="box-input" data-process-mode {% if not row.available_boxes %}disabled{% endif %}>
+                <option value="units">шт.</option>
+                <option value="boxes">кор.</option>
+              </select>
+              <div class="hint" data-process-hint>по штукам</div>
+            </td>
+            <td data-total-cell>0</td>
+            <td class="article-b-col" hidden>
+              <input
+                class="target-article-input"
+                type="text"
+                list="client-sku-datalist"
+                autocomplete="off"
+                placeholder="Арт Б"
+                data-target-article
+                disabled
+              >
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <datalist id="client-sku-datalist"></datalist>
+{% else %}
+  <div class="empty-stock">
+    <p>Нет доступных коробов на складе для обработки.</p>
+    <p class="hint">Когда товар появится на остатках, он отобразится здесь для выбора.</p>
+  </div>
+{% endif %}

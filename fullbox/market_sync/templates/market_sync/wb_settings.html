@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Настройка Wildberries | FULLBOX</title>
+  <link href="/static/vendor/space-grotesk.css" rel="stylesheet">
+  <style>
+    :root { --bg:#0b0b0f; --card:#14141f; --gold:#d6a300; --gold-soft:#e7c34a; --text:#e8e8ed; --muted:#9aa0b3; --stroke: rgba(255,255,255,0.08); --danger:#ff7d7d; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:'Space Grotesk',system-ui,sans-serif; }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 28px 18px 64px; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    h1 { margin:0; letter-spacing:-0.4px; }
+    .muted { color: var(--muted); }
+    .btn { padding:10px 14px; border-radius:10px; border:1px solid var(--stroke); background:rgba(255,255,255,0.02); color:var(--text); font-weight:600; }
+    .btn:hover { border-color: var(--gold); box-shadow:0 10px 25px rgba(214,163,0,0.25); }
+    .btn.primary { background: linear-gradient(120deg,var(--gold),var(--gold-soft)); color: var(--bg); border-color: transparent; }
+    .btn.disabled { opacity:0.5; cursor:not-allowed; pointer-events:none; }
+    .card { background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:18px; box-shadow:0 18px 45px rgba(0,0,0,0.35); display:grid; gap:16px; }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid var(--stroke); background:rgba(214,163,0,0.12); color:var(--gold); font-weight:600; }
+    .field { display:grid; gap:6px; }
+    label { font-weight:600; }
+    .input {
+      width:100%;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid var(--stroke);
+      background:rgba(255,255,255,0.03);
+      color:var(--text);
+      font-family:'Space Grotesk',system-ui,sans-serif;
+      resize:vertical;
+    }
+    .help { font-size:13px; color: var(--muted); }
+    .error { color: var(--danger); font-size:13px; }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; }
+    .token-hidden { display:none; }
+    .token-status {
+      display:none;
+      align-items:center;
+      gap:10px;
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px dashed var(--stroke);
+      background:rgba(255,255,255,0.02);
+      color:var(--muted);
+      font-size:13px;
+    }
+    .token-status.visible { display:flex; }
+    .token-reveal {
+      border:1px solid var(--stroke);
+      background:rgba(255,255,255,0.02);
+      color:var(--text);
+      border-radius:8px;
+      padding:4px 8px;
+      font-size:12px;
+      cursor:pointer;
+    }
+    .sync-card { margin-top:16px; }
+    .sync-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .sync-status { display:flex; align-items:center; gap:10px; }
+    .sync-dot { width:10px; height:10px; border-radius:50%; background:#777; box-shadow:0 0 6px rgba(120,120,120,0.6); }
+    .sync-dot.running { background:#e2c355; box-shadow:0 0 6px rgba(226,195,85,0.6); }
+    .sync-dot.ok { background:#4ac97d; box-shadow:0 0 6px rgba(74,201,125,0.6); }
+    .sync-dot.error { background:#e25555; box-shadow:0 0 6px rgba(226,85,85,0.6); }
+    .sync-progress { width:100%; height:8px; border-radius:999px; background:rgba(255,255,255,0.08); overflow:hidden; }
+    .sync-progress-bar { height:100%; width:0%; background:linear-gradient(90deg,var(--gold),var(--gold-soft)); transition:width 0.3s ease; }
+    .sync-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+    .sync-block { border:1px solid var(--stroke); border-radius:12px; padding:12px; background:rgba(255,255,255,0.02); display:grid; gap:8px; }
+    .sync-title { font-weight:600; }
+    .sync-list { margin:0; padding-left:16px; color:var(--muted); font-size:13px; }
+    .sync-results { display:grid; gap:6px; color:var(--muted); font-size:13px; }
+    .sync-errors { color:var(--muted); font-size:13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="muted">FULLBOX · {% include "partials/current_user.html" %}</div>
+        <h1>Настройка Wildberries</h1>
+        {% if selected_client %}
+          <div class="pill" style="margin-top:8px;">Клиент: {{ selected_client.agn_name|default:"Без названия" }}{% if selected_client.inn %} · ИНН {{ selected_client.inn }}{% endif %}</div>
+        {% endif %}
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <a class="btn" href="/market-sync/{% if selected_client %}?client={{ selected_client.id }}{% endif %}">Назад</a>
+        <a class="btn" href="/logout/">Выход</a>
+      </div>
+    </header>
+
+    <div class="card" style="margin-top:16px;">
+      <strong>Доступ к API Wildberries</strong>
+      <div class="muted">Укажите токен доступа для синхронизации номенклатуры.</div>
+      {% if market_missing %}
+        <div class="error">Маркетплейс WB не найден в базе. Загрузите справочник маркетплейсов.</div>
+      {% endif %}
+      <form method="post">
+        {% csrf_token %}
+        {% if selected_client %}
+          <input type="hidden" name="client" value="{{ selected_client.id }}">
+        {% endif %}
+        <div class="field">
+          <label for="id_market_key">API токен WB</label>
+          {% if form.market_key.errors %}
+            <div class="error">{{ form.market_key.errors|striptags }}</div>
+          {% endif %}
+          {{ form.market_key }}
+          <div class="token-status" id="token-status">
+            Токен сохранен.
+            <button class="token-reveal" id="token-reveal" type="button">Изменить</button>
+          </div>
+          <div class="help">Токен используется только для текущего клиента.</div>
+        </div>
+        <div class="actions" style="margin-top:12px;">
+          <button class="btn primary" type="submit" {% if market_missing %}disabled{% endif %}>Сохранить</button>
+          <button class="btn" type="button" data-sync-button {% if market_missing %}disabled{% endif %}>Синхронизировать</button>
+          <a class="btn" href="/market-sync/{% if selected_client %}?client={{ selected_client.id }}{% endif %}">Отмена</a>
+        </div>
+      </form>
+    </div>
+
+    <div class="card sync-card">
+      <div class="sync-head">
+        <div>
+          <strong>Синхронизация</strong>
+          <div class="muted">Отображаем прогресс, результаты и ошибки последнего запуска.</div>
+        </div>
+        <div class="sync-status">
+          <span class="sync-dot" data-sync-dot></span>
+          <span data-sync-status>Не запущено</span>
+          <span class="muted" data-sync-time>—</span>
+        </div>
+      </div>
+      <div class="sync-progress" aria-label="Прогресс синхронизации">
+        <div class="sync-progress-bar" data-sync-progress></div>
+      </div>
+      <div class="sync-grid">
+        <div class="sync-block">
+          <div class="sync-title">Процесс</div>
+          <ul class="sync-list" data-sync-steps>
+            <li>Ожидание запуска</li>
+          </ul>
+        </div>
+        <div class="sync-block">
+          <div class="sync-title">Результаты</div>
+          <div class="sync-results" data-sync-results>
+            <div>SKU обработано: —</div>
+            <div>Обновлено: —</div>
+            <div>Создано: —</div>
+            <div>Штрихкодов добавлено: —</div>
+          </div>
+        </div>
+        <div class="sync-block">
+          <div class="sync-title">Ошибки</div>
+          <div class="sync-errors" data-sync-errors>Нет ошибок</div>
+        </div>
+        <div class="sync-block">
+          <div class="sync-title">Отчет</div>
+          <div class="sync-results" data-sync-report>
+            {% if last_report %}
+              <div>Последний: {{ last_report.finished_at|date:"d.m.Y H:i" }}</div>
+              <div>Статус: {% if last_report.status == "ok" %}Успешно{% else %}Ошибка{% endif %}</div>
+              <div>SKU: {{ last_report.processed }} (созд: {{ last_report.created }}, обновл: {{ last_report.updated }})</div>
+              <div>ШК: {{ last_report.barcodes_created }}</div>
+              <div>Ошибок: {{ last_report.errors|length }}</div>
+            {% else %}
+              <div>Отчетов нет</div>
+            {% endif %}
+          </div>
+          <a class="btn small{% if not last_report %} disabled{% endif %}" data-sync-report-link href="{% if last_report %}/market-sync/report/{{ last_report.id }}/{% else %}#{% endif %}" target="_blank">Скачать JSON</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+<script>
+  (function() {
+    const tokenField = document.getElementById('id_market_key');
+    const tokenStatus = document.getElementById('token-status');
+    const tokenReveal = document.getElementById('token-reveal');
+    let tokenTimer = null;
+    const syncBtn = document.querySelector('[data-sync-button]');
+    const statusEl = document.querySelector('[data-sync-status]');
+    const timeEl = document.querySelector('[data-sync-time]');
+    const dotEl = document.querySelector('[data-sync-dot]');
+    const progressEl = document.querySelector('[data-sync-progress]');
+    const stepsEl = document.querySelector('[data-sync-steps]');
+    const resultsEl = document.querySelector('[data-sync-results]');
+    const errorsEl = document.querySelector('[data-sync-errors]');
+    const reportEl = document.querySelector('[data-sync-report]');
+    const reportLink = document.querySelector('[data-sync-report-link]');
+    if (!syncBtn) return;
+
+    function setStatus(text, state) {
+      statusEl.textContent = text;
+      dotEl.className = 'sync-dot';
+      if (state) dotEl.classList.add(state);
+    }
+
+    function setTime() {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      timeEl.textContent = `${pad(now.getDate())}.${pad(now.getMonth() + 1)}.${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    }
+
+    function setSteps(items) {
+      stepsEl.innerHTML = items.map((item) => `<li>${item}</li>`).join('');
+    }
+
+    function setProgress(value) {
+      progressEl.style.width = `${value}%`;
+    }
+
+    function setReport(data) {
+      if (!reportEl || !data) return;
+      if (data.report_id) {
+        const timeText = timeEl?.textContent || '—';
+        const statusLabel = data.ok ? 'Успешно' : 'Ошибка';
+        reportEl.innerHTML = `
+          <div>Последний: ${timeText}</div>
+          <div>Статус: ${statusLabel}</div>
+          <div>SKU: ${data.processed ?? 0} (созд: ${data.created ?? 0}, обновл: ${data.updated ?? 0})</div>
+          <div>ШК: ${data.barcodes_created ?? 0}</div>
+          <div>Ошибок: ${(data.errors || []).length}</div>
+        `;
+        if (reportLink && data.report_url) {
+          reportLink.href = data.report_url;
+          reportLink.classList.remove('disabled');
+        }
+      }
+    }
+
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) {
+        return parts.pop().split(';').shift();
+      }
+      return '';
+    }
+
+    const hideToken = () => {
+      if (!tokenField || !tokenStatus) {
+        return;
+      }
+      if ((tokenField.value || '').trim().length === 0) {
+        return;
+      }
+      tokenField.classList.add('token-hidden');
+      tokenStatus.classList.add('visible');
+    };
+
+    const showToken = () => {
+      if (!tokenField || !tokenStatus) {
+        return;
+      }
+      tokenField.classList.remove('token-hidden');
+      tokenStatus.classList.remove('visible');
+    };
+
+    const scheduleTokenHide = () => {
+      if (!tokenField) {
+        return;
+      }
+      if (tokenTimer) {
+        clearTimeout(tokenTimer);
+      }
+      tokenTimer = setTimeout(hideToken, 5000);
+    };
+
+    if (tokenField) {
+      tokenField.addEventListener('input', () => {
+        showToken();
+        scheduleTokenHide();
+      });
+      tokenField.addEventListener('focus', () => {
+        if (tokenTimer) {
+          clearTimeout(tokenTimer);
+        }
+      });
+      tokenField.addEventListener('blur', scheduleTokenHide);
+      if ((tokenField.value || '').trim()) {
+        hideToken();
+      }
+    }
+
+    if (tokenReveal) {
+      tokenReveal.addEventListener('click', () => {
+        if (tokenField) {
+          tokenField.value = '';
+        }
+        showToken();
+        tokenField?.focus();
+        scheduleTokenHide();
+      });
+    }
+
+    syncBtn.addEventListener('click', async () => {
+      setStatus('Запуск синхронизации', 'running');
+      setTime();
+      setSteps(['Проверка доступа', 'Запрос данных WB', 'Обновление SKU', 'Формирование отчета']);
+      errorsEl.textContent = 'Ошибок нет';
+      resultsEl.innerHTML = '<div>SKU обработано: —</div><div>Обновлено: —</div><div>Создано: —</div><div>Штрихкодов добавлено: —</div>';
+      setProgress(5);
+
+      let progress = 5;
+      const timer = setInterval(() => {
+        progress = Math.min(progress + 8, 95);
+        setProgress(progress);
+      }, 400);
+
+      try {
+        const client = '{{ selected_client.id|default:"" }}';
+        const res = await fetch('/market-sync/wb/run/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          body: JSON.stringify({ client })
+        });
+        const data = await res.json();
+        clearInterval(timer);
+        setProgress(100);
+        if (!res.ok || !data.ok) {
+          setStatus('Синхронизация с ошибкой', 'error');
+          const list = (data.errors || ['Неизвестная ошибка.']).map((err) => `<div>${err}</div>`).join('');
+          errorsEl.innerHTML = list;
+        } else {
+          setStatus('Синхронизация завершена', 'ok');
+          errorsEl.textContent = 'Ошибок нет';
+        }
+        resultsEl.innerHTML = `<div>SKU обработано: ${data.processed ?? 0}</div><div>Обновлено: ${data.updated ?? 0}</div><div>Создано: ${data.created ?? 0}</div><div>Штрихкодов добавлено: ${data.barcodes_created ?? 0}</div>`;
+        setSteps(['Проверка доступа', 'Запрос данных WB', 'Обновление SKU', 'Сводка результатов']);
+        setReport(data);
+      } catch (err) {
+        clearInterval(timer);
+        setProgress(100);
+        setStatus('Синхронизация с ошибкой', 'error');
+        errorsEl.textContent = 'Ошибка сети при синхронизации.';
+      }
+    });
+  })();
+</script>
+</html>
+

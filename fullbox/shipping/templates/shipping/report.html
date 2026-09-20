@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Отчет об отгрузке {{ order.display_number|default:order.number }}</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #0e6b5b;
+      --sun: #f2b747;
+      --stroke: rgba(28,31,26,0.12);
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    a { color: inherit; text-decoration: none; }
+    .page {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    h1, h2 {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    }
+    h1 { font-size: 28px; }
+    h2 { font-size: 20px; margin-bottom: 12px; }
+    .subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .card {
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      background: var(--surface-2);
+      padding: 12px;
+      display: grid;
+      gap: 5px;
+    }
+    .label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 800;
+    }
+    .value { font-weight: 800; line-height: 1.35; }
+    .table-wrap {
+      overflow: auto;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(15,23,42,0.03);
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 920px; }
+    th, td {
+      padding: 9px;
+      border-bottom: 1px solid var(--stroke);
+      text-align: left;
+      vertical-align: top;
+      font-size: 13px;
+    }
+    th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      background: rgba(15,23,42,0.04);
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    .code { font-weight: 800; white-space: nowrap; }
+    .muted { color: var(--muted); }
+    .empty {
+      padding: 12px;
+      text-align: center;
+      color: var(--muted);
+      border-radius: 12px;
+      border: 1px dashed var(--stroke);
+    }
+    .history-list { display: grid; gap: 8px; }
+    .history-item {
+      border: 1px solid var(--stroke);
+      border-left: 5px solid var(--accent);
+      border-radius: 14px;
+      background: var(--surface-2);
+      padding: 10px;
+    }
+    .history-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+    .history-action { font-weight: 800; color: var(--accent); }
+    .history-text { margin-top: 4px; font-size: 13px; line-height: 1.35; }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media print {
+      body { background: #fff; }
+      .page { max-width: none; padding: 0; }
+      .panel { box-shadow: none; break-inside: avoid; }
+      .actions { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="panel">
+      <div class="head">
+        <div>
+          <h1>Отчет об отгрузке {{ order.display_number|default:order.number }}</h1>
+          <div class="subtitle">Клиент: <b>{{ order.agency.agn_name }}</b></div>
+        </div>
+      <div class="actions">
+        <a class="btn" href="{% url 'shipping:detail' order.pk %}">К заявке</a>
+        <a class="btn" href="{% url 'shipping:report-xlsx' order.pk %}">Выгрузить в Excel</a>
+        <button class="btn primary" type="button" onclick="window.print()">Печать</button>
+      </div>
+      </div>
+      <div class="grid">
+        <div class="card"><div class="label">Статус</div><div class="value">{{ order.ui_status_label|default:order.get_status_display }}</div></div>
+        <div class="card"><div class="label">Создана</div><div class="value">{{ order.created_at|date:"d.m.Y H:i" }}</div></div>
+        <div class="card"><div class="label">Склад назначения</div><div class="value">{{ order.destination_warehouse|default:"-" }}</div></div>
+        <div class="card"><div class="label">Маркетплейс</div><div class="value">{% if order.marketplace %}{{ order.marketplace.name }}{% else %}-{% endif %}</div></div>
+        <div class="card"><div class="label">Коробов по заявке</div><div class="value">{{ shipping_metrics.box_count|default:"0" }}</div></div>
+        <div class="card"><div class="label">Итоговых паллет</div><div class="value">{{ shipping_metrics.pallet_count|default:"0" }}</div></div>
+        <div class="card"><div class="label">ШК поставки</div><div class="value">{{ order.shipping_barcode|default:"-" }}</div></div>
+        <div class="card"><div class="label">Номер поставки</div><div class="value">{{ order.wb_supply_barcode|default:"-" }}</div></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Машина и рейс</h2>
+      <div class="grid">
+        <div class="card"><div class="label">Рейс</div><div class="value">{{ report_dispatch.trip_number }}</div></div>
+        <div class="card"><div class="label">Транспорт</div><div class="value">{{ report_dispatch.vehicle_type }} {{ report_dispatch.vehicle_name }}</div></div>
+        <div class="card"><div class="label">Номер авто</div><div class="value">{{ report_dispatch.vehicle_number }}</div></div>
+        <div class="card"><div class="label">Водитель</div><div class="value">{{ report_dispatch.driver_name }} / {{ report_dispatch.driver_phone }}</div></div>
+        <div class="card"><div class="label">Куда</div><div class="value">{{ report_dispatch.destination }}</div></div>
+        <div class="card"><div class="label">Погрузка / доставка</div><div class="value">{{ report_dispatch.loading_sequence }} / {{ report_dispatch.delivery_sequence }}</div></div>
+        <div class="card"><div class="label">Логист подписал</div><div class="value">{{ report_dispatch.act_logistician }}</div></div>
+        <div class="card"><div class="label">Менеджер закрыл</div><div class="value">{{ report_dispatch.act_manager }}</div></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Позиции заявки</h2>
+      {% if report_items %}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Артикул</th>
+                <th>Наименование</th>
+                <th>Размер</th>
+                <th>ШК</th>
+                <th>Тип</th>
+                <th>Запрошено</th>
+                <th>Резерв</th>
+                <th>Отгружено</th>
+                <th>Недостача</th>
+                <th>Излишек</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in report_items %}
+                <tr>
+                  <td class="code">{{ item.sku_code }}</td>
+                  <td>{{ item.name }}</td>
+                  <td>{{ item.size|default:"-" }}</td>
+                  <td>{{ item.barcode|default:"-" }}</td>
+                  <td>{{ item.goods_type|default:"-" }}</td>
+                  <td>{{ item.qty_requested }}</td>
+                  <td>{{ item.qty_reserved }}</td>
+                  <td>{{ item.qty_shipped }}</td>
+                  <td>{{ item.shortage_qty }}</td>
+                  <td>{{ item.excess_qty }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty">Позиции не найдены.</div>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2>Ричтрак: откуда привезли в OTG</h2>
+      {% if report_reachtruck_rows %}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Задание</th>
+                <th>Статус</th>
+                <th>Тип</th>
+                <th>Исходная паллета</th>
+                <th>Исходное место</th>
+                <th>Куда</th>
+                <th>Короба</th>
+                <th>Ричтракер</th>
+                <th>Старт</th>
+                <th>Завершено</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in report_reachtruck_rows %}
+                <tr>
+                  <td class="code">#{{ row.task_id }}</td>
+                  <td>{{ row.task_status }}</td>
+                  <td>{{ row.move_mode }}</td>
+                  <td class="code">{{ row.source_pallet }}</td>
+                  <td>{{ row.source_place }}</td>
+                  <td>{{ row.target_place }}</td>
+                  <td>
+                    {% for code in row.box_codes %}
+                      <div class="code">{{ code }}</div>
+                    {% empty %}
+                      <span class="muted">Короба не указаны</span>
+                    {% endfor %}
+                  </td>
+                  <td>{{ row.driver }}</td>
+                  <td>{% if row.started_at %}{{ row.started_at|date:"d.m.Y H:i" }}{% else %}-{% endif %}</td>
+                  <td>{% if row.completed_at %}{{ row.completed_at|date:"d.m.Y H:i" }}{% else %}-{% endif %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty">Задания ричтраку по заявке не найдены.</div>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2>Итоговые паллеты отгрузки</h2>
+      {% if report_pallet_rows %}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Паллета</th>
+                <th>Код паллеты</th>
+                <th>Короб</th>
+                <th>Кол-во</th>
+                <th>Состав</th>
+                <th>Исходная паллета</th>
+                <th>Исходное место</th>
+                <th>Кто довез</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pallet in report_pallet_rows %}
+                {% for box in pallet.boxes %}
+                  <tr>
+                    <td>{{ pallet.label }}</td>
+                    <td class="code">{{ pallet.code }}</td>
+                    <td class="code">{{ box.box_code }}</td>
+                    <td>{{ box.qty }}</td>
+                    <td>{{ box.barcode_preview }}</td>
+                    <td class="code">{{ box.source_pallet }}</td>
+                    <td>{{ box.source_place }}</td>
+                    <td>{{ box.driver }}</td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td>{{ pallet.label }}</td>
+                    <td class="code">{{ pallet.code }}</td>
+                    <td colspan="6" class="muted">Короба не указаны</td>
+                  </tr>
+                {% endfor %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty">Итоговые паллеты еще не сформированы.</div>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2>История заявки</h2>
+      {% if shipping_history %}
+        <div class="history-list">
+          {% for entry in shipping_history %}
+            <div class="history-item">
+              <div class="history-top">
+                <span>{{ entry.created_at|date:"d.m.Y H:i" }}</span>
+                <span>{{ entry.actor_label }} · {{ entry.actor_role_label }}</span>
+              </div>
+              <div class="history-action">{{ entry.action_label }}</div>
+              {% if entry.text %}<div class="history-text">{{ entry.text }}</div>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">История пока пустая.</div>
+      {% endif %}
+    </section>
+  </div>
+</body>
+</html>

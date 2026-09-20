@@ -1,0 +1,86 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if handover.profile.marketplace == 'ozon' %}Этикетка Ozon{% else %}Стикер поставки{% endif %} {{ handover.external_supply_id|default:handover.id }} · 58×40</title>
+  <style>
+    @page { size: 58mm 40mm; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    .label-page {
+      width: 58mm;
+      height: 40mm;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+    }
+    .label-page img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .print-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font: 600 14px/1.2 Arial, sans-serif;
+    }
+    .print-controls button {
+      border: 0;
+      border-radius: 5px;
+      padding: 10px 16px;
+      color: #303030;
+      background: #f8b800;
+      font: inherit;
+      cursor: pointer;
+    }
+    .print-hint {
+      max-width: 62ch;
+      margin: 0;
+      padding: 11px 13px;
+      border-left: 4px solid #f86800;
+      background: rgba(248, 184, 0, .18);
+      color: #303030;
+      font: 400 13px/1.45 Arial, sans-serif;
+    }
+    .print-hint strong { font-weight: 700; }
+    @media screen {
+      body {
+        min-height: 100vh;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+        background: #eee;
+      }
+      .label-page { box-shadow: 0 2px 12px rgba(0, 0, 0, .2); }
+    }
+    @media print {
+      html, body { width: 58mm; height: 40mm; overflow: hidden; }
+      .print-controls, .print-hint { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-controls">
+    <button type="button" onclick="window.print()">Печать через браузер</button>
+    <span>{% if handover.profile.marketplace == 'ozon' %}Внутренняя этикетка Ozon · отгрузка №{{ handover.id }}{% else %}{{ handover.external_supply_id|default:"Поставка FBS" }}{% endif %}</span>
+  </div>
+  <p class="print-hint">
+    Это просмотр стикера. Для печати на этикеточном принтере нажмите
+    <strong>{% if handover.profile.marketplace == 'ozon' %}«Печать этикетки Ozon»{% else %}«Печать стикера поставки»{% endif %}</strong> на экране отгрузки — стикер уйдёт
+    на принтер сразу и в размере 58×40&nbsp;мм.
+    Печать через браузер зависит от настроек драйвера и может разорвать стикер
+    на две этикетки.
+  </p>
+  <main class="label-page">
+    <img src="{{ label_image_url }}" alt="Этикетка отгрузки {{ handover.external_supply_id|default:handover.id }}">
+  </main>
+</body>
+</html>

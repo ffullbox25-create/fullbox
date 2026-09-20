@@ -1,0 +1,36 @@
+<section class="card" id="movement-editor">
+  <h2>Редактирование состава</h2>
+  <p>Измените количество, добавьте или удалите позиции. Артикул и наименование определяются по штрихкоду клиента. В режиме «Коробами» количество должно соответствовать целым физическим коробам.</p>
+  {% if edit_errors %}<div role="alert" class="edit-error">{% for error in edit_errors %}<p>{{ error }}</p>{% endfor %}</div>{% endif %}
+  <form method="post" id="movement-edit-form">
+    {% csrf_token %}<input type="hidden" name="action" value="save_edit"><input type="hidden" name="version" value="{{ edit_data.version }}">
+    <div class="table"><table><thead><tr><th>Штрихкод товара</th><th>Количество, шт.</th>{% if item.mode == 'box' %}<th>Штук в коробе</th>{% endif %}<th></th></tr></thead>
+      <tbody id="movement-edit-lines">{% for row in edit_data.rows %}<tr>
+        <td><input name="barcode" list="movement-catalog" value="{{ row.barcode }}" required autocomplete="off" aria-label="Штрихкод товара"><small class="product-caption">{% if row.sku_code %}{{ row.sku_code }} · {{ row.product_name }}{% endif %}</small></td>
+        <td><input name="qty" type="number" min="1" step="1" value="{{ row.qty }}" required aria-label="Количество"></td>
+        {% if item.mode == 'box' %}<td><input name="units_per_box" type="number" min="1" step="1" value="{{ row.units_per_box }}" required aria-label="Штук в коробе"></td>{% else %}<td hidden><input type="hidden" name="units_per_box" value="1"></td>{% endif %}
+        <td><button type="button" class="btn remove-line">Удалить</button></td>
+      </tr>{% endfor %}</tbody>
+    </table></div>
+    <datalist id="movement-catalog">{% for row in edit_catalog %}<option value="{{ row.value }}">{{ row.sku.sku_code }} · {{ row.sku.name }}</option>{% endfor %}</datalist>
+    <button class="btn" type="button" id="movement-add-line">Добавить товар</button>
+    {% if item.mode == 'box' %}<details style="margin-top:14px"{% if edit_data.mixed_codes %} open{% endif %}><summary>Физические микс-короба</summary><p>Микс-короб перемещается целиком: его состав берётся со склада.</p><div id="movement-mixed-boxes">{% for code in edit_data.mixed_codes %}<div class="mixed-edit-row"><input name="mixed_box_code" value="{{ code }}" required aria-label="Код микс-короба"><button type="button" class="btn remove-mixed">Удалить</button></div>{% endfor %}</div><button type="button" class="btn" id="movement-add-mixed">Добавить микс-короб</button></details>
+    {% else %}<div class="edit-box-counts"><label>Физических коробов всего<input type="number" name="requested_box_count" min="1" max="50" step="1" value="{{ edit_data.requested_box_count }}" required></label><label>Из них микс-коробов<input type="number" name="requested_mixed_box_count" min="0" max="50" step="1" value="{{ edit_data.requested_mixed_box_count }}" required></label></div>{% endif %}
+    <label style="display:block;margin-top:16px">Комментарий<textarea name="comment" rows="3">{{ edit_data.comment }}</textarea></label>
+    <p>Состав и резерв сохраняются вместе. Если нового товара не хватит, прежняя заявка и резерв сохранятся. Передача на склад выполняется отдельным подтверждением.</p>
+    <div class="edit-buttons"><button class="btn btn-primary" type="submit">Сохранить изменения</button><a class="btn" href="{% url 'team-manager-fbs-movement-detail' item.pk %}">Отмена</a></div>
+  </form>
+  <template id="movement-line-template"><tr><td><input name="barcode" list="movement-catalog" required autocomplete="off" aria-label="Штрихкод товара"><small class="product-caption"></small></td><td><input name="qty" type="number" min="1" step="1" required aria-label="Количество"></td>{% if item.mode == 'box' %}<td><input name="units_per_box" type="number" min="1" step="1" required aria-label="Штук в коробе"></td>{% else %}<td hidden><input type="hidden" name="units_per_box" value="1"></td>{% endif %}<td><button type="button" class="btn remove-line">Удалить</button></td></tr></template>
+</section>
+<style>
+#movement-editor input:not([type=hidden]),#movement-editor textarea{font:inherit;box-sizing:border-box;border:1px solid var(--stroke);border-radius:7px;padding:9px;background:var(--card);color:var(--text);width:100%;min-width:100px}#movement-editor td:first-child{min-width:230px}#movement-editor small{display:block;color:var(--muted);margin-top:5px}#movement-editor .edit-error{background:#fff0eb;color:#a42b20;border:1px solid #eeb4a8;border-radius:8px;padding:10px;margin:12px 0}#movement-editor .edit-buttons,#movement-editor .edit-box-counts,#movement-editor .mixed-edit-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}#movement-editor .mixed-edit-row input{width:auto;flex:1}#movement-editor .btn-primary{background:linear-gradient(135deg,#f89000,#f8b800);border-color:#f89000;color:#303030}
+</style>
+<script>
+(()=>{const form=document.getElementById('movement-edit-form'),body=document.getElementById('movement-edit-lines');
+ document.getElementById('movement-add-line').addEventListener('click',()=>{body.append(document.getElementById('movement-line-template').content.cloneNode(true));body.lastElementChild.querySelector('input').focus();});
+ const catalog=new Map([...document.querySelectorAll('#movement-catalog option')].map(option=>[option.value,option.textContent]));
+ form.addEventListener('input',event=>{if(event.target.name==='barcode')event.target.parentElement.querySelector('.product-caption').textContent=catalog.get(event.target.value)||'Номенклатура проверится при сохранении';});
+ form.addEventListener('click',event=>{const remove=event.target.closest('.remove-line,.remove-mixed');if(remove)remove.closest('tr,.mixed-edit-row').remove();});
+ const addMixed=document.getElementById('movement-add-mixed');if(addMixed)addMixed.addEventListener('click',()=>{const row=document.createElement('div');row.className='mixed-edit-row';row.innerHTML='<input name="mixed_box_code" required aria-label="Код микс-короба"><button type="button" class="btn remove-mixed">Удалить</button>';document.getElementById('movement-mixed-boxes').append(row);row.querySelector('input').focus();});
+})();
+</script>

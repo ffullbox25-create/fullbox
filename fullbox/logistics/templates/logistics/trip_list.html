@@ -1,0 +1,397 @@
+{% extends use_cabinet_shell|yesno:"teammanager/_base.html,logistics/_standalone_base.html" %}
+{% block title %}Все рейсы{% endblock %}
+{% block extra_css %}
+:root {
+      --bg: #f3efe5;
+      --surface: #fffdf7;
+      --surface-2: #f7f1e7;
+      --ink: #23211d;
+      --muted: #756f65;
+      --stroke: rgba(35, 33, 29, 0.11);
+      --stroke-strong: rgba(35, 33, 29, 0.18);
+      --sun: #f1bf62;
+      --sun-2: #f6d695;
+      --shadow: 0 20px 55px rgba(15, 23, 42, 0.12);
+      --ok: #3b7a57;
+      --ok-bg: #dcefe1;
+      --warn: #9b7a2d;
+      --warn-bg: #f4e2b9;
+      --gray: #837a6d;
+      --gray-bg: #ece5d7;
+      --rose: #af6f73;
+      --rose-bg: #f3d6d7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 560px at -15% -20%, rgba(241, 191, 98, 0.18), transparent 60%),
+        radial-gradient(900px 540px at 115% 8%, rgba(14, 107, 91, 0.12), transparent 52%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    .wrap { padding: 24px; }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      min-height: calc(100vh - 48px);
+    }
+    .side,
+    .shell,
+    .table-shell {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+    .side {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+    .brand {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 24px;
+    }
+    .profile,
+    .nav-link {
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      background: var(--surface-2);
+      padding: 12px;
+    }
+    .nav {
+      display: grid;
+      gap: 10px;
+    }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .nav-link.primary {
+      background: linear-gradient(135deg, rgba(241, 191, 98, 0.38), rgba(14, 107, 91, 0.12));
+      border-color: transparent;
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub,
+    .muted {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .btn {
+      width: 100%;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: rgba(35, 33, 29, 0.04);
+      color: var(--ink);
+      padding: 10px 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), var(--sun-2));
+      border-color: transparent;
+      color: #2d2312;
+    }
+    .shell {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .table-shell {
+      padding: 0;
+      overflow: hidden;
+    }
+    .table-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 20px 22px 16px;
+      border-bottom: 1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(247, 241, 231, 0.9), rgba(255, 253, 247, 0.9));
+    }
+    .table-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 18px;
+    }
+    .table-tools {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .search,
+    .filter-select {
+      border: 1px solid var(--stroke);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--ink);
+      font: inherit;
+      min-height: 42px;
+    }
+    .search {
+      width: min(360px, 100%);
+      padding: 0 16px 0 42px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23756f65' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: 14px 50%;
+    }
+    .filter-select {
+      min-width: 170px;
+      padding: 0 14px;
+    }
+    .table-wrap { overflow: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1320px;
+    }
+    th,
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(35, 33, 29, 0.08);
+      text-align: left;
+      vertical-align: middle;
+      font-size: 14px;
+    }
+    th {
+      background: rgba(247, 241, 231, 0.85);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    tbody tr:hover {
+      background: rgba(247, 241, 231, 0.55);
+    }
+    tbody tr.is-hidden {
+      display: none;
+    }
+    .trip-link {
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .subtext {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 30px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .chip.planned {
+      background: var(--ok-bg);
+      color: var(--ok);
+      border-color: rgba(59, 122, 87, 0.15);
+    }
+    .chip.loading,
+    .chip.departed {
+      background: var(--warn-bg);
+      color: var(--warn);
+      border-color: rgba(155, 122, 45, 0.15);
+    }
+    .chip.completed {
+      background: var(--gray-bg);
+      color: var(--gray);
+      border-color: rgba(131, 122, 109, 0.15);
+    }
+    .chip.canceled {
+      background: var(--rose-bg);
+      color: var(--rose);
+      border-color: rgba(175, 111, 115, 0.18);
+    }
+    .chip.default {
+      background: var(--gray-bg);
+      color: var(--gray);
+      border-color: rgba(131, 122, 109, 0.15);
+    }
+    .table-empty {
+      margin: 18px 22px 22px;
+      border-radius: 14px;
+      padding: 12px;
+      background: var(--surface-2);
+      border: 1px dashed var(--stroke);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    @media (max-width: 1180px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 860px) {
+      .wrap { padding: 14px; }
+      .shell { padding: 14px; }
+      .table-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .table-tools {
+        width: 100%;
+      }
+      .search,
+      .filter-select {
+        width: 100%;
+      }
+    }
+{% endblock %}
+{% block content %}
+{% if use_cabinet_shell %}{% include "logistics/_trips_subnav.html" %}{% endif %}
+<h1 class="sr-only">Все рейсы логистики</h1>
+
+        <section class="table-shell">
+          <div class="table-head">
+            <div>
+              <h2 class="table-title">Все рейсы</h2>
+              <div class="muted" style="margin-top:4px;">Отдельный журнал по всем созданным рейсам: черновики, активные, завершенные и отмененные.</div>
+            </div>
+            <div class="table-tools">
+              <input id="trip-search" class="search" type="search" placeholder="Поиск по рейсу / клиенту / водителю / номеру авто">
+              <select id="trip-status-filter" class="filter-select" aria-label="Фильтр по статусу рейса">
+                <option value="all">Все статусы</option>
+                <option value="draft">Черновики</option>
+                <option value="planned">Спланированные</option>
+                <option value="loading">Погрузка</option>
+                <option value="departed">В рейсе</option>
+                <option value="completed">Завершенные</option>
+                <option value="canceled">Отмененные</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>№ рейса</th>
+                  <th>Дата рейса</th>
+                  <th>Статус</th>
+                  <th>Заявок</th>
+                  <th>Клиенты</th>
+                  <th>Склады назначения</th>
+                  <th>Транспорт</th>
+                  <th>Номер машины</th>
+                  <th>Водитель</th>
+                  <th>Логист</th>
+                  <th>Обновлен</th>
+                  <th>Следующее действие</th>
+                </tr>
+              </thead>
+              <tbody id="trip-table-body">
+                {% for row in trips %}
+                  <tr
+                    data-status="{{ row.trip.status }}"
+                    data-search="{{ row.display_number|lower }} {{ row.trip.number|lower }} {{ row.client_preview|lower }} {{ row.destination_preview|lower }} {{ row.driver_name|lower }} {{ row.vehicle_name|lower }} {{ row.vehicle_number_display|lower }} {{ row.logistician_name|lower }}"
+                  >
+                    <td>
+                      <a class="trip-link" href="/logistics/trips/{{ row.trip.pk }}/">{{ row.display_number }}</a>
+                      <span class="subtext">Создан {{ row.trip.created_at|date:"d.m.Y H:i" }}</span>
+                    </td>
+                    <td>{% if row.trip.trip_date %}{{ row.trip.trip_date|date:"d.m.Y" }}{% else %}-{% endif %}</td>
+                    <td>
+                      <span class="chip {% if row.trip.status == 'planned' %}planned{% elif row.trip.status == 'loading' or row.trip.status == 'departed' %}loading{% elif row.trip.status == 'completed' %}completed{% elif row.trip.status == 'canceled' %}canceled{% else %}default{% endif %}">
+                        {{ row.status_label }}
+                      </span>
+                    </td>
+                    <td>{{ row.order_count }}</td>
+                    <td>{{ row.client_preview|default:"-" }}</td>
+                    <td>{{ row.destination_preview }}</td>
+                    <td>{{ row.vehicle_name }}</td>
+                    <td>{{ row.vehicle_number_display }}</td>
+                    <td>{{ row.driver_name }}</td>
+                    <td>{{ row.logistician_name }}</td>
+                    <td>{{ row.trip.updated_at|date:"d.m.Y H:i" }}</td>
+                    <td>
+                      <a class="btn primary" href="{{ row.next_action_url }}">{{ row.next_action_label }}</a>
+                      {% if row.next_action_hint %}<span class="subtext">{{ row.next_action_hint }}</span>{% endif %}
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="12" class="table-empty">Пока нет ни одного созданного рейса.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div id="trip-empty" class="table-empty" hidden>По текущему фильтру рейсы не найдены.</div>
+        </section>
+<script>
+(function () {
+      const searchInput = document.getElementById("trip-search");
+      const statusFilter = document.getElementById("trip-status-filter");
+      const body = document.getElementById("trip-table-body");
+      const empty = document.getElementById("trip-empty");
+      if (!searchInput || !statusFilter || !body || !empty) return;
+
+      const rows = Array.from(body.querySelectorAll("tr[data-status]"));
+      const params = new URLSearchParams(window.location.search || "");
+      const bucket = (params.get("bucket") || "").trim().toLowerCase();
+      const activeStatuses = new Set(["draft", "planned", "loading", "departed"]);
+      if (bucket === "completed") statusFilter.value = "completed";
+      if (bucket === "active") statusFilter.value = "all";
+
+      function applyFilters() {
+        const query = (searchInput.value || "").trim().toLowerCase();
+        const status = statusFilter.value || "all";
+        let visible = 0;
+
+        rows.forEach((row) => {
+          const rowStatus = row.getAttribute("data-status") || "";
+          const rowSearch = row.getAttribute("data-search") || "";
+          let statusMatch = status === "all" || rowStatus === status;
+          if (bucket === "active" && status === "all") {
+            statusMatch = activeStatuses.has(rowStatus);
+          }
+          if (bucket === "completed" && status === "completed") {
+            statusMatch = rowStatus === "completed";
+          }
+          const searchMatch = !query || rowSearch.includes(query);
+          const show = statusMatch && searchMatch;
+          row.classList.toggle("is-hidden", !show);
+          if (show) visible += 1;
+        });
+
+        empty.hidden = visible > 0;
+      }
+
+      searchInput.addEventListener("input", applyFilters);
+      statusFilter.addEventListener("change", applyFilters);
+      applyFilters();
+    })();
+</script>
+{% endblock %}

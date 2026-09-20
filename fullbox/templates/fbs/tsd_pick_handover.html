@@ -1,0 +1,71 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Сдать волну {{ batch.id }}{% endblock %}
+{% block page_class %}tsd-page-pick tsd-page-pick-handover{% endblock %}
+{% block page_title %}Сдать волну #{{ batch.id }}{% endblock %}
+
+{% block content %}
+  <div class="picker-live-progress picker-handover-progress" aria-label="Итог волны">
+    <span>Сборка завершена</span>
+    <strong>{{ batch.picked_qty }} / {{ batch.planned_qty }} <small>шт.</small></strong>
+    <span>{{ batch.tasks.count }} заказов</span>
+  </div>
+
+  <section class="picker-current-card picker-handover-card" aria-labelledby="handover-title">
+    <div class="picker-current-action">
+      <span class="picker-action-number">4</span>
+      <div>
+        <small>Куда отвезти тару</small>
+        <h2 id="handover-title">{% if workstation_recommendation %}{{ workstation_recommendation.name }}{% else %}Отсканируйте активный стол{% endif %}</h2>
+        <p>{% if workstation_recommendation %}Привезите тару к указанному столу и отсканируйте QR рабочего места.{% else %}Привезите тару к свободному активному FBS-столу и отсканируйте его QR.{% endif %}</p>
+      </div>
+    </div>
+
+    <div class="picker-handover-facts">
+      <div><span>Тара</span><strong>{{ batch.cart.name }}</strong></div>
+      <div><span>QR стола</span><strong>{% if workstation_recommendation %}{{ workstation_recommendation.barcode }}{% else %}—{% endif %}</strong></div>
+      <div><span>Очередь стола</span><strong>{% if workstation_recommendation %}{{ workstation_recommendation.queued_waves }} / {{ workstation_recommendation.capacity }}{% else %}—{% endif %}</strong></div>
+    </div>
+
+    <form class="scan-form picker-current-scan" method="post" autocomplete="off" novalidate data-submit-once data-scan-feedback data-scan-focus-lock>
+      {% csrf_token %}
+      <label for="workstation-scan">QR рабочего места</label>
+      <input id="workstation-scan" type="text" name="workstation_scan" autofocus required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" enterkeyhint="done" data-scanner-only data-scan-autosubmit="350" data-scan-focus-lock>
+      <div class="scan-inline-error" role="alert" aria-live="assertive" data-scan-error {% if not error %}hidden{% endif %}>{{ error }}</div>
+      <button class="button button-primary" type="submit">Сдать тару на контроль</button>
+    </form>
+  </section>
+
+  <script>
+    (() => {
+      const statusUrl = new URL(window.location.href);
+      statusUrl.searchParams.set("handover_status", "1");
+      let redirectStarted = false;
+
+      const checkHandover = async () => {
+        if (redirectStarted || document.hidden) return;
+        try {
+          const response = await fetch(statusUrl.toString(), {
+            cache: "no-store",
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+          });
+          if (!response.ok) return;
+          const payload = await response.json();
+          if (payload.handed_over && payload.redirect_url) {
+            redirectStarted = true;
+            window.location.replace(payload.redirect_url);
+          }
+        } catch (_) {
+          // A temporary network loss must not interrupt scanner input.
+        }
+      };
+
+      window.setInterval(checkHandover, 1500);
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) checkHandover();
+      });
+      checkHandover();
+    })();
+  </script>
+{% endblock %}

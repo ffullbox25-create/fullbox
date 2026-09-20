@@ -1,0 +1,23 @@
+{% extends "orders/receiving_tsd_base.html" %}
+{% block title %}Взять заявку № {{ order_id }}{% endblock %}
+{% block content %}
+  <a class="back-link" href="{% url 'orders-receiving-tsd-queue' %}">← К очереди</a>
+  <section class="claim-card">
+    <p class="eyebrow">Заявка № {{ order_id }}</p>
+    <h1>{{ client|default:"Клиент не указан" }}</h1>
+    <p><strong>Маршрут после приёмки: {{ receiving_route_label }}</strong></p>
+    <p>Чтобы начать сканирование, закрепите заявку за собой.</p>
+    <form method="post" action="{% url 'orders-receiving-tsd-claim' order_id %}">
+      {% csrf_token %}
+      <label for="claim-goods-type">Тип товара</label>
+      <select id="claim-goods-type" class="scan-input" name="goods_type" required>
+        <option value="">Выберите тип товара</option>
+        {% for code, label in goods_type_choices %}
+          <option value="{{ code }}" {% if code == goods_type %}selected{% endif %}>{{ label }} — {{ code|upper }}</option>
+        {% endfor %}
+      </select>
+      <p class="hint">{% if receiving_route == 'fbs' %}Для маршрута FBS разрешён только готовый товар GV. После закрытия палеты система назначит точное FBS-место.{% else %}Проверьте тип перед началом. Для готового товара выберите «Готовый — GV».{% endif %}</p>
+      <button class="button button-primary button-large" type="submit">Взять в работу</button>
+    </form>
+  </section>
+{% endblock %}

@@ -1,0 +1,337 @@
+{% extends "teammanager/_base.html" %}
+{% load billing_tags %}
+
+{% block title %}Тарифы клиентов — Биллинг{% endblock %}
+
+{% block extra_css %}
+  .page-head { display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; align-items:flex-start; }
+  .page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; }
+  .page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+  .head-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+  table { width:100%; min-width:900px; border-collapse:collapse; font-size:12px; }
+  th { padding:10px 8px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td { border-bottom:0; }
+  .row-main { font-weight:900; }
+  .row-sub { color:var(--muted); font-size:11px; margin-top:2px; }
+  .money { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-weight:800; }
+  .badge { display:inline-flex; align-items:center; padding:3px 8px; border-radius:999px; font-size:11px; font-weight:900; border:1px solid transparent; white-space:nowrap; }
+  .badge.green { background:var(--green-soft); color:var(--green-strong); }
+  .badge.gray { background:var(--surface-2); color:var(--muted); border-color:var(--line); }
+  .empty-state { padding:36px 20px; text-align:center; color:var(--muted); font-size:13px; font-weight:700; }
+  .tariff-form { display:grid; grid-template-columns:1.4fr 1.5fr .7fr .7fr .9fr auto; gap:8px; align-items:end; }
+  .contract-form { display:grid; grid-template-columns:1.4fr 1.4fr .9fr .9fr auto; gap:8px; align-items:end; }
+  .version-form { display:grid; grid-template-columns:1.4fr 1.2fr .9fr .9fr auto; gap:8px; align-items:end; }
+  .field { width:100%; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); padding:9px 10px; font:inherit; font-size:12px; outline:none; }
+  .field-label { display:block; color:var(--muted); font-size:11px; font-weight:900; margin-bottom:4px; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:1000px) { .tariff-form, .contract-form, .version-form, .grid-2 { grid-template-columns:1fr; } }
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Тарифы клиентов</h1>
+    <div class="page-sub">Согласованные цены клиента по услугам склада</div>
+  </div>
+  <div class="head-actions">
+    <a class="btn" href="/team-manager/billing/applications/">Регистр заявок</a>
+    <a class="btn" href="/team-manager/billing/">← Обзор</a>
+  </div>
+</div>
+
+{% include "billing/_billing_nav.html" %}
+
+{% if not billing_can_edit_tariffs %}
+<div class="card" style="margin-bottom:12px;background:var(--sun-soft);border:1px solid rgba(242,183,71,.45);color:#9a3412;font-weight:700;padding:12px 14px;border-radius:12px">
+  Режим просмотра: тарифы и договоры публикует бухгалтер. Цена недоступна для редактирования.
+</div>
+{% endif %}
+<div class="card" {% if not billing_can_edit_tariffs %}style="display:none"{% endif %}>
+  <div class="row-main" style="margin-bottom:10px">Договор клиента</div>
+  <form class="contract-form" id="js-contract-form">
+    <div>
+      <label class="field-label">Клиент</label>
+      <select class="field" name="client_id" required>
+        <option value="">Выберите клиента</option>
+        {% for client in clients %}
+          <option value="{{ client.id }}">{{ client.agn_name|default:client.short_name }}{% if client.inn %} · {{ client.inn }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="field-label">Юрлицо FullBox</label>
+      <select class="field" name="own_company_id" required>
+        <option value="">Выберите компанию</option>
+        {% for company in own_companies %}
+          <option value="{{ company.id }}">{{ company.short_name|default:company.name }} · {{ company.get_tax_mode_display }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="field-label">Режим цены</label>
+      <select class="field" name="pricing_mode">
+        <option value="base">Стандартный прайс</option>
+        <option value="markup_5">Стандарт + 5%</option>
+        <option value="individual">Индивидуальный</option>
+      </select>
+    </div>
+    <div>
+      <label class="field-label">С даты</label>
+      <input class="field" name="valid_from" type="date" required>
+    </div>
+    <button class="btn primary" type="submit">Сохранить договор</button>
+  </form>
+</div>
+
+<div class="grid-2">
+<div class="card">
+  <div class="row-main" style="margin-bottom:10px">Активные договоры</div>
+  <div style="display:grid;gap:8px">
+    {% for contract in contracts|slice:":8" %}
+      <div style="border:1px solid var(--line);border-radius:10px;padding:10px">
+        <div class="row-main">{{ contract.client.agn_name|default:contract.client.short_name }}</div>
+        <div class="row-sub">{{ contract.own_company.short_name|default:contract.own_company.name }} · {{ contract.own_company.get_tax_mode_display }} · {{ contract.get_pricing_mode_display }}</div>
+      </div>
+    {% empty %}
+      <div class="row-sub">Договоры ещё не настроены.</div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if billing_can_edit_tariffs %}
+<div class="card">
+  <div class="row-main" style="margin-bottom:10px">Добавить тариф клиента</div>
+  <form class="tariff-form" id="js-tariff-form">
+    <div>
+      <label class="field-label">Клиент</label>
+      <select class="field" name="client_id" required>
+        <option value="">Выберите клиента</option>
+        {% for client in clients %}
+          <option value="{{ client.id }}">{{ client.agn_name|default:client.short_name }}{% if client.inn %} · {{ client.inn }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="field-label">Услуга</label>
+      <select class="field" name="service_id" required>
+        <option value="">Выберите услугу</option>
+        {% for service in services %}
+          <option value="{{ service.id }}" data-unit="{{ service.unit }}" data-vat="{{ service.vat_rate }}">{{ service.name }} · {{ service.code }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="field-label">Тариф</label>
+      <input class="field" name="tariff" type="number" min="0" step="0.0001" required>
+    </div>
+    <div>
+      <label class="field-label">НДС</label>
+      <input class="field" name="vat_rate" value="20">
+    </div>
+    <div>
+      <label class="field-label">С даты</label>
+      <input class="field" name="valid_from" type="date" required>
+    </div>
+    <button class="btn primary" type="submit">Сохранить</button>
+  </form>
+  <div class="row-sub" style="margin-top:8px">Справочник услуг: {{ services|length }} услуг. Тариф применяется при расчёте заявки на дату операции.</div>
+</div>
+{% else %}
+<div class="card">
+  <div class="row-main" style="margin-bottom:10px">Тарифы клиентов</div>
+  <div class="row-sub">Откройте карточку клиента в биллинге, чтобы увидеть опубликованные цены и историю версий.</div>
+  <div style="margin-top:10px"><a class="btn" href="/team-manager/billing/clients/">К клиентам</a></div>
+</div>
+{% endif %}
+</div>
+
+<div class="card">
+  <div class="row-main" style="margin-bottom:10px">Редакции согласованных тарифов</div>
+  {% if billing_can_edit_tariffs %}
+  <form class="version-form" id="js-version-form">
+    <div>
+      <label class="field-label">Клиент</label>
+      <select class="field" name="client_id" required>
+        <option value="">Выберите клиента</option>
+        {% for client in clients %}
+          <option value="{{ client.id }}">{{ client.agn_name|default:client.short_name }}{% if client.inn %} · {{ client.inn }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="field-label">Название редакции</label>
+      <input class="field" name="name" placeholder="Тарифы с 01.08.2026">
+    </div>
+    <div>
+      <label class="field-label">С даты</label>
+      <input class="field" name="valid_from" type="date" required>
+    </div>
+    <div>
+      <label class="field-label">Статус</label>
+      <select class="field" name="status">
+        <option value="draft">Черновик</option>
+        <option value="scheduled">Будут действовать</option>
+      </select>
+    </div>
+    <button class="btn primary" type="submit">Создать редакцию</button>
+  </form>
+  <div class="row-sub" style="margin-top:8px">Цены меняются через новую редакцию: старые тарифы не перезаписываются.</div>
+  {% else %}
+  <div class="row-sub">Ниже — опубликованные редакции ваших клиентов (без черновиков).</div>
+  {% endif %}
+</div>
+
+<div class="table-card" style="margin-bottom:14px">
+  <table>
+    <thead>
+      <tr>
+        <th>Клиент</th>
+        <th>Редакция</th>
+        <th>Период</th>
+        <th>Статус</th>
+        <th>Позиции</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for version in tariff_versions %}
+        <tr>
+          <td><div class="row-main">{{ version.client.agn_name|default:version.client.short_name }}</div>{% if version.client.inn %}<div class="row-sub">ИНН {{ version.client.inn }}</div>{% endif %}</td>
+          <td><div class="row-main">{{ version.name }}</div><div class="row-sub">№ {{ version.version_number }}</div></td>
+          <td>{{ version.valid_from|date:"d.m.Y" }}{% if version.valid_to %}<div class="row-sub">до {{ version.valid_to|date:"d.m.Y" }}</div>{% endif %}</td>
+          <td><span class="badge gray">{{ version.get_status_display }}</span></td>
+          <td>{{ version.items.count }}</td>
+          <td>
+            <a class="btn" href="/team-manager/billing/tariff-versions/{{ version.id }}/download/" target="_blank">Печать</a>
+            <button class="btn js-copy-version" type="button" data-version="{{ version.id }}">Создать на основе</button>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6"><div class="empty-state">Редакций тарифов пока нет</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="table-card">
+  <table>
+    <thead>
+      <tr>
+        <th>Клиент</th>
+        <th>Услуга</th>
+        <th>Ед.</th>
+        <th style="text-align:right">Тариф</th>
+        <th>НДС</th>
+        <th>Действует</th>
+        <th>Статус</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tariff in tariffs %}
+        <tr>
+          <td>
+            <div class="row-main">{{ tariff.client.agn_name|default:tariff.client.short_name }}</div>
+            {% if tariff.client.inn %}<div class="row-sub">ИНН {{ tariff.client.inn }}</div>{% endif %}
+          </td>
+          <td>
+            <div class="row-main">{{ tariff.service.name }}</div>
+            <div class="row-sub">{{ tariff.service.code }}</div>
+          </td>
+          <td>{{ tariff.unit }}</td>
+          <td style="text-align:right"><span class="money">{{ tariff.tariff }}</span></td>
+          <td>{{ tariff.vat_rate }}</td>
+          <td>
+            {{ tariff.valid_from|date:"d.m.Y" }}
+            {% if tariff.valid_to %}<div class="row-sub">до {{ tariff.valid_to|date:"d.m.Y" }}</div>{% endif %}
+          </td>
+          <td>
+            {% if tariff.is_active %}<span class="badge green">Активен</span>{% else %}<span class="badge gray">Отключён</span>{% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7"><div class="empty-state">Тарифов пока нет — добавьте цены клиента по услугам</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="card">
+  <div class="row-main" style="margin-bottom:10px">Стандартный прайс FullBox</div>
+  <div class="table-card" style="box-shadow:none">
+    <table>
+      <thead>
+        <tr>
+          <th>Раздел</th>
+          <th>Услуга</th>
+          <th>Ед.</th>
+          <th style="text-align:right">Цена</th>
+          <th>Примечание</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for price in standard_prices %}
+          <tr>
+            <td><span class="badge gray">{{ price.section_code }}</span><div class="row-sub">{{ price.section_name }}</div></td>
+            <td><div class="row-main">{{ price.name }}</div><div class="row-sub">{{ price.service.code }}</div></td>
+            <td>{{ price.unit }}</td>
+            <td style="text-align:right"><span class="money">{% if price.base_price != None %}{{ price.base_price }}{% else %}—{% endif %}</span></td>
+            <td>{{ price.price_note|default:"—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<script>
+(function(){
+  function postJson(url, data){
+    return fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1]||''},
+      body:JSON.stringify(data)
+    }).then(r=>r.json());
+  }
+  var contractForm = document.getElementById('js-contract-form');
+  if(contractForm){
+    contractForm.elements.valid_from.value = new Date().toISOString().slice(0,10);
+    contractForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      postJson('/team-manager/billing/api/client-contracts/', Object.fromEntries(new FormData(contractForm).entries())).then(function(resp){
+        if(resp.ok) window.location.reload(); else alert('Ошибка: '+(resp.error||''));
+      });
+    });
+  }
+  var form = document.getElementById('js-tariff-form');
+  var versionForm = document.getElementById('js-version-form');
+  if(versionForm){
+    versionForm.elements.valid_from.value = new Date().toISOString().slice(0,10);
+    versionForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      postJson('/team-manager/billing/api/tariff-versions/', Object.fromEntries(new FormData(versionForm).entries())).then(function(resp){
+        if(resp.ok) window.location.reload(); else alert('Ошибка: '+(resp.error||''));
+      });
+    });
+  }
+  document.querySelectorAll('.js-copy-version').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      postJson('/team-manager/billing/api/tariff-versions/'+btn.getAttribute('data-version')+'/copy/', {}).then(function(resp){
+        if(resp.ok) window.location.reload(); else alert('Ошибка: '+(resp.error||''));
+      });
+    });
+  });
+  if(!form) return;
+  var today = new Date().toISOString().slice(0,10);
+  form.elements.valid_from.value = today;
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var data = Object.fromEntries(new FormData(form).entries());
+    data.legal_entity_id = data.client_id;
+    postJson('/team-manager/billing/api/tariffs/', data).then(function(resp){
+      if(resp.ok) window.location.reload();
+      else alert('Ошибка: '+(resp.error||''));
+    });
+  });
+})();
+</script>
+{% endblock %}

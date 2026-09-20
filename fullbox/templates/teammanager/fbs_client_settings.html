@@ -1,0 +1,164 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}Настройки FBS — {{ agency }}{% endblock %}
+
+{% block extra_css %}
+  .page-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+  .page-title { margin: 0; font-family: "Bricolage Grotesque", "Manrope", sans-serif; font-size: 30px; overflow-wrap: anywhere; }
+  .page-sub { margin-top: 5px; color: var(--muted); font-size: 13px; }
+  .notice { padding: 12px 14px; border: 1px solid var(--stroke, var(--line)); border-radius: 12px; font-size: 13px; font-weight: 700; }
+  .notice.success { color: var(--accent-strong); background: var(--accent-soft); }
+  .notice.warning { color: #9a4b12; background: var(--sun-soft); }
+  .panel { border: 1px solid var(--stroke, var(--line)); border-radius: 14px; background: #fff; overflow: hidden; }
+  .client-switch { display: flex; gap: 10px; align-items: flex-start; padding: 15px 16px; border-bottom: 1px solid var(--stroke, var(--line)); }
+  .client-switch input, .warehouse-check input, .stock-push-check input, .select-all input { width: 20px; min-height: 20px; accent-color: var(--accent); }
+  .client-switch-copy { display: grid; gap: 3px; }
+  .client-switch-copy small { color: var(--muted); line-height: 1.45; }
+  .stock-policy { display: grid; gap: 14px; padding: 16px; border-bottom: 1px solid var(--stroke, var(--line)); background: var(--surface-2); }
+  .stock-policy h2 { margin: 0; font-size: 18px; }
+  .stock-policy-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .stock-policy-card { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--stroke, var(--line)); border-radius: 12px; background: #fff; }
+  .stock-policy-card span, .stock-policy-field small { color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .stock-policy-card strong { font-size: 22px; }
+  .stock-policy-field { display: grid; gap: 6px; max-width: 420px; font-size: 13px; font-weight: 800; }
+  .stock-policy-field input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--stroke, var(--line)); border-radius: 10px; font: inherit; }
+  .marketplace-block + .marketplace-block { border-top: 1px solid var(--stroke, var(--line)); }
+  .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px; }
+  .panel-head h2 { margin: 0 0 6px; font-size: 18px; }
+  .marketplace-summary { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .pill { display: inline-flex; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--stroke, var(--line)); font-size: 11px; font-weight: 800; }
+  .pill.success { color: var(--accent-strong); background: var(--accent-soft); }
+  .pill.danger { color: var(--danger); background: var(--danger-soft); }
+  .select-all, .stock-push-check { display: inline-flex; gap: 8px; align-items: center; font-size: 12px; font-weight: 800; }
+  .table-wrap { overflow: auto; }
+  table { width: 100%; min-width: 760px; border-collapse: collapse; }
+  th, td { padding: 11px 14px; border-top: 1px solid var(--stroke, var(--line)); text-align: left; vertical-align: middle; }
+  th { color: var(--muted); font-size: 12px; background: var(--surface-2); }
+  th:first-child, td:first-child { width: 52px; text-align: center; }
+  .settings-actions { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; padding: 13px 16px; border-top: 1px solid var(--stroke, var(--line)); background: rgba(255,255,255,.96); }
+  .settings-actions .btn:disabled { opacity: .45; cursor: not-allowed; }
+  @media (max-width: 760px) { .stock-policy-grid { grid-template-columns: 1fr; } .settings-actions { position: static; } .settings-actions .btn { flex: 1 1 100%; } }
+{% endblock %}
+
+{% block content %}
+  <header class="page-head">
+    <div>
+      <h1 class="page-title">Настройки FBS · {{ agency }}</h1>
+      <div class="page-sub">Клиент ID {{ agency.id }}{% if agency.inn %} · ИНН {{ agency.inn }}{% endif %}</div>
+    </div>
+    <a class="btn" href="/team-manager/fbs/clients/">Назад к FBS-клиентам</a>
+  </header>
+
+  {% if global_order_pull_enabled %}
+    <div class="notice success">После включения FBS новые заказы клиента проверяются автоматически. Доступно и ручное обновление.</div>
+  {% else %}
+    <div class="notice warning">Автоматическое обновление заказов выключено. Доступно ручное обновление клиента.</div>
+  {% endif %}
+
+  <form class="panel" method="post" action="/team-manager/fbs/clients/{{ agency.id }}/settings/update/" id="fbs-client-form">
+    {% csrf_token %}
+    <label class="client-switch">
+      <input id="fbs-enabled-toggle" type="checkbox" name="fbs_enabled" value="1"{% if fbs_enabled %} checked{% endif %}>
+      <span class="client-switch-copy"><strong>Включить FBS для клиента</strong><small>Активирует получение заказов только с выбранных складов маркетплейса.</small></span>
+    </label>
+    <div class="client-switch">
+      <span class="client-switch-copy"><strong>Выгрузка FBS-остатков настраивается отдельно</strong><small>Галочка «Выгружать» разрешает передачу доступного FBS-остатка клиента на выбранный склад маркетплейса.</small></span>
+    </div>
+    <section class="stock-policy">
+      <div>
+        <h2>Остатки и защита от двойных заказов</h2>
+        <div class="page-sub">Страховой остаток вычитается из доступного количества каждого SKU одинаково для WB и Ozon.</div>
+      </div>
+      <div class="stock-policy-grid">
+        <div class="stock-policy-card"><span>Фактический FBS-остаток</span><strong>{{ stock_overview.actual_qty }} шт.</strong></div>
+        <div class="stock-policy-card"><span>Доступный остаток</span><strong>{{ stock_overview.available_qty }} шт.</strong></div>
+        <div class="stock-policy-card"><span>Расчётно маркетплейсам</span><strong>{{ stock_overview.marketplace_qty }} шт.</strong></div>
+      </div>
+      <label class="stock-policy-field">
+        Страховой остаток на каждый SKU, шт.
+        <input type="number" name="safety_stock_qty" value="{{ stock_overview.safety_stock_qty }}" min="0" max="1000000" step="1" inputmode="numeric" required>
+        <small>0 — без защиты. Минимальная защита от одновременной продажи последней единицы — 1 шт. Складской остаток и резерв не изменяются.</small>
+      </label>
+    </section>
+
+    {% for entry in catalog %}
+      <section class="marketplace-block" data-marketplace="{{ entry.marketplace }}">
+        <div class="panel-head">
+          <div>
+            <h2>{{ entry.label }}</h2>
+            <div class="marketplace-summary">
+              <span class="pill {% if entry.credentials_configured %}success{% else %}danger{% endif %}">{% if entry.credentials_configured %}API-ключ настроен{% else %}Нет API-ключа{% endif %}</span>
+              {% if entry.marketplace == 'ozon' %}<span class="pill {% if entry.client_id_configured %}success{% else %}danger{% endif %}">{% if entry.client_id_configured %}Client ID настроен{% else %}Нет Client ID{% endif %}</span>{% endif %}
+              <span class="muted">Активно {{ entry.active_profiles }} · сохранено {{ entry.configured_profiles }}</span>
+            </div>
+          </div>
+          {% if entry.warehouses %}<label class="select-all"><input type="checkbox" data-select-all="{{ entry.marketplace }}"> Выбрать все</label>{% endif %}
+        </div>
+        {% if entry.error %}<div class="notice warning">{{ entry.error }}</div>{% endif %}
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th></th><th>Склад маркетплейса</th><th>ID склада</th><th>Статус API</th><th>Выгрузка остатков</th></tr></thead>
+            <tbody>
+              {% for warehouse in entry.warehouses %}
+                <tr>
+                  <td><label class="warehouse-check" title="Выбрать склад"><input type="checkbox" name="warehouses_{{ entry.marketplace }}" value="{{ warehouse.warehouse_id }}" data-warehouse="{{ entry.marketplace }}"{% if warehouse.selected %} checked{% endif %}></label></td>
+                  <td><strong>{{ warehouse.name }}</strong></td>
+                  <td>{{ warehouse.warehouse_id }}</td>
+                  <td>{{ warehouse.status|default:"—" }}</td>
+                  <td><label class="stock-push-check"><input type="checkbox" name="stock_push_warehouses_{{ entry.marketplace }}" value="{{ warehouse.warehouse_id }}" data-stock-warehouse="{{ entry.marketplace }}" data-stock-warehouse-id="{{ warehouse.warehouse_id }}"{% if warehouse.stock_push_selected %} checked{% endif %}><span>Выгружать</span></label></td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="5" class="muted">Доступные склады не получены.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endfor %}
+
+    <div class="settings-actions">
+      <button class="btn" type="submit" name="action" value="sync"{% if not fbs_enabled %} disabled{% endif %}>Обновить заказы</button>
+      <button class="btn" type="submit" name="action" value="save">Сохранить</button>
+      <button class="btn primary" type="submit" name="action" value="save_sync">Сохранить и обновить</button>
+    </div>
+  </form>
+
+  <script>
+    (function () {
+      var fbsToggle = document.getElementById("fbs-enabled-toggle");
+      function renderStockToggles() {
+        document.querySelectorAll("[data-stock-warehouse]").forEach(function (stockBox) {
+          var marketplace = stockBox.dataset.stockWarehouse;
+          var warehouseId = stockBox.dataset.stockWarehouseId;
+          var warehouseBox = Array.prototype.find.call(
+            document.querySelectorAll('[data-warehouse="' + marketplace + '"]'),
+            function (box) { return box.value === warehouseId; }
+          );
+          var enabled = !!(fbsToggle && fbsToggle.checked && warehouseBox && warehouseBox.checked);
+          stockBox.disabled = !enabled;
+          if (!enabled) stockBox.checked = false;
+        });
+      }
+      if (fbsToggle) fbsToggle.addEventListener("change", renderStockToggles);
+      document.querySelectorAll("[data-select-all]").forEach(function (toggle) {
+        var marketplace = toggle.dataset.selectAll;
+        var boxes = document.querySelectorAll('[data-warehouse="' + marketplace + '"]');
+        function render() {
+          var checked = Array.prototype.filter.call(boxes, function (box) { return box.checked; }).length;
+          toggle.checked = boxes.length > 0 && checked === boxes.length;
+          toggle.indeterminate = checked > 0 && checked < boxes.length;
+        }
+        toggle.addEventListener("change", function () {
+          boxes.forEach(function (box) { box.checked = toggle.checked; });
+          render();
+          renderStockToggles();
+        });
+        boxes.forEach(function (box) {
+          box.addEventListener("change", function () { render(); renderStockToggles(); });
+        });
+        render();
+      });
+      renderStockToggles();
+    })();
+  </script>
+{% endblock %}

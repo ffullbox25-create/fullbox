@@ -1,0 +1,96 @@
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
+
+from audit.models import OrderAuditEntry
+from logistics.models import LogisticsTrip
+from reachtruck.models import MoveTask
+from shipping.models import ShippingOrder
+from sklad.models import WarehouseEvent, WarehouseOperation, WarehouseReserve
+
+from .models import Task, TaskPanelSnapshot
+
+
+def _invalidate_snapshots_for_route_fragment(fragment: str) -> None:
+    if not fragment:
+        return
+    TaskPanelSnapshot.objects.filter(task__route__contains=fragment).delete()
+
+
+def _invalidate_snapshots_for_context(context_type, context_id) -> None:
+    raw_type = str(context_type or "").strip().lower()
+    raw_id = str(context_id or "").strip()
+    if not raw_id:
+        return
+    if raw_type == "receiving":
+        _invalidate_snapshots_for_route_fragment(f"/orders/receiving/{raw_id}/")
+        return
+    if raw_type == "processing":
+        _invalidate_snapshots_for_route_fragment(f"/orders/processing/{raw_id}/")
+        return
+    if raw_type == "shipping":
+        _invalidate_snapshots_for_route_fragment(f"/shipping/{raw_id}/")
+        return
+    if raw_type in {"logistics", "logistics_trip"}:
+        _invalidate_snapshots_for_route_fragment(f"/logistics/trips/{raw_id}/")
+
+
+def _move_task_shipping_pk(instance: MoveTask) -> int | None:
+    payload = instance.payload if isinstance(instance.payload, dict) else {}
+    for key in ("shipping_order_pk", "order_pk"):
+        value = str(payload.get(key) or "").strip()
+        if value.isdigit():
+            return int(value)
+    shipping_number = str(payload.get("shipping_order_id") or payload.get("order_id") or "").strip()
+    if not shipping_number:
+        return None
+    return ShippingOrder.objects.filter(number=shipping_number).values_list("pk", flat=True).first()
+
+
+@receiver(post_save, sender=Task)
+@receiver(post_delete, sender=Task)
+def invalidate_task_snapshot(sender, instance, **kwargs):
+    TaskPanelSnapshot.objects.filter(task=instance).delete()
+
+
+@receiver(post_save, sender=OrderAuditEntry)
+@receiver(post_delete, sender=OrderAuditEntry)
+def invalidate_order_audit_snapshot(sender, instance, **kwargs):
+    _invalidate_snapshots_for_context(instance.order_type, instance.order_id)
+
+
+@receiver(post_save, sender=ShippingOrder)
+@receiver(post_delete, sender=ShippingOrder)
+def invalidate_shipping_snapshot(sender, instance, **kwargs):
+    _invalidate_snapshots_for_context("shipping", instance.pk)
+
+
+@receiver(post_save, sender=MoveTask)
+@receiver(post_delete, sender=MoveTask)
+def invalidate_move_task_snapshot(sender, instance, **kwargs):
+    shipping_pk = _move_task_shipping_pk(instance)
+    if shipping_pk:
+        _invalidate_snapshots_for_context("shipping", shipping_pk)
+
+
+@receiver(post_save, sender=LogisticsTrip)
+@receiver(post_delete, sender=LogisticsTrip)
+def invalidate_logistics_snapshot(sender, instance, **kwargs):
+    _invalidate_snapshots_for_context("logistics_trip", instance.pk)
+
+
+@receiver(post_save, sender=WarehouseReserve)
+@receiver(post_delete, sender=WarehouseReserve)
+def invalidate_warehouse_reserve_snapshot(sender, instance, **kwargs):
+    _invalidate_snapshots_for_context(instance.context_type, instance.context_id)
+
+
+@receiver(post_save, sender=WarehouseOperation)
+@receiver(post_delete, sender=WarehouseOperation)
+def invalidate_warehouse_operation_snapshot(sender, instance, **kwargs):
+    _invalidate_snapshots_for_context(instance.context_type, instance.context_id)
+
+
+@receiver(post_save, sender=WarehouseEvent)
+@receiver(post_delete, sender=WarehouseEvent)
+def invalidate_warehouse_event_snapshot(sender, instance, **kwargs):
+    _invalidate_snapshots_for_context(instance.stock_context_type, instance.stock_context_id)

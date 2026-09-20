@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ report.title }} | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/head_manager/cabinet.css?v=20260724-1519" rel="stylesheet">
+  <style>
+    :root {
+      --font-body: "Manrope", system-ui, sans-serif;
+      --font-display: "Bricolage Grotesque", "Manrope", system-ui, sans-serif;
+      --bg: #f6f8f7;
+      --surface: #fff;
+      --soft: #f8faf9;
+      --ink: #303030;
+      --muted: #70665f;
+      --accent: #f89000;
+      --accent-strong: #f86800;
+      --accent-header: #f8b800;
+      --accent-soft: rgba(248, 144, 0, 0.13);
+      --stroke: rgba(23, 33, 29, 0.1);
+      --shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: var(--font-body); color: var(--ink); background: var(--bg); }
+    a { color: inherit; text-decoration: none; }
+    h1, h2, p { margin: 0; }
+    h1 { font-family: var(--font-display); font-size: 30px; line-height: 1.15; letter-spacing: 0; }
+    h2 { font-family: var(--font-display); font-size: 18px; letter-spacing: 0; }
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 250px minmax(0, 1fr); }
+    .shell.nav-collapsed { grid-template-columns: 82px minmax(0, 1fr); }
+    .content { min-width: 0; padding: 0 28px 34px; display: grid; gap: 16px; align-content: start; }
+    .topbar { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin: 0 -28px 4px; padding: 22px 28px 20px; background: rgba(255,255,255,.94); border-bottom: 1px solid var(--stroke); box-shadow: 0 8px 24px rgba(15,23,42,.04); }
+    .subtitle, .muted { color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .crumbs { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 7px; color: var(--muted); font-size: 13px; font-weight: 800; }
+    .crumbs a { color: var(--accent-strong); }
+    .actions, .quick-periods { display: flex; flex-wrap: wrap; gap: 8px; }
+    .actions { justify-content: flex-end; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 9px 13px; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+    .btn.primary { border-color: transparent; background: var(--accent); color: #fff; }
+    .stats { display: grid; grid-template-columns: repeat(7, minmax(125px, 1fr)); gap: 10px; }
+    .stat, .panel { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .stat { padding: 14px; display: grid; gap: 8px; min-height: 90px; }
+    .stat-label { color: var(--muted); font-size: 10px; font-weight: 900; text-transform: uppercase; }
+    .stat-value { font-size: 23px; font-weight: 900; line-height: 1; }
+    .stat.warning .stat-value { color: var(--accent-strong); }
+    .panel { padding: 16px; min-width: 0; }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .filters { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)) auto; gap: 10px; align-items: end; }
+    .field { display: grid; gap: 5px; }
+    label { color: var(--muted); font-size: 11px; font-weight: 900; text-transform: uppercase; }
+    input, select { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--stroke); border-radius: var(--radius); background: #fff; color: var(--ink); font: inherit; font-size: 13px; }
+    .filter-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .table-wrap { overflow: auto; max-height: calc(100vh - 235px); border: 1px solid var(--stroke); border-radius: var(--radius); }
+    table { width: 100%; min-width: 4200px; border-collapse: separate; border-spacing: 0; background: var(--surface); }
+    th, td { padding: 9px 10px; border-right: 1px solid var(--stroke); border-bottom: 1px solid var(--stroke); text-align: left; font-size: 11px; vertical-align: middle; white-space: nowrap; }
+    th { position: sticky; top: 34px; z-index: 2; background: var(--soft); color: var(--muted); font-weight: 900; }
+    thead tr:first-child th { top: 0; }
+    th.group { color: var(--ink); background: var(--accent-soft); text-align: center; }
+    th.base { background: #fff8e7; }
+    td.employee { min-width: 210px; font-weight: 900; }
+    td.metric { text-align: right; font-variant-numeric: tabular-nums; }
+    .tag { display: inline-flex; align-items: center; min-height: 24px; padding: 4px 8px; border-radius: var(--radius); color: var(--accent-strong); background: var(--accent-soft); font-size: 11px; font-weight: 900; }
+    .source-ok, .source-partial, .source-missing { display: inline-flex; min-height: 24px; align-items: center; padding: 4px 7px; border-radius: var(--radius); font-size: 10px; font-weight: 900; }
+    .source-ok { color: #23663b; background: #eaf7ee; }
+    .source-partial, .source-missing { color: #9a3b18; background: #fff0e8; }
+    .metric .source-missing { justify-content: flex-end; white-space: normal; text-align: right; }
+    .empty { padding: 24px; border: 1px dashed var(--stroke); border-radius: var(--radius); color: var(--muted); text-align: center; }
+    @media (max-width: 1500px) { .stats { grid-template-columns: repeat(4, minmax(140px, 1fr)); } }
+    @media (max-width: 1100px) { .filters { grid-template-columns: repeat(2, minmax(190px, 1fr)); } }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      .side { position: static; height: auto; grid-template-rows: auto; }
+      .content { padding: 18px; }
+      .topbar { display: grid; margin: -18px -18px 0; padding: 18px; }
+      .actions { justify-content: flex-start; }
+      .stats, .filters { grid-template-columns: 1fr; }
+      .table-wrap { max-height: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" id="dashboard-shell">
+    {% include "head_manager/_main_sidebar.html" with active="reports" %}
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <div class="crumbs">
+            <a href="/head-manager/reports/">Отчёты</a><span>/</span>
+            <a href="/head-manager/reports/employees/">Отчёты по сотрудникам</a><span>/</span>
+            <span>{{ report.title }}</span>
+          </div>
+          <h1>{{ report.title }}</h1>
+          <div class="subtitle">{{ report.subtitle }} Данные на {{ today_label }}, обновлены {{ updated_at }}.</div>
+        </div>
+        <div class="actions">
+          <a class="btn" href="/head-manager/reports/employees/">Все отчёты сотрудников</a>
+          <a class="btn primary" href="{{ export_url }}">Скачать Excel</a>
+        </div>
+      </header>
+
+      <section class="stats" aria-label="Сводка работы склада по сотрудникам">
+        <div class="stat"><div class="stat-label">Сотрудников</div><div class="stat-value">{{ summary.employees }}</div></div>
+        <div class="stat"><div class="stat-label">Дней с данными</div><div class="stat-value">{{ summary.days }}</div></div>
+        <div class="stat"><div class="stat-label">Принято ЧЗ</div><div class="stat-value">{{ summary.receiving_cz_units }}</div></div>
+        <div class="stat"><div class="stat-label">FBS отобрано</div><div class="stat-value">{{ summary.pick_units }}</div></div>
+        <div class="stat"><div class="stat-label">FBS проверено</div><div class="stat-value">{{ summary.verified_units }}</div></div>
+        <div class="stat"><div class="stat-label">FBS отгружено</div><div class="stat-value">{{ summary.shipment_units }}</div></div>
+        <div class="stat"><div class="stat-label">Обработано</div><div class="stat-value">{{ summary.processing_units }}</div></div>
+        <div class="stat"><div class="stat-label">Сформировано коробов</div><div class="stat-value">{{ summary.processing_boxes }}</div></div>
+        <div class="stat warning"><div class="stat-label">Нет источника</div><div class="stat-value">{{ summary.no_source_employees }}</div></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div><h2>Фильтры</h2><div class="muted">Все показатели относятся к фактически завершённым действиям.</div></div>
+          <div class="quick-periods">
+            <a class="btn" href="?date_from={{ today_iso }}&date_to={{ today_iso }}">Сегодня</a>
+            <a class="btn" href="?date_from={{ week_from_iso }}&date_to={{ today_iso }}">7 дней</a>
+            <a class="btn" href="?date_from={{ month_from_iso }}&date_to={{ today_iso }}">30 дней</a>
+          </div>
+        </div>
+        <form class="filters" method="get">
+          <div class="field"><label for="date_from">Дата с</label><input id="date_from" name="date_from" type="date" value="{{ filters.date_from }}"></div>
+          <div class="field"><label for="date_to">Дата по</label><input id="date_to" name="date_to" type="date" value="{{ filters.date_to }}"></div>
+          <div class="field"><label for="employee">Сотрудник</label><input id="employee" name="employee" value="{{ filters.employee }}" placeholder="ФИО или логин"></div>
+          <div class="field">
+            <label for="role">Роль</label>
+            <select id="role" name="role">
+              <option value="">Все роли</option>
+              {% for value, label in role_choices %}<option value="{{ value }}"{% if filters.role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="filter-actions"><button class="btn primary" type="submit">Применить</button><a class="btn" href="/head-manager/reports/employees/warehouse-productivity/">Сбросить</a></div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div><h2>Действия по дням</h2><div class="muted">Первое и последнее действие показывают след активности в системе, а не табель рабочего времени.</div></div>
+          <span class="tag">{{ filters.date_from }} · {{ filters.date_to }}</span>
+        </div>
+        {% if rows %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="base" rowspan="2">Дата</th><th class="base" rowspan="2">Сотрудник</th><th class="base" rowspan="2">Роль</th><th class="base" rowspan="2">Данные</th>
+                  <th class="base" rowspan="2">Первое действие</th><th class="base" rowspan="2">Последнее действие</th><th class="base" rowspan="2">Интервал</th><th class="base" rowspan="2">Контуры</th>
+                  {% for group in metric_groups %}<th class="group" colspan="{{ group.metrics|length }}">{{ group.title }}</th>{% endfor %}
+                </tr>
+                <tr>
+                  {% for group in metric_groups %}{% for key, label, help in group.metrics %}<th title="{{ help }}">{{ label }}</th>{% endfor %}{% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                  <tr>
+                    <td>{{ row.date }}</td><td class="employee">{% if row.detail_url %}<a href="{{ row.detail_url }}" style="color:var(--accent-strong);text-decoration:underline;text-underline-offset:3px">{{ row.employee }}</a>{% else %}{{ row.employee }}{% endif %}</td><td>{{ row.role }}</td>
+                    <td>{% if row.source_missing %}<span class="source-missing">{{ row.source_status }}</span>{% elif "Частично" in row.source_status %}<span class="source-partial">{{ row.source_status }}</span>{% else %}<span class="source-ok">{{ row.source_status }}</span>{% endif %}</td>
+                    <td>{{ row.first_action_label }}</td><td>{{ row.last_action_label }}</td><td>{{ row.activity_span_label }}</td><td>{{ row.contours_label }}</td>
+                    {% for cell in row.metric_cells %}<td class="metric">{{ cell.value|default_if_none:"нет источника" }}</td>{% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty">За выбранный период завершённых действий по заданным фильтрам нет.</div>
+        {% endif %}
+      </section>
+    </main>
+  </div>
+  <script>
+    (function () {
+      var shell = document.getElementById("dashboard-shell");
+      var button = document.getElementById("sidebar-collapse");
+      if (!shell || !button) return;
+      var storageKey = "head-manager-sidebar-collapsed";
+      var collapsed = localStorage.getItem(storageKey) === "1";
+      function render() { shell.classList.toggle("nav-collapsed", collapsed); button.setAttribute("aria-expanded", collapsed ? "false" : "true"); }
+      button.addEventListener("click", function () { collapsed = !collapsed; localStorage.setItem(storageKey, collapsed ? "1" : "0"); render(); });
+      render();
+    })();
+  </script>
+</body>
+</html>

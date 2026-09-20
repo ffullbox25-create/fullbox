@@ -1,0 +1,30 @@
+{% extends "fbs/tsd_base.html" %}
+{% block title %}Передать тару{% endblock %}
+{% block content %}
+<section class="card">
+  <a class="button button-secondary" href="{% url 'fbs:controller_home' %}">К рабочему месту</a>
+  <h1>Передать тару</h1>
+  <p>Тары со всех столов, которые ещё не приняты в работу. Выберите нового контролёра и передайте ему тару.</p>
+  <form method="get" style="display:flex;gap:10px;flex-wrap:wrap">
+    <input name="q" type="search" value="{{ query }}" placeholder="QR тары, волна, клиент или стол" aria-label="Поиск тары">
+    <button class="button button-secondary">Найти</button>
+  </form>
+</section>
+<div style="display:grid;gap:12px;margin-top:12px">
+{% for row in rows %}
+<section class="card" style="padding:16px;border:1px solid #e7e1d8;border-radius:12px;background:white">
+  <strong>{{ row.tote.name }} · {{ row.tote.barcode }}</strong>
+  <p>Волна №{{ row.pick_batch_id }} · {{ row.pick_batch.agency }}<br>Сейчас: {{ row.workstation.name }} · Ожидает контролёра</p>
+  {% if row.transfer_targets %}
+  <form method="post" data-submit-once style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+    {% csrf_token %}<input type="hidden" name="binding_id" value="{{ row.id }}">
+    <input type="hidden" name="source_workstation_id" value="{{ row.workstation_id }}">
+    <label>Новый контролёр<select name="target_session_id" required><option value="">Выберите</option>
+    {% for target in row.transfer_targets %}<option value="{{ target.id }}">{{ target.controller_name }} · {{ target.workstation.name }}</option>{% endfor %}</select></label>
+    <button class="button button-primary"{% if not warehouse_writes_enabled %} disabled{% endif %}>Передать</button>
+  </form>
+  {% else %}<p>Нет другого стола с активной сменой контролёра.</p>{% endif %}
+</section>
+{% empty %}<section class="card">Ожидающих тар по выбранному фильтру нет.</section>{% endfor %}
+</div>
+{% endblock %}

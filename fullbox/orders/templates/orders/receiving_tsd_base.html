@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}Приемка на TSD{% endblock %} · Фуллбокс</title>
+  <link rel="stylesheet" href="{% url 'orders-receiving-tsd-asset' 'receiving_tsd.css' %}?v=20260913-exit-1">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <main class="tsd-shell">
+    <header class="tsd-topbar">
+      <div class="tsd-brand">
+        {% include "partials/fullbox_brand.html" %}
+        <span>Приемка · TSD</span>
+      </div>
+      <div class="tsd-user">
+        {% if employee %}<strong>{{ employee.full_name }}</strong>{% endif %}
+        <a class="tsd-exit-button" href="/tsd/receiving/?switch=1">Выйти</a>
+      </div>
+    </header>
+    {% for message in messages %}
+      <div class="notice {% if 'error' in message.tags %}notice-error{% else %}notice-ok{% endif %}">{{ message }}</div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,1015 @@
+{% extends "teammanager/_base.html" %}
+{% load static %}
+
+{% block title %}Чаты | Кабинет менеджера{% endblock %}
+
+{% block extra_css %}
+    .page-head { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+    .page-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 28px;
+    }
+    .page-sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .chats-layout {
+      display: grid;
+      grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(220px, 280px);
+      gap: 12px;
+      min-height: calc(100vh - 140px);
+      align-items: stretch;
+    }
+    .chats-col {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .chats-col-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-2);
+    }
+    .chats-col-head h2 {
+      margin: 0;
+      font-size: 14px;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    }
+    .chat-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 10px 12px 0;
+    }
+    .chat-filter {
+      display: inline-flex;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+      text-decoration: none;
+    }
+    .chat-filter.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent-strong);
+    }
+    .chat-search {
+      padding: 10px 12px 12px;
+    }
+    .chat-search input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      box-sizing: border-box;
+    }
+    .chat-list {
+      overflow: auto;
+      flex: 1;
+      min-height: 0;
+    }
+    .chat-card {
+      display: block;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      color: inherit;
+      text-decoration: none;
+    }
+    .chat-card:hover { background: rgba(14, 107, 91, 0.04); }
+    .chat-card.active {
+      background: var(--accent-soft);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+    .chat-card-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .chat-card-title { font-weight: 700; font-size: 13px; }
+    .chat-card-meta { color: var(--muted); font-size: 11px; margin-top: 2px; }
+    .chat-card-preview {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .chat-badge {
+      min-width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: var(--danger, #d4543c);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      display: inline-grid;
+      place-items: center;
+      padding: 0 5px;
+    }
+    .chat-tag {
+      display: inline-flex;
+      margin-top: 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .chat-tag.internal { background: #fff7e0; border-color: #efd48a; color: #7a5a10; }
+    .thread-pane { display: flex; flex-direction: column; min-height: 0; }
+    .thread-head {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-2);
+    }
+    .thread-head h2 { margin: 0; font-size: 16px; font-family: "Bricolage Grotesque", "Manrope", sans-serif; }
+    .thread-head .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .messages {
+      flex: 1;
+      overflow: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 280px;
+      background: linear-gradient(180deg, rgba(242, 239, 232, 0.55), transparent 120px);
+    }
+    .msg {
+      max-width: min(720px, 92%);
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #fffdf8;
+      align-self: flex-start;
+    }
+    .msg.staff { align-self: flex-end; background: #fff; }
+    .msg.internal {
+      background: #fff7e0;
+      border-color: #efd48a;
+    }
+    .msg.system {
+      align-self: center;
+      background: #efefef;
+      color: var(--muted);
+      font-size: 12px;
+      max-width: 85%;
+      text-align: center;
+    }
+    .msg-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .msg-text { font-size: 14px; white-space: pre-wrap; word-break: break-word; }
+    .msg-files { margin-top: 8px; display: grid; gap: 8px; }
+    .msg-files a.chat-file-link { font-size: 12px; font-weight: 700; color: var(--accent-strong); text-decoration: none; }
+    .msg-files a.chat-file-link:hover { text-decoration: underline; }
+    .msg-files a.chat-file-thumb {
+      display: grid; gap: 4px; text-decoration: none; color: var(--ink); max-width: 220px;
+    }
+    .msg-files a.chat-file-thumb img {
+      width: 100%; max-height: 160px; object-fit: cover; border-radius: 10px;
+      border: 1px solid var(--line); background: #fff;
+    }
+    .msg-files a.chat-file-thumb span { font-size: 11px; color: var(--muted); font-weight: 600; }
+    .chat-dropzone.is-dragover {
+      outline: 2px dashed var(--accent);
+      outline-offset: 2px;
+      background: var(--accent-soft);
+    }
+    .chat-attach-preview {
+      display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    .chat-attach-chip {
+      display: inline-flex; gap: 6px; align-items: center;
+      padding: 4px 8px; border-radius: 999px; background: var(--surface-2);
+      border: 1px solid var(--line); font-size: 11px; font-weight: 700;
+    }
+    .chat-attach-chip small { color: var(--muted); font-weight: 600; }
+    .drop-hint { font-size: 11px; color: var(--muted); font-weight: 600; }
+    .chat-pin-bar {
+      margin: 0 14px 8px; padding: 8px 12px; border-radius: 10px;
+      background: #fff8e8; border: 1px solid #f0e0b0; font-size: 12px;
+      display: flex; justify-content: space-between; gap: 10px; align-items: flex-start;
+    }
+    .chat-pin-bar strong { display:block; font-size:11px; color:#8a5a00; margin-bottom:2px; }
+    .chat-mention { color: var(--accent-strong); font-weight: 800; }
+    .msg-edited { font-size: 11px; color: var(--muted); margin-left: 6px; }
+    .mention-box {
+      position: absolute; left: 14px; right: 14px; bottom: 100%;
+      background: #fffdf8; border: 1px solid var(--line); border-radius: 12px;
+      box-shadow: var(--shadow); max-height: 180px; overflow: auto; z-index: 6;
+    }
+    .mention-box button {
+      display: block; width: 100%; text-align: left; border: 0; background: transparent;
+      padding: 8px 12px; font: inherit; font-size: 13px; cursor: pointer;
+    }
+    .mention-box button:hover { background: var(--accent-soft); }
+    .msg-badge-internal {
+      display: inline-block;
+      margin-bottom: 4px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #7a5a10;
+    }
+    .composer {
+      border-top: 1px solid var(--line);
+      padding: 12px 14px;
+      display: grid;
+      gap: 8px;
+      background: var(--surface);
+    }
+    .composer textarea {
+      width: 100%;
+      min-height: 72px;
+      resize: vertical;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      font: inherit;
+      box-sizing: border-box;
+      background: #fff;
+    }
+    .composer-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .vis-hint {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .vis-hint.warn { color: #7a5a10; }
+    .composer-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .composer select, .composer input[type="file"] {
+      font-size: 12px;
+    }
+    .ai-draft-card {
+      margin: 0 14px 10px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px dashed var(--accent, #0e6b5b);
+      background: #f3faf7;
+      display: none;
+      gap: 8px;
+    }
+    .ai-draft-card.is-open { display: grid; }
+    .ai-draft-card.is-loading { opacity: .75; }
+    .ai-draft-head {
+      display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center;
+    }
+    .ai-draft-head strong {
+      font-family: "Bricolage Grotesque", Manrope, sans-serif;
+      font-size: 14px;
+      color: var(--accent-strong, #0b5246);
+    }
+    .ai-draft-meta { font-size: 11px; color: var(--muted); font-weight: 700; }
+    .ai-draft-text {
+      white-space: pre-wrap;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--ink);
+      background: #fffdf8;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+    .ai-draft-sources, .ai-draft-warn {
+      font-size: 12px; color: var(--muted); line-height: 1.4;
+    }
+    .ai-draft-warn { color: #8a6a12; }
+    .ai-draft-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .ai-draft-actions .btn { font-size: 12px; padding: 7px 10px; }
+    .info-list { padding: 12px 14px; display: grid; gap: 10px; overflow: auto; }
+    .info-row { display: grid; gap: 2px; }
+    .info-label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+    .info-value { font-size: 13px; font-weight: 600; }
+    .empty-state {
+      padding: 28px 18px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+    }
+    @media (max-width: 1100px) {
+      .chats-layout { grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); }
+      .chats-info { display: none; }
+    }
+    @media (max-width: 760px) {
+      .chats-layout { grid-template-columns: 1fr; min-height: auto; }
+      .chat-list { max-height: 280px; }
+    }
+{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Чаты</h1>
+      <div class="page-sub">
+        {% if chat_warehouse_mode %}
+          Внутренние чаты заявок со складом. Клиент эти сообщения не видит.
+        {% else %}
+          Клиентские и внутренние переписки. Комментарии склада попадают во внутренний чат заявки.
+        {% endif %}
+      </div>
+    </div>
+    <div class="head-actions" style="display:flex;gap:8px;flex-wrap:wrap">
+      {% if chats_enabled %}
+      <a class="btn ghost" href="/team-manager/chats/telegram/">Telegram</a>
+      <button type="button" class="btn ghost" id="chat-mark-all-read">Отметить всё прочитанным</button>
+      <button type="button" class="btn ghost" id="chat-enable-browser">Браузерные уведомления</button>
+      {% if chat_selected and not chat_warehouse_mode %}
+      <button type="button" class="btn" id="chat-resolve">Вопрос решён</button>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not chats_enabled %}
+  <section class="chats-col" style="padding:22px;min-height:auto">
+    <h2 style="margin:0 0 8px">Чаты временно отключены</h2>
+    <p class="empty-state" style="padding:0;text-align:left">
+      Раздел выключен администратором, чтобы снизить нагрузку на программу. История чатов сохранится и будет доступна после включения.
+    </p>
+  </section>
+  {% else %}
+  <div class="chats-layout" id="chats-root"
+       data-thread-id="{{ chat_selected.id|default:'' }}"
+       data-user-id="{{ chat_current_user_id|default:'' }}"
+       data-agency-id="{{ chat_selected.agency_id|default:'' }}"
+       data-api-base="/team-manager/api/chats/">
+    <section class="chats-col">
+      <div class="chats-col-head"><h2>Список чатов</h2></div>
+      <div class="chat-filters">
+        {% for tab in chat_kind_tabs %}
+          <a class="chat-filter {% if chat_filters.kind == tab.key %}active{% endif %}"
+             href="?kind={{ tab.key }}{% if chat_filters.q %}&q={{ chat_filters.q|urlencode }}{% endif %}">{{ tab.label }}</a>
+        {% endfor %}
+      </div>
+      <form class="chat-search" method="get">
+        <input type="hidden" name="kind" value="{{ chat_filters.kind }}">
+        <input type="search" name="q" value="{{ chat_filters.q }}" placeholder="Клиент, заявка, текст…">
+      </form>
+      <div class="chat-list">
+        {% for card in chat_cards %}
+          <a class="chat-card {% if chat_selected and chat_selected.id == card.id %}active{% endif %}"
+             href="?kind={{ chat_filters.kind }}&thread={{ card.id }}{% if chat_filters.q %}&q={{ chat_filters.q|urlencode }}{% endif %}">
+            <div class="chat-card-top">
+              <div>
+                <div class="chat-card-title">{{ card.agency_name }}</div>
+                <div class="chat-card-meta">{{ card.title }}</div>
+              </div>
+              <div style="text-align:right">
+                <div class="chat-card-meta">{{ card.preview_at }}</div>
+                {% if card.unread %}<span class="chat-badge">{{ card.unread }}</span>{% endif %}
+              </div>
+            </div>
+            <div class="chat-card-preview">
+              {% if card.preview_author %}{{ card.preview_author }}: {% endif %}{{ card.preview|default:"Нет сообщений" }}
+            </div>
+            <span class="chat-tag {% if card.is_internal %}internal{% endif %}">{{ card.kind_label }}</span>
+          </a>
+        {% empty %}
+          <div class="empty-state">Чатов пока нет. Общие чаты клиентов создаются автоматически.</div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="chats-col thread-pane">
+      {% if chat_selected %}
+        <div class="thread-head">
+          <h2>{{ chat_selected.title }}</h2>
+          <div class="sub">
+            {{ chat_selected.agency_name }}
+            {% if chat_selected.order_id %} · {{ chat_selected.order_id }}{% endif %}
+            {% if chat_selected.is_archived %} · Архив{% endif %}
+            {% if chat_selected.order_url %}
+              · <a href="{{ chat_selected.order_url }}">Открыть заявку</a>
+            {% endif %}
+          </div>
+        </div>
+        {% if chat_pinned %}
+        <div class="chat-pin-bar" id="chat-pin-bar">
+          <div>
+            <strong>📌 Закреплено</strong>
+            <div>{{ chat_pinned.author }}: {{ chat_pinned.text|truncatechars:160 }}</div>
+          </div>
+          <button type="button" class="btn ghost" id="chat-unpin" style="padding:4px 8px;font-size:11px">Открепить</button>
+        </div>
+        {% endif %}
+        <div class="messages" id="chat-messages">
+          {% for msg in chat_messages %}
+            <div class="msg {% if msg.author_role == 'staff' %}staff{% endif %} {% if msg.is_internal %}internal{% endif %} {% if msg.author_role == 'system' or msg.visibility == 'system' %}system{% endif %}" data-msg-id="{{ msg.id }}">
+              {% if msg.is_internal %}<div class="msg-badge-internal">Внутреннее сообщение</div>{% endif %}
+              <div class="msg-meta">
+                <span>{{ msg.author }}{% if msg.is_edited %}<span class="msg-edited">(изм.)</span>{% endif %}{% if msg.is_pinned %} 📌{% endif %}</span>
+                <span>{{ msg.created_at }}{% if msg.is_read_by_staff and msg.author_role == 'client' %} · прочитано{% endif %}</span>
+              </div>
+              <div class="msg-text">{{ msg.text }}</div>
+              {% if msg.attachments %}
+                <div class="msg-files">
+                  {% for file in msg.attachments %}
+                    {% if file.is_image %}
+                      <a class="chat-file-thumb" href="{{ file.url }}" data-lightbox="1" data-filename="{{ file.filename }}">
+                        <img src="{{ file.url }}{% if '?' in file.url %}&{% else %}?{% endif %}inline=1" alt="{{ file.filename }}" loading="lazy">
+                        <span>{{ file.filename }}{% if file.size_label %} · {{ file.size_label }}{% endif %}</span>
+                      </a>
+                    {% else %}
+                      <a class="chat-file-link" href="{{ file.url }}" target="_blank" rel="noopener">📎 {{ file.filename }}{% if file.size_label %} <small>({{ file.size_label }})</small>{% endif %}</a>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          {% empty %}
+            <div class="empty-state">Напишите первое сообщение в этом чате.</div>
+          {% endfor %}
+        </div>
+        <form class="composer chat-dropzone" id="chat-composer" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="reply_to" id="chat-reply-to" value="">
+          <div id="chat-reply-preview" class="vis-hint" hidden></div>
+          <div style="position:relative">
+            <textarea name="text" id="chat-text" placeholder="Текст… @имя для упоминания, файлы можно перетащить" {% if chat_selected.is_archived %}disabled{% endif %}></textarea>
+            <div class="mention-box" id="chat-mention-box" hidden></div>
+          </div>
+          <div class="chat-attach-preview" id="chat-attach-preview" hidden></div>
+          {% if chat_ai_copilot and not chat_selected.is_archived %}
+          <div class="ai-draft-card" id="ai-draft-card" aria-live="polite">
+            <div class="ai-draft-head">
+              <strong>Черновик ИИ</strong>
+              <span class="ai-draft-meta" id="ai-draft-meta"></span>
+            </div>
+            <div class="ai-draft-text" id="ai-draft-text">ИИ готовит ответ…</div>
+            <div class="ai-draft-sources" id="ai-draft-sources"></div>
+            <div class="ai-draft-warn" id="ai-draft-warn"></div>
+            <div class="ai-draft-actions">
+              <button type="button" class="btn" id="ai-draft-insert">Вставить в сообщение</button>
+              <button type="button" class="btn ghost" id="ai-draft-retry">Другой вариант</button>
+              <button type="button" class="btn ghost" id="ai-draft-reject">Отклонить</button>
+            </div>
+          </div>
+          {% endif %}
+          <div class="composer-row">
+            <div>
+              {% if chat_selected.is_internal %}
+                <div class="vis-hint warn">Клиент не увидит это сообщение</div>
+                <input type="hidden" name="visibility" value="internal">
+              {% else %}
+                <label class="vis-hint">
+                  Видимость:
+                  <select name="visibility" id="chat-visibility">
+                    <option value="client">Видно клиенту</option>
+                    <option value="internal">Только FullBox</option>
+                  </select>
+                </label>
+                <div class="vis-hint warn" id="internal-hint" hidden>Клиент не увидит это сообщение</div>
+              {% endif %}
+              <div class="drop-hint">Изображения, PDF, Word, Excel, TXT, ZIP · до 15 МБ</div>
+            </div>
+            <div class="composer-actions">
+              {% if chat_ai_copilot and not chat_selected.is_archived %}
+              <button type="button" class="btn ghost" id="ai-suggest-btn">Предложить ответ</button>
+              {% endif %}
+              <input type="file" name="attachments" id="chat-files" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.rtf,.zip" {% if chat_selected.is_archived %}disabled{% endif %}>
+              <button class="btn primary" type="submit" {% if chat_selected.is_archived %}disabled{% endif %}>Отправить</button>
+            </div>
+          </div>
+        </form>
+      {% else %}
+        <div class="empty-state">Выберите чат слева.</div>
+      {% endif %}
+    </section>
+
+    <section class="chats-col chats-info">
+      <div class="chats-col-head"><h2>О чате</h2></div>
+      {% if chat_selected %}
+        <div class="info-list">
+          <div class="info-row">
+            <div class="info-label">Клиент</div>
+            <div class="info-value">{{ chat_selected.agency_name }}</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">Тип чата</div>
+            <div class="info-value">{{ chat_selected.kind_label }}</div>
+          </div>
+          {% if chat_selected.order_id %}
+          <div class="info-row">
+            <div class="info-label">Заявка</div>
+            <div class="info-value">{{ chat_selected.order_id }}</div>
+          </div>
+          {% endif %}
+          <div class="info-row">
+            <div class="info-label">Архив</div>
+            <div class="info-value">{% if chat_selected.is_archived %}Да{% else %}Нет{% endif %}</div>
+          </div>
+          {% if chat_selected.order_url %}
+          <div class="info-row">
+            <div class="info-label">Ссылка</div>
+            <div class="info-value"><a href="{{ chat_selected.order_url }}">Открыть заявку</a></div>
+          </div>
+          {% endif %}
+          <div class="info-row">
+            <div class="info-label">Важно</div>
+            <div class="info-value" style="font-weight:500;color:var(--muted)">
+              {% if chat_selected.is_internal %}
+                Внутренний чат: клиент не видит сообщения.
+              {% else %}
+                Клиентский чат: внутренние сообщения помечайте явно.
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-state">Нет выбранного чата.</div>
+      {% endif %}
+    </section>
+  </div>
+
+  <script src="{% static 'client_cabinet/chat-messenger.js' %}?v=20260719-chat2"></script>
+  <script src="{% static 'client_cabinet/chat-files.js' %}?v=20260719-files"></script>
+  <script>
+  (function () {
+    const FB = window.FullboxChat || {};
+    const root = document.getElementById("chats-root");
+    const form = document.getElementById("chat-composer");
+    if (!root || !form) return;
+    if (FB.bindLightbox) FB.bindLightbox(root);
+    if (FB.bindComposerDropzone) {
+      FB.bindComposerDropzone(form, document.getElementById("chat-files"), document.getElementById("chat-attach-preview"));
+    }
+    const threadId = root.dataset.threadId;
+    const apiBase = root.dataset.apiBase;
+    const visSelect = document.getElementById("chat-visibility");
+    const hint = document.getElementById("internal-hint");
+    const messagesEl = document.getElementById("chat-messages");
+    let lastId = 0;
+    let known = {};
+    let poller = null;
+
+    function syncHint() {
+      if (!visSelect || !hint) return;
+      hint.hidden = visSelect.value !== "internal";
+    }
+    if (visSelect) {
+      visSelect.addEventListener("change", syncHint);
+      syncHint();
+    }
+
+    const userId = String(root.dataset.userId || "");
+    const agencyId = String(root.dataset.agencyId || "");
+
+    function escapeHtml(s) {
+      return FB.escapeHtml ? FB.escapeHtml(s) : String(s || "");
+    }
+
+    function formatText(text) {
+      return escapeHtml(text || "").replace(/@([\w.\-а-яА-ЯёЁ]{2,40})/g, '<span class="chat-mention">@$1</span>');
+    }
+
+    function msgHtml(msg) {
+      const cls = [
+        "msg",
+        msg.author_role === "staff" ? "staff" : "",
+        msg.is_internal ? "internal" : "",
+        (msg.author_role === "system" || msg.visibility === "system") ? "system" : "",
+      ].join(" ");
+      const badge = msg.is_internal
+        ? '<div class="msg-badge-internal">Только для сотрудников FullBox</div>'
+        : "";
+      const files = FB.renderAttachmentsHtml
+        ? FB.renderAttachmentsHtml(msg.attachments || [])
+        : "";
+      const marks = FB.deliveryMarks ? FB.deliveryMarks(msg.delivery_status) : "";
+      const reply = msg.reply_to
+        ? ('<div class="msg-reply" style="font-size:12px;color:var(--muted);border-left:3px solid var(--accent);padding-left:8px;margin-bottom:6px">↩ '
+           + escapeHtml((msg.reply_to.author || "") + ": " + (msg.reply_to.text || "")) + "</div>")
+        : "";
+      const mine = userId && String(msg.author_id || "") === userId;
+      let actions = "";
+      if (!msg.is_deleted && msg.author_role !== "system") {
+        actions = '<div class="msg-actions" style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">'
+          + '<button type="button" class="btn ghost" data-reply="' + escapeHtml(msg.id) + '" data-reply-text="' + escapeHtml((msg.text || "").slice(0,120)) + '" style="padding:4px 8px;font-size:11px">Ответить</button>'
+          + '<button type="button" class="btn ghost" data-task="' + escapeHtml(msg.id) + '" style="padding:4px 8px;font-size:11px">Создать задачу</button>'
+          + '<button type="button" class="btn ghost" data-pin="' + escapeHtml(msg.id) + '" style="padding:4px 8px;font-size:11px">' + (msg.is_pinned ? "Открепить" : "Закрепить") + "</button>";
+        if (mine) {
+          actions += '<button type="button" class="btn ghost" data-edit="' + escapeHtml(msg.id) + '" data-edit-text="' + escapeHtml(msg.text || "") + '" style="padding:4px 8px;font-size:11px">Изменить</button>';
+        }
+        actions += '<button type="button" class="btn ghost" data-delete="' + escapeHtml(msg.id) + '" style="padding:4px 8px;font-size:11px">Удалить</button></div>';
+      }
+      return (
+        '<div class="' + cls + '" data-msg-id="' + escapeHtml(msg.id) + '">' +
+          badge +
+          '<div class="msg-meta"><span>' + escapeHtml(msg.author) +
+            (msg.is_edited ? '<span class="msg-edited">(изм.)</span>' : "") +
+            (msg.is_pinned ? " 📌" : "") +
+          "</span><span>" +
+            escapeHtml(msg.created_at) + (marks ? (" · " + marks) : "") +
+          "</span></div>" +
+          reply +
+          '<div class="msg-text">' + formatText(msg.text) + "</div>" +
+          files +
+          actions +
+        "</div>"
+      );
+    }
+
+    function renderMessages(items, append) {
+      if (!messagesEl) return;
+      const rows = items || [];
+      if (!append) {
+        known = {};
+        if (!rows.length) {
+          messagesEl.innerHTML = '<div class="empty-state">Напишите первое сообщение в этом чате.</div>';
+          return;
+        }
+        messagesEl.innerHTML = rows.map(msgHtml).join("");
+        rows.forEach(function (m) {
+          known[m.id] = true;
+          lastId = Math.max(lastId, Number(m.id) || 0);
+        });
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return;
+      }
+      rows.filter(function (m) { return !known[m.id]; }).forEach(function (m) {
+        known[m.id] = true;
+        lastId = Math.max(lastId, Number(m.id) || 0);
+        messagesEl.insertAdjacentHTML("beforeend", msgHtml(m));
+        if (m.author_role === "client") {
+          if (FB.playPing) FB.playPing();
+          if (FB.showToast) FB.showToast({ title: "Сообщение клиента", text: m.text || "", href: location.href });
+        }
+      });
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      if (!threadId) return;
+      const fd = new FormData(form);
+      fd.append("idempotency_key", FB.newIdempotencyKey ? FB.newIdempotencyKey() : ("k-" + Date.now()));
+      const btn = form.querySelector('button[type="submit"]');
+      if (btn) btn.disabled = true;
+      try {
+        const resp = await fetch(apiBase + threadId + "/messages/", {
+          method: "POST",
+          body: fd,
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+          credentials: "same-origin",
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) {
+          alert((data && data.error) || "Не удалось отправить");
+          return;
+        }
+        form.reset();
+        const preview = document.getElementById("chat-attach-preview");
+        if (preview) { preview.hidden = true; preview.innerHTML = ""; }
+        syncHint();
+        renderMessages(data.data.messages || [], false);
+        if (poller) poller.setLastId(lastId);
+      } catch (err) {
+        alert("Ошибка сети при отправке");
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
+
+
+    let replyToId = "";
+    const replyInput = document.getElementById("chat-reply-to");
+    const replyPreview = document.getElementById("chat-reply-preview");
+    if (messagesEl) {
+      messagesEl.addEventListener("click", async function (ev) {
+        const replyBtn = ev.target.closest("[data-reply]");
+        if (replyBtn) {
+          replyToId = replyBtn.getAttribute("data-reply") || "";
+          if (replyInput) replyInput.value = replyToId;
+          if (replyPreview) {
+            replyPreview.hidden = false;
+            replyPreview.textContent = "Ответ на: " + (replyBtn.getAttribute("data-reply-text") || "");
+          }
+          const ta = document.getElementById("chat-text");
+          if (ta) ta.focus();
+          return;
+        }
+        const taskBtn = ev.target.closest("[data-task]");
+        if (taskBtn) {
+          const mid = taskBtn.getAttribute("data-task");
+          if (!mid || !confirm("Создать задачу из этого сообщения?")) return;
+          const resp = await fetch("/team-manager/api/chats/messages/" + mid + "/create-task/", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": (FB.csrfToken && FB.csrfToken()) || "",
+            },
+            body: JSON.stringify({}),
+          });
+          const data = await resp.json();
+          if (!resp.ok || !data.ok) {
+            alert((data && data.error) || "Не удалось создать задачу");
+            return;
+          }
+          alert("Создана задача №" + data.data.task_id);
+          location.reload();
+          return;
+        }
+        const pinBtn = ev.target.closest("[data-pin]");
+        if (pinBtn && threadId) {
+          const mid = pinBtn.getAttribute("data-pin");
+          const resp = await fetch(apiBase + threadId + "/pin/", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": (FB.csrfToken && FB.csrfToken()) || "",
+            },
+            body: JSON.stringify({ message_id: mid }),
+          });
+          const data = await resp.json();
+          if (!resp.ok || !data.ok) {
+            alert((data && data.error) || "Не удалось закрепить");
+            return;
+          }
+          location.reload();
+          return;
+        }
+        const editBtn = ev.target.closest("[data-edit]");
+        if (editBtn) {
+          const mid = editBtn.getAttribute("data-edit");
+          const next = prompt("Новый текст сообщения", editBtn.getAttribute("data-edit-text") || "");
+          if (next === null) return;
+          const resp = await fetch("/team-manager/api/chats/messages/" + mid + "/edit/", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": (FB.csrfToken && FB.csrfToken()) || "",
+            },
+            body: JSON.stringify({ text: next }),
+          });
+          const data = await resp.json();
+          if (!resp.ok || !data.ok) {
+            alert((data && data.error) || "Не удалось изменить");
+            return;
+          }
+          location.reload();
+          return;
+        }
+        const delBtn = ev.target.closest("[data-delete]");
+        if (delBtn) {
+          const mid = delBtn.getAttribute("data-delete");
+          if (!mid || !confirm("Удалить сообщение? Оно останется в истории как удалённое.")) return;
+          const resp = await fetch("/team-manager/api/chats/messages/" + mid + "/delete/", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": (FB.csrfToken && FB.csrfToken()) || "",
+            },
+            body: JSON.stringify({}),
+          });
+          const data = await resp.json();
+          if (!resp.ok || !data.ok) {
+            alert((data && data.error) || "Не удалось удалить");
+            return;
+          }
+          location.reload();
+        }
+      });
+    }
+    const unpinBtn = document.getElementById("chat-unpin");
+    if (unpinBtn && threadId) {
+      unpinBtn.addEventListener("click", async function () {
+        const resp = await fetch(apiBase + threadId + "/pin/", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": (FB.csrfToken && FB.csrfToken()) || "",
+          },
+          body: JSON.stringify({ message_id: null }),
+        });
+        const data = await resp.json();
+        if (data && data.ok) location.reload();
+      });
+    }
+    // @упоминания
+    (function bindMentions() {
+      const ta = document.getElementById("chat-text");
+      const box = document.getElementById("chat-mention-box");
+      if (!ta || !box) return;
+      let timer = null;
+      ta.addEventListener("input", function () {
+        clearTimeout(timer);
+        const val = ta.value;
+        const m = val.slice(0, ta.selectionStart || val.length).match(/@([\w.\-а-яА-ЯёЁ]*)$/);
+        if (!m) { box.hidden = true; box.innerHTML = ""; return; }
+        const q = m[1] || "";
+        timer = setTimeout(async function () {
+          const url = "/team-manager/api/chats/mention-candidates/?q=" + encodeURIComponent(q)
+            + (agencyId ? ("&agency=" + encodeURIComponent(agencyId)) : "");
+          const resp = await fetch(url, { credentials: "same-origin" });
+          const data = await resp.json();
+          const rows = (data && data.data && data.data.candidates) || [];
+          if (!rows.length) { box.hidden = true; return; }
+          box.hidden = false;
+          box.innerHTML = rows.map(function (c) {
+            return '<button type="button" data-handle="' + escapeHtml(c.handle || c.label) + '">@'
+              + escapeHtml(c.handle || c.label) + " · " + escapeHtml(c.label) + "</button>";
+          }).join("");
+        }, 180);
+      });
+      box.addEventListener("click", function (ev) {
+        const btn = ev.target.closest("[data-handle]");
+        if (!btn || !ta) return;
+        const handle = btn.getAttribute("data-handle") || "";
+        const val = ta.value;
+        const before = val.slice(0, ta.selectionStart || val.length).replace(/@([\w.\-а-яА-ЯёЁ]*)$/, "@" + handle + " ");
+        const after = val.slice(ta.selectionStart || val.length);
+        ta.value = before + after;
+        box.hidden = true;
+        ta.focus();
+      });
+    })();
+    const markAll = document.getElementById("chat-mark-all-read");
+    if (markAll) {
+      markAll.addEventListener("click", async function () {
+        const resp = await fetch("/team-manager/api/chats/mark-all-read/", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "X-CSRFToken": (FB.csrfToken && FB.csrfToken()) || "" },
+        });
+        const data = await resp.json();
+        if (data && data.ok) location.reload();
+      });
+    }
+    const brBtn = document.getElementById("chat-enable-browser");
+    if (brBtn && FB.requestBrowserNotifications) {
+      brBtn.addEventListener("click", function () {
+        FB.requestBrowserNotifications().then(function (p) {
+          brBtn.textContent = p === "granted" ? "Уведомления включены" : "Разрешение: " + p;
+        });
+      });
+    }
+    const resolveBtn = document.getElementById("chat-resolve");
+    if (resolveBtn && threadId) {
+      resolveBtn.addEventListener("click", async function () {
+        const resp = await fetch("/team-manager/api/chats/" + threadId + "/resolve/", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "X-CSRFToken": (FB.csrfToken && FB.csrfToken()) || "" },
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) {
+          alert((data && data.error) || "Не удалось");
+          return;
+        }
+        location.reload();
+      });
+    }
+
+    (function bindAiDraft() {
+      const suggestBtn = document.getElementById("ai-suggest-btn");
+      const card = document.getElementById("ai-draft-card");
+      const textEl = document.getElementById("ai-draft-text");
+      const metaEl = document.getElementById("ai-draft-meta");
+      const srcEl = document.getElementById("ai-draft-sources");
+      const warnEl = document.getElementById("ai-draft-warn");
+      const insertBtn = document.getElementById("ai-draft-insert");
+      const retryBtn = document.getElementById("ai-draft-retry");
+      const rejectBtn = document.getElementById("ai-draft-reject");
+      const ta = document.getElementById("chat-text");
+      if (!suggestBtn || !card || !threadId) return;
+      let currentId = null;
+      let currentText = "";
+
+      function confLabel(c) {
+        if (c === "high") return "высокая";
+        if (c === "medium") return "средняя";
+        return "низкая";
+      }
+      function showDraft(data) {
+        currentId = data.id;
+        currentText = data.text || "";
+        card.classList.add("is-open");
+        card.classList.remove("is-loading");
+        textEl.textContent = currentText;
+        metaEl.textContent = "Уверенность: " + confLabel(data.confidence)
+          + (data.category ? (" · " + data.category) : "")
+          + (data.needs_escalation ? " · нужна эскалация" : "");
+        const sources = data.sources || [];
+        srcEl.textContent = sources.length
+          ? ("Источники: " + sources.map(function (s) { return s.title || s.ref; }).join("; "))
+          : "Источники: не найдены (stub)";
+        warnEl.textContent = (data.warnings || []).join(" ");
+      }
+      async function feedback(action, extra) {
+        if (!currentId) return;
+        extra = extra || {};
+        await fetch("/team-manager/api/chats/ai/suggestions/" + currentId + "/feedback/", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": (FB.csrfToken && FB.csrfToken()) || "",
+          },
+          body: JSON.stringify(Object.assign({ action: action }, extra)),
+        });
+      }
+      async function requestSuggest() {
+        card.classList.add("is-open", "is-loading");
+        textEl.textContent = "ИИ готовит ответ…";
+        metaEl.textContent = "";
+        srcEl.textContent = "";
+        warnEl.textContent = "";
+        try {
+          const resp = await fetch("/team-manager/api/chats/" + threadId + "/ai/suggest/", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "X-CSRFToken": (FB.csrfToken && FB.csrfToken()) || "" },
+          });
+          const data = await resp.json();
+          if (!resp.ok || !data.ok) {
+            card.classList.remove("is-loading");
+            textEl.textContent = (data && data.error) || "Не удалось получить черновик";
+            return;
+          }
+          showDraft(data.data || {});
+        } catch (err) {
+          card.classList.remove("is-loading");
+          textEl.textContent = "ИИ временно недоступен. Чат работает как обычно.";
+        }
+      }
+      suggestBtn.addEventListener("click", function () { requestSuggest(); });
+      if (retryBtn) retryBtn.addEventListener("click", function () { requestSuggest(); });
+      if (insertBtn) {
+        insertBtn.addEventListener("click", async function () {
+          if (ta && currentText) {
+            ta.value = currentText;
+            ta.focus();
+          }
+          await feedback("insert", { final_text: currentText });
+        });
+      }
+      if (rejectBtn) {
+        rejectBtn.addEventListener("click", async function () {
+          await feedback("reject");
+          card.classList.remove("is-open");
+          currentId = null;
+        });
+      }
+      form.addEventListener("submit", function () {
+        if (currentId && ta && ta.value && currentText && ta.value.trim() === currentText.trim()) {
+          feedback("sent", { final_text: ta.value });
+        } else if (currentId && ta && ta.value && currentText && ta.value.trim() !== currentText.trim()) {
+          feedback("sent", { final_text: ta.value, feedback: "partial" });
+        }
+      });
+    })();
+
+    if (threadId) {
+      fetch(apiBase + threadId + "/messages/", { credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data && data.ok) renderMessages(data.data.messages || [], false);
+          if (FB.createPoller) {
+            poller = FB.createPoller({
+              url: apiBase + threadId + "/messages/",
+              lastId: lastId,
+              intervalMs: 3500,
+              onMessages: function (msgs) { renderMessages(msgs, true); },
+            });
+          }
+          if (FB.connectSocket) {
+            FB.connectSocket(threadId, {
+              onEvent: function (ev) {
+                if (ev && ev.type === "message.new" && ev.data) renderMessages([ev.data], true);
+              },
+            });
+          }
+        }).catch(function () {});
+    }
+  })();
+  </script>
+  {% endif %}
+{% endblock %}

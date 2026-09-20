@@ -1,0 +1,95 @@
+{% extends "hr/base.html" %}
+
+{% block title %}Отдел кадров{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1>Отдел кадров</h1>
+      <div class="muted" style="margin-top: 6px; font-weight: 700;">Сотрудники, роли, доступы и учетные записи</div>
+    </div>
+    <div class="actions">
+      <a class="btn" href="/employees/export-logins/">Экспорт Excel</a>
+      <a class="btn primary" href="/employees/new/">Добавить сотрудника</a>
+    </div>
+  </div>
+
+  <section class="grid">
+    <div class="panel">
+      <div class="kpi-title">Всего сотрудников</div>
+      <div class="kpi-value">{{ stats.total }}</div>
+      <div class="kpi-note">Все записи в справочнике</div>
+    </div>
+    <div class="panel">
+      <div class="kpi-title">Активные</div>
+      <div class="kpi-value">{{ stats.active }}</div>
+      <div class="kpi-note">Могут работать в системе</div>
+    </div>
+    <div class="panel">
+      <div class="kpi-title">Без учетной записи</div>
+      <div class="kpi-value">{{ stats.without_user }}</div>
+      <div class="kpi-note">Нужно выдать логин</div>
+    </div>
+    <div class="panel">
+      <div class="kpi-title">С факсимиле</div>
+      <div class="kpi-value">{{ stats.with_facsimile }}</div>
+      <div class="kpi-note">Подписи загружены</div>
+    </div>
+  </section>
+
+  <section class="two-col">
+    <div class="panel">
+      <h2>Роли сотрудников</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Роль</th>
+            <th>Всего</th>
+            <th>Активные</th>
+            <th>Неактивные</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in role_rows %}
+            <tr>
+              <td><strong>{{ row.label }}</strong></td>
+              <td>{{ row.total }}</td>
+              <td>{{ row.active }}</td>
+              <td>{{ row.inactive }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="muted">Сотрудники пока не заведены.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <h2>Последние изменения</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Сотрудник</th>
+            <th>Статус</th>
+            <th>Обновлено</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for employee in recent_employees %}
+            <tr>
+              <td>
+                <a href="/employees/{{ employee.id }}/edit/"><strong>{{ employee.full_name }}</strong></a>
+                <div class="muted">{{ employee.get_role_display }}</div>
+              </td>
+              <td class="status {% if employee.is_active %}ok{% else %}off{% endif %}">
+                {% if employee.is_active %}Активен{% else %}Неактивен{% endif %}
+              </td>
+              <td>{{ employee.updated_at|date:"d.m.y H:i" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="muted">Нет изменений.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "accountant/_base.html" %}
+{% block title %}Общие тарифы клиентов{% endblock %}
+{% block content %}
+<div>
+  <h1 class="page-title">Общие тарифы</h1>
+  <div class="page-sub">Единый тариф клиента для FBO и складских услуг, включая условия хранения.</div>
+</div>
+{% include "accountant/_client_tariff_sections.html" with active_tariff_section="general" %}
+{% if messages %}
+  {% for message in messages %}
+    <div class="{% if message.tags == 'error' %}err-box{% else %}warn-box{% endif %}" style="{% if 'success' in message.tags %}background:var(--green-soft);border-color:transparent;color:var(--green-strong){% endif %}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+{% if can_edit_client_tariffs %}<form class="card" method="post" style="display:grid;grid-template-columns:minmax(260px,1fr) 190px auto;gap:10px;align-items:end">
+  {% csrf_token %}
+  <div><label class="lbl">Клиент</label><select class="field" name="client_id" required><option value="">Выберите клиента</option>{% for c in clients %}<option value="{{ c.id }}" {% if selected_client.id == c.id %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>{% endfor %}</select></div>
+  <div><label class="lbl">Новая редакция с даты</label><input class="field" type="date" name="valid_from"></div>
+  <button class="btn primary" type="submit">Создать или открыть тариф</button>
+</form>{% endif %}
+<form class="card" method="get" style="display:grid;grid-template-columns:200px 220px auto;gap:10px">
+  <select class="field" name="status">
+    <option value="">Все статусы</option>
+    <option value="draft" {% if request.GET.status == 'draft' %}selected{% endif %}>Черновик</option>
+    <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Активен</option>
+    <option value="scheduled" {% if request.GET.status == 'scheduled' %}selected{% endif %}>Запланирован</option>
+    <option value="archived" {% if request.GET.status == 'archived' %}selected{% endif %}>Архив</option>
+  </select>
+  <select class="field" name="client">
+    <option value="">Все клиенты</option>
+    {% for c in clients %}
+      <option value="{{ c.id }}" {% if request.GET.client == c.id|stringformat:'s' %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn primary" type="submit">Фильтр</button>
+</form>
+<div class="card" style="padding:0;overflow:auto">
+  <table>
+    <thead>
+      <tr><th>Клиент</th><th>Тариф</th><th>Период</th><th>Статус</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for v in tariff_versions %}
+        <tr>
+          <td>{{ v.client.short_name|default:v.client.agn_name }}</td>
+          <td>{{ v.name }}</td>
+          <td>{{ v.valid_from|date:"d.m.Y" }}{% if v.valid_to %} – {{ v.valid_to|date:"d.m.Y" }}{% endif %}</td>
+          <td><span class="badge {% if v.status == 'active' %}green{% elif v.status == 'draft' %}orange{% endif %}">{{ v.get_status_display }}</span></td>
+          <td style="text-align:right;white-space:nowrap">
+            <div style="display:inline-flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+              <a class="btn" href="/accountant/tariffs/{{ v.id }}/">Открыть</a>
+              {% if v.status == 'draft' %}
+                <form method="post" action="/accountant/tariffs/{{ v.id }}/delete/" onsubmit="return confirm('Удалить черновик прайса «{{ v.name|escapejs }}»?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button class="btn danger" type="submit">Удалить</button>
+                </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="muted" style="text-align:center;padding:40px">Тарифов нет</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

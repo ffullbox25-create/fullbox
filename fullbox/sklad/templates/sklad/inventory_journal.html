@@ -1,0 +1,3428 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Складские остатки FBO + FBS | FULLBOX</title>
+  <style>
+    :root {
+      --bg: #f3f1eb;
+      --card: #ffffff;
+      --card-soft: #faf8f2;
+      --stroke: rgba(15, 23, 42, 0.12);
+      --stroke-strong: rgba(15, 23, 42, 0.18);
+      --text: #171717;
+      --muted: #666f7a;
+      --accent: #c69a1f;
+      --accent-soft: rgba(198, 154, 31, 0.14);
+      --ok: #1f7a52;
+      --warn: #9a6b00;
+      --shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      width: 100%;
+      max-width: none;
+      padding: 16px 18px 28px;
+    }
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .title-block {
+      display: grid;
+      gap: 4px;
+    }
+    .eyebrow {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+    h1 {
+      margin: 0;
+      font-size: 32px;
+      line-height: 1.05;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 40px;
+      padding: 0 14px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke-strong);
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn:hover {
+      border-color: var(--accent);
+      background: #fffdf6;
+    }
+    .btn.primary {
+      background: #f8f1d8;
+      border-color: #e2c36c;
+    }
+    .notice {
+      border: 1px solid var(--stroke-strong);
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: #fff;
+      font-weight: 700;
+    }
+    .notice.success { border-color: rgba(31, 122, 82, 0.35); color: var(--ok); }
+    .notice.error { border-color: rgba(184, 45, 45, 0.35); color: #9f2424; background: #fff7f7; }
+    .problem-card {
+      padding: 0;
+      overflow: hidden;
+      border-color: rgba(184, 45, 45, 0.28);
+    }
+    .problem-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(184, 45, 45, 0.2);
+      background: #fff8f6;
+    }
+    .problem-card-title { margin: 0; font-size: 18px; }
+    .problem-card-subtitle { margin-top: 3px; color: var(--muted); font-size: 13px; }
+    .problem-count {
+      min-width: 30px;
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: #b82d2d;
+      color: #fff;
+      font-weight: 800;
+    }
+    .problem-table-wrap { overflow-x: auto; }
+    .problem-table { min-width: 1180px; table-layout: auto; }
+    .problem-table th,
+    .problem-table td {
+      width: auto !important;
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .problem-table th {
+      color: var(--muted);
+      background: #fbfaf6;
+      border-bottom: 1px solid var(--stroke-strong);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .problem-actions { display: grid; gap: 8px; min-width: 330px; }
+    .problem-scan-form {
+      display: grid;
+      grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) auto;
+      gap: 6px;
+    }
+    .problem-input {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid var(--stroke-strong);
+      border-radius: 8px;
+      padding: 0 10px;
+      font: inherit;
+    }
+    .problem-input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+    .problem-release-form { display: flex; justify-content: flex-end; }
+    .btn.danger { color: #9f2424; border-color: rgba(184, 45, 45, 0.35); }
+    .daily-control-meta {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .daily-control-status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke-strong);
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .daily-control-status.error { color: #9f2424; border-color: rgba(184, 45, 45, 0.35); background: #fff7f7; }
+    .daily-control-status.success { color: var(--ok); border-color: rgba(31, 122, 82, 0.3); background: #f6fbf8; }
+    .daily-control-summary {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      border-bottom: 1px solid var(--stroke);
+      background: #fff;
+    }
+    .daily-control-metric {
+      min-width: 0;
+      padding: 14px 16px;
+      border-right: 1px solid var(--stroke);
+    }
+    .daily-control-metric:last-child { border-right: 0; }
+    .daily-control-metric-label { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+    .daily-control-metric-value { margin-top: 4px; font-size: 24px; font-weight: 800; }
+    .daily-control-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 10px 16px 0;
+      border-bottom: 1px solid var(--stroke);
+      background: #fff;
+    }
+    .daily-control-tab {
+      min-height: 40px;
+      padding: 0 14px;
+      border: 0;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .daily-control-tab.is-active { color: var(--text); border-bottom-color: var(--accent); }
+    .daily-control-panel[hidden] { display: none; }
+    .daily-control-empty { padding: 22px 16px; color: var(--muted); text-align: center; }
+    .daily-control-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      border-top: 1px solid var(--stroke);
+      background: #fbfaf6;
+    }
+    .daily-control-box-list { max-width: 360px; overflow-wrap: anywhere; }
+    .focus-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .focus-main {
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+    }
+    .focus-title {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.1;
+      word-break: break-word;
+    }
+    .focus-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 30px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .chip.muted {
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .chip.ok {
+      color: var(--ok);
+      background: rgba(31, 122, 82, 0.08);
+      border-color: rgba(31, 122, 82, 0.18);
+    }
+    .chip.warn {
+      color: var(--warn);
+      background: rgba(198, 154, 31, 0.12);
+      border-color: rgba(198, 154, 31, 0.22);
+    }
+    .focus-skus {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .focus-aside {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+    .focus-metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .focus-metric {
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      padding: 10px;
+      background: var(--card-soft);
+      display: grid;
+      gap: 4px;
+    }
+    .focus-metric .value {
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .focus-metric .label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(320px, 1.8fr) 170px 170px auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .input {
+      width: 100%;
+      min-height: 42px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke-strong);
+      background: #fff;
+      padding: 0 12px;
+      font: inherit;
+      color: var(--text);
+    }
+    .input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    .mini-input {
+      width: 100%;
+      min-width: 72px;
+      min-height: 34px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke-strong);
+      background: #fff;
+      padding: 0 10px;
+      font: inherit;
+      color: var(--text);
+      font-size: 12px;
+    }
+    .mini-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    .column-multi-filter { position: relative; min-width: 92px; }
+    .column-multi-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      width: 100%;
+      min-width: 88px;
+      min-height: 34px;
+      padding: 0 8px 0 10px;
+      border: 1px solid var(--stroke-strong);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      text-align: left;
+      cursor: pointer;
+    }
+    .column-multi-toggle:focus-visible,
+    .column-multi-toggle[aria-expanded="true"] {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    .column-multi-toggle-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .column-multi-count {
+      flex: 0 0 auto;
+      min-width: 19px;
+      padding: 2px 5px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #765100;
+      font-size: 10px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .column-multi-count:empty { display: none; }
+    .column-multi-panel {
+      position: fixed;
+      z-index: 2600;
+      display: flex;
+      flex-direction: column;
+      width: min(340px, calc(100vw - 16px));
+      max-height: calc(100vh - 16px);
+      padding: 10px;
+      border: 1px solid var(--stroke-strong);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.99);
+      box-shadow: 0 18px 44px rgba(15, 23, 42, 0.22);
+      overflow: hidden;
+    }
+    .column-multi-panel[hidden] { display: none; }
+    .column-multi-search {
+      width: 100%;
+      min-height: 38px;
+      padding: 0 10px;
+      border: 1px solid var(--stroke-strong);
+      border-radius: 9px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+    }
+    .column-multi-search:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    .column-multi-options {
+      display: grid;
+      flex: 1 1 auto;
+      gap: 3px;
+      min-height: 0;
+      max-height: 390px;
+      margin-top: 8px;
+      overflow: auto;
+      overscroll-behavior: contain;
+    }
+    .column-multi-option {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 36px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .column-multi-option:hover { background: #f8f4e7; }
+    .column-multi-option.is-selected {
+      background: var(--accent-soft);
+      font-weight: 750;
+    }
+    .column-multi-option[hidden] { display: none; }
+    .column-multi-option input { width: 17px; height: 17px; accent-color: var(--accent); }
+    .column-multi-empty { padding: 16px 8px; color: var(--muted); font-size: 12px; text-align: center; }
+    .column-multi-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 9px;
+      padding-top: 9px;
+      border-top: 1px solid var(--stroke);
+    }
+    .column-multi-action {
+      min-height: 36px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 750;
+      cursor: pointer;
+    }
+    .column-multi-action.primary { border-color: #d8b14a; background: #fff5d8; }
+    .column-multi-action:hover { background: #f7edd0; }
+    .table-card {
+      padding: 0;
+      overflow: hidden;
+    }
+    .table-head {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--stroke);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .table-title {
+      margin: 0;
+      font-size: 18px;
+    }
+    .table-head-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .toggle-btn {
+      min-height: 34px;
+      padding: 0 12px;
+      font-size: 13px;
+    }
+    .toggle-btn .icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+    }
+    .toggle-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .table-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .table-wrap {
+      overflow: auto;
+      max-height: calc(100vh - 340px);
+    }
+    .pallet-cell,
+    .box-cell {
+      cursor: context-menu;
+    }
+    .box-cell.processing-source-box {
+      background: #ddebf7;
+      color: #174a73;
+      font-weight: 700;
+    }
+    .pallet-cell .code {
+      position: relative;
+    }
+    .pallet-context-menu {
+      position: fixed;
+      display: none;
+      min-width: 230px;
+      padding: 8px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke-strong);
+      background: rgba(255, 255, 255, 0.98);
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+      z-index: 1200;
+    }
+    .pallet-context-menu.is-open {
+      display: grid;
+      gap: 6px;
+    }
+    .pallet-context-menu-title {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 4px 6px 0;
+    }
+    .pallet-context-menu-button {
+      width: 100%;
+      min-height: 42px;
+      border: 0;
+      border-radius: 10px;
+      background: #fff8dd;
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      text-align: left;
+      padding: 0 12px;
+      cursor: pointer;
+    }
+    .pallet-context-menu-button:hover {
+      background: #f7edd0;
+    }
+    .column-width-menu {
+      position: fixed;
+      display: none;
+      width: 270px;
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke-strong);
+      background: rgba(255, 255, 255, 0.99);
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+      z-index: 1210;
+    }
+    .column-width-menu.is-open {
+      display: grid;
+      gap: 10px;
+    }
+    .column-width-menu-title {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .column-width-menu-column {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .column-width-menu-field {
+      display: grid;
+      grid-template-columns: 1fr 82px;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .column-width-menu-input {
+      width: 100%;
+      height: 38px;
+      padding: 0 10px;
+      border: 1px solid var(--stroke-strong);
+      border-radius: 9px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      text-align: right;
+    }
+    .column-width-menu-input:focus {
+      border-color: var(--accent);
+      outline: 2px solid rgba(199, 154, 32, 0.18);
+    }
+    .column-width-menu-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .column-width-menu-button {
+      min-height: 38px;
+      border: 1px solid var(--stroke);
+      border-radius: 9px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .column-width-menu-button.primary {
+      border-color: #d8b14a;
+      background: #fff5d8;
+    }
+    .column-width-menu-button:hover {
+      background: #f7edd0;
+    }
+    .column-width-menu-hint {
+      color: var(--muted);
+      font-size: 10px;
+    }
+    .box-info-link,
+    .pallet-info-link {
+      width: 100%;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .box-info-link:hover,
+    .box-info-link:focus-visible,
+    .pallet-info-link:hover,
+    .pallet-info-link:focus-visible {
+      color: var(--accent);
+      text-decoration: underline;
+      outline: none;
+    }
+
+    .inventory-box-info-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 1800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(26, 31, 39, 0.46);
+    }
+    .inventory-box-info-backdrop[hidden] { display: none !important; }
+    .inventory-box-info-modal {
+      width: min(1180px, calc(100vw - 48px));
+      max-height: calc(100vh - 48px);
+      overflow: auto;
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: #fff;
+      box-shadow: 0 24px 64px rgba(20, 28, 36, 0.22);
+    }
+    .inventory-box-info-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .inventory-box-info-title {
+      margin: 0;
+      font-size: 20px;
+    }
+    .inventory-box-info-subtitle {
+      margin: 6px 0 0;
+      color: var(--muted);
+    }
+    .inventory-box-info-actions { display: flex; gap: 8px; align-items: center; }
+    .inventory-box-info-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+    }
+    .inventory-box-info-summary span {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #fbf8ef;
+    }
+    .inventory-box-info-section-title {
+      margin: 2px 0 0;
+      font-size: 15px;
+    }
+    .inventory-box-info-passport {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .inventory-box-info-passport-item {
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fbfaf6;
+    }
+    .inventory-box-info-passport-label {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .inventory-box-info-passport-value {
+      margin-top: 4px;
+      overflow-wrap: anywhere;
+      font-weight: 700;
+    }
+    .inventory-box-info-table-wrap {
+      max-height: min(58vh, 620px);
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .inventory-box-info-table { width: 100%; min-width: 1060px; }
+    .inventory-box-info-table th,
+    .inventory-box-info-table td { padding: 8px 10px; vertical-align: top; }
+    .inventory-box-info-empty { color: var(--muted); text-align: center; }
+    .inventory-box-history-table { min-width: 920px; }
+    .inventory-box-group-row {
+      cursor: pointer;
+      background: #fffaf0;
+    }
+    .inventory-box-group-row:hover,
+    .inventory-box-group-row:focus-within {
+      background: #fff3cf;
+    }
+    .inventory-box-group-row td { font-weight: 700; }
+    .inventory-box-group-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .inventory-box-group-arrow {
+      display: inline-block;
+      transition: transform 0.15s ease;
+    }
+    .inventory-box-group-toggle[aria-expanded="true"] .inventory-box-group-arrow {
+      transform: rotate(90deg);
+    }
+    .inventory-box-group-detail td {
+      background: #fcfcfa;
+      color: #424851;
+    }
+    .inventory-box-group-detail td:first-child {
+      color: var(--muted);
+      text-align: right;
+    }
+    .inventory-box-group-count {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    @media (max-width: 860px) {
+      .inventory-box-info-backdrop { padding: 8px; }
+      .inventory-box-info-modal { width: calc(100vw - 16px); max-height: calc(100vh - 16px); }
+      .inventory-box-info-head { flex-direction: column; }
+      .inventory-box-info-passport { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 1320px;
+      table-layout: fixed;
+      font-size: 12px;
+    }
+    .inventory-journal-table {
+      width: 1903px;
+      min-width: 1903px;
+    }
+    .inventory-journal-table .head-row th[data-column-key] {
+      cursor: context-menu;
+      user-select: none;
+    }
+    .inventory-journal-table .head-row th[data-column-key]:hover {
+      background: #f1eee4;
+    }
+    .head-row th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: #f7f5ef;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--stroke-strong);
+      border-right: 1px solid var(--stroke);
+      white-space: nowrap;
+    }
+    .filter-row th {
+      position: sticky;
+      top: 41px;
+      z-index: 2;
+      background: #fbfaf6;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--stroke-strong);
+      border-right: 1px solid var(--stroke);
+    }
+    .head-row th,
+    .filter-row th,
+    tbody td {
+      overflow-wrap: anywhere;
+    }
+    tbody td {
+      padding: 9px 10px;
+      vertical-align: top;
+      border-bottom: 1px solid var(--stroke);
+      border-right: 1px solid var(--stroke);
+      background: #fff;
+    }
+    tbody tr:nth-child(even) td {
+      background: #fcfbf8;
+    }
+    tbody tr:hover td {
+      background: #fff8e8;
+    }
+    tbody tr.is-processing-consumed td {
+      background: #eef0f2;
+      color: #6b7280;
+    }
+    tbody tr.is-processing-consumed:nth-child(even) td {
+      background: #e9ecef;
+    }
+    tbody tr.is-processing-consumed:hover td {
+      background: #e1e5e8;
+    }
+    tbody tr.is-processing-consumed .code,
+    tbody tr.is-processing-consumed .primary {
+      color: #4b5563;
+    }
+    .state-pill {
+      display: inline-flex;
+      width: fit-content;
+      margin-top: 4px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: #d8dde3;
+      color: #4b5563;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    th:last-child,
+    td:last-child {
+      border-right: none;
+    }
+    .idx {
+      text-align: right;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .code {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+    .barcode-history-link {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 9px;
+      border: 1px solid rgba(14,107,91,0.28);
+      border-radius: 9px;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      font-weight: 800;
+    }
+    .contour-pill {
+      display: inline-flex;
+      width: fit-content;
+      padding: 4px 8px;
+      border: 1px solid rgba(48, 48, 48, 0.18);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--ink);
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .contour-pill.fbs {
+      border-color: rgba(248, 104, 0, 0.3);
+      background: rgba(248, 144, 0, 0.13);
+      color: #a64300;
+    }
+    .barcode-history-link:hover { border-color: var(--accent); background: rgba(14,107,91,0.17); }
+    .primary {
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    .journal-value-line {
+      display: block;
+    }
+    .secondary {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .qty {
+      font-weight: 800;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .qty.ok { color: var(--ok); }
+    .qty.warn { color: var(--warn); }
+    .empty {
+      padding: 24px 16px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .sort-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: inherit;
+      text-decoration: none;
+    }
+    .col-head-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      min-width: 100%;
+    }
+    .col-visibility-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      min-width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: #fff;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    }
+    .col-visibility-btn:hover {
+      border-color: var(--accent);
+      color: var(--text);
+      background: #fffdf6;
+    }
+    .col-visibility-btn svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .col-visibility-btn .icon-closed {
+      display: none;
+    }
+    .col-visibility-btn.is-collapsed .icon-open {
+      display: none;
+    }
+    .col-visibility-btn.is-collapsed .icon-closed {
+      display: block;
+    }
+    .sort-link:hover {
+      color: var(--text);
+    }
+    .sort-link.active {
+      color: var(--text);
+    }
+    .sort-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: #fff;
+      font-size: 10px;
+      line-height: 1;
+    }
+    .sort-link.active .sort-icon {
+      border-color: #d8b14a;
+      background: #fff5d8;
+      color: #8a6510;
+    }
+    th.collapsible-col,
+    td.collapsible-col {
+      transition: width 0.18s ease, min-width 0.18s ease, max-width 0.18s ease, padding 0.18s ease;
+    }
+    .head-row th.collapsible-col.is-collapsed,
+    .filter-row th.collapsible-col.is-collapsed,
+    tbody td.collapsible-col.is-collapsed {
+      width: 42px;
+      min-width: 42px;
+      max-width: 42px;
+      padding-left: 6px;
+      padding-right: 6px;
+    }
+    .head-row th.collapsible-col.is-collapsed .sort-link,
+    .filter-row th.collapsible-col.is-collapsed .mini-input {
+      display: none;
+    }
+    .head-row th.collapsible-col.is-collapsed .col-head-controls {
+      justify-content: center;
+    }
+    tbody td.collapsible-col.is-collapsed {
+      color: transparent !important;
+      font-size: 0;
+      line-height: 0;
+      user-select: none;
+    }
+    tbody td.collapsible-col.is-collapsed * {
+      visibility: hidden;
+    }
+    .filter-row .idx {
+      color: transparent;
+    }
+    .right {
+      text-align: right;
+    }
+    @media (max-width: 1200px) {
+      .controls {
+        grid-template-columns: 1fr 1fr;
+      }
+      .focus-card {
+        grid-template-columns: 1fr;
+      }
+      .table-wrap {
+        max-height: none;
+      }
+      .daily-control-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .daily-control-metric { border-bottom: 1px solid var(--stroke); }
+      .daily-control-metric:nth-child(even) { border-right: 0; }
+      .daily-control-metric:last-child { border-bottom: 0; }
+      .daily-control-foot { align-items: flex-start; flex-direction: column; }
+    }
+{% include "labels/_label_styles.css" %}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="stack">
+      <section class="card">
+        <div class="topbar">
+          <div class="title-block">
+            <div class="eyebrow">FULLBOX · {% include "partials/current_user.html" %}</div>
+            <h1>Складские остатки FBO + FBS</h1>
+          </div>
+          <div class="actions">
+            <a class="btn primary" href="{{ export_excel_url }}">Выгрузить в Excel</a>
+            <a class="btn" href="/sklad/">В кабинет</a>
+            <a class="btn" href="/logout/">Выход</a>
+          </div>
+        </div>
+      </section>
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="notice {% if message.tags %}{{ message.tags }}{% endif %}" role="status">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <div class="notice" role="note">
+        Это единый поиск по двум отдельным контурам. Строка с меткой
+        <strong>FBS (не FBO)</strong> не является остатком основного склада;
+        фактический контур и единственное место указаны в таблице.
+      </div>
+
+      {% if daily_problem_control %}
+        <section class="card problem-card" id="daily-problem-control">
+          <div class="problem-card-head">
+            <div>
+              <h2 class="problem-card-title">Ежедневный контроль коробов и паллет</h2>
+              <div class="problem-card-subtitle">
+                Автопроверка {{ daily_problem_control.date_label }} в {{ daily_problem_control.scheduled_time_label }} · только чтение складских данных
+              </div>
+            </div>
+            <div class="daily-control-meta">
+              <span class="daily-control-status {{ daily_problem_control.status_tone }}">{{ daily_problem_control.status_label }}</span>
+              <span class="problem-count">{{ daily_problem_control.issue_count }}</span>
+            </div>
+          </div>
+          <div class="daily-control-summary">
+            <div class="daily-control-metric">
+              <div class="daily-control-metric-label">Проблемные короба</div>
+              <div class="daily-control-metric-value">{{ daily_problem_control.box_count }}</div>
+            </div>
+            <div class="daily-control-metric">
+              <div class="daily-control-metric-label">Проблемные паллеты</div>
+              <div class="daily-control-metric-value">{{ daily_problem_control.pallet_count }}</div>
+            </div>
+            <div class="daily-control-metric">
+              <div class="daily-control-metric-label">Нет на месте</div>
+              <div class="daily-control-metric-value">{{ daily_problem_control.missing_box_count }}</div>
+            </div>
+            <div class="daily-control-metric">
+              <div class="daily-control-metric-label">Уже проверяют</div>
+              <div class="daily-control-metric-value">{{ daily_problem_control.in_check_count }}</div>
+            </div>
+            <div class="daily-control-metric">
+              <div class="daily-control-metric-label">Задача склада</div>
+              <div class="daily-control-metric-value" style="font-size: 16px;">{{ daily_problem_control.task_status_label }}</div>
+            </div>
+          </div>
+          <div class="daily-control-tabs" role="tablist" aria-label="Тип проблемной тары">
+            <button class="daily-control-tab is-active" type="button" role="tab" aria-selected="true" data-problem-tab="boxes">
+              Короба · {{ daily_problem_control.box_count }}
+            </button>
+            <button class="daily-control-tab" type="button" role="tab" aria-selected="false" data-problem-tab="pallets">
+              Паллеты · {{ daily_problem_control.pallet_count }}
+            </button>
+            <button class="daily-control-tab" type="button" role="tab" aria-selected="false" data-problem-tab="missing">
+              Нет на месте · {{ daily_problem_control.missing_box_count }}
+            </button>
+          </div>
+          <div class="daily-control-panel" role="tabpanel" data-problem-panel="boxes">
+            {% if problem_boxes %}
+              <div class="problem-table-wrap">
+                <table class="problem-table">
+                  <thead>
+                    <tr>
+                      <th>Короб</th>
+                      <th>Клиент</th>
+                      <th>Товар</th>
+                      <th>Кол-во</th>
+                      <th>Документ</th>
+                      <th>Причина</th>
+                      <th>Действие</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for problem in problem_boxes %}
+                      <tr>
+                        <td>
+                          <div class="code">{{ problem.box_code }}</div>
+                          <div class="secondary">ШК {{ problem.barcode }}</div>
+                        </td>
+                        <td>{{ problem.client_label }}</td>
+                        <td>
+                          <div class="primary">{{ problem.sku }} · {{ problem.name }}</div>
+                          <div class="secondary">Размер: {{ problem.size }}</div>
+                        </td>
+                        <td class="qty warn">{{ problem.qty }}</td>
+                        <td>
+                          <div class="code">{{ problem.shipping_document }}</div>
+                          {% if problem.detected_at %}<div class="secondary">{{ problem.detected_at|date:"d.m.Y H:i" }}</div>{% endif %}
+                        </td>
+                        <td>{{ problem.reason }}</td>
+                        <td>
+                          {% if not problem.operation_id %}
+                            <form method="post" action="{% url 'sklad:problem_box_take' problem.snapshot_id %}">
+                              {% csrf_token %}
+                              <input type="hidden" name="last_event_id" value="{{ problem.last_event_id }}">
+                              <button class="btn primary" type="submit">Передать ричтраку</button>
+                            </form>
+                          {% elif problem.assigned_to_id %}
+                            <div class="problem-actions">
+                              <span class="chip warn">В работе у ричтрака: {{ problem.assigned_to_name|default:"сотрудник" }}</span>
+                              {% if problem.reachtruck_move_id %}
+                                <a class="secondary" href="/reachtruck/?mobile_category=movement&amp;mobile_task={{ problem.reachtruck_move_id|urlencode }}">Открыть задание №{{ problem.reachtruck_move_id }}</a>
+                              {% endif %}
+                            </div>
+                          {% else %}
+                            <div class="problem-actions">
+                              <span class="chip warn">Ожидает ричтрака{% if problem.reachtruck_move_id %}: {{ problem.reachtruck_move_id }}{% endif %}</span>
+                              <form class="problem-release-form" method="post" action="{% url 'sklad:problem_box_release' problem.snapshot_id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="operation_id" value="{{ problem.operation_id }}">
+                                <button class="btn danger" type="submit">Отменить задание</button>
+                              </form>
+                            </div>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="daily-control-empty">Проблемных коробов не найдено.</div>
+            {% endif %}
+          </div>
+          <div class="daily-control-panel" role="tabpanel" data-problem-panel="pallets" hidden>
+            {% if problem_pallets %}
+              <div class="problem-table-wrap">
+                <table class="problem-table">
+                  <thead>
+                    <tr>
+                      <th>Паллета</th>
+                      <th>Клиент</th>
+                      <th>Короба</th>
+                      <th>Кол-во</th>
+                      <th>Документы</th>
+                      <th>Причина</th>
+                      <th>Действие</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for problem in problem_pallets %}
+                      <tr>
+                        <td>
+                          <div class="code">{{ problem.pallet_code }}</div>
+                          <div class="secondary">Место: {{ problem.location_label }}</div>
+                        </td>
+                        <td>{{ problem.client_label }}</td>
+                        <td>
+                          <div class="primary">{{ problem.box_count }} кор.</div>
+                          <div class="secondary daily-control-box-list">{{ problem.box_codes|join:", " }}</div>
+                        </td>
+                        <td class="qty warn">{{ problem.qty }}</td>
+                        <td>
+                          <div class="code">{{ problem.shipping_documents|join:", "|default:"-" }}</div>
+                          {% if problem.detected_at %}<div class="secondary">{{ problem.detected_at|date:"d.m.Y H:i" }}</div>{% endif %}
+                        </td>
+                        <td>{{ problem.reason }}</td>
+                        <td><a class="btn primary" href="?q={{ problem.pallet_code|urlencode }}">Открыть состав</a></td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="daily-control-empty">Проблемных паллет не найдено.</div>
+            {% endif %}
+          </div>
+          <div class="daily-control-panel" role="tabpanel" data-problem-panel="missing" hidden>
+            {% if missing_boxes %}
+              <div class="problem-table-wrap">
+                <table class="problem-table">
+                  <thead>
+                    <tr>
+                      <th>Короб</th>
+                      <th>Клиент и товар</th>
+                      <th>Место по системе</th>
+                      <th>Источник</th>
+                      <th>Сообщил</th>
+                      <th>Решение</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for problem in missing_boxes %}
+                      <tr>
+                        <td>
+                          <div class="code">{{ problem.box_code }}</div>
+                          <div class="secondary">Паллета: {{ problem.pallet_code }}</div>
+                          <div class="secondary">{{ problem.qty }} шт.</div>
+                        </td>
+                        <td>
+                          <div class="primary">{{ problem.client_label }}</div>
+                          <div class="secondary">{{ problem.sku_labels|join:"; " }}</div>
+                        </td>
+                        <td><div class="code">{{ problem.location_label }}</div></td>
+                        <td>
+                          <div class="code">{{ problem.source_document_type }} · {{ problem.source_document_id }}</div>
+                          {% if problem.replacement_box_code %}
+                            <div class="secondary">Замена: {{ problem.replacement_box_code }}</div>
+                          {% endif %}
+                        </td>
+                        <td>
+                          <div>{{ problem.reported_by }}</div>
+                          {% if problem.reported_at %}<div class="secondary">{{ problem.reported_at|date:"d.m.Y H:i" }}</div>{% endif %}
+                        </td>
+                        <td>
+                          {% if not problem.assigned_to_id %}
+                            <form method="post" action="{% url 'sklad:missing_box_take' problem.operation_id %}">
+                              {% csrf_token %}
+                              <button class="btn primary" type="submit">Взять в проверку</button>
+                            </form>
+                          {% elif problem.assigned_to_id == request.user.id or request.user.employee_profile.role == 'head_manager' or request.user.is_superuser %}
+                            <div class="problem-actions">
+                              <form class="problem-scan-form" method="post" action="{% url 'sklad:missing_box_found' problem.operation_id %}">
+                                {% csrf_token %}
+                                <input class="problem-input" type="text" name="box_code" placeholder="Скан ШК короба" autocomplete="off" required>
+                                <input class="problem-input" type="text" name="location_code" placeholder="Скан фактической ячейки" autocomplete="off" required>
+                                <button class="btn primary" type="submit">Найден — сохранить</button>
+                              </form>
+                              <form method="post" action="{% url 'sklad:missing_box_not_found' problem.operation_id %}">
+                                {% csrf_token %}
+                                <button class="btn danger" type="submit">Не найден</button>
+                              </form>
+                            </div>
+                          {% else %}
+                            <span class="chip warn">Проверяет: {{ problem.assigned_to_name|default:"сотрудник" }}</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="daily-control-empty">Коробов с отметкой «нет на месте» не найдено.</div>
+            {% endif %}
+          </div>
+          <div class="daily-control-foot">
+            <div class="secondary">
+              {% if daily_problem_control.last_run_at %}
+                Обновлено {{ daily_problem_control.last_run_at|date:"d.m.Y H:i" }}.
+              {% endif %}
+              Результат физической проверки укажите комментарием в задаче.
+              {% if daily_problem_control.task_assigned_to %}Ответственный: {{ daily_problem_control.task_assigned_to }}.{% endif %}
+            </div>
+            {% if daily_problem_control.task_url %}
+              <a class="btn primary" href="{{ daily_problem_control.task_url }}">Открыть задачу №{{ daily_problem_control.task_id }}</a>
+            {% endif %}
+          </div>
+        </section>
+      {% endif %}
+
+      {% if journal_focus %}
+        <section class="card focus-card">
+          <div class="focus-main">
+            <div class="eyebrow">Фокус поиска</div>
+            <h2 class="focus-title">{{ journal_focus.label }} · {{ journal_focus.value }}</h2>
+            <div class="focus-meta">
+              <span class="chip muted">Запрос: {{ journal_focus.query }}</span>
+              {% if journal_focus.client_label %}
+                <span class="chip">Клиент: {{ journal_focus.client_label }}</span>
+              {% endif %}
+              {% if journal_focus.order_label %}
+                <span class="chip">Заявка: {{ journal_focus.order_label }}</span>
+              {% endif %}
+              {% if journal_focus.zone_label %}
+                <span class="chip">Зона: {{ journal_focus.zone_label }}</span>
+              {% endif %}
+              {% if journal_focus.storage_contour_label %}
+                <span class="chip warn">Контур: {{ journal_focus.storage_contour_label }}</span>
+              {% endif %}
+              {% if journal_focus.location_label %}
+                <span class="chip">Полное место: {{ journal_focus.location_label }}</span>
+              {% endif %}
+            </div>
+            {% if journal_focus.sku_labels %}
+              <div class="focus-skus">
+                {% for sku_label in journal_focus.sku_labels %}
+                  <span class="chip ok">{{ sku_label }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+          <div class="focus-aside">
+            <div class="focus-metric-grid">
+              <div class="focus-metric">
+                <div class="value">{{ journal_focus.summary.total_qty }}</div>
+                <div class="label">Всего</div>
+              </div>
+              <div class="focus-metric">
+                <div class="value">{{ journal_focus.summary.total_stock_main_qty }}</div>
+                <div class="label">FBO / основной</div>
+              </div>
+              <div class="focus-metric">
+                <div class="value">{{ journal_focus.summary.total_fbs_qty }}</div>
+                <div class="label">FBS</div>
+              </div>
+              <div class="focus-metric">
+                <div class="value">{{ journal_focus.summary.pallet_count }}</div>
+                <div class="label">Паллет</div>
+              </div>
+              <div class="focus-metric">
+                <div class="value">{{ journal_focus.summary.box_count }}</div>
+                <div class="label">Коробов</div>
+              </div>
+              <div class="focus-metric">
+                <div class="value">{{ journal_focus.summary.total_processing_reserved_qty }}</div>
+                <div class="label">Резерв OBR</div>
+              </div>
+              <div class="focus-metric">
+                <div class="value">{{ journal_focus.summary.total_stock_otg_qty }}</div>
+                <div class="label">Склад OTG</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      {% endif %}
+
+      <section class="card">
+        <form id="journalFilters" class="controls" method="get">
+          {% if request.GET.client %}
+            <input type="hidden" name="client" value="{{ request.GET.client }}">
+          {% endif %}
+          {% if request.GET.agency %}
+            <input type="hidden" name="agency" value="{{ request.GET.agency }}">
+          {% endif %}
+          <input type="hidden" name="sort" value="{{ journal_sort_key }}">
+          <input type="hidden" name="dir" value="{{ journal_sort_dir }}">
+          <div class="field">
+            <label for="q">Поиск</label>
+            <input id="q" class="input" type="search" name="q" value="{{ q }}" placeholder="Паллета, короб, SKU, место, заявка, клиент">
+          </div>
+          <div class="field">
+            <label for="date_from">Дата с</label>
+            <input id="date_from" class="input" type="date" name="date_from" value="{{ date_from }}">
+          </div>
+          <div class="field">
+            <label for="date_to">Дата по</label>
+            <input id="date_to" class="input" type="date" name="date_to" value="{{ date_to }}">
+          </div>
+          <button class="btn primary" type="submit">Найти</button>
+          <a class="btn" href="{{ journal_reset_url }}">Сброс</a>
+        </form>
+      </section>
+
+      <section class="card table-card">
+        <div class="table-head">
+          <div class="table-head-main">
+            <h2 class="table-title">Позиции склада</h2>
+            <a
+              class="btn toggle-btn"
+              href="{{ journal_toggle_consumed_url }}"
+              title="{% if journal_hide_processing_consumed %}Показать списанные{% else %}Скрыть списанные{% endif %}"
+            >
+              <span class="icon" aria-hidden="true">
+                {% if journal_hide_processing_consumed %}
+                  <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                    <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                {% else %}
+                  <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                    <path d="M3 3l18 18"></path>
+                    <path d="M10.6 5.2A11 11 0 0 1 12 5c6.4 0 10 7 10 7a18.7 18.7 0 0 1-4 4.8"></path>
+                    <path d="M6.7 6.7A18.3 18.3 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.1-.9"></path>
+                    <path d="M9.9 9.9A3 3 0 0 0 12 15a3 3 0 0 0 2.1-.9"></path>
+                  </svg>
+                {% endif %}
+              </span>
+              <span>{% if journal_hide_processing_consumed %}Показать списанные{% else %}Скрыть списанные{% endif %}</span>
+            </a>
+            <span class="table-subtitle">Правый клик по названию столбца — изменить ширину</span>
+          </div>
+          <div class="chip warn">
+            {% if journal_has_filters %}
+              По фильтру: {{ journal_summary.row_count }}
+            {% else %}
+              Всего строк: {{ journal_summary.row_count }}
+            {% endif %}
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table
+            id="inventoryJournalTable"
+            class="inventory-journal-table"
+            data-column-profile="user-{{ request.user.pk|default:'anonymous' }}"
+          >
+            <colgroup>
+              <col data-column-key="index" data-default-width="48" style="width:48px">
+              <col data-column-key="created_at" data-default-width="116" style="width:116px">
+              <col data-column-key="pallet" data-default-width="150" style="width:150px">
+              <col data-column-key="box" data-default-width="145" style="width:145px">
+              <col data-column-key="contour" data-default-width="130" style="width:130px">
+              <col data-column-key="order" data-default-width="88" style="width:88px">
+              <col data-column-key="client" data-default-width="150" style="width:150px">
+              <col data-column-key="sku" data-default-width="120" style="width:120px">
+              <col data-column-key="barcode" data-default-width="150" style="width:150px">
+              <col data-column-key="name" data-default-width="240" style="width:240px">
+              <col data-column-key="size" data-default-width="90" style="width:90px">
+              <col data-column-key="weight" data-default-width="82" style="width:82px">
+              <col data-column-key="goods_type" data-default-width="100" style="width:100px">
+              <col data-column-key="location" data-default-width="110" style="width:110px">
+              <col data-column-key="qty" data-default-width="82" style="width:82px">
+              <col data-column-key="fbs" data-default-width="82" style="width:82px">
+              <col data-column-key="status" data-default-width="150" style="width:150px">
+            </colgroup>
+            <thead>
+              <tr class="head-row">
+                <th class="idx" data-column-key="index" data-column-label="Номер строки" title="Правый клик — изменить ширину">#</th>
+                <th data-column-key="created_at" data-column-label="Когда" title="Правый клик — изменить ширину">
+                  <a class="sort-link{% if journal_sort_key == 'created_at' %} active{% endif %}" href="{{ journal_sort_urls.created_at }}">
+                    <span>Когда</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'created_at' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th data-column-key="pallet" data-column-label="Паллета" title="Правый клик — изменить ширину">
+                  <a class="sort-link{% if journal_sort_key == 'pallet_code' %} active{% endif %}" href="{{ journal_sort_urls.pallet_code }}">
+                    <span>Паллета</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'pallet_code' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th data-column-key="box" data-column-label="Короб" title="Правый клик — изменить ширину">
+                  <a class="sort-link{% if journal_sort_key == 'box_code' %} active{% endif %}" href="{{ journal_sort_urls.box_code }}">
+                    <span>Короб</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'box_code' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th data-column-key="contour" data-column-label="Контур" title="Один физический короб учитывается только в одном контуре">
+                  <span>Контур</span>
+                </th>
+                <th data-column-key="order" data-column-label="Заявка" title="Правый клик — изменить ширину">
+                  <a class="sort-link{% if journal_sort_key == 'order_display' %} active{% endif %}" href="{{ journal_sort_urls.order_display }}">
+                    <span>Заявка</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'order_display' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th data-column-key="client" data-column-label="Клиент" title="Правый клик — изменить ширину">
+                  <a class="sort-link{% if journal_sort_key == 'client_label' %} active{% endif %}" href="{{ journal_sort_urls.client_label }}">
+                    <span>Клиент</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'client_label' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th data-column-key="sku" data-column-label="SKU" title="Правый клик — изменить ширину">
+                  <a class="sort-link{% if journal_sort_key == 'sku' %} active{% endif %}" href="{{ journal_sort_urls.sku }}">
+                    <span>SKU</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'sku' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th data-column-key="barcode" data-column-label="Штрихкод" title="Правый клик — изменить ширину">
+                  <a class="sort-link{% if journal_sort_key == 'barcode' %} active{% endif %}" href="{{ journal_sort_urls.barcode }}">
+                    <span>Штрихкод</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'barcode' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th data-column-key="name" data-column-label="Наименование" title="Правый клик — изменить ширину">
+                  <a class="sort-link{% if journal_sort_key == 'name' %} active{% endif %}" href="{{ journal_sort_urls.name }}">
+                    <span>Наименование</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'name' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th data-column-key="size" data-column-label="Размер" title="Правый клик — изменить ширину">
+                  <a class="sort-link{% if journal_sort_key == 'size' %} active{% endif %}" href="{{ journal_sort_urls.size }}">
+                    <span>Размер</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'size' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th data-column-key="weight" data-column-label="Вес, г" title="Правый клик — изменить ширину">
+                  <a class="sort-link{% if journal_sort_key == 'box_weight' %} active{% endif %}" href="{{ journal_sort_urls.box_weight }}">
+                    <span>Вес, г</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'box_weight' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th data-column-key="goods_type" data-column-label="Тип товара" title="Правый клик — изменить ширину">
+                  <a class="sort-link{% if journal_sort_key == 'goods_type' %} active{% endif %}" href="{{ journal_sort_urls.goods_type }}">
+                    <span>Тип товара</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'goods_type' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th data-column-key="location" data-column-label="Место" title="Правый клик — изменить ширину">
+                  <a class="sort-link{% if journal_sort_key == 'location' %} active{% endif %}" href="{{ journal_sort_urls.location }}">
+                    <span>Место</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'location' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th class="right" data-column-key="qty" data-column-label="Всего" title="Правый клик — изменить ширину">
+                  <a class="sort-link{% if journal_sort_key == 'qty' %} active{% endif %}" href="{{ journal_sort_urls.qty }}">
+                    <span>Всего</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'qty' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th class="right" data-column-key="fbs" data-column-label="ФБС" title="Правый клик — изменить ширину">
+                  <a class="sort-link{% if journal_sort_key == 'fbs_qty' %} active{% endif %}" href="{{ journal_sort_urls.fbs_qty }}">
+                    <span>ФБС</span>
+                    <span class="sort-icon">{% if journal_sort_key == 'fbs_qty' %}{% if journal_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span>
+                  </a>
+                </th>
+                <th data-column-key="status" data-column-label="Статус" title="Правый клик — изменить ширину">
+                  <span>Статус</span>
+                </th>
+              </tr>
+              <tr class="filter-row">
+                <th class="idx"></th>
+                <th>{% include "sklad/_inventory_journal_multi_filter.html" with filter_name="f_when" selected_values=multi_column_filters.f_when options=column_filter_options.f_when legacy_value=column_filters.f_when placeholder="Дата" only %}</th>
+                <th>{% include "sklad/_inventory_journal_multi_filter.html" with filter_name="f_pallet" selected_values=multi_column_filters.f_pallet options=column_filter_options.f_pallet legacy_value=column_filters.f_pallet placeholder="Паллета" only %}</th>
+                <th>{% include "sklad/_inventory_journal_multi_filter.html" with filter_name="f_box" selected_values=multi_column_filters.f_box options=column_filter_options.f_box legacy_value=column_filters.f_box placeholder="Короб" only %}</th>
+                <th></th>
+                <th>{% include "sklad/_inventory_journal_multi_filter.html" with filter_name="f_order" selected_values=multi_column_filters.f_order options=column_filter_options.f_order legacy_value=column_filters.f_order placeholder="Заявка" only %}</th>
+                <th>{% include "sklad/_inventory_journal_multi_filter.html" with filter_name="f_client" selected_values=multi_column_filters.f_client options=column_filter_options.f_client legacy_value=column_filters.f_client placeholder="Клиент" only %}</th>
+                <th>{% include "sklad/_inventory_journal_multi_filter.html" with filter_name="f_sku" selected_values=multi_column_filters.f_sku options=column_filter_options.f_sku legacy_value=column_filters.f_sku placeholder="SKU" only %}</th>
+                <th>{% include "sklad/_inventory_journal_multi_filter.html" with filter_name="f_barcode" selected_values=multi_column_filters.f_barcode options=column_filter_options.f_barcode legacy_value=column_filters.f_barcode placeholder="Штрихкод" only %}</th>
+                <th>{% include "sklad/_inventory_journal_multi_filter.html" with filter_name="f_name" selected_values=multi_column_filters.f_name options=column_filter_options.f_name legacy_value=column_filters.f_name placeholder="Наименование" only %}</th>
+                <th>{% include "sklad/_inventory_journal_multi_filter.html" with filter_name="f_size" selected_values=multi_column_filters.f_size options=column_filter_options.f_size legacy_value=column_filters.f_size placeholder="Размер" only %}</th>
+                <th>{% include "sklad/_inventory_journal_multi_filter.html" with filter_name="f_weight" selected_values=multi_column_filters.f_weight options=column_filter_options.f_weight legacy_value=column_filters.f_weight placeholder="Вес" only %}</th>
+                <th>{% include "sklad/_inventory_journal_multi_filter.html" with filter_name="f_goods_type" selected_values=multi_column_filters.f_goods_type options=column_filter_options.f_goods_type legacy_value=column_filters.f_goods_type placeholder="Тип" only %}</th>
+                <th>{% include "sklad/_inventory_journal_multi_filter.html" with filter_name="f_location" selected_values=multi_column_filters.f_location options=column_filter_options.f_location legacy_value=column_filters.f_location placeholder="Место" only %}</th>
+                <th>{% include "sklad/_inventory_journal_multi_filter.html" with filter_name="f_qty" selected_values=multi_column_filters.f_qty options=column_filter_options.f_qty legacy_value=column_filters.f_qty placeholder="Всего" only %}</th>
+                <th>{% include "sklad/_inventory_journal_multi_filter.html" with filter_name="f_fbs" selected_values=multi_column_filters.f_fbs options=column_filter_options.f_fbs legacy_value=column_filters.f_fbs placeholder="ФБС" only %}</th>
+                <th>{% include "sklad/_inventory_journal_multi_filter.html" with filter_name="f_status" selected_values=multi_column_filters.f_status options=column_filter_options.f_status legacy_value=column_filters.f_status placeholder="Статус" only %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+                <tr{% if row.is_processing_consumed %} class="is-processing-consumed"{% endif %}>
+                  <td class="idx">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                  <td title='{{ row.created_at|date:"d.m.Y H:i" }}'>
+                    <div class="primary">{{ row.created_at|date:"d.m.Y H:i" }}</div>
+                  </td>
+                  <td
+                    class="pallet-cell"
+                    title="{{ row.pallet_code }}"
+                    data-pallet-code="{{ row.pallet_code }}"
+                    data-client-label="{{ row.client_label }}"
+                  >
+                    <button type="button" class="pallet-info-link code" data-open-pallet-info>{{ row.pallet_code }}</button>
+                  </td>
+                  <td
+                    class="box-cell{% if row.is_processing_source_box %} processing-source-box{% endif %}"
+                    title="{% if row.is_processing_source_box %}Исходный короб обработки: {{ row.box_code }}{% else %}{{ row.box_code }}{% endif %}"
+                    data-box-code="{{ row.box_code }}"
+                    data-client-label="{{ row.client_label }}"
+                    data-pallet-code="{{ row.pallet_code }}"
+                  >
+                    <button type="button" class="box-info-link code" data-open-box-info>{{ row.box_code }}</button>
+                  </td>
+                  <td title="{{ row.storage_contour_hint }}">
+                    <span class="contour-pill{% if row.is_fbs_stock %} fbs{% endif %}">{{ row.storage_contour_label }}</span>
+                  </td>
+                  <td title="{{ row.order_display }}">
+                    <div class="code">{{ row.order_display }}</div>
+                    {% if row.state_label %}
+                      <div class="state-pill" title="{{ row.state_note }}">{{ row.state_label }}</div>
+                    {% endif %}
+                  </td>
+                  <td title="{{ row.client_label }}">
+                    <div class="primary">{{ row.client_label }}</div>
+                  </td>
+                  <td title="{{ row.sku }}"><div class="code">{{ row.sku }}</div></td>
+                  <td title="Штрихкод: {{ row.barcode }}">
+                    <div class="code">
+                      {% for value in row.barcode_lines %}{% if row.sku_ref_id and value and value != "-" %}<a class="journal-value-line barcode-history-link" href="/warehouse-goods/{{ row.sku_ref_id }}/history/?barcode={{ value|urlencode }}&amp;next={{ request.get_full_path|urlencode }}" title="Открыть историю движения по ШК {{ value }}">{{ value }}</a>{% else %}<span class="journal-value-line">{{ value }}</span>{% endif %}{% endfor %}
+                    </div>
+                  </td>
+                  <td title="{{ row.name }}">
+                    <div class="primary">
+                      {% for value in row.name_lines %}<span class="journal-value-line">{{ value }}</span>{% endfor %}
+                    </div>
+                  </td>
+                  <td title="{{ row.box_size_hint }}"><div class="code">{% if row.box_size %}{{ row.box_size }}{% else %}-{% endif %}</div></td>
+                  <td title="{{ row.box_weight_hint }}"><div class="code">{{ row.box_weight|default:"-" }}</div></td>
+                  <td title="{{ row.goods_type_hint }}"><div class="primary">{{ row.goods_type }}</div></td>
+                  <td title="Место хранения: {{ row.location }}">
+                    <div class="code">{{ row.location_short }}</div>
+                  </td>
+                  <td class="qty" title="Количество: {{ row.qty }}">{{ row.qty }}</td>
+                  <td class="qty" title="Находится в FBS и ещё не отправлено: {{ row.fbs_qty|default:0 }}">
+                    {% if row.fbs_qty %}{{ row.fbs_qty }}{% else %}—{% endif %}
+                  </td>
+                  <td title="{{ row.stock_status_hint }}">
+                    <div class="{% if row.stock_status_key == 'empty' %}muted{% else %}primary{% endif %}">
+                      {{ row.stock_status_label|default:"-" }}
+                    </div>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="17" class="empty">Записей по текущему фильтру нет.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if page_obj.paginator.num_pages > 1 %}
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; flex-wrap:wrap;">
+            <span class="muted">Показаны строки {{ page_obj.start_index }}–{{ page_obj.end_index }} из {{ page_obj.paginator.count }}</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              {% if page_obj.has_previous %}
+                <a class="btn" href="?{% if page_query %}{{ page_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Назад</a>
+              {% endif %}
+              <span class="muted">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+              {% if page_obj.has_next %}
+                <a class="btn" href="?{% if page_query %}{{ page_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Вперед</a>
+              {% endif %}
+            </div>
+          </div>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+  <div class="pallet-context-menu" id="containerContextMenu" role="menu" aria-hidden="true">
+    <div class="pallet-context-menu-title" id="containerContextMenuTitle">Контейнер</div>
+    <button type="button" class="pallet-context-menu-button" data-action="print-container-qr">
+      Распечатать QR
+    </button>
+    <button type="button" class="pallet-context-menu-button" data-action="print-pallet-boxes-qr" hidden>
+      Распечатать QR для всех коробов паллеты
+    </button>
+    <button type="button" class="pallet-context-menu-button" data-action="show-box-info" hidden>
+      &#1048;&#1085;&#1092;&#1086;&#1088;&#1084;&#1072;&#1094;&#1080;&#1103; &#1086; &#1082;&#1086;&#1088;&#1086;&#1073;&#1077;
+    </button>
+  </div>
+  <div class="column-width-menu" id="columnWidthMenu" role="dialog" aria-hidden="true" aria-labelledby="columnWidthMenuTitle">
+    <div class="column-width-menu-title" id="columnWidthMenuTitle">Изменить ширину столбца</div>
+    <div class="column-width-menu-column" id="columnWidthMenuColumn"></div>
+    <label class="column-width-menu-field" for="columnWidthInput">
+      <span>Ширина, px</span>
+      <input
+        class="column-width-menu-input"
+        id="columnWidthInput"
+        type="number"
+        min="48"
+        max="600"
+        step="1"
+        inputmode="numeric"
+      >
+    </label>
+    <div class="column-width-menu-actions">
+      <button type="button" class="column-width-menu-button primary" data-action="apply-column-width">Сохранить</button>
+      <button type="button" class="column-width-menu-button" data-action="reset-column-width">По умолчанию</button>
+    </div>
+    <div class="column-width-menu-hint">Enter — сохранить, Esc — закрыть. Настройка хранится отдельно для текущего пользователя.</div>
+  </div>
+
+  <div class="inventory-box-info-backdrop" id="inventoryBoxInfoModal" hidden>
+    <section class="inventory-box-info-modal" role="dialog" aria-modal="true" aria-labelledby="inventoryBoxInfoTitle">
+      <div class="inventory-box-info-head">
+        <div>
+          <h2 class="inventory-box-info-title" id="inventoryBoxInfoTitle">&#1048;&#1085;&#1092;&#1086;&#1088;&#1084;&#1072;&#1094;&#1080;&#1103; &#1086; &#1082;&#1086;&#1088;&#1086;&#1073;&#1077;</h2>
+          <p class="inventory-box-info-subtitle" id="inventoryBoxInfoSubtitle"></p>
+        </div>
+        <div class="inventory-box-info-actions">
+          <a class="btn primary" id="inventoryBoxInfoExport" href="#" hidden>&#1042;&#1099;&#1075;&#1088;&#1091;&#1079;&#1080;&#1090;&#1100; &#1074; Excel</a>
+          <button type="button" class="btn" id="inventoryBoxInfoClose">&#1047;&#1072;&#1082;&#1088;&#1099;&#1090;&#1100;</button>
+        </div>
+      </div>
+      <div class="inventory-box-info-summary" id="inventoryBoxInfoSummary"></div>
+      <h3 class="inventory-box-info-section-title" id="inventoryBoxPassportTitle">Паспорт короба</h3>
+      <div class="inventory-box-info-passport" id="inventoryBoxInfoPassport"></div>
+      <h3 class="inventory-box-info-section-title">Текущий состав</h3>
+      <div class="inventory-box-info-table-wrap">
+        <table class="inventory-box-info-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th id="inventoryBoxChildHeader">&#1055;&#1072;&#1083;&#1083;&#1077;&#1090;&#1072;</th>
+              <th>&#1052;&#1077;&#1089;&#1090;&#1086;</th>
+              <th>&#1047;&#1072;&#1103;&#1074;&#1082;&#1072;</th>
+              <th>&#1050;&#1083;&#1080;&#1077;&#1085;&#1090;</th>
+              <th>SKU</th>
+              <th>&#1053;&#1072;&#1080;&#1084;&#1077;&#1085;&#1086;&#1074;&#1072;&#1085;&#1080;&#1077;</th>
+              <th>&#1056;&#1072;&#1079;&#1084;&#1077;&#1088;</th>
+              <th>&#1064;&#1050;</th>
+              <th>&#1058;&#1080;&#1087;</th>
+              <th>&#1050;&#1086;&#1083;-&#1074;&#1086;</th>
+              <th>&#1057;&#1090;&#1072;&#1090;&#1091;&#1089;</th>
+              <th>&#1063;&#1047;</th>
+              <th>&#1050;&#1086;&#1076; &#1063;&#1047;</th>
+            </tr>
+          </thead>
+          <tbody id="inventoryBoxInfoRows">
+            <tr><td colspan="14" class="inventory-box-info-empty">&#1042;&#1099;&#1073;&#1077;&#1088;&#1080;&#1090;&#1077; &#1082;&#1086;&#1088;&#1086;&#1073;.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3 class="inventory-box-info-section-title" id="inventoryBoxHistoryTitle">История короба</h3>
+      <div class="inventory-box-info-table-wrap">
+        <table class="inventory-box-info-table inventory-box-history-table">
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Действие</th>
+              <th>Документ</th>
+              <th>Контейнер</th>
+              <th>Кол-во</th>
+              <th>Откуда</th>
+              <th>Куда</th>
+              <th>Сотрудник</th>
+            </tr>
+          </thead>
+          <tbody id="inventoryBoxHistoryRows">
+            <tr><td colspan="8" class="inventory-box-info-empty">Выберите короб.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+  <div id="inventory-box-label-template" hidden aria-hidden="true">
+    <div
+      class="label-preview"
+      data-label-root
+      data-label-type="box"
+      data-label-width="58"
+      data-label-height="60"
+    >
+      {% include "labels/_label_box.html" %}
+    </div>
+  </div>
+  <div id="inventory-pallet-label-template" hidden aria-hidden="true">
+    <div
+      class="label-preview"
+      data-label-root
+      data-label-type="pallet"
+      data-label-width="58"
+      data-label-height="60"
+    >
+      {% include "labels/_label_pallet.html" %}
+    </div>
+  </div>
+  {{ label_settings|json_script:"inventory-label-settings-data" }}
+  <script src="/static/vendor/html2canvas.min.js"></script>
+  <script src="/static/vendor/qrcode.min.js"></script>
+  <script>
+    (() => {
+      const problemTabButtons = Array.from(document.querySelectorAll('[data-problem-tab]'));
+      const problemPanels = Array.from(document.querySelectorAll('[data-problem-panel]'));
+      problemTabButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const target = String(button.dataset.problemTab || '');
+          problemTabButtons.forEach((item) => {
+            const active = item === button;
+            item.classList.toggle('is-active', active);
+            item.setAttribute('aria-selected', active ? 'true' : 'false');
+          });
+          problemPanels.forEach((panel) => {
+            panel.hidden = String(panel.dataset.problemPanel || '') !== target;
+          });
+        });
+      });
+      const menu = document.getElementById('containerContextMenu');
+      if (!menu) {
+        return;
+      }
+      const menuTitle = document.getElementById('containerContextMenuTitle');
+      const printButton = menu.querySelector('[data-action="print-container-qr"]');
+      const printPalletBoxesButton = menu.querySelector('[data-action="print-pallet-boxes-qr"]');
+      const boxInfoButton = menu.querySelector('[data-action="show-box-info"]');
+      let activeCell = null;
+      let activeType = '';
+      let activePalletCode = '';
+      let activeBoxCode = '';
+      const boxInfoModal = document.getElementById('inventoryBoxInfoModal');
+      const boxInfoTitle = document.getElementById('inventoryBoxInfoTitle');
+      const boxInfoSubtitle = document.getElementById('inventoryBoxInfoSubtitle');
+      const boxInfoSummary = document.getElementById('inventoryBoxInfoSummary');
+      const boxInfoPassportTitle = document.getElementById('inventoryBoxPassportTitle');
+      const boxInfoPassport = document.getElementById('inventoryBoxInfoPassport');
+      const boxInfoChildHeader = document.getElementById('inventoryBoxChildHeader');
+      const boxInfoRows = document.getElementById('inventoryBoxInfoRows');
+      const boxInfoHistoryTitle = document.getElementById('inventoryBoxHistoryTitle');
+      const boxInfoHistoryRows = document.getElementById('inventoryBoxHistoryRows');
+      const boxInfoExport = document.getElementById('inventoryBoxInfoExport');
+      const boxInfoClose = document.getElementById('inventoryBoxInfoClose');
+      let boxInfoCompositionGroups = [];
+      let boxInfoHistoryGroups = [];
+      let boxInfoContainerIsPallet = false;
+      const inventoryPrintAgentStorageKey = 'labels_print_agent_id';
+      const processingFlowAgentStorageKey = 'fullbox_agent_id';
+      const labelImageCache = new Map();
+      const pendingPrints = new Set();
+      const localAgentBridgeState = {
+        payload: null,
+        pending: null,
+      };
+      const localAgentBridgeUrls = [
+        'http://127.0.0.1:17841/whoami',
+        'http://localhost:17841/whoami',
+      ];
+      const virtualPrinterMarkers = [
+        'pdf',
+        'xps',
+        'onenote',
+        'fax',
+        'microsoft print',
+        'save to pdf',
+        'anydesk',
+        'rustdesk',
+        'remote desktop',
+        'redirected',
+      ];
+      const labelSettingsNode = document.getElementById('inventory-label-settings-data');
+      let labelSettingsData = {};
+      try {
+        labelSettingsData = labelSettingsNode ? JSON.parse(labelSettingsNode.textContent || '{}') : {};
+      } catch (error) {
+        labelSettingsData = {};
+      }
+
+      const hideMenu = () => {
+        menu.classList.remove('is-open');
+        menu.setAttribute('aria-hidden', 'true');
+        activeCell = null;
+        activeType = '';
+        activePalletCode = '';
+        activeBoxCode = '';
+      };
+
+      const inventoryJournalTable = document.getElementById('inventoryJournalTable');
+      const inventoryColumnProfile = String(inventoryJournalTable?.dataset.columnProfile || 'anonymous').trim() || 'anonymous';
+      const inventoryColumnWidthStorageKey = `inventory-journal-column-widths:v1:${inventoryColumnProfile}:${window.location.pathname}`;
+      const inventoryColumnElements = inventoryJournalTable
+        ? Array.from(inventoryJournalTable.querySelectorAll('col[data-column-key][data-default-width]'))
+        : [];
+      const columnWidthMenu = document.getElementById('columnWidthMenu');
+      const columnWidthMenuColumn = document.getElementById('columnWidthMenuColumn');
+      const columnWidthInput = document.getElementById('columnWidthInput');
+      const applyColumnWidthButton = columnWidthMenu?.querySelector('[data-action="apply-column-width"]');
+      const resetColumnWidthButton = columnWidthMenu?.querySelector('[data-action="reset-column-width"]');
+      const minimumColumnWidth = 48;
+      const maximumColumnWidth = 600;
+      let activeColumnKey = '';
+
+      const clampColumnWidth = (value, fallback = minimumColumnWidth) => {
+        const parsed = Number.parseInt(String(value || ''), 10);
+        if (!Number.isFinite(parsed)) {
+          return fallback;
+        }
+        return Math.min(maximumColumnWidth, Math.max(minimumColumnWidth, parsed));
+      };
+
+      const getColumnElement = (columnKey) => inventoryColumnElements.find(
+        (column) => String(column.dataset.columnKey || '') === String(columnKey || ''),
+      ) || null;
+
+      const getColumnDefaultWidth = (column) => clampColumnWidth(column?.dataset.defaultWidth, minimumColumnWidth);
+
+      const getColumnCurrentWidth = (column) => clampColumnWidth(
+        column?.style.width || column?.dataset.defaultWidth,
+        getColumnDefaultWidth(column),
+      );
+
+      const syncInventoryTableWidth = () => {
+        if (!inventoryJournalTable || !inventoryColumnElements.length) {
+          return;
+        }
+        const totalWidth = inventoryColumnElements.reduce((sum, column) => sum + getColumnCurrentWidth(column), 0);
+        inventoryJournalTable.style.width = `${totalWidth}px`;
+        inventoryJournalTable.style.minWidth = `${totalWidth}px`;
+      };
+
+      const setColumnWidth = (columnKey, width) => {
+        const column = getColumnElement(columnKey);
+        if (!column) {
+          return null;
+        }
+        const normalizedWidth = clampColumnWidth(width, getColumnDefaultWidth(column));
+        column.style.width = `${normalizedWidth}px`;
+        syncInventoryTableWidth();
+        return normalizedWidth;
+      };
+
+      const loadSavedColumnWidths = () => {
+        try {
+          const raw = window.localStorage.getItem(inventoryColumnWidthStorageKey);
+          const parsed = raw ? JSON.parse(raw) : {};
+          return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+        } catch (error) {
+          return {};
+        }
+      };
+
+      const saveColumnWidths = (widths) => {
+        try {
+          window.localStorage.setItem(inventoryColumnWidthStorageKey, JSON.stringify(widths));
+        } catch (error) {
+        }
+      };
+
+      const savedColumnWidths = loadSavedColumnWidths();
+      inventoryColumnElements.forEach((column) => {
+        const columnKey = String(column.dataset.columnKey || '').trim();
+        const defaultWidth = getColumnDefaultWidth(column);
+        const savedWidth = Object.prototype.hasOwnProperty.call(savedColumnWidths, columnKey)
+          ? savedColumnWidths[columnKey]
+          : defaultWidth;
+        setColumnWidth(columnKey, savedWidth);
+      });
+      syncInventoryTableWidth();
+
+      const hideColumnWidthMenu = () => {
+        if (!columnWidthMenu) {
+          return;
+        }
+        columnWidthMenu.classList.remove('is-open');
+        columnWidthMenu.setAttribute('aria-hidden', 'true');
+        activeColumnKey = '';
+      };
+
+      const showColumnWidthMenu = (event, header) => {
+        if (!columnWidthMenu || !columnWidthInput) {
+          return;
+        }
+        const columnKey = String(header?.dataset.columnKey || '').trim();
+        const column = getColumnElement(columnKey);
+        if (!column) {
+          return;
+        }
+        activeColumnKey = columnKey;
+        if (columnWidthMenuColumn) {
+          columnWidthMenuColumn.textContent = String(header.dataset.columnLabel || header.textContent || columnKey).trim();
+        }
+        columnWidthInput.value = String(getColumnCurrentWidth(column));
+        columnWidthMenu.classList.add('is-open');
+        columnWidthMenu.setAttribute('aria-hidden', 'false');
+        const menuWidth = columnWidthMenu.offsetWidth || 270;
+        const menuHeight = columnWidthMenu.offsetHeight || 190;
+        const maxLeft = Math.max(8, window.innerWidth - menuWidth - 8);
+        const maxTop = Math.max(8, window.innerHeight - menuHeight - 8);
+        columnWidthMenu.style.left = `${Math.min(event.clientX, maxLeft)}px`;
+        columnWidthMenu.style.top = `${Math.min(event.clientY, maxTop)}px`;
+        window.requestAnimationFrame(() => {
+          columnWidthInput.focus();
+          columnWidthInput.select();
+        });
+      };
+
+      const applyActiveColumnWidth = () => {
+        if (!activeColumnKey || !columnWidthInput) {
+          return;
+        }
+        const column = getColumnElement(activeColumnKey);
+        if (!column) {
+          hideColumnWidthMenu();
+          return;
+        }
+        const normalizedWidth = setColumnWidth(activeColumnKey, columnWidthInput.value);
+        if (normalizedWidth === null) {
+          return;
+        }
+        savedColumnWidths[activeColumnKey] = normalizedWidth;
+        saveColumnWidths(savedColumnWidths);
+        hideColumnWidthMenu();
+      };
+
+      document.addEventListener('contextmenu', (event) => {
+        const header = event.target.closest('#inventoryJournalTable .head-row th[data-column-key]');
+        if (!header) {
+          hideColumnWidthMenu();
+          return;
+        }
+        event.preventDefault();
+        hideMenu();
+        showColumnWidthMenu(event, header);
+      });
+
+      applyColumnWidthButton?.addEventListener('click', applyActiveColumnWidth);
+      resetColumnWidthButton?.addEventListener('click', () => {
+        const column = getColumnElement(activeColumnKey);
+        if (!column) {
+          hideColumnWidthMenu();
+          return;
+        }
+        setColumnWidth(activeColumnKey, getColumnDefaultWidth(column));
+        delete savedColumnWidths[activeColumnKey];
+        saveColumnWidths(savedColumnWidths);
+        hideColumnWidthMenu();
+      });
+      columnWidthInput?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          applyActiveColumnWidth();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          hideColumnWidthMenu();
+        }
+      });
+      document.addEventListener('click', (event) => {
+        if (columnWidthMenu && !columnWidthMenu.contains(event.target)) {
+          hideColumnWidthMenu();
+        }
+      });
+      window.addEventListener('resize', hideColumnWidthMenu);
+      window.addEventListener('scroll', hideColumnWidthMenu, true);
+      window.addEventListener('blur', hideColumnWidthMenu);
+
+      const getCsrfToken = () => {
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+      };
+
+      const isVirtualPrinterName = (value) => {
+        const normalized = String(value || '').trim().toLowerCase();
+        return normalized && virtualPrinterMarkers.some((marker) => normalized.includes(marker));
+      };
+
+      const getStoredPrinter = () => (
+        localStorage.getItem('processing_label_printer')
+        || localStorage.getItem('label_printer')
+        || ''
+      ).trim();
+
+      const getStoredAgentId = () => (
+        localStorage.getItem(inventoryPrintAgentStorageKey)
+        || localStorage.getItem(processingFlowAgentStorageKey)
+        || ''
+      ).trim();
+
+      const parseLabelFont = (value, fallback) => {
+        const parsed = Number.parseFloat(String(value ?? '').replace(',', '.'));
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+      };
+
+      const shortenClientLabel = (value) => {
+        const normalized = String(value || '')
+          .replace(/\u00a0/g, ' ')
+          .replace(/^клиент\s*:\s*/i, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (!normalized) {
+          return '';
+        }
+        const ipMatch = normalized.match(/^(?:ип|индивидуальный\s+предприниматель)\s+(.+)$/i);
+        if (!ipMatch) {
+          return normalized;
+        }
+        const parts = String(ipMatch[1] || '').trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) {
+          return 'ИП';
+        }
+        const surname = parts[0];
+        const initials = parts.slice(1, 3).map((part) => `${part.charAt(0).toUpperCase()}.`).join('');
+        return initials ? `ИП ${surname} ${initials}` : `ИП ${surname}`;
+      };
+
+      const buildInventoryContainerLabelSettings = (key) => {
+        const source = labelSettingsData && typeof labelSettingsData === 'object'
+          ? labelSettingsData
+          : {};
+        const entry = source && typeof source[key] === 'object' ? source[key] : {};
+        const text = entry && typeof entry.text === 'object' ? entry.text : {};
+        const fonts = entry && typeof entry.fonts === 'object' ? entry.fonts : {};
+        const enabled = entry && typeof entry.enabled === 'object' ? entry.enabled : {};
+        return {
+          text,
+          fonts: {
+            barcode: parseLabelFont(fonts.barcode, 3),
+            box_client: parseLabelFont(fonts.box_client, 2.1),
+            box_basis: parseLabelFont(fonts.box_basis, 1),
+            box_pallet_number: parseLabelFont(fonts.box_pallet_number, 4),
+          },
+          enabled: {
+            barcode: enabled.barcode !== false,
+            box_client: enabled.box_client !== false,
+            box_basis: enabled.box_basis !== false,
+            box_pallet_number: enabled.box_pallet_number !== false,
+          },
+        };
+      };
+
+      const setPalletLabelHeader = (target, prefix, barcode) => {
+        if (!target) {
+          return;
+        }
+        const normalizedPrefix = String(prefix || '').trim();
+        const normalizedBarcode = String(barcode || '').trim();
+        target.replaceChildren();
+        const strong = document.createElement('span');
+        strong.className = 'label-box-header-prefix';
+        strong.textContent = normalizedPrefix;
+        target.appendChild(strong);
+        target.appendChild(document.createTextNode(normalizedBarcode ? ` - ${normalizedBarcode}` : ' -'));
+      };
+
+      const applyPalletLabelDimensions = (target, dims) => {
+        if (!target || !dims) {
+          return;
+        }
+        target.style.setProperty('--label-width', `${dims.width}mm`);
+        target.style.setProperty('--label-height', `${dims.height}mm`);
+        target.style.setProperty('--label-scale', '1');
+      };
+
+      const applyPalletLabelFontVar = (root, name, value) => {
+        if (!root) {
+          return;
+        }
+        const parsed = Number.parseFloat(String(value ?? '').replace(',', '.'));
+        if (Number.isFinite(parsed) && parsed > 0) {
+          root.style.setProperty(name, `${parsed}mm`);
+        } else {
+          root.style.removeProperty(name);
+        }
+      };
+
+      const setPalletLabelField = (root, field, value, prefix = null) => {
+        if (!root) {
+          return;
+        }
+        const target = root.querySelector(`[data-info="${field}"]`);
+        if (!target) {
+          return;
+        }
+        const normalized = String(value || '').trim();
+        target.textContent = normalized ? `${prefix || ''}${normalized}` : '';
+        const wrapper = target.closest('.label-box-cell, .label-box-number');
+        if (wrapper) {
+          wrapper.style.display = normalized ? '' : 'none';
+        }
+      };
+
+      const getPalletSequenceNumber = (palletCode) => {
+        const normalizedTarget = String(palletCode || '').trim();
+        if (!normalizedTarget || normalizedTarget === '-') {
+          return '';
+        }
+        const seen = new Set();
+        const cells = Array.from(document.querySelectorAll('.pallet-cell[data-pallet-code]'));
+        for (const cell of cells) {
+          const value = String(cell.dataset.palletCode || '').trim();
+          if (!value || value === '-' || seen.has(value)) {
+            continue;
+          }
+          seen.add(value);
+          if (value === normalizedTarget) {
+            return String(seen.size);
+          }
+        }
+        return '';
+      };
+
+      const getBoxSequenceNumber = (boxCode, palletCode) => {
+        const normalizedBox = String(boxCode || '').trim();
+        const normalizedPallet = String(palletCode || '').trim();
+        if (!normalizedBox || normalizedBox === '-' || !normalizedPallet || normalizedPallet === '-') {
+          return '';
+        }
+        const seen = new Set();
+        const cells = Array.from(document.querySelectorAll('.box-cell[data-box-code]'));
+        for (const cell of cells) {
+          const rowPallet = String(cell.dataset.palletCode || '').trim();
+          const value = String(cell.dataset.boxCode || '').trim();
+          if (rowPallet !== normalizedPallet || !value || value === '-' || seen.has(value)) {
+            continue;
+          }
+          seen.add(value);
+          if (value === normalizedBox) {
+            return String(seen.size);
+          }
+        }
+        return '';
+      };
+
+      const buildContainerLabelData = (type, cell) => {
+        const isPallet = type === 'pallet';
+        const code = String(
+          isPallet
+            ? cell?.dataset?.palletCode || ''
+            : cell?.dataset?.boxCode || ''
+        ).trim();
+        if (!code || code === '-') {
+          return null;
+        }
+        const settings = buildInventoryContainerLabelSettings(isPallet ? 'pallet' : 'box');
+        const templateClientLabel = shortenClientLabel(String(settings.text.box_client || '').trim());
+        const rowClientLabel = shortenClientLabel(String(cell?.dataset?.clientLabel || '').trim());
+        const clientLabel = rowClientLabel || templateClientLabel;
+        const clientFont = rowClientLabel
+          ? (clientLabel.length > 14 ? Math.min(settings.fonts.box_client, 2.1) : settings.fonts.box_client)
+          : settings.fonts.box_client;
+        const basisText = settings.enabled.box_basis ? String(settings.text.box_basis || '').trim() : '';
+        const palletCode = String(cell?.dataset?.palletCode || '').trim();
+        const boxSequenceNumber = String(cell?.dataset?.boxSequenceNumber || '').trim();
+        return {
+          barcode: settings.enabled.barcode ? code : '',
+          box_client: settings.enabled.box_client ? clientLabel : '',
+          box_basis: basisText,
+          box_pallet_number: settings.enabled.box_pallet_number
+            ? (isPallet ? getPalletSequenceNumber(code) : (boxSequenceNumber || getBoxSequenceNumber(code, palletCode)))
+            : '',
+          fonts: {
+            ...settings.fonts,
+            box_client: clientFont,
+          },
+        };
+      };
+
+      const makeContainerLabelImageCacheKey = (type, data) => {
+        if (!data) {
+          return '';
+        }
+        return JSON.stringify({
+          type,
+          barcode: String(data.barcode || '').trim(),
+          box_client: String(data.box_client || '').trim(),
+          box_basis: String(data.box_basis || '').trim(),
+          box_pallet_number: String(data.box_pallet_number || '').trim(),
+          fonts: data.fonts || {},
+        });
+      };
+
+      const waitForLabelRender = async () => {
+        await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+        await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+        await new Promise((resolve) => window.setTimeout(resolve, 40));
+      };
+
+      const buildContainerLabelBase64 = async (type, cell) => {
+        if (!window.html2canvas || !window.QRCode) {
+          throw new Error('Модуль печати не загружен.');
+        }
+        const data = buildContainerLabelData(type, cell);
+        if (!data || !data.barcode) {
+          throw new Error('Нет данных контейнера для печати.');
+        }
+        const cacheKey = makeContainerLabelImageCacheKey(type, data);
+        const cachedBase64 = cacheKey ? labelImageCache.get(cacheKey) || '' : '';
+        if (cachedBase64) {
+          return cachedBase64;
+        }
+        const templateSelector = type === 'pallet'
+          ? '#inventory-pallet-label-template .label-preview'
+          : '#inventory-box-label-template .label-preview';
+        const templateRoot = document.querySelector(templateSelector);
+        if (!templateRoot) {
+          throw new Error('Не найден общий шаблон этикетки.');
+        }
+        const dims = { width: 58, height: 60 };
+        const clone = templateRoot.cloneNode(true);
+        clone.dataset.renderMode = 'print';
+        applyPalletLabelDimensions(clone, dims);
+        applyPalletLabelFontVar(clone, '--font-barcode', data.fonts.barcode);
+        applyPalletLabelFontVar(clone, '--font-box-client', data.fonts.box_client);
+        applyPalletLabelFontVar(clone, '--font-box-basis', data.fonts.box_basis);
+        applyPalletLabelFontVar(clone, '--font-box-pallet-number', data.fonts.box_pallet_number);
+        const holder = document.createElement('div');
+        holder.style.position = 'fixed';
+        holder.style.left = '-9999px';
+        holder.style.top = '0';
+        holder.style.background = '#ffffff';
+        holder.style.padding = '0';
+        holder.style.margin = '0';
+        holder.appendChild(clone);
+        document.body.appendChild(holder);
+        try {
+          const boxHeader = clone.querySelector('[data-box-header]');
+          if (boxHeader) {
+            setPalletLabelHeader(boxHeader, type === 'pallet' ? 'Паллет' : 'Короб', data.barcode);
+          }
+          setPalletLabelField(clone, 'box_client', data.box_client, null);
+          setPalletLabelField(clone, 'box_basis', data.box_basis, 'Основание: ');
+          setPalletLabelField(clone, 'box_pallet_number', data.box_pallet_number, null);
+          const qrBox = clone.querySelector('[data-qr-box]');
+          if (!qrBox) {
+            throw new Error('QR-блок паллеты не найден.');
+          }
+          qrBox.innerHTML = '';
+          const qrHost = qrBox.parentElement || qrBox;
+          const rawSize = Math.min(qrHost.clientWidth || 0, qrHost.clientHeight || 0);
+          const size = Math.floor(rawSize * 1.0) || 64;
+          qrBox.style.width = `${size}px`;
+          qrBox.style.height = `${size}px`;
+          new QRCode(qrBox, {
+            text: data.barcode,
+            width: size,
+            height: size,
+            correctLevel: QRCode.CorrectLevel.M,
+          });
+          await waitForLabelRender();
+          const canvas = await window.html2canvas(clone, {
+            backgroundColor: '#ffffff',
+            scale: 2.12,
+            logging: false,
+            useCORS: true,
+          });
+          const base64 = canvas.toDataURL('image/png').split(',')[1] || '';
+          if (cacheKey && base64) {
+            labelImageCache.set(cacheKey, base64);
+          }
+          return base64;
+        } finally {
+          holder.remove();
+        }
+      };
+
+      const fetchLocalAgentBridgePayload = async (url) => {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), 1200);
+        try {
+          const resp = await fetch(url, {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-store',
+            signal: controller.signal,
+          });
+          if (!resp.ok) {
+            return null;
+          }
+          const data = await resp.json();
+          return data && typeof data === 'object' ? data : null;
+        } catch (err) {
+          return null;
+        } finally {
+          window.clearTimeout(timer);
+        }
+      };
+
+      const detectLocalAgentBridge = async () => {
+        const fallbackAgentId = getStoredAgentId();
+        if (localAgentBridgeState.payload) {
+          return localAgentBridgeState.payload;
+        }
+        if (localAgentBridgeState.pending) {
+          return localAgentBridgeState.pending;
+        }
+        localAgentBridgeState.pending = (async () => {
+          for (const url of localAgentBridgeUrls) {
+            const payload = await fetchLocalAgentBridgePayload(url);
+            if (payload && payload.agentId) {
+              localStorage.setItem(inventoryPrintAgentStorageKey, String(payload.agentId || '').trim());
+              localAgentBridgeState.payload = payload;
+              window.__fullboxLocalAgentBridgePayload = payload;
+              return payload;
+            }
+          }
+          if (fallbackAgentId) {
+            return { agentId: fallbackAgentId };
+          }
+          return null;
+        })();
+        try {
+          return await localAgentBridgeState.pending;
+        } finally {
+          localAgentBridgeState.pending = null;
+        }
+      };
+
+      const getPreferredPrinter = async () => {
+        const stored = getStoredPrinter();
+        if (stored && !isVirtualPrinterName(stored)) {
+          return stored;
+        }
+        const payload = await detectLocalAgentBridge();
+        const defaultPrinter = String(payload?.defaultPrinter || '').trim();
+        if (defaultPrinter && !isVirtualPrinterName(defaultPrinter)) {
+          return defaultPrinter;
+        }
+        const printers = Array.isArray(payload?.printers)
+          ? payload.printers
+            .map((item) => String(item || '').trim())
+            .filter((item) => item && !isVirtualPrinterName(item))
+          : [];
+        return printers[0] || '';
+      };
+
+      const enqueueContainerQrPrint = async (type, cell) => {
+        const isPallet = type === 'pallet';
+        const code = String(
+          isPallet
+            ? cell?.dataset?.palletCode || ''
+            : cell?.dataset?.boxCode || ''
+        ).trim();
+        if (!code || code === '-') {
+          return;
+        }
+        const pendingKey = `${type}:${code}`;
+        if (pendingPrints.has(pendingKey)) {
+          return;
+        }
+        const printer = await getPreferredPrinter();
+        if (!printer) {
+          alert('Принтер этикеток не выбран. Сначала настройте печать в модуле FULLBOX.');
+          return;
+        }
+        pendingPrints.add(pendingKey);
+        try {
+          const payload = await detectLocalAgentBridge();
+          const targetAgentId = String(payload?.agentId || getStoredAgentId() || '').trim();
+          if (targetAgentId) {
+            localStorage.setItem(inventoryPrintAgentStorageKey, targetAgentId);
+          }
+          const base64 = await buildContainerLabelBase64(type, cell);
+          if (!base64) {
+            throw new Error('Не удалось сформировать этикетку.');
+          }
+          const resp = await fetch('/orders/processing/print-jobs/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCsrfToken(),
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+              order_id: '',
+              card_id: '',
+              article: '',
+              barcode: code,
+              size: '',
+              printer_name: printer,
+              agent_id: targetAgentId,
+              label_png_base64: base64,
+              label_width_mm: 58,
+              label_height_mm: 60,
+            }),
+          });
+          if (!resp.ok) {
+            const message = await resp.text();
+            throw new Error(message || 'Очередь печати недоступна.');
+          }
+        } catch (error) {
+          alert(`Не удалось отправить в модуль печати: ${error.message || error}`);
+        } finally {
+          pendingPrints.delete(pendingKey);
+        }
+      };
+
+
+      const escapeHtml = (value) => String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+
+      const boxInfoUniqueValues = (values) => {
+        const seen = new Set();
+        const result = [];
+        (values || []).forEach((raw) => {
+          const value = String(raw ?? '').trim();
+          const key = value.toLocaleLowerCase('ru-RU');
+          if (!value || value === '-' || seen.has(key)) return;
+          seen.add(key);
+          result.push(value);
+        });
+        return result;
+      };
+
+      const boxInfoCompactValues = (values, emptyValue = '-') => {
+        const unique = boxInfoUniqueValues(values);
+        if (!unique.length) return emptyValue;
+        if (unique.length <= 2) return unique.join(', ');
+        return `${unique[0]} и ещё ${unique.length - 1}`;
+      };
+
+      const buildBoxInfoCompositionGroups = (rows) => {
+        const groups = new Map();
+        (rows || []).forEach((row) => {
+          const sku = String(row.sku || '').trim();
+          const fallback = [row.name, row.size, row.barcode].map((value) => String(value || '').trim()).join('|');
+          const key = (sku || fallback || 'unknown').toLocaleLowerCase('ru-RU');
+          if (!groups.has(key)) {
+            groups.set(key, {
+              sku: sku || '-',
+              name: row.name || '-',
+              details: [],
+              qty: 0,
+              markedQty: 0,
+              boxes: [],
+              pallets: [],
+              locations: [],
+              orders: [],
+              clients: [],
+              sizes: [],
+              barcodes: [],
+              goodsTypes: [],
+              statuses: [],
+            });
+          }
+          const group = groups.get(key);
+          const qty = Math.max(Number.parseInt(row.qty, 10) || 0, 0);
+          group.details.push(row);
+          group.qty += qty;
+          if (String(row.marking_code || '').trim()) group.markedQty += qty;
+          group.boxes.push(row.box_code);
+          group.pallets.push(row.pallet_code);
+          group.locations.push(row.location);
+          group.orders.push(row.order_label);
+          group.clients.push(row.client_label);
+          group.sizes.push(row.size);
+          group.barcodes.push(row.barcode);
+          group.goodsTypes.push(row.goods_type_label || row.goods_type);
+          group.statuses.push(row.status);
+        });
+        return Array.from(groups.values()).map((group) => ({
+          ...group,
+          boxes: boxInfoUniqueValues(group.boxes),
+          pallets: boxInfoUniqueValues(group.pallets),
+          locations: boxInfoUniqueValues(group.locations),
+          orders: boxInfoUniqueValues(group.orders),
+          clients: boxInfoUniqueValues(group.clients),
+          sizes: boxInfoUniqueValues(group.sizes),
+          barcodes: boxInfoUniqueValues(group.barcodes),
+          goodsTypes: boxInfoUniqueValues(group.goodsTypes),
+          statuses: boxInfoUniqueValues(group.statuses),
+        }));
+      };
+
+      const boxInfoMarkingLabel = (group) => {
+        if (group.markedQty > 0 && group.markedQty === group.qty) return 'Приёмка с ЧЗ';
+        if (group.markedQty > 0) return `С ЧЗ: ${group.markedQty} из ${group.qty}`;
+        return 'Без ЧЗ';
+      };
+
+      const renderBoxInfoCompositionDetailRows = (group, groupIndex) => group.details.map((row, index) => `
+        <tr class="inventory-box-group-detail" data-composition-detail="${groupIndex}">
+          <td>${index + 1}</td>
+          <td>${escapeHtml(boxInfoContainerIsPallet ? (row.box_code || '-') : (row.pallet_code || '-'))}</td>
+          <td>${escapeHtml(row.location || '-')}</td>
+          <td>${escapeHtml(row.order_label || '-')}</td>
+          <td>${escapeHtml(row.client_label || '-')}</td>
+          <td>${escapeHtml(row.sku || '-')}</td>
+          <td>${escapeHtml(row.name || '-')}</td>
+          <td>${escapeHtml(row.size || '-')}</td>
+          <td>${escapeHtml(row.barcode || '-')}</td>
+          <td>${escapeHtml(row.goods_type_label || row.goods_type || '-')}</td>
+          <td>${escapeHtml(row.qty || 0)}</td>
+          <td>${escapeHtml(row.status || '-')}</td>
+          <td>${escapeHtml(row.chz_label || '-')}</td>
+          <td>${escapeHtml(row.marking_code || '-')}</td>
+        </tr>
+      `).join('');
+
+      const renderBoxInfoCompositionGroups = (rows) => {
+        boxInfoCompositionGroups = buildBoxInfoCompositionGroups(rows);
+        if (!boxInfoRows) return;
+        boxInfoRows.innerHTML = boxInfoCompositionGroups.length ? boxInfoCompositionGroups.map((group, index) => {
+          const childCount = boxInfoContainerIsPallet ? group.boxes.length : group.pallets.length;
+          const childLabel = boxInfoContainerIsPallet
+            ? `${childCount} кор.`
+            : boxInfoCompactValues(group.pallets);
+          const markingLabel = boxInfoMarkingLabel(group);
+          return `
+            <tr class="inventory-box-group-row" data-composition-group="${index}">
+              <td>
+                <button type="button" class="inventory-box-group-toggle" data-composition-toggle="${index}" aria-expanded="false">
+                  <span class="inventory-box-group-arrow">▶</span>${index + 1}
+                </button>
+              </td>
+              <td>${escapeHtml(childLabel)} <span class="inventory-box-group-count">(${group.details.length} стр.)</span></td>
+              <td>${escapeHtml(boxInfoCompactValues(group.locations))}</td>
+              <td>${escapeHtml(boxInfoCompactValues(group.orders))}</td>
+              <td>${escapeHtml(boxInfoCompactValues(group.clients))}</td>
+              <td>${escapeHtml(group.sku)}</td>
+              <td>${escapeHtml(group.name)}</td>
+              <td>${escapeHtml(boxInfoCompactValues(group.sizes))}</td>
+              <td>${escapeHtml(boxInfoCompactValues(group.barcodes))}</td>
+              <td>${escapeHtml(boxInfoCompactValues(group.goodsTypes))}</td>
+              <td>${escapeHtml(group.qty)}</td>
+              <td>${escapeHtml(boxInfoCompactValues(group.statuses))}</td>
+              <td>${escapeHtml(markingLabel)}</td>
+              <td>${group.markedQty ? escapeHtml(`${group.markedQty} кодов ЧЗ`) : '-'}</td>
+            </tr>
+          `;
+        }).join('') : `<tr><td colspan="14" class="inventory-box-info-empty">Нет текущего остатка ${boxInfoContainerIsPallet ? 'на паллете' : 'в коробе'}.</td></tr>`;
+      };
+
+      const buildBoxInfoHistoryGroups = (history) => {
+        const groups = new Map();
+        (history || []).forEach((event) => {
+          const operationId = String(event.operation_id || '').trim();
+          const fallbackKey = [
+            event.occurred_at,
+            event.event_type || event.event_label,
+            event.document,
+            event.from_location,
+            event.to_location,
+            event.performed_by || event.role,
+          ].map((value) => String(value || '').trim().toLocaleLowerCase('ru-RU')).join('|');
+          const key = operationId ? `operation:${operationId}:${event.event_type || ''}` : fallbackKey;
+          if (!groups.has(key)) {
+            groups.set(key, {
+              occurred_at: event.occurred_at || '-',
+              event_label: event.event_label || '-',
+              document: event.document || '-',
+              from_location: event.from_location || '-',
+              to_location: event.to_location || '-',
+              performed_by: event.performed_by || event.role || '-',
+              qty: 0,
+              containers: [],
+              details: [],
+            });
+          }
+          const group = groups.get(key);
+          group.qty += Math.max(Number.parseInt(event.qty, 10) || 0, 0);
+          group.containers.push(event.container_code);
+          group.details.push(event);
+        });
+        return Array.from(groups.values()).map((group) => ({
+          ...group,
+          containers: boxInfoUniqueValues(group.containers),
+        }));
+      };
+
+      const renderBoxInfoHistoryDetailRows = (group, groupIndex) => group.details.map((event, index) => `
+        <tr class="inventory-box-group-detail" data-history-detail="${groupIndex}">
+          <td>${escapeHtml(event.occurred_at || '-')}</td>
+          <td>${escapeHtml(event.event_label || '-')} <span class="inventory-box-group-count">#${index + 1}</span></td>
+          <td>${escapeHtml(event.document || '-')}</td>
+          <td>${escapeHtml(event.container_code || '-')}</td>
+          <td>${escapeHtml(event.qty || 0)}</td>
+          <td>${escapeHtml(event.from_location || '-')}</td>
+          <td>${escapeHtml(event.to_location || '-')}</td>
+          <td>${escapeHtml(event.performed_by || event.role || '-')}</td>
+        </tr>
+      `).join('');
+
+      const renderBoxInfoHistoryGroups = (history) => {
+        boxInfoHistoryGroups = buildBoxInfoHistoryGroups(history);
+        if (!boxInfoHistoryRows) return;
+        boxInfoHistoryRows.innerHTML = boxInfoHistoryGroups.length ? boxInfoHistoryGroups.map((group, index) => {
+          const containerLabel = group.containers.length === 1
+            ? group.containers[0]
+            : `${group.containers.length} коробов`;
+          return `
+            <tr class="inventory-box-group-row" data-history-group="${index}">
+              <td>${escapeHtml(group.occurred_at)}</td>
+              <td>
+                <button type="button" class="inventory-box-group-toggle" data-history-toggle="${index}" aria-expanded="false">
+                  <span class="inventory-box-group-arrow">▶</span>${escapeHtml(group.event_label)}
+                </button>
+                <span class="inventory-box-group-count">${group.details.length} событий</span>
+              </td>
+              <td>${escapeHtml(group.document)}</td>
+              <td>${escapeHtml(containerLabel)}</td>
+              <td>${escapeHtml(group.qty)}</td>
+              <td>${escapeHtml(group.from_location)}</td>
+              <td>${escapeHtml(group.to_location)}</td>
+              <td>${escapeHtml(group.performed_by)}</td>
+            </tr>
+          `;
+        }).join('') : `<tr><td colspan="8" class="inventory-box-info-empty">История пока отсутствует.</td></tr>`;
+      };
+
+      const buildBoxInfoUrl = (boxCode, exportExcel = false) => {
+        const url = new URL('/sklad/journal/box-info/', window.location.origin);
+        const params = new URLSearchParams(window.location.search);
+        ['page', 'export', 'box'].forEach((key) => params.delete(key));
+        params.forEach((value, key) => {
+          if (value !== null && value !== undefined) url.searchParams.set(key, value);
+        });
+        url.searchParams.set('box', boxCode);
+        if (exportExcel) url.searchParams.set('export', 'xlsx');
+        return url.toString();
+      };
+
+      const closeBoxInfoModal = () => {
+        if (boxInfoModal) boxInfoModal.hidden = true;
+      };
+
+      const renderBoxInfoPayload = (payload, containerKind = 'box') => {
+        const rows = Array.isArray(payload.rows) ? payload.rows : [];
+        const history = Array.isArray(payload.history) ? payload.history : [];
+        const container = payload.container || {};
+        const isPallet = containerKind === 'pallet';
+        boxInfoContainerIsPallet = isPallet;
+        const containerCode = isPallet
+          ? (payload.pallet_code || activePalletCode || '-')
+          : (payload.box_code || activeBoxCode || '-');
+        const containerLabel = isPallet ? 'Паллета' : '\u041a\u043e\u0440\u043e\u0431';
+        if (boxInfoTitle) boxInfoTitle.textContent = `${containerLabel} ${containerCode}`;
+        if (boxInfoPassportTitle) boxInfoPassportTitle.textContent = `Паспорт ${isPallet ? 'паллеты' : 'короба'}`;
+        if (boxInfoHistoryTitle) boxInfoHistoryTitle.textContent = `История ${isPallet ? 'паллеты' : 'короба'}`;
+        if (boxInfoChildHeader) boxInfoChildHeader.textContent = isPallet ? 'Короб' : 'Паллета';
+        if (boxInfoSubtitle) {
+          boxInfoSubtitle.textContent = `Товаров ${isPallet ? 'на паллете' : 'в коробе'}: ${payload.total_qty || 0} шт.`;
+        }
+        if (boxInfoSummary) {
+          const pallets = (payload.pallets || []).map(escapeHtml).join(', ') || '-';
+          const locations = (payload.locations || []).map(escapeHtml).join(', ') || '-';
+          boxInfoSummary.innerHTML = `
+            <span>\u0421 \u0427\u0417: <strong>${escapeHtml(payload.with_chz_qty || 0)}</strong> \u0448\u0442.</span>
+            <span>\u0411\u0435\u0437 \u0427\u0417: <strong>${escapeHtml(payload.without_chz_qty || 0)}</strong> \u0448\u0442.</span>
+            <span>${isPallet ? 'Коробов' : '\u041f\u0430\u043b\u043b\u0435\u0442\u0430'}: <strong>${isPallet ? escapeHtml(payload.boxes_count || payload.count || 0) : pallets}</strong></span>
+            <span>\u041c\u0435\u0441\u0442\u043e: <strong>${locations}</strong></span>
+          `;
+        }
+        if (boxInfoExport) {
+          boxInfoExport.href = isPallet
+            ? buildPalletInfoUrl(containerCode, true)
+            : buildBoxInfoUrl(containerCode, true);
+          boxInfoExport.hidden = false;
+        }
+        if (boxInfoPassport) {
+          const passportFields = [
+            ['Клиент', container.client],
+            ['Статус', container.status],
+            [isPallet ? 'Коробов' : 'Паллета', isPallet ? (payload.boxes_count || payload.count || 0) : container.pallet],
+            ['Текущее место', container.location],
+            ['Источник', container.source],
+            ['Создан', container.created_at],
+            ['Создал', container.created_by],
+            ['Обновлен', container.updated_at],
+          ];
+          boxInfoPassport.innerHTML = passportFields.map(([label, value]) => `
+            <div class="inventory-box-info-passport-item">
+              <div class="inventory-box-info-passport-label">${escapeHtml(label)}</div>
+              <div class="inventory-box-info-passport-value">${escapeHtml(value || '-')}</div>
+            </div>
+          `).join('');
+        }
+        if (boxInfoRows) {
+          renderBoxInfoCompositionGroups(rows);
+        }
+        if (boxInfoHistoryRows) {
+          renderBoxInfoHistoryGroups(history);
+        }
+      };
+
+      boxInfoRows?.addEventListener('click', (event) => {
+        const row = event.target.closest('[data-composition-group]');
+        if (!row) return;
+        const index = Number.parseInt(row.dataset.compositionGroup || '', 10);
+        const group = boxInfoCompositionGroups[index];
+        const toggle = row.querySelector('[data-composition-toggle]');
+        if (!group || !toggle) return;
+        const expanded = toggle.getAttribute('aria-expanded') === 'true';
+        boxInfoRows.querySelectorAll(`[data-composition-detail="${index}"]`).forEach((detail) => detail.remove());
+        toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+        if (!expanded) row.insertAdjacentHTML('afterend', renderBoxInfoCompositionDetailRows(group, index));
+      });
+
+      boxInfoHistoryRows?.addEventListener('click', (event) => {
+        const row = event.target.closest('[data-history-group]');
+        if (!row) return;
+        const index = Number.parseInt(row.dataset.historyGroup || '', 10);
+        const group = boxInfoHistoryGroups[index];
+        const toggle = row.querySelector('[data-history-toggle]');
+        if (!group || !toggle) return;
+        const expanded = toggle.getAttribute('aria-expanded') === 'true';
+        boxInfoHistoryRows.querySelectorAll(`[data-history-detail="${index}"]`).forEach((detail) => detail.remove());
+        toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+        if (!expanded) row.insertAdjacentHTML('afterend', renderBoxInfoHistoryDetailRows(group, index));
+      });
+
+      const openBoxInfoModal = async (boxCode) => {
+        if (!boxCode || boxCode === '-' || !boxInfoModal) return;
+        activeBoxCode = boxCode;
+        boxInfoModal.hidden = false;
+        if (boxInfoTitle) boxInfoTitle.textContent = `\u041a\u043e\u0440\u043e\u0431 ${boxCode}`;
+        if (boxInfoPassportTitle) boxInfoPassportTitle.textContent = 'Паспорт короба';
+        if (boxInfoHistoryTitle) boxInfoHistoryTitle.textContent = 'История короба';
+        if (boxInfoChildHeader) boxInfoChildHeader.textContent = 'Паллета';
+        if (boxInfoSubtitle) boxInfoSubtitle.textContent = '\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430...';
+        if (boxInfoSummary) boxInfoSummary.innerHTML = '';
+        if (boxInfoPassport) boxInfoPassport.innerHTML = '';
+        if (boxInfoExport) boxInfoExport.hidden = true;
+        if (boxInfoRows) {
+          boxInfoRows.innerHTML = '<tr><td colspan="14" class="inventory-box-info-empty">\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430...</td></tr>';
+        }
+        if (boxInfoHistoryRows) {
+          boxInfoHistoryRows.innerHTML = '<tr><td colspan="8" class="inventory-box-info-empty">Загрузка...</td></tr>';
+        }
+        try {
+          const response = await fetch(buildBoxInfoUrl(boxCode), {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+          if (!response.ok) throw new Error(String(response.status));
+          renderBoxInfoPayload(await response.json(), 'box');
+        } catch (error) {
+          if (boxInfoSubtitle) boxInfoSubtitle.textContent = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044e \u043e \u043a\u043e\u0440\u043e\u0431\u0435.';
+          if (boxInfoRows) {
+            boxInfoRows.innerHTML = '<tr><td colspan="14" class="inventory-box-info-empty">\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044e \u043e \u043a\u043e\u0440\u043e\u0431\u0435.</td></tr>';
+          }
+          if (boxInfoHistoryRows) {
+            boxInfoHistoryRows.innerHTML = '<tr><td colspan="8" class="inventory-box-info-empty">Не удалось загрузить историю короба.</td></tr>';
+          }
+        }
+      };
+
+      document.addEventListener('click', (event) => {
+        const trigger = event.target.closest('[data-open-box-info]');
+        if (!trigger) return;
+        const boxCell = trigger.closest('.box-cell[data-box-code]');
+        const boxCode = String(boxCell?.dataset.boxCode || '').trim();
+        if (boxCode && boxCode !== '-') {
+          void openBoxInfoModal(boxCode);
+        }
+      });
+
+      boxInfoClose?.addEventListener('click', closeBoxInfoModal);
+      boxInfoModal?.addEventListener('click', (event) => {
+        if (event.target === boxInfoModal) closeBoxInfoModal();
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeBoxInfoModal();
+      });
+
+      const buildPalletBoxesUrl = (palletCode) => {
+        const url = new URL('/sklad/journal/pallet-boxes/', window.location.origin);
+        url.searchParams.set('pallet', palletCode);
+        const currentParams = new URLSearchParams(window.location.search);
+        ['client', 'agency'].forEach((key) => {
+          const value = String(currentParams.get(key) || '').trim();
+          if (value) {
+            url.searchParams.set(key, value);
+          }
+        });
+        return url.toString();
+      };
+
+      const buildPalletInfoUrl = (palletCode, exportExcel = false) => {
+        const url = new URL(buildPalletBoxesUrl(palletCode));
+        url.searchParams.set('detail', '1');
+        if (exportExcel) url.searchParams.set('export', 'xlsx');
+        return url.toString();
+      };
+
+      const openPalletInfoModal = async (palletCode) => {
+        if (!palletCode || palletCode === '-' || !boxInfoModal) return;
+        activePalletCode = palletCode;
+        boxInfoModal.hidden = false;
+        if (boxInfoTitle) boxInfoTitle.textContent = `Паллета ${palletCode}`;
+        if (boxInfoPassportTitle) boxInfoPassportTitle.textContent = 'Паспорт паллеты';
+        if (boxInfoHistoryTitle) boxInfoHistoryTitle.textContent = 'История паллеты';
+        if (boxInfoChildHeader) boxInfoChildHeader.textContent = 'Короб';
+        if (boxInfoSubtitle) boxInfoSubtitle.textContent = 'Загрузка...';
+        if (boxInfoSummary) boxInfoSummary.innerHTML = '';
+        if (boxInfoPassport) boxInfoPassport.innerHTML = '';
+        if (boxInfoExport) boxInfoExport.hidden = true;
+        if (boxInfoRows) {
+          boxInfoRows.innerHTML = '<tr><td colspan="14" class="inventory-box-info-empty">Загрузка...</td></tr>';
+        }
+        if (boxInfoHistoryRows) {
+          boxInfoHistoryRows.innerHTML = '<tr><td colspan="8" class="inventory-box-info-empty">Загрузка...</td></tr>';
+        }
+        try {
+          const response = await fetch(buildPalletInfoUrl(palletCode), {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+          if (!response.ok) throw new Error(String(response.status));
+          renderBoxInfoPayload(await response.json(), 'pallet');
+        } catch (error) {
+          if (boxInfoSubtitle) boxInfoSubtitle.textContent = 'Не удалось загрузить информацию о паллете.';
+          if (boxInfoRows) {
+            boxInfoRows.innerHTML = '<tr><td colspan="14" class="inventory-box-info-empty">Не удалось загрузить состав паллеты.</td></tr>';
+          }
+          if (boxInfoHistoryRows) {
+            boxInfoHistoryRows.innerHTML = '<tr><td colspan="8" class="inventory-box-info-empty">Не удалось загрузить историю паллеты.</td></tr>';
+          }
+        }
+      };
+
+      document.addEventListener('click', (event) => {
+        const trigger = event.target.closest('[data-open-pallet-info]');
+        if (!trigger) return;
+        const palletCell = trigger.closest('.pallet-cell[data-pallet-code]');
+        const palletCode = String(palletCell?.dataset.palletCode || '').trim();
+        if (palletCode && palletCode !== '-') {
+          void openPalletInfoModal(palletCode);
+        }
+      });
+
+      const fetchPalletBoxes = async (palletCode) => {
+        const resp = await fetch(buildPalletBoxesUrl(palletCode), {
+          method: 'GET',
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        if (!resp.ok) {
+          throw new Error('Не удалось получить короба паллеты.');
+        }
+        const payload = await resp.json();
+        return Array.isArray(payload?.boxes) ? payload.boxes : [];
+      };
+
+      const makeBoxPrintCell = (box) => ({
+        dataset: {
+          boxCode: String(box?.box_code || '').trim(),
+          palletCode: String(box?.pallet_code || '').trim(),
+          clientLabel: String(box?.client_label || '').trim(),
+          boxSequenceNumber: String(box?.sequence_number || '').trim(),
+        },
+      });
+
+      const enqueuePalletBoxesQrPrint = async (palletCode) => {
+        const normalizedPalletCode = String(palletCode || '').trim();
+        if (!normalizedPalletCode || normalizedPalletCode === '-') {
+          alert('У выбранного короба не указана паллета.');
+          return;
+        }
+        try {
+          const boxes = await fetchPalletBoxes(normalizedPalletCode);
+          if (!boxes.length) {
+            alert('У паллеты нет коробов для печати.');
+            return;
+          }
+          for (const box of boxes) {
+            await enqueueContainerQrPrint('box', makeBoxPrintCell(box));
+          }
+        } catch (error) {
+          alert(error.message || 'Не удалось распечатать короба паллеты.');
+        }
+      };
+
+      document.addEventListener('contextmenu', (event) => {
+        if (event.defaultPrevented) {
+          return;
+        }
+        const palletCell = event.target.closest('.pallet-cell[data-pallet-code]');
+        const boxCell = event.target.closest('.box-cell[data-box-code]');
+        const cell = boxCell || palletCell;
+        if (!cell) {
+          hideMenu();
+          return;
+        }
+        const type = boxCell ? 'box' : 'pallet';
+        const code = String(type === 'box' ? cell.dataset.boxCode || '' : cell.dataset.palletCode || '').trim();
+        if (!code || code === '-') {
+          hideMenu();
+          return;
+        }
+        event.preventDefault();
+        activeCell = cell;
+        activeType = type;
+        activePalletCode = String(cell.dataset.palletCode || '').trim();
+        activeBoxCode = type === 'box' ? String(cell.dataset.boxCode || '').trim() : '';
+        if (menuTitle) {
+          menuTitle.textContent = type === 'box' ? 'Короб' : 'Паллета';
+        }
+        if (printButton) {
+          printButton.textContent = type === 'box' ? 'Распечатать QR короба' : 'Распечатать QR паллеты';
+        }
+        if (printPalletBoxesButton) {
+          printPalletBoxesButton.hidden = !activePalletCode || activePalletCode === '-';
+        }
+        if (boxInfoButton) {
+          boxInfoButton.hidden = type !== 'box' || !activeBoxCode || activeBoxCode === '-';
+        }
+        menu.classList.add('is-open');
+        menu.setAttribute('aria-hidden', 'false');
+        const menuWidth = menu.offsetWidth || 230;
+        const menuHeight = menu.offsetHeight || 64;
+        const maxLeft = Math.max(8, window.innerWidth - menuWidth - 8);
+        const maxTop = Math.max(8, window.innerHeight - menuHeight - 8);
+        menu.style.left = `${Math.min(event.clientX, maxLeft)}px`;
+        menu.style.top = `${Math.min(event.clientY, maxTop)}px`;
+      });
+
+      printButton?.addEventListener('click', () => {
+        const cell = activeCell;
+        const type = activeType;
+        hideMenu();
+        if (cell && type) {
+          void enqueueContainerQrPrint(type, cell);
+        }
+      });
+
+      printPalletBoxesButton?.addEventListener('click', () => {
+        const palletCode = activePalletCode;
+        hideMenu();
+        void enqueuePalletBoxesQrPrint(palletCode);
+      });
+
+      boxInfoButton?.addEventListener('click', () => {
+        const boxCode = activeBoxCode;
+        hideMenu();
+        void openBoxInfoModal(boxCode);
+      });
+
+      document.addEventListener('click', (event) => {
+        if (!menu.contains(event.target)) {
+          hideMenu();
+        }
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          hideMenu();
+        }
+      });
+      window.addEventListener('resize', hideMenu);
+      window.addEventListener('scroll', hideMenu, true);
+      window.addEventListener('blur', hideMenu);
+
+      const journalFiltersForm = document.getElementById('journalFilters');
+      const submitJournalFilters = () => {
+        if (!journalFiltersForm) {
+          return;
+        }
+        if (typeof journalFiltersForm.requestSubmit === 'function') {
+          journalFiltersForm.requestSubmit();
+        } else {
+          journalFiltersForm.submit();
+        }
+      };
+      let columnMultiControllers = [];
+      columnMultiControllers = Array.from(document.querySelectorAll('[data-column-multi-filter]')).map((filter) => {
+        const filterName = String(filter.dataset.filterName || '').trim();
+        const filterLabel = String(filter.dataset.filterLabel || '').trim() || 'Фильтр';
+        const toggle = filter.querySelector('[data-column-multi-toggle]');
+        const panel = filter.querySelector('[data-column-multi-panel]');
+        const search = filter.querySelector('[data-column-multi-search]');
+        const options = filter.querySelector('[data-column-multi-options]');
+        const empty = filter.querySelector('[data-column-multi-empty]');
+        const hidden = filter.querySelector('[data-column-multi-hidden]');
+        const legacy = filter.querySelector('[data-column-multi-legacy]');
+        const label = filter.querySelector('[data-column-multi-label]');
+        const count = filter.querySelector('[data-column-multi-count]');
+        const clear = filter.querySelector('[data-column-multi-clear]');
+        const apply = filter.querySelector('[data-column-multi-apply]');
+        let items = options
+          ? Array.from(options.querySelectorAll('[data-column-multi-option]'))
+          : [];
+        const initialOptionValues = items.map((item) => (
+          String(item.querySelector('[data-column-multi-checkbox]')?.value || '').trim()
+        )).filter(Boolean);
+        let searchTimer = null;
+        let searchSequence = 0;
+        let isLoading = false;
+        let loadError = false;
+
+        const normalizedValue = (value) => (
+          String(value || '').trim().toLocaleLowerCase('ru-RU')
+        );
+
+        const selectedItems = () => items.filter((item) => (
+          Boolean(item.querySelector('[data-column-multi-checkbox]')?.checked)
+        ));
+        const syncHiddenInputs = () => {
+          if (!hidden || !filterName) return;
+          hidden.querySelectorAll('[data-column-multi-selected]').forEach((input) => input.remove());
+          selectedItems().forEach((item) => {
+            const checkbox = item.querySelector('[data-column-multi-checkbox]');
+            const value = String(checkbox?.value || '').trim();
+            if (!value) return;
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = `${filterName}_values`;
+            input.value = value;
+            input.setAttribute('form', 'journalFilters');
+            input.setAttribute('data-column-multi-selected', '');
+            hidden.appendChild(input);
+          });
+        };
+        const renderOptions = () => {
+          if (!options) return;
+          const query = normalizedValue(search?.value);
+          const selected = [];
+          const available = [];
+          items.forEach((item) => {
+            const checkbox = item.querySelector('[data-column-multi-checkbox]');
+            const isSelected = Boolean(checkbox?.checked);
+            const matches = !query || String(item.dataset.searchValue || '').includes(query);
+            item.classList.toggle('is-selected', isSelected);
+            item.hidden = !isSelected && !matches;
+            (isSelected ? selected : available).push(item);
+          });
+          [...selected, ...available].forEach((item) => options.insertBefore(item, empty));
+          const visibleCount = items.filter((item) => !item.hidden).length;
+          if (empty) {
+            empty.textContent = isLoading
+              ? 'Ищем по всем остаткам…'
+              : (loadError ? 'Не удалось загрузить варианты' : 'Ничего не найдено');
+            empty.hidden = !isLoading && !loadError && visibleCount > 0;
+          }
+          if (count) count.textContent = selected.length ? String(selected.length) : '';
+          if (label) {
+            label.textContent = selected.length === 1
+              ? String(selected[0].querySelector('[data-column-multi-checkbox]')?.value || filterLabel)
+              : filterLabel;
+          }
+        };
+        const createOption = (value) => {
+          const item = document.createElement('label');
+          item.className = 'column-multi-option';
+          item.setAttribute('data-column-multi-option', '');
+          item.dataset.searchValue = normalizedValue(value);
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.value = value;
+          checkbox.setAttribute('data-column-multi-checkbox', '');
+          const text = document.createElement('span');
+          text.textContent = value;
+          item.append(checkbox, text);
+          return item;
+        };
+        const replaceOptions = (values) => {
+          if (!options) return;
+          const existingByValue = new Map(items.map((item) => {
+            const value = String(item.querySelector('[data-column-multi-checkbox]')?.value || '').trim();
+            return [normalizedValue(value), item];
+          }));
+          const selectedValues = selectedItems().map((item) => (
+            String(item.querySelector('[data-column-multi-checkbox]')?.value || '').trim()
+          )).filter(Boolean);
+          const nextValues = [];
+          const seenValues = new Set();
+          [...selectedValues, ...(Array.isArray(values) ? values : [])].forEach((rawValue) => {
+            const value = String(rawValue || '').trim();
+            const key = normalizedValue(value);
+            if (!key || seenValues.has(key)) return;
+            seenValues.add(key);
+            nextValues.push(value);
+          });
+          items.forEach((item) => item.remove());
+          items = nextValues.map((value) => {
+            const item = existingByValue.get(normalizedValue(value)) || createOption(value);
+            options.insertBefore(item, empty);
+            return item;
+          });
+          renderOptions();
+        };
+        const loadRemoteOptions = async () => {
+          const query = String(search?.value || '').trim();
+          const sequence = ++searchSequence;
+          if (!query) {
+            isLoading = false;
+            loadError = false;
+            replaceOptions(initialOptionValues);
+            return;
+          }
+          isLoading = true;
+          loadError = false;
+          renderOptions();
+          const url = new URL(window.location.href);
+          url.searchParams.delete('page');
+          url.searchParams.delete('export');
+          url.searchParams.delete(`${filterName}_values`);
+          url.searchParams.set(filterName, query);
+          url.searchParams.set('filter_options', '1');
+          url.searchParams.set('filter_name', filterName);
+          try {
+            const response = await fetch(url.toString(), {
+              credentials: 'same-origin',
+              headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const payload = await response.json();
+            if (sequence !== searchSequence) return;
+            isLoading = false;
+            loadError = false;
+            replaceOptions(payload.options || []);
+          } catch (error) {
+            if (sequence !== searchSequence) return;
+            isLoading = false;
+            loadError = true;
+            renderOptions();
+          }
+        };
+        const scheduleRemoteOptions = () => {
+          renderOptions();
+          if (searchTimer) window.clearTimeout(searchTimer);
+          searchTimer = window.setTimeout(() => {
+            void loadRemoteOptions();
+          }, 300);
+        };
+        const close = () => {
+          if (!panel || panel.hidden) return;
+          panel.hidden = true;
+          toggle?.setAttribute('aria-expanded', 'false');
+        };
+        const position = () => {
+          if (!panel || !toggle || panel.hidden) return;
+          const anchor = toggle.getBoundingClientRect();
+          const width = panel.offsetWidth || 340;
+          const left = Math.max(8, Math.min(anchor.left, window.innerWidth - width - 8));
+          const top = anchor.bottom + 6;
+          const availableHeight = Math.max(96, window.innerHeight - top - 8);
+          panel.style.left = `${left}px`;
+          panel.style.top = `${top}px`;
+          panel.style.maxHeight = `${availableHeight}px`;
+        };
+        const open = () => {
+          if (!panel) return;
+          columnMultiControllers.forEach((controller) => {
+            if (controller.root !== filter) controller.close();
+          });
+          panel.hidden = false;
+          toggle?.setAttribute('aria-expanded', 'true');
+          renderOptions();
+          position();
+          search?.focus({ preventScroll: true });
+          search?.select();
+        };
+
+        toggle?.addEventListener('click', () => {
+          if (panel?.hidden) open();
+          else close();
+        });
+        search?.addEventListener('input', scheduleRemoteOptions);
+        search?.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            syncHiddenInputs();
+            if (legacy) legacy.value = selectedItems().length ? '' : String(search.value || '').trim();
+            close();
+            submitJournalFilters();
+          }
+        });
+        options?.addEventListener('change', (event) => {
+          if (event.target.matches('[data-column-multi-checkbox]')) {
+            syncHiddenInputs();
+            renderOptions();
+          }
+        });
+        clear?.addEventListener('click', () => {
+          items.forEach((item) => {
+            const checkbox = item.querySelector('[data-column-multi-checkbox]');
+            if (checkbox) checkbox.checked = false;
+          });
+          if (search) search.value = '';
+          if (legacy) legacy.value = '';
+          searchSequence += 1;
+          isLoading = false;
+          loadError = false;
+          replaceOptions(initialOptionValues);
+          syncHiddenInputs();
+          renderOptions();
+        });
+        apply?.addEventListener('click', () => {
+          syncHiddenInputs();
+          if (legacy) legacy.value = selectedItems().length ? '' : String(search?.value || '').trim();
+          close();
+          submitJournalFilters();
+        });
+        syncHiddenInputs();
+        renderOptions();
+        return { root: filter, panel, close, position };
+      });
+      document.addEventListener('click', (event) => {
+        columnMultiControllers.forEach((controller) => {
+          if (!controller.root.contains(event.target)) controller.close();
+        });
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          columnMultiControllers.forEach((controller) => controller.close());
+        }
+      });
+      window.addEventListener('resize', () => {
+        columnMultiControllers.forEach((controller) => {
+          if (!controller.panel?.hidden) controller.position();
+        });
+      });
+      document.querySelector('.table-wrap')?.addEventListener('scroll', () => {
+        columnMultiControllers.forEach((controller) => controller.close());
+      });
+
+      const collapsedColumnStorageKey = `inventory-journal-collapsed-columns:v2:${inventoryColumnProfile}:${window.location.pathname}`;
+      const columnToggleButtons = Array.from(document.querySelectorAll('.col-visibility-btn[data-col-key]'));
+
+      const loadCollapsedColumns = () => {
+        try {
+          const raw = window.localStorage.getItem(collapsedColumnStorageKey);
+          const parsed = raw ? JSON.parse(raw) : [];
+          return new Set(Array.isArray(parsed) ? parsed.map((item) => String(item || '').trim()).filter(Boolean) : []);
+        } catch (error) {
+          return new Set();
+        }
+      };
+
+      const saveCollapsedColumns = (collapsedKeys) => {
+        try {
+          window.localStorage.setItem(collapsedColumnStorageKey, JSON.stringify(Array.from(collapsedKeys)));
+        } catch (error) {
+        }
+      };
+
+      const setColumnCollapsedState = (columnKey, collapsed) => {
+        document.querySelectorAll(`[data-col-key="${columnKey}"]`).forEach((cell) => {
+          cell.classList.toggle('is-collapsed', collapsed);
+        });
+        document.querySelectorAll(`.col-visibility-btn[data-col-key="${columnKey}"]`).forEach((button) => {
+          button.classList.toggle('is-collapsed', collapsed);
+          button.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
+          const columnLabel = String(button.dataset.columnLabel || '').trim();
+          const nextAction = collapsed ? 'Показать' : 'Скрыть';
+          button.setAttribute('title', `${nextAction} столбец ${columnLabel}`.trim());
+          button.setAttribute('aria-label', `${nextAction} столбец ${columnLabel}`.trim());
+        });
+      };
+
+      const initColumnCollapseControls = () => {
+        const collapsedColumns = loadCollapsedColumns();
+        columnToggleButtons.forEach((button) => {
+          const columnKey = String(button.dataset.colKey || '').trim();
+          if (!columnKey) {
+            return;
+          }
+          setColumnCollapsedState(columnKey, collapsedColumns.has(columnKey));
+          button.addEventListener('click', (event) => {
+            event.preventDefault();
+            const isCollapsed = collapsedColumns.has(columnKey);
+            if (isCollapsed) {
+              collapsedColumns.delete(columnKey);
+            } else {
+              collapsedColumns.add(columnKey);
+            }
+            setColumnCollapsedState(columnKey, !isCollapsed);
+            saveCollapsedColumns(collapsedColumns);
+          });
+        });
+      };
+
+      initColumnCollapseControls();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+{% if request_role == 'fbs_controller' %}
+{% if controller_problem_count or controller_problem_force_open %}
+<style>
+  .fbs-problem-dialog{width:min(900px,calc(100vw - 24px));max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);padding:0;border:1px solid #e3ded5;border-radius:18px;background:#faf9f6;color:#303030;box-shadow:0 24px 70px #0004;font:inherit}
+  .fbs-problem-dialog::backdrop{background:#25231fe0}.fbs-problem-head,.fbs-problem-foot{padding:20px 24px;background:#fff;display:flex;justify-content:space-between;gap:16px;align-items:center}.fbs-problem-head{position:sticky;top:0;z-index:1;border-bottom:1px solid #e3ded5}.fbs-problem-head h2{font-size:24px;margin:4px 0}.fbs-problem-head p{margin:4px 0;color:#62605b}.fbs-problem-kicker{color:#b24c00;font-weight:800;font-size:12px;letter-spacing:.04em}.fbs-problem-content{padding:20px 24px;display:grid;gap:14px}.fbs-problem-card{padding:18px;background:#fff;border:1px solid #e3ded5;border-left:4px solid #f89000;border-radius:12px}.fbs-problem-card.is-waiting{border-left-color:#aaa39a}.fbs-problem-card h3{font-size:18px;margin:0 0 8px}.fbs-problem-id{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px;font-size:13px}.fbs-problem-card p{line-height:1.5;margin:8px 0}.fbs-problem-card details{margin-top:12px}.fbs-problem-card summary{cursor:pointer;font-weight:800;color:#a84800;padding:10px 0}.fbs-problem-card form{display:grid;gap:12px;padding-top:12px}.fbs-problem-card label{display:grid;gap:6px;font-weight:700}.fbs-problem-card input{width:100%;box-sizing:border-box;padding:14px;border:1px solid #bfbab1;border-radius:8px;font:inherit;background:#fff}.fbs-problem-card input:focus{outline:3px solid #f8b80080;border-color:#f89000}.fbs-problem-foot{border-top:1px solid #e3ded5;flex-wrap:wrap}.fbs-problem-foot p{max-width:580px;line-height:1.4;margin:0}.fbs-problem-hint{padding:14px;border-radius:10px;background:#fff0d7;line-height:1.5}.fbs-problem-success{background:#edf6ed}.fbs-problem-error{color:#9f211c;background:#fff0ef;padding:14px;border-radius:10px}.fbs-problem-technical{font-size:12px;color:#69645d;overflow-wrap:anywhere}.fbs-problem-launch{margin:10px 0}.fbs-problem-card .button{min-height:44px;white-space:normal}
+  .tsd-page-controller-shell .fbs-problem-head>div{flex:1;min-width:0}.tsd-page-controller-shell .fbs-problem-head>.button{width:auto;flex:0 0 auto;min-height:44px;font-size:14px}.tsd-page-controller-shell .fbs-problem-foot>.button{width:auto;min-height:44px;font-size:14px}
+  @media(max-width:600px){.fbs-problem-head,.fbs-problem-content,.fbs-problem-foot{padding:14px}.fbs-problem-head h2{font-size:20px}.fbs-problem-head{align-items:flex-start}.fbs-problem-card{padding:14px}}
+</style>
+<button type="button" class="button button-primary fbs-problem-launch" data-open-controller-problems>{% if controller_delivery_sent %}Возвраты и замечания{% else %}Что мешает отгрузке{% endif %}{% if controller_problem_count %} · {{ controller_problem_count }}{% endif %}</button>
+<dialog class="fbs-problem-dialog" data-controller-problems data-auto-open="{% if controller_problem_auto_open or controller_problem_force_open %}1{% else %}0{% endif %}" data-status-url="{{ controller_problem_url }}" data-fingerprint="{{ controller_problem_fingerprint }}" data-agent-url="{{ agent_scan_poll_url }}" data-agent-since="{{ agent_scan_event_id|default:0 }}" aria-labelledby="fbs-problem-title">
+  <header class="fbs-problem-head"><div><span class="fbs-problem-kicker">ОТГРУЗКА №{{ controller_problem_batch_id }} · КОНТРОЛЬ</span><h2 id="fbs-problem-title">{% if controller_delivery_sent %}Поставка передана · возвраты и замечания{% elif controller_problem_count %}Что нужно сделать{% else %}Действий по заказам больше нет{% endif %}</h2><p>{% if controller_problem_action_count %}Нужны ваши действия: {{ controller_problem_action_count }}{% elif controller_problem_count %}Проверьте состояние заказов ниже{% else %}Сохранённые сканы повторять не нужно{% endif %}</p></div><button class="button button-secondary button-compact" type="button" data-close-controller-problems aria-label="Закрыть окно проблем">Закрыть</button></header>
+  <div class="fbs-problem-content">
+    {% if controller_problem_error %}<div class="fbs-problem-error" role="alert">{{ controller_problem_error }}</div>{% endif %}
+    {% if controller_problem_saved %}<div class="fbs-problem-hint fbs-problem-success" role="status">Действие сохранено. Проверьте следующий заказ ниже.</div>{% endif %}
+    {% for problem in controller_problems %}
+      <article class="fbs-problem-card{% if not problem.actionable %} is-waiting{% endif %}">
+        <h3>{{ problem.reason }}</h3>
+        <div class="fbs-problem-id"><span>Заказ <strong>{{ problem.order_number }}</strong></span><span>Стикер <strong>{{ problem.sticker|default:"не получен" }}</strong></span>{% if problem.quantity %}<span><strong>{{ problem.quantity }} шт.</strong></span>{% endif %}</div>
+        {% for reason in problem.problem_reasons %}<p><strong>{{ reason }}</strong></p>{% endfor %}
+        <p>{{ problem.instruction }}</p>
+        {% if problem.kind == 'cancel' and problem.label_actionable %}
+          <details data-problem-action><summary>{% if problem.after_delivery %}Подтвердить тару возврата{% else %}Убрать заказ{% endif %} · {{ problem.tote.name }}</summary>
+            <form method="post" action="{{ controller_problem_url }}" data-problem-form autocomplete="off">{% csrf_token %}<input type="hidden" name="problem_resolution" value="1"><input type="hidden" name="action" value="resolve_problem_order"><input type="hidden" name="order_id" value="{{ problem.order_id }}">
+              <label>1. Отсканируйте этикетку заказа<input name="order_scan" data-scan-next="#problem-tote-{{ problem.order_id }}" required data-scanner-only data-agent-scan-target data-scan-expected-value="{{ problem.order_barcode }}" data-scan-expected-message="Это другой заказ. Сверьте номер стикера." inputmode="none" autocomplete="off" placeholder="Стикер {{ problem.sticker }}"></label>
+              <label>2. Положите весь заказ в тару и отсканируйте её QR<input name="canceled_tote_scan" id="problem-tote-{{ problem.order_id }}" required data-scanner-only data-agent-scan-target data-scan-autosubmit="250" data-scan-expected-value="{{ problem.tote.barcode }}" inputmode="none" autocomplete="off" placeholder="{{ problem.tote.barcode }}"></label>
+              <button class="button button-primary" type="submit">Подтвердить и перейти к следующему</button>
+              <div class="fbs-problem-error" data-scan-error role="alert" hidden></div>
+            </form>
+          </details>
+        {% endif %}
+        {% if problem.kind == 'cancel' and problem.product_scan_actionable %}
+          <details data-problem-action><summary>Этикетка отсутствует — проверить товар · {{ problem.product_scan_total }} шт.</summary>
+            <form method="post" action="{{ controller_problem_url }}" data-problem-form autocomplete="off">{% csrf_token %}<input type="hidden" name="problem_resolution" value="1"><input type="hidden" name="action" value="resolve_problem_order_without_label"><input type="hidden" name="order_id" value="{{ problem.order_id }}">
+              <p>Используйте этот путь только когда этикетка заказа физически не напечаталась или потеряна. Отсканируйте каждую единицу выбранного заказа. Номер заказа вручную вводить нельзя.</p>
+              {% for unit in problem.product_scan_rows %}
+                <label>{{ unit.scan_no }}. Штрихкод товара · {{ unit.name }}{% if unit.barcode %} · ШК {{ unit.barcode }}{% endif %}{% if unit.requires_marking %} · КИЗ будет выбран из заказа{% endif %}<input name="product_scan" id="problem-product-{{ problem.order_id }}-{{ unit.scan_no }}" required data-scanner-only data-agent-scan-target{% if unit.barcode %} data-scan-expected-value="{{ unit.barcode }}" data-scan-expected-message="Отсканируйте штрихкод указанного товара."{% endif %} data-scan-next="{% if unit.next_scan_no %}#problem-product-{{ problem.order_id }}-{{ unit.next_scan_no }}{% else %}#problem-product-tote-{{ problem.order_id }}{% endif %}" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Отсканируйте штрихкод товара"></label>
+              {% endfor %}
+              <label>{{ problem.product_scan_total|add:"1" }}. Положите весь заказ в {{ problem.tote.name }} и отсканируйте QR тары<input name="canceled_tote_scan" id="problem-product-tote-{{ problem.order_id }}" required data-scanner-only data-agent-scan-target data-scan-autosubmit="250" data-scan-expected-value="{{ problem.tote.barcode }}" inputmode="none" autocomplete="off" placeholder="{{ problem.tote.barcode }}"></label>
+              <button class="button button-primary" type="submit">Подтвердить товар и перейти к следующему</button>
+              <div class="fbs-problem-error" data-scan-error role="alert" hidden></div>
+            </form>
+          </details>
+        {% endif %}
+        {% for item in problem.retry_items %}
+          <details data-problem-action><summary>Пересканировать КИЗ · {{ item.name }}</summary>
+            <form method="post" action="{{ controller_problem_url }}" data-problem-form autocomplete="off">{% csrf_token %}<input type="hidden" name="problem_resolution" value="1"><input type="hidden" name="action" value="retry_kiz"><input type="hidden" name="order_item_id" value="{{ item.id }}">
+              <p>Товар: {{ item.name }} · ШК {{ item.barcode }}. Переключите раскладку ТСД на EN и отсканируйте один Data Matrix с этой физической единицы. Технический дубль одного скана программа уберёт сама.</p>
+              <label>КИЗ с товара<input name="marking_scan" required data-scanner-only data-agent-scan-target data-agent-scan-kind="marking" data-scan-autosubmit="250" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Один Data Matrix · раскладка EN"></label>
+              <button class="button button-primary" type="submit">Передать КИЗ на проверку WB</button>
+              <div class="fbs-problem-error" data-scan-error role="alert" hidden></div>
+            </form>
+          </details>
+        {% endfor %}
+        {% if problem.can_reroute %}
+          <details data-problem-action><summary>КИЗ не проходит — убрать товар из этой отгрузки</summary>
+            <form method="post" action="{{ controller_problem_url }}" data-problem-form autocomplete="off">{% csrf_token %}<input type="hidden" name="problem_resolution" value="1"><input type="hidden" name="action" value="reroute_invalid_kiz"><input type="hidden" name="order_id" value="{{ problem.order_id }}">
+              <p>Переложите товар в {{ problem.problem_tote.name }}. После подтверждения WB программа создаст новую волну либо передаст проблему кладовщику — по выбранному действию.</p>
+              <label>QR проблемной тары<input name="problem_tote_scan" data-scan-expected-value="{{ problem.problem_tote.barcode }}" required data-scanner-only data-agent-scan-target inputmode="none" autocomplete="off" placeholder="{{ problem.problem_tote.barcode }}"></label>
+              <button class="button button-primary" type="submit" name="route" value="rewave">Убрать товар и заказать добор</button><button class="button button-secondary" type="submit" name="route" value="quarantine">Передать кладовщику в карантин</button>
+              <div class="fbs-problem-error" data-scan-error role="alert" hidden></div>
+            </form>
+          </details>
+        {% endif %}
+        {% if problem.verification_url %}<a class="button button-primary" href="{{ problem.verification_url }}">Открыть проверку товара</a>{% endif %}
+        {% if problem.technical %}<details><summary>Причина от системы</summary><p class="fbs-problem-technical">{{ problem.technical }}</p></details>{% endif %}
+      </article>
+    {% empty %}
+      <div class="fbs-problem-hint fbs-problem-success">{% if controller_delivery_sent %}Передача поставки уже подтверждена. Новых действий по возвратам здесь нет.{% else %}Действий по проблемным заказам больше нет. Завершите обработку тар подбора и проверку состава, если они ещё не закончены. После обязательных подтверждений программа продолжит отправку.{% endif %}</div>
+      {% if controller_problem_check_url %}<a class="button button-primary" href="{{ controller_problem_check_url }}">Продолжить проверку состава</a>{% endif %}
+    {% endfor %}
+  </div>
+  <footer class="fbs-problem-foot"><p>{% if controller_delivery_sent %}Поставка уже передана. Возвраты и замечания разбираются отдельно; повторная отправка поставки не нужна.{% else %}Когда ошибки устранены и состав подтверждён, программа продолжит проверку на маркетплейсе. Пока можно работать с другой отгрузкой.{% endif %}</p><a class="button button-secondary" href="{% url 'fbs:tsd_handover' %}">К другим отгрузкам</a></footer>
+</dialog>
+<script>
+(() => {
+  const dialog = document.querySelector('[data-controller-problems]');
+  if (!dialog) return;
+  const actions = Array.from(dialog.querySelectorAll('[data-problem-action]'));
+  const launch = document.querySelector('[data-open-controller-problems]');
+  const close = dialog.querySelector('[data-close-controller-problems]');
+  const heading = document.querySelector('.shipment-v4-heading,.check-head');
+  if (heading) heading.insertAdjacentElement('afterend',launch);
+  let backgroundInputs = [], backgroundLocks = [];
+  const refreshScanner = root => {
+    if (typeof initializeTsdPage === 'function') initializeTsdPage(root);
+    if (typeof startControllerShiftHeartbeat === 'function') startControllerShiftHeartbeat(document);
+  };
+  const deactivate = () => {
+    dialog.querySelectorAll('[data-problem-form]').forEach(form => {
+      dialog.dataset.agentSince = String(Math.max(Number(dialog.dataset.agentSince || 0), Number(form.dataset.agentScanSince || 0)));
+      form.removeAttribute('data-scan-focus-lock'); delete form.dataset.agentScanPollUrl;
+      form.querySelectorAll('input[data-scanner-only]').forEach(input => {
+        if (typeof clearScanInput === 'function') clearScanInput(input); else input.value='';
+        input.setCustomValidity('');input.disabled = true;
+      });
+    });
+  };
+  const open = () => {
+    if (dialog.open) return;
+    backgroundInputs = Array.from(document.querySelectorAll('input[data-scanner-only]')).filter(input => !dialog.contains(input)).map(input => ({input, disabled:input.disabled}));
+    backgroundInputs.forEach(({input}) => { input.disabled=true; if(typeof cancelScanAutoSubmit === 'function') cancelScanAutoSubmit(input); });
+    backgroundLocks = Array.from(document.querySelectorAll('form[data-scan-focus-lock]')).filter(form => !dialog.contains(form));
+    backgroundLocks.forEach(form => form.removeAttribute('data-scan-focus-lock'));
+    deactivate();
+    if (typeof dialog.showModal === 'function') dialog.showModal(); else dialog.setAttribute('open','');
+    refreshScanner(dialog);
+    close.focus({preventScroll:true});
+  };
+  launch.addEventListener('click', open);
+  close.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('close', () => {
+    deactivate();
+    actions.forEach(details => { details.open = false; });
+    backgroundInputs.forEach(({input,disabled}) => { input.disabled=disabled; });
+    backgroundLocks.forEach(form => form.setAttribute('data-scan-focus-lock',''));
+    refreshScanner(document);
+    launch.focus({preventScroll:true});
+  });
+  actions.forEach(details => details.addEventListener('toggle', () => {
+    if (!details.open) {
+      if (!actions.some(action => action.open)) { deactivate();refreshScanner(dialog); }
+      return;
+    }
+    actions.forEach(other => { if (other !== details) other.open = false; });
+    deactivate();
+    const form = details.querySelector('form');
+    if (!form) return;
+    form.setAttribute('data-scan-focus-lock','');
+    if (dialog.dataset.agentUrl) {
+      form.dataset.agentScanPollUrl = dialog.dataset.agentUrl;
+      form.dataset.agentScanSince = dialog.dataset.agentSince || '0';
+    }
+    form.querySelectorAll('input[data-scanner-only]').forEach(input => { input.disabled=false; });
+    refreshScanner(details);
+    form.querySelector('input:not([type="hidden"])')?.focus({preventScroll:true});
+  }));
+  dialog.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || !event.target.dataset.scanNext) return;
+    event.preventDefault();event.stopPropagation();
+    const input = event.target;
+    if (input.dataset.scanExpectedValue && input.value.trim() !== input.dataset.scanExpectedValue) {
+      input.setCustomValidity(input.dataset.scanExpectedMessage || 'Отсканирован другой код.');input.reportValidity();return;
+    }
+    input.setCustomValidity('');input.form.querySelector(input.dataset.scanNext)?.focus();
+  },true);
+  dialog.addEventListener('input', event => { if(event.target.setCustomValidity) event.target.setCustomValidity(''); });
+  dialog.addEventListener('submit', event => {
+    if (!event.target.matches('[data-problem-form]')) return;
+    if (dialog.dataset.submitting === '1') { event.preventDefault();event.stopImmediatePropagation();return; }
+    for (const input of event.target.querySelectorAll('input[data-scanner-only]:not(:disabled)')) {
+      if (typeof validateFreshScanInput === 'function' && !validateFreshScanInput(event.target,input)) {
+        event.preventDefault();event.stopImmediatePropagation();return;
+      }
+    }
+    dialog.dataset.submitting='1';
+  },true);
+  const inputInProgress = () => {
+    const active = document.activeElement;
+    return dialog.dataset.submitting === '1' ||
+      (dialog.contains(active) && active.matches('input,textarea')) ||
+      Array.from(dialog.querySelectorAll('input[data-scanner-only]:not(:disabled)')).some(input => input.value.trim());
+  };
+  const poll = async () => {
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 12000);
+    try {
+      if (document.hidden || !dialog.open || !dialog.dataset.statusUrl) return;
+      if (inputInProgress()) return;
+      const url = new URL(dialog.dataset.statusUrl, window.location.href);url.searchParams.set('problem_status','1');
+      const response = await fetch(url.href,{credentials:'same-origin',cache:'no-store',signal:abort.signal});
+      if (!response.ok) return;
+      const payload = await response.json();
+      if (!dialog.open || inputInProgress()) return;
+      if (payload.ok && payload.fingerprint !== dialog.dataset.fingerprint) {
+        const destination = new URL(dialog.dataset.statusUrl, window.location.href);
+        destination.searchParams.set('problems','1');window.location.replace(destination.href);
+      }
+    } catch (_) {
+      // Keep instructions and scans intact while the network is unavailable.
+    } finally { clearTimeout(timer); setTimeout(poll,5000); }
+  };
+  const start = () => { deactivate(); if(dialog.dataset.autoOpen === '1') open();setTimeout(poll,5000); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',() => setTimeout(start,0),{once:true}); else setTimeout(start,0);
+})();
+</script>
+{% endif %}
+{% endif %}

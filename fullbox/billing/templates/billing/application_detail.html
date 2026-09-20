@@ -1,0 +1,971 @@
+{% extends "teammanager/_base.html" %}
+{% load billing_tags %}
+
+{% block title %}{{ application.get_application_type_display }} {{ application.application_id }} — Биллинг{% endblock %}
+
+{% block extra_css %}
+.page-head { display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; align-items:flex-start; }
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:26px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; line-height:1.45; }
+.head-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.breadcrumb { color:var(--muted); font-size:12px; margin-bottom:6px; }
+.breadcrumb a { color:var(--muted); text-decoration:underline; text-underline-offset:3px; }
+
+.steps {
+  display:flex; gap:0; flex-wrap:wrap; align-items:flex-start;
+  background:var(--surface); border:1px solid var(--line); border-radius:14px;
+  padding:14px 12px; box-shadow:var(--shadow); margin:0 0 12px;
+}
+.step { flex:1 1 120px; min-width:100px; text-align:center; position:relative; padding:0 6px; }
+.step-dot {
+  width:28px; height:28px; border-radius:50%; margin:0 auto 6px;
+  display:grid; place-items:center; font-size:12px; font-weight:900;
+  border:2px solid var(--line); background:var(--surface-2); color:var(--muted);
+}
+.step.done .step-dot { background:var(--green-soft); border-color:var(--green-strong); color:var(--green-strong); }
+.step.current .step-dot { background:var(--accent); border-color:var(--accent-strong); color:#fff; box-shadow:0 0 0 4px var(--accent-soft); }
+.step-label { font-size:11px; font-weight:700; color:var(--muted); line-height:1.25; }
+.step.done .step-label, .step.current .step-label { color:var(--ink); }
+
+.actions-box {
+  border:1px solid rgba(242,183,71,.45); background:var(--sun-soft);
+  border-radius:14px; padding:12px 14px; display:grid; gap:8px; margin-bottom:12px;
+}
+.actions-title { font-weight:900; color:#8a5a00; font-size:13px; }
+.action-row { display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; font-size:13px; }
+.action-row .btn { font-size:12px; padding:6px 12px; }
+
+.two-col { display:grid; grid-template-columns:minmax(0,1fr) minmax(240px,280px); gap:14px; align-items:start; }
+.card-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:16px; font-weight:800; }
+.section-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+.table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); }
+table.charges { width:100%; border-collapse:collapse; font-size:12px; min-width:920px; }
+table.charges th {
+  padding:10px 8px; text-align:left; color:var(--muted); font-size:10px; font-weight:900;
+  background:var(--surface-2); border-bottom:2px solid var(--line); white-space:nowrap;
+}
+table.charges td { padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+table.charges tr.excluded td { opacity:.55; background:#faf9f6; }
+.row-main { font-weight:800; color:var(--ink); }
+.row-sub { color:var(--muted); font-size:11px; margin-top:2px; }
+.money { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-weight:800; white-space:nowrap; }
+.field-sm { width:100%; max-width:110px; border:1px solid var(--line); border-radius:8px; padding:6px 8px; font:inherit; font-size:12px; }
+.select-svc { width:100%; min-width:160px; border:1px solid var(--line); border-radius:8px; padding:6px 8px; font:inherit; font-size:12px; }
+.badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900; border:1px solid transparent; }
+.badge.green { background:var(--green-soft); color:var(--green-strong); }
+.badge.blue { background:var(--accent-soft); color:var(--accent-strong); }
+.badge.orange { background:var(--sun-soft); color:#8a5a00; }
+.badge.red { background:#fff0f0; color:var(--danger); }
+.badge.gray { background:var(--surface-2); color:var(--muted); border-color:var(--line); }
+
+.info-list { display:grid; gap:6px; }
+.info-row { display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:13px; }
+.info-row:last-child { border-bottom:0; }
+.info-label { color:var(--muted); font-weight:700; }
+.info-val { font-weight:800; text-align:right; }
+.info-link { color:var(--accent-strong); text-decoration:none; }
+.info-link:hover { text-decoration:underline; }
+.info-link:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
+.info-action {
+  width:100%; border:1px solid rgba(248,144,0,.28); background:var(--accent-soft);
+  border-radius:10px; padding:10px 12px; cursor:pointer; color:var(--ink);
+  display:flex; justify-content:space-between; gap:10px; align-items:center; font:inherit; font-size:13px;
+}
+.info-action:hover { border-color:var(--accent-strong); }
+.info-action .info-label { color:var(--ink); }
+.info-action .info-val { color:var(--accent-strong); }
+.totals-grid { display:grid; gap:6px; }
+.total-row { display:flex; justify-content:space-between; gap:10px; padding:9px 12px; border-radius:10px; font-size:13px; }
+.total-row.highlight { background:var(--green-soft); }
+.total-row.warn { background:var(--sun-soft); }
+.total-label { color:var(--muted); font-weight:700; }
+.total-val { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-weight:900; font-size:14px; white-space:nowrap; }
+
+.row-actions { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+.menu-wrap { position:relative; }
+.menu-btn {
+  width:32px; height:32px; border-radius:10px; border:1px solid var(--line);
+  background:#fff; cursor:pointer; font-weight:900;
+}
+.menu-drop {
+  display:none; position:absolute; right:0; top:36px; z-index:20; min-width:200px;
+  background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:6px;
+}
+.menu-wrap.open .menu-drop { display:grid; }
+.menu-drop button, .menu-drop a {
+  display:block; width:100%; text-align:left; border:0; background:transparent;
+  padding:8px 10px; border-radius:8px; font:inherit; font-size:12px; font-weight:700; cursor:pointer; color:var(--ink);
+}
+.menu-drop button:hover, .menu-drop a:hover { background:var(--surface-2); }
+.menu-drop .danger { color:var(--danger); }
+
+.bulk-bar {
+  display:none; gap:8px; flex-wrap:wrap; align-items:center;
+  padding:10px 12px; background:var(--accent-soft); border-radius:12px; margin-bottom:10px;
+}
+.bulk-bar.show { display:flex; }
+
+.sticky-bar {
+  position:sticky; bottom:0; z-index:30; margin-top:16px;
+  display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center;
+  padding:12px 14px; background:rgba(255,253,248,.96); border:1px solid var(--line);
+  border-radius:14px; box-shadow:0 -8px 30px rgba(15,23,42,.08); backdrop-filter:blur(8px);
+}
+.sticky-meta { font-size:12px; color:var(--muted); display:flex; gap:14px; flex-wrap:wrap; }
+.sticky-meta strong { color:var(--ink); }
+.sticky-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.btn[disabled] { opacity:.55; cursor:not-allowed; }
+
+.modal-back {
+  display:none; position:fixed; inset:0; background:rgba(28,31,26,.35); z-index:50;
+  align-items:center; justify-content:center; padding:16px;
+}
+.modal-back.open { display:flex; }
+.modal {
+  width:min(520px,100%); background:var(--surface); border-radius:16px; border:1px solid var(--line);
+  box-shadow:var(--shadow); padding:18px; display:grid; gap:12px;
+}
+.modal.wide { width:min(760px,100%); }
+.modal h3 { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; }
+.modal .field { width:100%; border:1px solid var(--line); border-radius:10px; padding:9px 12px; font:inherit; }
+.modal-actions { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+.fact-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+.fact-metric { border:1px solid var(--line); border-radius:10px; padding:10px; background:var(--surface-2); }
+.fact-label { color:var(--muted); font-size:11px; font-weight:800; }
+.fact-value { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-weight:900; font-size:19px; margin-top:2px; }
+.fact-table-wrap { max-height:320px; overflow:auto; border:1px solid var(--line); border-radius:12px; }
+.fact-table { width:100%; border-collapse:collapse; font-size:12px; }
+.fact-table th, .fact-table td { padding:8px 10px; border-bottom:1px solid var(--line); text-align:left; }
+.fact-table th { background:var(--surface-2); color:var(--muted); font-size:10px; font-weight:900; }
+.fact-table tr:last-child td { border-bottom:0; }
+.fact-comments { display:grid; gap:8px; }
+.fact-comment {
+  border:1px solid var(--line); border-radius:12px; padding:9px 10px;
+  background:var(--surface-2); font-size:12px; line-height:1.45;
+}
+.fact-comment-text { color:var(--ink); overflow-wrap:anywhere; }
+
+.history-list { display:grid; gap:10px; max-height:360px; overflow:auto; }
+.history-item { border-bottom:1px solid var(--line); padding-bottom:8px; font-size:12px; }
+.history-item:last-child { border-bottom:0; }
+
+@media (max-width:1100px) {
+  .two-col { grid-template-columns:1fr; }
+}
+@media (max-width:720px) {
+  .fact-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+body.has-sticky-pad { padding-bottom:0; }
+{% endblock %}
+
+{% block content %}
+{% include "billing/_billing_nav.html" %}
+
+<div class="breadcrumb">
+  <a href="/team-manager/billing/">Биллинг</a> ·
+  <a href="/team-manager/billing/applications/">Регистр заявок</a> ·
+  {{ application.get_application_type_display }} {{ application.application_id }}
+</div>
+
+<div class="page-head">
+  <div>
+    <h1 class="page-title">{{ application.get_application_type_display }} {{ application.application_id }}</h1>
+    <div class="page-sub">
+      {{ application.client.agn_name|default:application.client.short_name }}
+      {% if application.client.inn %} · ИНН {{ application.client.inn }}{% endif %}<br>
+      {% if application.created_at_source %}Дата заявки: {{ application.created_at_source|date:"d.m.Y" }} · {% endif %}
+      {% if shipping_request_ship_date %}Дата отгрузки: {{ shipping_request_ship_date|date:"d.m.Y" }} · {% endif %}
+      Номер: {{ application.application_id }}<br>
+      {% if storage_period_label %}{{ storage_period_label }}<br>{% endif %}
+      Операционный статус: {{ operational_status_display }} ·
+      Статус биллинга: {{ billing_review_status }}
+      {% if is_billed_outside %} · <span class="badge gray">Счета вне системы</span>{% endif %}
+    </div>
+  </div>
+  <div class="head-actions">
+    <span class="badge {{ application.billing_status|billing_badge }}">{{ application.get_billing_status_display }}</span>
+    {% if can_mark_billing_external %}
+      <button class="btn" type="button" id="js-mark-external-btn">Счета вне системы</button>
+    {% endif %}
+  </div>
+</div>
+
+<div class="steps" aria-label="Этапы биллинга">
+  {% for step in billing_steps %}
+    <div class="step {{ step.state }}">
+      <div class="step-dot">{% if step.state == "done" %}✓{% else %}{{ forloop.counter }}{% endif %}</div>
+      <div class="step-label">{{ step.label }}</div>
+    </div>
+  {% endfor %}
+</div>
+
+{% if required_actions %}
+<div class="actions-box">
+  <div class="actions-title">Требуются действия — {{ required_actions|length }}</div>
+  {% for a in required_actions %}
+    <div class="action-row">
+      <span>{{ a.text }}</span>
+      <button type="button" class="btn primary js-required-cta" data-action="{{ a.cta_action }}">{{ a.cta }}</button>
+    </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="two-col">
+  <div style="display:grid;gap:14px;min-width:0">
+    <div class="card" style="padding:14px">
+      <div class="section-head">
+        <h2 class="card-title">Начисления по {{ application.get_application_type_display|lower }}</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          {% if can_manage_charges and not is_billed_outside and application.application_type != "storage" %}
+            {% if application.application_type == "receiving" %}<button type="button" class="btn" id="js-late-storage">Учесть хранение с фактической даты</button>{% endif %}
+            <button type="button" class="btn" id="js-edit-services" {% if not billing_services %}disabled title="Нет согласованных услуг в тарифе клиента"{% endif %}>Редактировать виды услуг</button>
+            <button type="button" class="btn" id="js-add-service">+ Добавить услугу</button>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if application.application_type != "storage" %}
+      <div class="bulk-bar" id="bulk-bar">
+        <span style="font-size:12px;font-weight:800">Выбрано: <span id="bulk-count">0</span></span>
+        <button type="button" class="btn" id="bulk-confirm">Подтвердить</button>
+        <button type="button" class="btn" id="bulk-recalc">Пересчитать</button>
+        <button type="button" class="btn" id="bulk-exclude">Исключить</button>
+        <button type="button" class="btn primary" id="bulk-replace">Заменить услугу…</button>
+      </div>
+      {% endif %}
+
+      <div class="table-card">
+        <table class="charges" id="charges-table">
+          <thead>
+            <tr>
+              {% if can_manage_charges and application.application_type != "storage" %}<th style="width:36px"><input type="checkbox" id="check-all" title="Выбрать все"></th>{% endif %}
+              <th>№</th>
+              <th>Вид услуги</th>
+              {% if application.application_type == "storage" %}<th>Период</th>{% endif %}
+              <th>Количество</th>
+              <th>Ед.</th>
+              <th>Тариф</th>
+              <th>Сумма<br><span class="row-sub">без НДС / итого</span></th>
+              <th>Статус</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in charge_rows %}
+              {% with c=row.charge %}
+              <tr class="{% if c.is_excluded %}excluded{% endif %}"
+                  data-charge-id="{{ c.id }}"
+                  data-version="{{ row.edit_version }}"
+                  data-service-id="{{ c.service_id }}">
+                {% if can_manage_charges and application.application_type != "storage" %}
+                <td><input type="checkbox" class="row-check" value="{{ c.id }}" {% if c.is_excluded %}disabled{% endif %}></td>
+                {% endif %}
+                <td>{{ row.n }}</td>
+                <td>
+                  <div class="svc-view">
+                    <div class="row-main">{{ c.service_name_snapshot|default:c.service.name }}</div>
+                    <div class="row-sub">{{ row.source_label }}</div>
+                    {% if c.previous_service_name %}<div class="row-sub">Было: {{ c.previous_service_name }}</div>{% endif %}
+                  </div>
+                  <div class="svc-edit" style="display:none">
+                    <select class="select-svc js-service-select" data-charge-id="{{ c.id }}" data-current="{{ c.service_id }}">
+                      {% for s in billing_services %}
+                        <option value="{{ s.id }}"
+                                data-price="{{ s.price }}"
+                                data-unit="{{ s.unit }}"
+                                {% if s.id == c.service_id %}selected{% endif %}>
+                          {{ s.name }} — {{ s.price|money_fmt }} / {{ s.unit }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </td>
+                {% if application.application_type == "storage" %}
+                <td>
+                  {% if row.storage_period_label %}
+                    <div class="row-main">{{ row.storage_period_label }}</div>
+                  {% else %}
+                    <span class="muted">—</span>
+                  {% endif %}
+                </td>
+                {% endif %}
+                <td>
+                  {% if row.can_edit_qty and not c.is_excluded %}
+                    <input class="field-sm js-qty" type="number" step="0.001" min="0.001" value="{{ c.quantity }}">
+                    {% if c.original_quantity and c.original_quantity != c.quantity %}
+                      <div class="row-sub">Автоматически: {{ c.original_quantity }} {{ c.unit }}</div>
+                    {% endif %}
+                  {% else %}
+                    <span class="money">{{ c.quantity }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ c.unit }}</td>
+                <td>
+                  {% if row.missing_price %}
+                    <span class="badge red">Тариф не найден</span>
+                  {% else %}
+                    <div class="money">{{ c.tariff|money_fmt }} / {{ c.unit }}</div>
+                    {% if application.application_type != "storage" %}
+                    <div class="row-sub">
+                      <button type="button" class="js-tariff-info" data-charge-id="{{ c.id }}" style="border:0;background:none;padding:0;color:var(--accent-strong);font:inherit;font-size:11px;font-weight:700;cursor:pointer;text-decoration:underline">
+                        {{ row.tariff_source_label|default:"Тариф клиента" }}
+                      </button>
+                    </div>
+                    {% endif %}
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="money">{{ c.amount|money_fmt }}</span>
+                  {% if c.vat_amount %}
+                    <div class="row-sub">НДС {{ c.vat_rate }}%: {{ c.vat_amount|money_fmt }}</div>
+                    <div class="row-sub">Итого: {{ c.total_amount|money_fmt }}</div>
+                  {% else %}
+                    <div class="row-sub">Итого: {{ c.total_amount|money_fmt }}</div>
+                  {% endif %}
+                </td>
+                <td><span class="badge {{ row.status_badge }}">{{ row.status_label }}</span></td>
+                <td>
+                  <div class="row-actions">
+                    {% if can_manage_charges and not is_billed_outside %}
+                      {% if c.is_excluded %}
+                        <button type="button" class="btn js-restore" data-id="{{ c.id }}">Восстановить</button>
+                      {% elif row.can_confirm %}
+                        <button type="button" class="btn primary js-confirm" data-id="{{ c.id }}">Подтвердить</button>
+                      {% elif row.can_edit_qty %}
+                        <button type="button" class="btn primary js-save-row" data-id="{{ c.id }}">Сохранить изменения</button>
+                      {% elif row.missing_price %}
+                        <button type="button" class="btn js-recalc-one" data-id="{{ c.id }}">Пересчитать</button>
+                      {% endif %}
+                      {% if application.application_type != "storage" %}
+                      <div class="menu-wrap">
+                        <button type="button" class="menu-btn js-menu-toggle" aria-label="Меню">⋮</button>
+                        <div class="menu-drop">
+                          <button type="button" class="js-menu-edit-svc">Изменить вид услуги</button>
+                          <button type="button" class="js-menu-source">Источник начисления</button>
+                          <button type="button" class="js-tariff-info" data-charge-id="{{ c.id }}">Посмотреть тариф</button>
+                          <button type="button" class="js-menu-history" data-id="{{ c.id }}">История</button>
+                          {% if not c.is_excluded %}
+                            <button type="button" class="danger js-menu-exclude" data-id="{{ c.id }}">Исключить из расчёта</button>
+                          {% else %}
+                            <button type="button" class="js-restore" data-id="{{ c.id }}">Восстановить строку</button>
+                          {% endif %}
+                        </div>
+                      </div>
+                      {% endif %}
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endwith %}
+            {% empty %}
+              <tr><td colspan="9" style="padding:28px;text-align:center;color:var(--muted);font-weight:700">Начислений пока нет — нажмите «Пересчитать всё»</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if warehouse_service_facts %}
+    <div class="card" style="padding:14px">
+      <h2 class="card-title">Услуги со склада</h2>
+      <div class="row-sub" style="margin:6px 0 10px">Только чтение — складские данные не изменяются.</div>
+      <div class="table-card">
+        <table class="charges" style="min-width:0">
+          <thead><tr><th>Услуга</th><th>Кол-во</th><th>Источник</th></tr></thead>
+          <tbody>
+            {% for f in warehouse_service_facts %}
+              <tr>
+                <td>{% firstof f.service_name f.name f.code "—" %}</td>
+                <td>{{ f.quantity }} {{ f.unit }}</td>
+                <td class="row-sub">{% firstof f.source_label f.source f.status_label "—" %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <aside style="display:grid;gap:12px">
+    <div class="card" style="padding:14px">
+      <h2 class="card-title">Информация о заявке</h2>
+      <div class="info-list">
+        <div class="info-row">
+          <span class="info-label">Номер</span>
+          {% if source_application_url %}
+            <a class="info-val info-link" href="{{ source_application_url }}">{{ application.application_id }}</a>
+          {% else %}
+            <span class="info-val">{{ application.application_id }}</span>
+          {% endif %}
+        </div>
+        <div class="info-row"><span class="info-label">Дата</span><span class="info-val">{% if application.created_at_source %}{{ application.created_at_source|date:"d.m.Y" }}{% else %}—{% endif %}</span></div>
+        <div class="info-row"><span class="info-label">Менеджер</span><span class="info-val">{% if application.manager %}{{ application.manager.full_name }}{% else %}—{% endif %}</span></div>
+        <div class="info-row"><span class="info-label">Клиент</span><span class="info-val">{{ application.client.short_name|default:application.client.agn_name }}</span></div>
+        <div class="info-row"><span class="info-label">ИНН</span><span class="info-val">{{ application.client.inn|default:"—" }}</span></div>
+        <div class="info-row"><span class="info-label">Юрлицо FullBox</span><span class="info-val">{% if application.own_company %}{{ application.own_company.name }}{% else %}—{% endif %}</span></div>
+        {% if source_application_url and application.application_type == "processing" %}
+          <a class="info-action" href="{{ source_application_url }}">
+            <span class="info-label">Заявка обработки</span>
+            <span class="info-val">Открыть</span>
+          </a>
+        {% endif %}
+        {% if application_fact_summary.available %}
+          <button type="button" class="info-action" id="js-application-fact-open">
+            <span class="info-label">Факт заявки</span>
+            <span class="info-val">Открыть</span>
+          </button>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card" style="padding:14px">
+      <h2 class="card-title">Финансовая сводка</h2>
+      <div class="totals-grid">
+        <div class="total-row"><span class="total-label">Начислено с НДС</span><span class="total-val">{{ finance_summary.charged|money_fmt }}</span></div>
+        <div class="total-row highlight"><span class="total-label">Подтверждено с НДС</span><span class="total-val">{{ finance_summary.confirmed|money_fmt }}</span></div>
+        <div class="total-row warn"><span class="total-label">Не подтверждено с НДС</span><span class="total-val">{{ finance_summary.unconfirmed|money_fmt }}</span></div>
+        <div class="total-row"><span class="total-label">Исключено с НДС</span><span class="total-val">{{ finance_summary.excluded|money_fmt }}</span></div>
+        <div class="total-row"><span class="total-label">Сумма акта</span><span class="total-val">{{ finance_summary.act_label }}</span></div>
+        <div class="total-row"><span class="total-label">Сумма счёта</span><span class="total-val">{{ finance_summary.invoice_label }}</span></div>
+        <div class="total-row"><span class="total-label">Оплачено</span><span class="total-val">{{ finance_summary.paid_label }}</span></div>
+        <div class="total-row"><span class="total-label">Задолженность</span><span class="total-val">{{ finance_summary.debt_total|money_fmt }}</span></div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="sticky-bar">
+  <div class="sticky-meta">
+    <span>Начислений: <strong>{{ finance_summary.charges_count }}</strong></span>
+    <span>Сумма с НДС: <strong>{{ finance_summary.charged|money_fmt }}</strong></span>
+    <span>Не подтверждено: <strong>{{ finance_summary.unconfirmed_count }}</strong></span>
+  </div>
+  <div class="sticky-actions">
+    <button type="button" class="btn" id="js-save-draft">Сохранить черновик</button>
+    {% if application.application_type != "storage" %}<button type="button" class="btn" id="js-recalc-all">Пересчитать всё</button>{% endif %}
+    {% if can_confirm_calculation %}
+      <button type="button" class="btn primary" id="js-confirm-all">Подтвердить расчёт</button>
+    {% elif calculation_confirmed %}
+      <span class="btn disabled" aria-disabled="true">Расчёт подтверждён</span>
+    {% else %}
+      <button type="button" class="btn primary" disabled title="{{ confirm_blockers|join:', ' }}">Подтвердить расчёт</button>
+    {% endif %}
+    {% if can_create_act and not is_billed_outside %}
+      <button type="button" class="btn primary" id="js-documents-btn">Создать акт и счёт</button>
+    {% endif %}
+  </div>
+</div>
+
+<div class="modal-back" id="modal-add">
+  <div class="modal">
+    <h3>Добавить услугу</h3>
+    <label class="row-sub">Вид услуги
+      <select class="field" id="add-service">
+        {% for s in billing_services %}
+          <option value="{{ s.id }}" data-unit="{{ s.unit }}" data-price="{{ s.price }}">
+            {{ s.name }} — {{ s.price|money_fmt }} / {{ s.unit }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="row-sub">Количество <input class="field" id="add-qty" type="number" step="0.001" min="0.001" value="1"></label>
+    <label class="row-sub">Основание
+      <select class="field" id="add-basis">
+        {% for val,label in qty_basis_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="row-sub">Комментарий <input class="field" id="add-comment" type="text" placeholder="Основание добавления"></label>
+    <div class="modal-actions">
+      <button type="button" class="btn" data-close="modal-add">Отмена</button>
+      <button type="button" class="btn primary" id="add-save">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back" id="modal-exclude">
+  <div class="modal">
+    <h3>Исключить из расчёта</h3>
+    <input type="hidden" id="exclude-id">
+    <label class="row-sub">Причина
+      <select class="field" id="exclude-reason">
+        {% for val,label in exclude_reason_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="row-sub">Комментарий <input class="field" id="exclude-comment" type="text"></label>
+    <div class="modal-actions">
+      <button type="button" class="btn" data-close="modal-exclude">Отмена</button>
+      <button type="button" class="btn primary" id="exclude-save">Исключить</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back" id="modal-history">
+  <div class="modal">
+    <h3>История изменений</h3>
+    <div class="history-list" id="history-body"></div>
+    <div class="modal-actions"><button type="button" class="btn" data-close="modal-history">Закрыть</button></div>
+  </div>
+</div>
+
+<div class="modal-back" id="modal-tariff">
+  <div class="modal">
+    <h3>Тариф</h3>
+    <div id="tariff-body" class="row-sub"></div>
+    <div class="modal-actions"><button type="button" class="btn" data-close="modal-tariff">Закрыть</button></div>
+  </div>
+</div>
+
+{% if application_fact_summary.available %}
+<div class="modal-back" id="modal-application-fact">
+  <div class="modal wide">
+    <h3>{{ application_fact_summary.labels.title }} {{ application.application_id }}</h3>
+    <div class="row-sub">
+      Данные из операционного snapshot заявки и складских фактов. Если поле не передано складом, показывается «—».
+    </div>
+    <div class="fact-grid">
+      <div class="fact-metric">
+        <div class="fact-label">{{ application_fact_summary.labels.goods }}</div>
+        <div class="fact-value">{{ application_fact_summary.goods }}</div>
+        <div class="row-sub">шт.</div>
+      </div>
+      <div class="fact-metric">
+        <div class="fact-label">{{ application_fact_summary.labels.boxes }}</div>
+        <div class="fact-value">{{ application_fact_summary.boxes }}</div>
+        <div class="row-sub">кор.</div>
+      </div>
+      <div class="fact-metric">
+        <div class="fact-label">{{ application_fact_summary.labels.pallets }}</div>
+        <div class="fact-value">{{ application_fact_summary.pallets }}</div>
+        <div class="row-sub">пал.</div>
+      </div>
+      <div class="fact-metric">
+        <div class="fact-label">Позиций</div>
+        <div class="fact-value">{{ application_fact_summary.sku_count }}</div>
+        <div class="row-sub">{{ application_fact_summary.labels.closed }} {{ application_fact_summary.closed_at }}</div>
+      </div>
+    </div>
+
+    {% if application_fact_summary.rows %}
+      <div>
+        <div class="row-main" style="margin-bottom:6px">Артикулы по факту</div>
+        <div class="fact-table-wrap">
+          <table class="fact-table">
+            <thead><tr><th>Артикул</th><th>Наименование</th><th>План</th><th>Факт</th></tr></thead>
+            <tbody>
+              {% for item in application_fact_summary.rows %}
+                <tr>
+                  <td>{{ item.sku }}</td>
+                  <td>{{ item.name }}</td>
+                  <td>{{ item.planned }}</td>
+                  <td><strong>{{ item.actual }}</strong></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if application_fact_summary.rows_more %}
+          <div class="row-sub">Показаны первые 200 строк, ещё {{ application_fact_summary.rows_more }}.</div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if application_fact_summary.warehouse_rows %}
+      <div>
+        <div class="row-main" style="margin-bottom:6px">Складские факты услуг</div>
+        <div class="fact-table-wrap">
+          <table class="fact-table">
+            <thead><tr><th>Услуга</th><th>Количество</th><th>Статус</th></tr></thead>
+            <tbody>
+              {% for fact in application_fact_summary.warehouse_rows %}
+                <tr>
+                  <td>{{ fact.service }}</td>
+                  <td><strong>{{ fact.quantity }}</strong> {{ fact.unit }}</td>
+                  <td>{{ fact.status }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endif %}
+
+    <div>
+      <div class="row-main" style="margin-bottom:6px">Комментарии заявки</div>
+      {% if application_comments %}
+        <div class="fact-comments">
+          {% for comment in application_comments %}
+            <div class="fact-comment">
+              <div class="fact-comment-text">{{ comment.text|linebreaksbr }}</div>
+              <div class="row-sub">
+                {{ comment.actor }}
+                {% if comment.created_at %} · {{ comment.created_at|date:"d.m.Y H:i" }}{% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="row-sub">Комментариев по заявке нет.</div>
+      {% endif %}
+    </div>
+
+    {% if not application_fact_summary.has_any_fact %}
+      <div class="actions-box" style="margin:0">
+        <div class="actions-title">{{ application_fact_summary.labels.empty }}</div>
+        <div class="row-sub">В заявке нет подписанного факта или складских фактов по услугам.</div>
+      </div>
+    {% endif %}
+    <div class="modal-actions"><button type="button" class="btn" data-close="modal-application-fact">Закрыть</button></div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+(function(){
+  var appId = {{ application.id }};
+  var editMode = false;
+  function csrf(){ return (document.cookie.match(/csrftoken=([^;]+)/)||[])[1]||''; }
+  function api(url, method, data){
+    return fetch(url, {
+      method: method || 'GET',
+      headers: {'Content-Type':'application/json','X-CSRFToken': csrf()},
+      body: data ? JSON.stringify(data) : undefined
+    }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok, status:r.status, d:d}; }); });
+  }
+  function reload(){ window.location.reload(); }
+  function toastErr(res){
+    alert((res.d && res.d.error) || (res.status===409 ? 'Расчёт был изменён другим пользователем. Обновите страницу.' : 'Ошибка'));
+  }
+  function openModal(id){ document.getElementById(id).classList.add('open'); }
+  function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+  document.querySelectorAll('[data-close]').forEach(function(btn){
+    btn.addEventListener('click', function(){ closeModal(btn.getAttribute('data-close')); });
+  });
+  var applicationFactBtn = document.getElementById('js-application-fact-open');
+  if(applicationFactBtn) applicationFactBtn.addEventListener('click', function(){ openModal('modal-application-fact'); });
+  var lateStorageBtn = document.getElementById('js-late-storage');
+  if(lateStorageBtn) lateStorageBtn.addEventListener('click', function(){
+    api('/team-manager/billing/api/applications/'+appId+'/late-storage/', 'POST', {dry_run:true}).then(function(res){
+      if(!res.ok) return toastErr(res);
+      var d=res.d.data||{}; var days=d.days||[];
+      if(!days.length) return alert('Пропущенных дней хранения нет.');
+      var sum=days.reduce(function(v,row){return v+Number(row.amount||0);},0);
+      if(!confirm('Учесть хранение: '+d.pallets+' пал. за '+days.length+' дн. с '+d.received_day+'? Сумма без НДС: '+sum.toFixed(2)+' ₽')) return;
+      api('/team-manager/billing/api/applications/'+appId+'/late-storage/', 'POST', {}).then(function(done){if(!done.ok)return toastErr(done);reload();});
+    });
+  });
+
+  document.querySelectorAll('.js-menu-toggle').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var wrap = btn.closest('.menu-wrap');
+      document.querySelectorAll('.menu-wrap.open').forEach(function(w){ if(w!==wrap) w.classList.remove('open'); });
+      wrap.classList.toggle('open');
+    });
+  });
+  document.addEventListener('click', function(){ document.querySelectorAll('.menu-wrap.open').forEach(function(w){ w.classList.remove('open'); }); });
+
+  var editBtn = document.getElementById('js-edit-services');
+  if(editBtn) editBtn.addEventListener('click', function(){
+    editMode = !editMode;
+    editBtn.textContent = editMode ? 'Готово' : 'Редактировать виды услуг';
+    document.querySelectorAll('#charges-table tbody tr').forEach(function(tr){
+      var view = tr.querySelector('.svc-view');
+      var edit = tr.querySelector('.svc-edit');
+      if(!view || !edit) return;
+      view.style.display = editMode ? 'none' : '';
+      edit.style.display = editMode ? '' : 'none';
+    });
+    document.getElementById('bulk-bar').classList.toggle('show', editMode);
+  });
+
+  // Смена услуги → сразу цена из согласованного тарифа клиента (сервер).
+  document.querySelectorAll('.js-service-select').forEach(function(sel){
+    sel.addEventListener('change', function(){
+      var id = sel.getAttribute('data-charge-id');
+      var tr = document.querySelector('tr[data-charge-id="'+id+'"]');
+      var nextId = parseInt(sel.value, 10);
+      var prevId = parseInt(sel.getAttribute('data-current') || '0', 10);
+      if(!id || !nextId || nextId === prevId) return;
+      var opt = sel.options[sel.selectedIndex];
+      var priceHint = opt ? (opt.getAttribute('data-price') || '') : '';
+      if(!confirm('Заменить услугу? Цена будет взята из тарифа клиента' + (priceHint ? ' ('+priceHint+' ₽)' : '') + '.')){
+        sel.value = String(prevId);
+        return;
+      }
+      sel.disabled = true;
+      api('/team-manager/billing/api/charges/'+id+'/', 'PATCH', {
+        service_id: nextId,
+        edit_version: tr && tr.getAttribute('data-version')
+      }).then(function(res){
+        if(!res.ok){ sel.disabled = false; sel.value = String(prevId); return toastErr(res); }
+        reload();
+      });
+    });
+  });
+
+  function selectedIds(){
+    return Array.prototype.map.call(document.querySelectorAll('.row-check:checked'), function(c){ return parseInt(c.value,10); });
+  }
+  function versionsMap(ids){
+    var m = {};
+    ids.forEach(function(id){
+      var tr = document.querySelector('tr[data-charge-id="'+id+'"]');
+      if(tr) m[id] = parseInt(tr.getAttribute('data-version')||'1',10);
+    });
+    return m;
+  }
+  function refreshBulkCount(){
+    var n = selectedIds().length;
+    var el = document.getElementById('bulk-count');
+    if(el) el.textContent = String(n);
+  }
+  var checkAll = document.getElementById('check-all');
+  if(checkAll) checkAll.addEventListener('change', function(){
+    document.querySelectorAll('.row-check:not(:disabled)').forEach(function(c){ c.checked = checkAll.checked; });
+    refreshBulkCount();
+  });
+  document.querySelectorAll('.row-check').forEach(function(c){ c.addEventListener('change', refreshBulkCount); });
+
+  function bulk(action, extra){
+    var ids = selectedIds();
+    if(!ids.length){ alert('Выберите строки'); return; }
+    if(action==='replace_service'){
+      if(!confirm('Вы собираетесь изменить вид услуги в '+ids.length+' начислениях.\nСтарые значения сохранятся в истории. Суммы будут пересчитаны.')) return;
+    }
+    var payload = Object.assign({action:action, charge_ids:ids, expected_versions: versionsMap(ids)}, extra||{});
+    api('/team-manager/billing/api/applications/'+appId+'/charges/bulk/', 'POST', payload).then(function(res){
+      if(!res.ok) return toastErr(res);
+      reload();
+    });
+  }
+  var bc = document.getElementById('bulk-confirm'); if(bc) bc.addEventListener('click', function(){ bulk('confirm'); });
+  var br = document.getElementById('bulk-recalc'); if(br) br.addEventListener('click', function(){ bulk('recalc'); });
+  var be = document.getElementById('bulk-exclude'); if(be) be.addEventListener('click', function(){
+    var reason = prompt('Причина (not_performed / wrong_auto / duplicate / included_in_other / other):', 'wrong_auto');
+    if(!reason) return;
+    var comment = prompt('Комментарий:', '') || '';
+    bulk('exclude', {reason: reason, comment: comment});
+  });
+  var bp = document.getElementById('bulk-replace'); if(bp) bp.addEventListener('click', function(){
+    var services = {{ agreed_services_json|safe }};
+    if(!services || !services.length){ alert('Нет согласованных услуг в тарифе клиента'); return; }
+    var lines = services.map(function(s, i){ return (i+1)+') '+s.name+' — '+s.price+' / '+s.unit; }).join('\n');
+    var n = prompt('Выберите услугу из тарифа клиента (номер):\n'+lines);
+    if(!n) return;
+    var idx = parseInt(n,10)-1;
+    if(idx<0 || idx>=services.length){ alert('Неверный номер'); return; }
+    bulk('replace_service', {service_id: services[idx].id, reason:'bulk_replace'});
+  });
+
+  document.querySelectorAll('.js-confirm').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var id = btn.getAttribute('data-id');
+      var tr = document.querySelector('tr[data-charge-id="'+id+'"]');
+      api('/team-manager/billing/api/charges/'+id+'/confirm/', 'POST', {edit_version: tr && tr.getAttribute('data-version')}).then(function(res){
+        if(!res.ok) return toastErr(res); reload();
+      });
+    });
+  });
+  document.querySelectorAll('.js-save-row').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var id = btn.getAttribute('data-id');
+      var tr = document.querySelector('tr[data-charge-id="'+id+'"]');
+      if(!tr) return;
+      var qty = tr.querySelector('.js-qty');
+      var sel = tr.querySelector('.js-service-select');
+      var payload = {edit_version: tr.getAttribute('data-version')};
+      var origQty = qty ? String(qty.defaultValue || qty.getAttribute('value') || '') : '';
+      if(qty && qty.value && String(qty.value) !== origQty){
+        payload.quantity = qty.value;
+        var basis = prompt('Основание изменения количества (warehouse/fact/boxes/pallets/units/manual/other):', 'fact') || 'fact';
+        var comment = '';
+        if(basis==='manual' || basis==='other'){ comment = prompt('Комментарий:') || ''; }
+        payload.qty_change_basis = basis;
+        payload.qty_change_comment = comment;
+      }
+      if(sel){
+        var nextId = parseInt(sel.value,10);
+        var prevId = parseInt(sel.getAttribute('data-current')||'0',10);
+        if(nextId && nextId !== prevId) payload.service_id = nextId;
+      }
+      if(payload.quantity === undefined && payload.service_id === undefined){
+        alert('Нет изменений для сохранения');
+        return;
+      }
+      api('/team-manager/billing/api/charges/'+id+'/', 'PATCH', payload).then(function(res){
+        if(!res.ok) return toastErr(res); reload();
+      });
+    });
+  });
+  document.querySelectorAll('.js-recalc-one').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var id = btn.getAttribute('data-id');
+      var tr = document.querySelector('tr[data-charge-id="'+id+'"]');
+      api('/team-manager/billing/api/charges/'+id+'/recalc/', 'POST', {edit_version: tr && tr.getAttribute('data-version')}).then(function(res){
+        if(!res.ok) return toastErr(res); reload();
+      });
+    });
+  });
+  document.querySelectorAll('.js-restore').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var id = btn.getAttribute('data-id');
+      var tr = document.querySelector('tr[data-charge-id="'+id+'"]');
+      api('/team-manager/billing/api/charges/'+id+'/restore/', 'POST', {edit_version: tr && tr.getAttribute('data-version')}).then(function(res){
+        if(!res.ok) return toastErr(res); reload();
+      });
+    });
+  });
+  document.querySelectorAll('.js-menu-exclude').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.getElementById('exclude-id').value = btn.getAttribute('data-id');
+      openModal('modal-exclude');
+    });
+  });
+  document.getElementById('exclude-save').addEventListener('click', function(){
+    var id = document.getElementById('exclude-id').value;
+    var tr = document.querySelector('tr[data-charge-id="'+id+'"]');
+    api('/team-manager/billing/api/charges/'+id+'/exclude/', 'POST', {
+      reason: document.getElementById('exclude-reason').value,
+      comment: document.getElementById('exclude-comment').value,
+      edit_version: tr && tr.getAttribute('data-version')
+    }).then(function(res){ if(!res.ok) return toastErr(res); reload(); });
+  });
+  document.querySelectorAll('.js-menu-history').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var id = btn.getAttribute('data-id');
+      api('/team-manager/billing/api/charges/'+id+'/history/').then(function(res){
+        if(!res.ok) return toastErr(res);
+        var body = document.getElementById('history-body');
+        var rows = res.d.data || [];
+        if(!rows.length){ body.innerHTML = '<div class="row-sub">История пуста</div>'; }
+        else {
+          body.innerHTML = rows.map(function(e){
+            var line = (e.created_at||'') + '<br><strong>'+(e.user||'—')+'</strong> · '+e.change_type_label;
+            if(e.old_service_name || e.new_service_name) line += '<br>«'+(e.old_service_name||'')+'» → «'+(e.new_service_name||'')+'»';
+            if(e.old_quantity || e.new_quantity) line += '<br>Кол-во: '+(e.old_quantity||'')+' → '+(e.new_quantity||'');
+            if(e.comment) line += '<br>'+e.comment;
+            return '<div class="history-item">'+line+'</div>';
+          }).join('');
+        }
+        openModal('modal-history');
+      });
+    });
+  });
+  document.querySelectorAll('.js-menu-edit-svc').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if(!editMode && editBtn) editBtn.click();
+      var tr = btn.closest('tr');
+      if(tr){ var sel = tr.querySelector('.js-service-select'); if(sel) sel.focus(); }
+    });
+  });
+  document.querySelectorAll('.js-menu-source').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var tr = btn.closest('tr');
+      var sub = tr && tr.querySelector('.row-sub');
+      alert(sub ? sub.textContent : 'Источник не указан');
+    });
+  });
+  document.querySelectorAll('.js-tariff-info').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var tr = btn.closest('tr') || document.querySelector('tr[data-charge-id="'+btn.getAttribute('data-charge-id')+'"]');
+      var html = tr ? (tr.querySelectorAll('.row-sub')[1] && tr.querySelectorAll('.row-sub')[1].textContent) : '';
+      var money = tr ? tr.querySelectorAll('.money')[0] && tr.querySelectorAll('td')[5].innerText : '';
+      document.getElementById('tariff-body').innerHTML =
+        '<div>Тариф действовал на дату оказания услуги.</div>'+
+        '<div style="margin-top:8px;font-weight:800;color:var(--ink)">'+ (money||'') +'</div>'+
+        '<div style="margin-top:6px">'+(html||'Индивидуальный тариф клиента')+'</div>';
+      openModal('modal-tariff');
+    });
+  });
+
+  var addBtn = document.getElementById('js-add-service');
+  if(addBtn) addBtn.addEventListener('click', function(){ openModal('modal-add'); });
+  var addSave = document.getElementById('add-save');
+  if(addSave) addSave.addEventListener('click', function(){
+    api('/team-manager/billing/api/applications/'+appId+'/charges/', 'POST', {
+      service_id: parseInt(document.getElementById('add-service').value,10),
+      quantity: document.getElementById('add-qty').value,
+      basis: document.getElementById('add-basis').value,
+      comment: document.getElementById('add-comment').value
+    }).then(function(res){ if(!res.ok) return toastErr(res); reload(); });
+  });
+
+  var recalcAllBtn = document.getElementById('js-recalc-all');
+  if(recalcAllBtn) recalcAllBtn.addEventListener('click', function(){
+    this.disabled = true;
+    api('/team-manager/billing/api/applications/'+appId+'/calculate/', 'POST', {}).then(function(res){
+      if(!res.ok) return toastErr(res); reload();
+    });
+  });
+  document.getElementById('js-save-draft').addEventListener('click', function(){
+    var rows = document.querySelectorAll('#charges-table tbody tr[data-charge-id]');
+    var chain = Promise.resolve();
+    rows.forEach(function(tr){
+      var id = tr.getAttribute('data-charge-id');
+      var qty = tr.querySelector('.js-qty');
+      var sel = tr.querySelector('.js-service-select');
+      if(!qty && !editMode) return;
+      chain = chain.then(function(){
+        var payload = {edit_version: tr.getAttribute('data-version')};
+        if(qty) payload.quantity = qty.value;
+        if(editMode && sel) payload.service_id = parseInt(sel.value,10);
+        return api('/team-manager/billing/api/charges/'+id+'/', 'PATCH', payload).then(function(res){
+          if(!res.ok) throw res;
+        });
+      });
+    });
+    chain.then(function(){ reload(); }).catch(function(res){ toastErr(res||{}); });
+  });
+  var confirmAllBtn = document.getElementById('js-confirm-all');
+  if(confirmAllBtn) confirmAllBtn.addEventListener('click', function(){
+    if(this.disabled) return;
+    this.disabled = true;
+    this.textContent = 'Сохраняем…';
+    api('/team-manager/billing/api/applications/'+appId+'/confirm-charges/', 'POST', {}).then(function(res){
+      if(!res.ok){ confirmAllBtn.disabled = false; confirmAllBtn.textContent = 'Подтвердить расчёт'; return toastErr(res); }
+      reload();
+    }).catch(function(){
+      confirmAllBtn.disabled = false;
+      confirmAllBtn.textContent = 'Подтвердить расчёт';
+      alert('Не удалось сохранить расчёт. Повторите попытку.');
+    });
+  });
+  var documentsBtn = document.getElementById('js-documents-btn');
+  document.querySelectorAll('.js-required-cta').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var a = btn.getAttribute('data-action');
+      if(a==='confirm_all' && confirmAllBtn) confirmAllBtn.click();
+      else if(a==='create_documents' && documentsBtn) documentsBtn.click();
+      else if(recalcAllBtn) recalcAllBtn.click();
+    });
+  });
+  if(documentsBtn) documentsBtn.addEventListener('click', function(){
+    this.disabled = true;
+    this.textContent = 'Создаём документы…';
+    api('/team-manager/billing/api/applications/'+appId+'/acts/', 'POST', {}).then(function(res){
+      if(!res.ok){
+        toastErr(res);
+        documentsBtn.disabled = false;
+        documentsBtn.textContent = 'Создать акт и счёт';
+        return;
+      }
+      var invoice = res.d && res.d.data && res.d.data.invoice;
+      if(invoice && invoice.id){
+        window.location.href = '/team-manager/billing/invoices/'+invoice.id+'/';
+        return;
+      }
+      reload();
+    });
+  });
+  var extBtn = document.getElementById('js-mark-external-btn');
+  if(extBtn) extBtn.addEventListener('click', function(){
+    if(!confirm('Пометить заявку как «счета вне системы»?')) return;
+    var comment = prompt('Комментарий:','Счета вне системы') || '';
+    api('/team-manager/billing/api/applications/'+appId+'/mark-external/', 'POST', {comment:comment}).then(function(res){
+      if(!res.ok) return toastErr(res); reload();
+    });
+  });
+})();
+</script>
+{% endblock %}

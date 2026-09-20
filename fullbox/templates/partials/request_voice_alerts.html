@@ -1,0 +1,279 @@
+<style>
+  .request-voice-controls {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 9997;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .request-voice-toggle,
+  .request-voice-test {
+    min-height: 42px;
+    padding: 10px 14px;
+    border: 1px solid rgba(48, 48, 48, .15);
+    border-radius: 10px;
+    background: #fff;
+    color: #303030;
+    box-shadow: 0 10px 28px rgba(48, 48, 48, .16);
+    font: 700 12px/1.2 "Manrope", system-ui, sans-serif;
+    cursor: pointer;
+  }
+  .request-voice-test {
+    background: #fff7e8;
+    border-color: rgba(248, 144, 0, .38);
+  }
+  .request-voice-toggle.is-enabled {
+    border-color: #f89000;
+    background: linear-gradient(120deg, #f89000, #f8b800);
+    color: #303030;
+  }
+  .request-voice-toast {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 9998;
+    width: min(380px, calc(100vw - 36px));
+    padding: 14px 16px;
+    border: 1px solid rgba(248, 144, 0, .36);
+    border-radius: 10px;
+    background: #fffdf8;
+    color: #303030;
+    box-shadow: 0 12px 32px rgba(48, 48, 48, .18);
+    font: 700 13px/1.45 "Manrope", system-ui, sans-serif;
+    cursor: pointer;
+  }
+  .request-voice-toast strong { display: block; margin-bottom: 4px; color: #f86800; }
+  @media (max-width: 720px) {
+    .request-voice-controls { right: 12px; bottom: 12px; }
+    .request-voice-toggle,
+    .request-voice-test { padding: 9px 11px; }
+    .request-voice-toast { top: 12px; right: 12px; width: calc(100vw - 24px); }
+  }
+</style>
+<script>
+  (() => {
+    if (window.__fullboxRequestVoiceAlertsLoaded) return;
+    window.__fullboxRequestVoiceAlertsLoaded = true;
+
+    const API_URL = '/todo/api/request-voice-alerts/';
+    const POLL_INTERVAL_MS = 15000;
+    const ENABLED_KEY = 'fullbox.request-voice.enabled.v1';
+    const CLAIM_PREFIX = 'fullbox.request-voice.claim.v1.';
+    const PHRASES = {
+      receiving: 'Новая заявка на приёмку',
+      processing: 'Новая заявка на обработку',
+      shipping: 'Новая заявка на отгрузку',
+      movement: 'Новая заявка на перемещение',
+    };
+    const supportedKinds = new Set(Object.keys(PHRASES));
+    const synth = window.speechSynthesis || null;
+    let enabled = storageGet(ENABLED_KEY) === '1';
+    let stopped = false;
+    let baselineReady = false;
+    let activeScope = '';
+    let pollTimer = null;
+    let toastTimer = null;
+    const seen = new Set();
+
+    const controls = document.createElement('div');
+    controls.className = 'request-voice-controls';
+    const testButton = document.createElement('button');
+    testButton.type = 'button';
+    testButton.className = 'request-voice-test';
+    testButton.textContent = 'Проверить голос';
+    testButton.title = 'Произнести тестовое голосовое уведомление';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'request-voice-toggle';
+    toggle.setAttribute('aria-live', 'polite');
+    controls.appendChild(testButton);
+    controls.appendChild(toggle);
+    document.body.appendChild(controls);
+
+    function storageGet(key) {
+      try { return window.localStorage.getItem(key); } catch (_error) { return null; }
+    }
+
+    function storageSet(key, value) {
+      try {
+        window.localStorage.setItem(key, value);
+        return true;
+      } catch (_error) {
+        return false;
+      }
+    }
+
+    function syncToggle() {
+      if (!synth) {
+        toggle.textContent = 'Голос недоступен';
+        toggle.disabled = true;
+        testButton.disabled = true;
+        return;
+      }
+      toggle.disabled = false;
+      testButton.disabled = false;
+      toggle.classList.toggle('is-enabled', enabled);
+      toggle.textContent = enabled ? 'Голос включён' : 'Включить голос';
+      toggle.title = enabled
+        ? 'Нажмите, чтобы выключить голосовые уведомления'
+        : 'Нажмите, чтобы включить голосовые уведомления';
+    }
+
+    function russianVoice() {
+      if (!synth || typeof synth.getVoices !== 'function') return null;
+      const voices = synth.getVoices() || [];
+      return voices.find((voice) => String(voice.lang || '').toLowerCase().startsWith('ru')) || null;
+    }
+
+    function speak(text) {
+      if (!enabled || !synth || !text) return;
+      try {
+        synth.resume();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ru-RU';
+        utterance.rate = 0.92;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        const voice = russianVoice();
+        if (voice) utterance.voice = voice;
+        synth.speak(utterance);
+      } catch (_error) {}
+    }
+
+    function hashText(value) {
+      let hash = 2166136261;
+      for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+      }
+      return (hash >>> 0).toString(36);
+    }
+
+    function claimAnnouncement(alerts, callback) {
+      const fingerprint = alerts.map((alert) => alert.key).sort().join('|');
+      const claimKey = `${CLAIM_PREFIX}${hashText(`${activeScope}|${fingerprint}`)}`;
+      const owner = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const now = Date.now();
+      try {
+        const existing = JSON.parse(storageGet(claimKey) || 'null');
+        if (existing && Number(existing.expiresAt || 0) > now) return;
+      } catch (_error) {}
+      if (!storageSet(claimKey, JSON.stringify({ owner, expiresAt: now + 60000 }))) {
+        callback();
+        return;
+      }
+      window.setTimeout(() => {
+        try {
+          const current = JSON.parse(storageGet(claimKey) || 'null');
+          if (!current || current.owner !== owner) return;
+        } catch (_error) {
+          return;
+        }
+        callback();
+      }, 80);
+    }
+
+    function showToast(phrases, href) {
+      const previous = document.querySelector('.request-voice-toast');
+      if (previous) previous.remove();
+      if (toastTimer) window.clearTimeout(toastTimer);
+      const toast = document.createElement('div');
+      toast.className = 'request-voice-toast';
+      toast.setAttribute('role', 'status');
+      const title = document.createElement('strong');
+      title.textContent = 'Новая заявка';
+      const body = document.createElement('span');
+      body.textContent = phrases.join('. ');
+      toast.appendChild(title);
+      toast.appendChild(body);
+      if (href) {
+        toast.title = 'Открыть заявку';
+        toast.addEventListener('click', () => { window.location.href = href; });
+      }
+      document.body.appendChild(toast);
+      toastTimer = window.setTimeout(() => toast.remove(), 9000);
+    }
+
+    function announce(alerts) {
+      const kinds = [];
+      alerts.forEach((alert) => {
+        if (supportedKinds.has(alert.kind) && !kinds.includes(alert.kind)) kinds.push(alert.kind);
+      });
+      if (!kinds.length) return;
+      const phrases = kinds.map((kind) => PHRASES[kind]);
+      claimAnnouncement(alerts, () => {
+        showToast(phrases, alerts[0] && alerts[0].url);
+        phrases.forEach((phrase) => speak(phrase));
+      });
+    }
+
+    async function poll() {
+      if (stopped) return;
+      try {
+        const response = await window.fetch(API_URL, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        if (response.status === 401 || response.status === 403) {
+          stopped = true;
+          controls.remove();
+          return;
+        }
+        if (response.redirected) {
+          stopped = true;
+          controls.remove();
+          return;
+        }
+        const payload = await response.json();
+        if (!payload || !payload.ok || !payload.data) return;
+        const scope = String(payload.data.scope || '');
+        const alerts = Array.isArray(payload.data.alerts)
+          ? payload.data.alerts.filter((alert) => alert && alert.key && supportedKinds.has(alert.kind))
+          : [];
+        if (!baselineReady || scope !== activeScope) {
+          activeScope = scope;
+          seen.clear();
+          alerts.forEach((alert) => seen.add(String(alert.key)));
+          baselineReady = true;
+          return;
+        }
+        const fresh = alerts.filter((alert) => !seen.has(String(alert.key)));
+        alerts.forEach((alert) => seen.add(String(alert.key)));
+        if (fresh.length) announce(fresh);
+      } catch (_error) {
+        // A temporary offline state must not interrupt the employee's work.
+      } finally {
+        if (!stopped) pollTimer = window.setTimeout(poll, POLL_INTERVAL_MS);
+      }
+    }
+
+    toggle.addEventListener('click', () => {
+      enabled = !enabled;
+      storageSet(ENABLED_KEY, enabled ? '1' : '0');
+      syncToggle();
+      if (enabled) {
+        speak('Голосовые уведомления включены');
+      } else if (synth) {
+        try { synth.cancel(); } catch (_error) {}
+      }
+    });
+
+    testButton.addEventListener('click', () => {
+      enabled = true;
+      storageSet(ENABLED_KEY, '1');
+      syncToggle();
+      showToast(['Проверка голосовых уведомлений'], '');
+      speak('Проверка голосовых уведомлений');
+    });
+
+    window.addEventListener('beforeunload', () => {
+      stopped = true;
+      if (pollTimer) window.clearTimeout(pollTimer);
+    });
+    syncToggle();
+    poll();
+  })();
+</script>

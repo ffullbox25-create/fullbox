@@ -1,0 +1,77 @@
+# --- Секреты: НИКОГДА не коммитить ---
+.env
+.env.*
+!.env.example
+server_access.md
+MIRROR_SERVER_ACCESS.md
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# --- Окружение и артефакты Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# --- Данные, а не код ---
+*.sqlite3
+*.sqlite3.bak*
+*.dump
+*.sql
+*.sql.gz
+fullbox/media/
+fullbox/private_media/
+fullbox/private_releases/
+fullbox/staticfiles/
+fullbox/fbs/static/downloads/
+fullbox/fbs/static/fbs/
+*.log
+logs/
+
+# --- Сборки и дистрибутивы ---
+*.exe
+*.msi
+*.zip
+*.tar
+*.tar.gz
+fullbox_agent/dist/
+fullbox_agent/out/
+fullbox_agent/**/bin/
+fullbox_agent/**/obj/
+
+# --- Самодельные бэкапы: их заменяет сам git ---
+_deploy_backups/
+deploy_backups/
+.deploy_backups/
+.deploy-backups/
+_codex_backups/
+.codex_backups/
+.codex_staging/
+.codex_tmp/
+_deploy_staging/
+.deploy_stage*/
+.deploy_tmp*/
+_candidate_checks/
+_candidate_diffs/
+backups/
+staging/
+tmp/
+tmp_*
+_incoming/
+_diagnostics/
+*.bak
+*.old
+*.orig
+*.codex-*
+*.pre_*
+*.before_*
+*_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9][0-9]*
+
+# --- Локальное окружение разработчика ---
+.DS_Store
+.idea/
+.vscode/
+.local/

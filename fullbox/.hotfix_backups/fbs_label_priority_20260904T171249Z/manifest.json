@@ -1,0 +1,36 @@
+{
+  "file": "/opt/fullbox/fullbox/fbs/tsd_views.py",
+  "before": "0a9d439cf573b098baa739265c1a0df38a7d191943cab967f181e9154e5a3c4c",
+  "after": "6045f40e5e76604a8f48fac9fd763690e4d87ce58eda26893c10f5646c79ee72",
+  "tests": {
+    "original": {
+      "exit": 1,
+      "count": 74,
+      "failures": [
+        "test_combined_datamatrix_immediately_opens_order_label (test_label_priority.LabelPriorityTests.test_combined_datamatrix_immediately_opens_order_label)",
+        "test_marking_immediately_opens_order_label_before_next_order (test_label_priority.LabelPriorityTests.test_marking_immediately_opens_order_label_before_next_order)",
+        "test_multi_unit_order_does_not_show_label_before_last_unit (test_label_priority.LabelPriorityTests.test_multi_unit_order_does_not_show_label_before_last_unit)",
+        "test_next_product_is_offered_only_after_exact_order_label_scan (test_label_priority.LabelPriorityTests.test_next_product_is_offered_only_after_exact_order_label_scan)",
+        "test_ozon_multi_unit_hold_is_preserved_and_last_unit_opens_label (test_label_priority.LabelPriorityTests.test_ozon_multi_unit_hold_is_preserved_and_last_unit_opens_label)",
+        "test_pending_label_shows_wait_screen_not_next_product (test_label_priority.LabelPriorityTests.test_pending_label_shows_wait_screen_not_next_product)",
+        "test_unmarked_order_also_has_label_priority (test_label_priority.LabelPriorityTests.test_unmarked_order_also_has_label_priority)",
+        "test_duplicate_wb_kiz_is_retryable_without_problem_tote_modal (fbs.tests.FbsMissingOrderWaveReleaseTests.test_duplicate_wb_kiz_is_retryable_without_problem_tote_modal)",
+        "test_incomplete_order_uses_existing_issue_when_sent_to_problem_tote (fbs.tests.FbsMissingOrderWaveReleaseTests.test_incomplete_order_uses_existing_issue_when_sent_to_problem_tote)",
+        "test_wb_optional_sgtin_offers_kiz_scan_without_sku_checkbox (fbs.tests.FbsMissingOrderWaveReleaseTests.test_wb_optional_sgtin_offers_kiz_scan_without_sku_checkbox)"
+      ],
+      "source_sha256": "0a9d439cf573b098baa739265c1a0df38a7d191943cab967f181e9154e5a3c4c"
+    },
+    "patched": {
+      "exit": 1,
+      "count": 74,
+      "failures": [
+        "test_duplicate_wb_kiz_is_retryable_without_problem_tote_modal (fbs.tests.FbsMissingOrderWaveReleaseTests.test_duplicate_wb_kiz_is_retryable_without_problem_tote_modal)",
+        "test_incomplete_order_uses_existing_issue_when_sent_to_problem_tote (fbs.tests.FbsMissingOrderWaveReleaseTests.test_incomplete_order_uses_existing_issue_when_sent_to_problem_tote)",
+        "test_wb_optional_sgtin_offers_kiz_scan_without_sku_checkbox (fbs.tests.FbsMissingOrderWaveReleaseTests.test_wb_optional_sgtin_offers_kiz_scan_without_sku_checkbox)"
+      ],
+      "source_sha256": "6045f40e5e76604a8f48fac9fd763690e4d87ce58eda26893c10f5646c79ee72"
+    }
+  },
+  "backup": "/opt/fullbox/fullbox/.hotfix_backups/fbs_label_priority_20260904T171249Z",
+  "installed_at": "2026-09-04T17:12:49.466441+00:00"
+}

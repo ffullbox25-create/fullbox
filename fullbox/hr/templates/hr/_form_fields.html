@@ -1,0 +1,9 @@
+{% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+{% for field in form %}
+  <div class="field{% if field.name == 'description' or field.name == 'note' %} span-2{% endif %}">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {% if field.help_text %}<div class="muted">{{ field.help_text }}</div>{% endif %}
+    {{ field.errors }}
+  </div>
+{% endfor %}

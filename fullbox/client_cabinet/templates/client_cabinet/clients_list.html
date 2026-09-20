@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Клиенты | FULLBOX</title>
+<style>
+    
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:"Manrope", system-ui, sans-serif; }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 100%; width: 100%; margin: 0 auto; padding: 28px 18px 64px; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    h1 { margin:0; letter-spacing:-0.5px; }
+    .muted { color: var(--muted); }
+    .controls { display:flex; gap:10px; flex-wrap:wrap; }
+    .btn { padding:10px 14px; border-radius:10px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); color:var(--text); font-weight:600; }
+    .btn:hover { border-color: var(--gold); box-shadow:0 10px 25px rgba(14,107,91,0.14); }
+    .btn.active { background: linear-gradient(120deg,var(--gold),var(--gold-soft)); color:#1f2328; border-color: transparent; }
+    .search input { padding:10px; border-radius:10px; border:1px solid var(--stroke); background:#fff; color:var(--text); min-width:260px; }
+    .table-wrap { width:100%; overflow-x:auto; margin-top:16px; }
+    table { min-width: 1200px; width:100%; border-collapse:collapse; }
+    th, td { border-bottom:1px solid var(--stroke); border-right:1px solid var(--stroke); padding:10px; text-align:left; }
+    th:last-child, td:last-child { border-right:0; }
+    tbody tr:nth-child(odd) { background: rgba(15,23,42,0.02); }
+    tbody tr:nth-child(even) { background: rgba(15,23,42,0.04); }
+    th { color: var(--muted); font-weight:600; white-space: nowrap; }
+    th .sort-label { display:inline-flex; align-items:center; gap:6px; color:inherit; }
+    th .sort-label:hover { color: var(--text); }
+    .sort-icon { display:inline-flex; flex-direction:column; gap:2px; line-height:1; }
+    .sort-icon .arrow { width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent; opacity:0.45; }
+    .sort-icon .arrow.up { border-bottom:7px solid var(--muted); }
+    .sort-icon .arrow.down { border-top:7px solid var(--muted); }
+    th.sortable.active .sort-icon .arrow { opacity:1; }
+    th.sortable.active.asc .arrow.up { border-bottom-color: var(--gold); }
+    th.sortable.active.desc .arrow.down { border-top-color: var(--gold); }
+    .actions { display:flex; gap:6px; align-items:center; justify-content:center; }
+    .act-btn { display:inline-flex; align-items:center; justify-content:center; padding:8px 10px; border-radius:8px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); color:var(--text); font-weight:700; font-size:13px; }
+    .act-btn:hover { border-color: var(--gold); box-shadow:0 6px 14px rgba(14,107,91,0.14); }
+    .act-btn.danger { border-color: rgba(240,91,86,0.5); color:#d24d4d; }
+    .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap:16px; margin-top:18px; }
+    .card { background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:16px; box-shadow:0 18px 45px rgba(15,23,42,0.08); display:grid; gap:10px; }
+    .row { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:10px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid var(--stroke); background:rgba(242,183,71,0.22); color:var(--gold); font-weight:600; }
+    .section { border:1px solid var(--stroke); border-radius:12px; padding:10px; background:rgba(15,23,42,0.04); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="muted">FULLBOX · {% include "partials/current_user.html" %}</div>
+        <h1>Клиенты</h1>
+        <div class="muted">Список в табличном и карточном виде</div>
+      </div>
+      <div class="controls">
+        <a class="btn" href="{{ cabinet_url }}">В кабинет</a>
+        {% if can_export_client_logins %}
+          <a class="btn" href="/client/export-logins/{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}">Экспорт логинов Excel</a>
+        {% endif %}
+      </div>
+    </header>
+
+    <div class="controls" style="margin-top:10px; gap:8px; flex-wrap:wrap;">
+      <form method="get" class="search" style="display:flex; gap:8px; flex-wrap:wrap;">
+        <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Поиск по названию/ИНН/контактам">
+        <input type="hidden" name="view" value="{{ view_mode }}">
+        {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
+        {% if request.GET.dir %}<input type="hidden" name="dir" value="{{ request.GET.dir }}">{% endif %}
+        {% if request.GET.filter_field %}<input type="hidden" name="filter_field" value="{{ request.GET.filter_field }}">{% endif %}
+        {% if request.GET.filter_value %}<input type="hidden" name="filter_value" value="{{ request.GET.filter_value }}">{% endif %}
+        <button class="btn" type="submit">Искать</button>
+        <a class="btn" href="/client/">Сброс</a>
+      </form>
+      <form method="get" style="display:flex; gap:8px; align-items:center;">
+        <input type="hidden" name="view" value="{{ view_mode }}">
+        <select name="filter_field" class="btn" style="padding:9px 12px; background:#fff; color:var(--text); border-radius:10px; border:1px solid var(--stroke);">
+          <option value="">Поле фильтра</option>
+          <option value="agn_name" {% if filter_field == 'agn_name' %}selected{% endif %}>Название</option>
+          <option value="short_name" {% if filter_field == 'short_name' %}selected{% endif %}>Сокращенное название</option>
+          <option value="inn" {% if filter_field == 'inn' %}selected{% endif %}>ИНН</option>
+          <option value="pref" {% if filter_field == 'pref' %}selected{% endif %}>Префикс для кодов</option>
+          <option value="email" {% if filter_field == 'email' %}selected{% endif %}>Email</option>
+          <option value="phone" {% if filter_field == 'phone' %}selected{% endif %}>Телефон</option>
+        </select>
+        <input type="text" name="filter_value" value="{{ filter_value }}" placeholder="Значение" class="btn" style="min-width:180px; background:#fff;">
+        <input type="hidden" name="archived" value="{% if show_archived %}1{% else %}0{% endif %}">
+        <button class="btn" type="submit">Фильтр</button>
+      </form>
+      <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
+        <a class="btn {% if view_mode == 'table' %}active{% endif %}" href="?view=table{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.archived %}&archived={{ request.GET.archived }}{% endif %}">Таблица</a>
+        <a class="btn {% if view_mode == 'cards' %}active{% endif %}" href="?view=cards{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.archived %}&archived={{ request.GET.archived }}{% endif %}">Карточки</a>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <a class="btn {% if not archived_param %}active{% endif %}" href="?{% if request.GET.view %}view={{ request.GET.view }}&{% endif %}{% if request.GET.q %}q={{ request.GET.q|urlencode }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}{% if request.GET.dir %}dir={{ request.GET.dir }}&{% endif %}{% if request.GET.filter_field %}filter_field={{ request.GET.filter_field }}&{% endif %}{% if request.GET.filter_value %}filter_value={{ request.GET.filter_value|urlencode }}&{% endif %}">Все</a>
+          <a class="btn {% if archived_param == '0' %}active{% endif %}" href="?archived=0{% if request.GET.view %}&view={{ request.GET.view }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if request.GET.dir %}&dir={{ request.GET.dir }}{% endif %}{% if request.GET.filter_field %}&filter_field={{ request.GET.filter_field }}{% endif %}{% if request.GET.filter_value %}&filter_value={{ request.GET.filter_value|urlencode }}{% endif %}">Активные</a>
+          <a class="btn {% if archived_param == '1' %}active{% endif %}" href="?archived=1{% if request.GET.view %}&view={{ request.GET.view }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if request.GET.dir %}&dir={{ request.GET.dir }}{% endif %}{% if request.GET.filter_field %}&filter_field={{ request.GET.filter_field }}{% endif %}{% if request.GET.filter_value %}&filter_value={{ request.GET.filter_value|urlencode }}{% endif %}">Архив</a>
+        </div>
+        {% if can_export_client_logins %}
+          <a class="btn" href="/client/export-logins/{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}">Excel логины</a>
+        {% endif %}
+        {% if can_edit_client_profile %}
+          <a class="btn active" href="/client/new/">Добавить</a>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if view_mode == 'table' %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="sortable {% if sort_info.name.active %}active {{ sort_info.name.dir }}{% endif %}">
+                <a class="sort-label" href="{{ sort_info.name.url }}">Название
+                  <span class="sort-icon"><span class="arrow up"></span><span class="arrow down"></span></span>
+                </a>
+              </th>
+              <th class="sortable {% if sort_info.short_name.active %}active {{ sort_info.short_name.dir }}{% endif %}">
+                <a class="sort-label" href="{{ sort_info.short_name.url }}">Сокращенное название
+                  <span class="sort-icon"><span class="arrow up"></span><span class="arrow down"></span></span>
+                </a>
+              </th>
+              <th class="sortable {% if sort_info.pref.active %}active {{ sort_info.pref.dir }}{% endif %}">
+                <a class="sort-label" href="{{ sort_info.pref.url }}">Префикс для кодов
+                  <span class="sort-icon"><span class="arrow up"></span><span class="arrow down"></span></span>
+                </a>
+              </th>
+              <th class="sortable {% if sort_info.inn.active %}active {{ sort_info.inn.dir }}{% endif %}">
+                <a class="sort-label" href="{{ sort_info.inn.url }}">ИНН
+                  <span class="sort-icon"><span class="arrow up"></span><span class="arrow down"></span></span>
+                </a>
+              </th>
+              <th>Контакты</th>
+              <th class="sortable {% if sort_info.sign_oferta.active %}active {{ sort_info.sign_oferta.dir }}{% endif %}">
+                <a class="sort-label" href="{{ sort_info.sign_oferta.url }}">Оферта
+                  <span class="sort-icon"><span class="arrow up"></span><span class="arrow down"></span></span>
+                </a>
+              </th>
+              <th class="sortable {% if sort_info.use_nds.active %}active {{ sort_info.use_nds.dir }}{% endif %}">
+                <a class="sort-label" href="{{ sort_info.use_nds.url }}">НДС
+                  <span class="sort-icon"><span class="arrow up"></span><span class="arrow down"></span></span>
+                </a>
+              </th>
+              <th class="sortable {% if sort_info.id.active %}active {{ sort_info.id.dir }}{% endif %}">
+                <a class="sort-label" href="{{ sort_info.id.url }}">ID
+                  <span class="sort-icon"><span class="arrow up"></span><span class="arrow down"></span></span>
+                </a>
+              </th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+              <tr>
+                <td>{{ item.agn_name|default:"-" }}</td>
+                <td>{{ item.short_name|default:"-" }}</td>
+                <td>{{ item.pref|default:"-" }}</td>
+                <td>{{ item.inn|default:"-" }}</td>
+                <td>
+                  <div class="row">
+                    <span class="tag">{{ item.email|default:"нет email" }}</span>
+                    <span class="tag">{{ item.phone|default:"нет телефона" }}</span>
+                  </div>
+                </td>
+                <td>{{ item.sign_oferta|yesno:"Да,Нет" }}</td>
+                <td>{{ item.use_nds|yesno:"Да,Нет" }}</td>
+                <td>{{ item.id }}</td>
+                <td>
+                  <div class="actions">
+                    {% if can_edit_client_profile %}
+                      <a class="act-btn" href="/client/{{ item.id }}/edit/">Редактировать</a>
+                    {% endif %}
+                    <a class="act-btn danger" href="/client/{{ item.id }}/archive/?next={{ request.get_full_path|urlencode }}">{% if item.archived %}Разархивировать{% else %}Архивировать{% endif %}</a>
+                  </div>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="9">Нет данных</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="cards">
+        {% for item in items %}
+          <div class="card">
+            <div class="row" style="justify-content:space-between; align-items:center;">
+              <div>
+                <div class="muted">Клиент</div>
+                <h3 style="margin:0;">{{ item.agn_name|default:"Без названия" }}</h3>
+                <div class="muted" style="margin-top:4px;">{{ item.short_name|default:"-" }}</div>
+              </div>
+              <div class="row">
+                {% if item.pref %}<span class="pill">{{ item.pref }}</span>{% endif %}
+                {% if item.archived %}<span class="pill" style="background:rgba(255,125,125,0.12); color:#ff7d7d;">Архив</span>{% endif %}
+              </div>
+            </div>
+            <div class="row">
+              <span class="tag">ИНН: {{ item.inn|default:"-" }}</span>
+              <span class="tag">Оферта: {{ item.sign_oferta|yesno:"Да,Нет" }}</span>
+              <span class="tag">НДС: {{ item.use_nds|yesno:"Да,Нет" }}</span>
+            </div>
+            <div class="section">
+              <div class="row">
+                <span class="tag">Email: {{ item.email|default:"-" }}</span>
+                <span class="tag">Телефон: {{ item.phone|default:"-" }}</span>
+              </div>
+              <div class="muted" style="margin-top:6px;">Юр. адрес: {{ item.adres|default:"-" }}</div>
+              <div class="muted">Факт. адрес: {{ item.fakt_adres|default:"-" }}</div>
+            </div>
+            <div class="actions" style="justify-content:flex-start;">
+              {% if can_edit_client_profile %}
+                <a class="act-btn" href="/client/{{ item.id }}/edit/">Редактировать</a>
+              {% endif %}
+              <a class="act-btn danger" href="/client/{{ item.id }}/archive/?next={{ request.get_full_path|urlencode }}">{% if item.archived %}Разархивировать{% else %}Архивировать{% endif %}</a>
+            </div>
+          </div>
+        {% empty %}
+          <div class="muted">Нет данных</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="controls" style="margin-top:16px; justify-content:space-between;">
+      <div class="muted">Стр. {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</div>
+      <div class="controls">
+        {% if page_obj.has_previous %}
+          <a class="btn" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.view %}&view={{ request.GET.view }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if request.GET.dir %}&dir={{ request.GET.dir }}{% endif %}{% if request.GET.filter_field %}&filter_field={{ request.GET.filter_field }}{% endif %}{% if request.GET.filter_value %}&filter_value={{ request.GET.filter_value|urlencode }}{% endif %}{% if request.GET.archived %}&archived={{ request.GET.archived }}{% endif %}">Назад</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+          <a class="btn" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.view %}&view={{ request.GET.view }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if request.GET.dir %}&dir={{ request.GET.dir }}{% endif %}{% if request.GET.filter_field %}&filter_field={{ request.GET.filter_field }}{% endif %}{% if request.GET.filter_value %}&filter_value={{ request.GET.filter_value|urlencode }}{% endif %}{% if request.GET.archived %}&archived={{ request.GET.archived }}{% endif %}">Вперёд</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

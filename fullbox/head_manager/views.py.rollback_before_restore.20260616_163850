@@ -1,0 +1,38 @@
+"""Thin compatibility facade for head manager views and helpers."""
+
+from . import web_ui as _web_ui
+
+CarrierCreateView = _web_ui.CarrierCreateView
+CarrierListView = _web_ui.CarrierListView
+CarrierUpdateView = _web_ui.CarrierUpdateView
+HeadManagerDashboard = _web_ui.HeadManagerDashboard
+HeadManagerLatestTasksView = _web_ui.HeadManagerLatestTasksView
+HeadManagerStockEditorView = _web_ui.HeadManagerStockEditorView
+HeadManagerTaskPanelView = _web_ui.HeadManagerTaskPanelView
+HeadManagerReferenceMixin = _web_ui.HeadManagerReferenceMixin
+MarketplaceWarehousesSyncView = _web_ui.MarketplaceWarehousesSyncView
+MarketplaceWarehousesView = _web_ui.MarketplaceWarehousesView
+OwnCompanyCreateView = _web_ui.OwnCompanyCreateView
+OwnCompanyListView = _web_ui.OwnCompanyListView
+OwnCompanyUpdateView = _web_ui.OwnCompanyUpdateView
+
+_extract_value = _web_ui._extract_value
+_fetch_ozon_clusters = _web_ui._fetch_ozon_clusters
+_fetch_ozon_warehouses = _web_ui._fetch_ozon_warehouses
+_fetch_wb_warehouses = _web_ui._fetch_wb_warehouses
+_find_agency = _web_ui._find_agency
+_format_address_line = _web_ui._format_address_line
+_guess_marketplace_warehouse_type = _web_ui._guess_marketplace_warehouse_type
+_load_marketplace_warehouses = _web_ui._load_marketplace_warehouses
+_marketplace_warehouses_path = _web_ui._marketplace_warehouses_path
+_normalize_lines = _web_ui._normalize_lines
+_normalize_marketplace_warehouse_rows = _web_ui._normalize_marketplace_warehouse_rows
+_normalize_ozon_client_id = _web_ui._normalize_ozon_client_id
+_ozon_headers = _web_ui._ozon_headers
+_ozon_post = _web_ui._ozon_post
+_parse_items_payload = _web_ui._parse_items_payload
+_parse_ozon_clusters = _web_ui._parse_ozon_clusters
+_save_marketplace_warehouses = _web_ui._save_marketplace_warehouses
+_sync_marketplace_warehouses = _web_ui._sync_marketplace_warehouses
+_warehouse_display_line = _web_ui._warehouse_display_line
+_warehouse_row_from_legacy_line = _web_ui._warehouse_row_from_legacy_line

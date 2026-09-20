@@ -1,0 +1,74 @@
+{% extends "todo/warehouse_task_base.html" %}
+{% block title %}{{ task.title }}{% endblock %}
+{% block extra_head %}
+<style>
+  .detail-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(330px,.7fr);gap:14px}.stack{display:grid;gap:14px}.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.metric{padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}.metric span{display:block;color:var(--muted);font-size:11px}.metric strong{display:block;margin-top:5px;font-size:13px;word-break:break-word}
+  .description{white-space:pre-wrap;line-height:1.55;font-size:13px}.checklist{display:grid;gap:8px}.check-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:8px}.check-icon{width:24px;height:24px;display:grid;place-items:center;border-radius:6px;background:var(--surface-2);font-weight:900}.check-item.done .check-icon{background:var(--success-soft);color:var(--success)}.check-item.done .check-title{text-decoration:line-through;color:var(--muted)}.check-meta{font-size:10px;color:var(--muted);margin-top:3px}
+  .people{display:grid;gap:8px}.person-row{padding:9px;border:1px solid var(--line);border-radius:8px}.person-row span{display:block;color:var(--muted);font-size:10px;margin-bottom:3px}.discussion{display:grid;gap:9px;max-height:480px;overflow:auto}.comment{padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}.comment.event{border-left:3px solid var(--accent)}.comment-head{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:10px;margin-bottom:5px}.comment-body{white-space:pre-wrap;font-size:12px;line-height:1.45}
+  .comment-form{display:grid;gap:8px;margin-top:11px}.comment-form textarea{width:100%;min-height:82px;border:1px solid var(--line);border-radius:8px;padding:9px;resize:vertical}.file-list{display:grid;gap:7px}.file-row{display:flex;justify-content:space-between;gap:10px;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:11px}.notice{padding:10px;border-radius:8px;background:var(--warning-soft);color:var(--warning);font-size:12px;font-weight:700}.task-actions{display:flex;gap:8px;flex-wrap:wrap}
+  @media(max-width:1050px){.detail-grid{grid-template-columns:1fr}}@media(max-width:700px){.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.task-actions{display:grid}.task-actions .button{width:100%}}
+</style>
+{% endblock %}
+{% block content %}
+  <header class="top">
+    <div><div style="margin-bottom:7px"><span class="badge {{ task.status }}">{{ task.workflow_status_label }}</span>{% if task.priority == 'urgent' %} <span class="badge urgent">Срочная</span>{% endif %}</div><h1>{{ task.title }}</h1><p>Создана {{ task.created_at|date:"d.m.Y H:i" }}</p></div>
+    <div class="actions">{% if can_edit %}<a class="button" href="{% url 'todo:update' task.pk %}?next={{ request.get_full_path|urlencode }}">Редактировать</a>{% endif %}<a class="button" href="{% url 'todo:list' %}?kind=warehouse_internal">К списку</a></div>
+  </header>
+
+  <div class="detail-grid">
+    <div class="stack">
+      <section class="panel"><div class="panel-head"><h2>Поручение</h2><div class="task-actions">
+        {% if can_start %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="start"><button class="button primary" type="submit">Взять в работу</button></form>{% endif %}
+        {% if can_pause %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="pause"><button class="button" type="submit">Приостановить</button></form>{% endif %}
+        {% if can_resume %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="resume"><button class="button primary" type="submit">Продолжить</button></form>{% endif %}
+        {% if can_complete %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="complete"><button class="button primary" type="submit">Завершить задачу</button></form>{% endif %}
+      </div></div><div class="panel-body">
+        <div class="summary">
+          <div class="metric"><span>Ответственный</span><strong>{{ task.assigned_to.full_name|default:"Не назначен" }}</strong></div>
+          <div class="metric"><span>Срок</span><strong{% if task.is_overdue %} style="color:var(--danger)"{% endif %}>{{ task.due_date|date:"d.m.Y H:i" }}</strong></div>
+          <div class="metric"><span>Приоритет</span><strong>{{ task.get_priority_display }}</strong></div>
+          <div class="metric"><span>Чек-лист</span><strong>{{ checklist_completed }} из {{ checklist_total }}</strong></div>
+        </div>
+        {% if task.description %}<div class="description" style="margin-top:16px">{{ task.description }}</div>{% endif %}
+        {% if completion_blocked %}<div class="notice" style="margin-top:14px">Завершение станет доступно основному ответственному после выполнения всего чек-листа.</div>{% endif %}
+      </div></section>
+
+      <section class="panel"><div class="panel-head"><h2>Чек-лист</h2><strong>{{ checklist_completed }}/{{ checklist_total }}</strong></div><div class="panel-body">
+        {% if checklist_total %}<div class="progress" style="margin-bottom:12px"><span style="width:{{ checklist_percent }}%"></span></div>{% endif %}
+        <div class="checklist">
+          {% for item in checklist_items %}
+          <div class="check-item{% if item.is_completed %} done{% endif %}">
+            <div class="check-icon">{% if item.is_completed %}✓{% else %}{{ forloop.counter }}{% endif %}</div>
+            <div><div class="check-title">{{ item.title }}</div>{% if item.is_completed %}<div class="check-meta">{{ item.completed_by|default:"Сотрудник" }} · {{ item.completed_at|date:"d.m.Y H:i" }}</div>{% endif %}</div>
+            {% if can_work %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="toggle_checklist"><input type="hidden" name="item_id" value="{{ item.pk }}"><button class="button" type="submit">{% if item.is_completed %}Вернуть{% else %}Готово{% endif %}</button></form>{% endif %}
+          </div>
+          {% empty %}<div class="muted">Пунктов нет. Основной ответственный может завершить задачу без чек-листа.</div>{% endfor %}
+        </div>
+      </div></section>
+
+      <section class="panel"><div class="panel-head"><h2>Комментарии</h2></div><div class="panel-body">
+        <div class="discussion">
+          {% for comment in comments %}<div class="comment{% if 'Событие:' in comment.body %} event{% endif %}"><div class="comment-head"><strong>{{ comment.author|default:"Система" }}</strong><span>{{ comment.created_at|date:"d.m.Y H:i" }}</span></div><div class="comment-body">{{ comment.body }}</div></div>{% empty %}<div class="muted">Комментариев пока нет.</div>{% endfor %}
+        </div>
+        <form class="comment-form" method="post">{% csrf_token %}<input type="hidden" name="action" value="comment">{{ comment_form.body }}{{ comment_form.body.errors }}<button class="button primary" type="submit">Добавить комментарий</button></form>
+      </div></section>
+    </div>
+
+    <aside class="stack">
+      <section class="panel"><div class="panel-head"><h2>Участники</h2></div><div class="panel-body people">
+        <div class="person-row"><span>Основной ответственный</span><strong>{{ task.assigned_to.full_name|default:"Не назначен" }}</strong></div>
+        {% for person in participants %}<div class="person-row"><span>Соисполнитель</span><strong>{{ person.full_name }}</strong></div>{% endfor %}
+        <div class="person-row"><span>Наблюдатель</span><strong>{{ task.observer.full_name|default:"Не назначен" }}</strong></div>
+        <div class="person-row"><span>Постановщик</span><strong>{{ task.created_by|default:"-" }}</strong></div>
+      </div></section>
+
+      <section class="panel"><div class="panel-head"><h2>Файлы</h2></div><div class="panel-body">
+        <div class="file-list">{% for attachment in attachments %}<div class="file-row"><a href="{{ attachment.file.url }}">{{ attachment.filename }}</a><span class="muted">{{ attachment.uploaded_at|date:"d.m H:i" }}</span></div>{% empty %}<div class="muted">Файлов пока нет.</div>{% endfor %}</div>
+        <form class="comment-form" method="post" enctype="multipart/form-data">{% csrf_token %}<input type="hidden" name="action" value="attach">{{ attachment_form.files }}{{ attachment_form.files.errors }}<button class="button" type="submit">Загрузить файлы</button></form>
+      </div></section>
+
+      {% if can_return %}<section class="panel"><div class="panel-head"><h2>Вернуть на доработку</h2></div><div class="panel-body"><form class="comment-form" method="post">{% csrf_token %}<input type="hidden" name="action" value="rework"><textarea name="body" required placeholder="Причина возврата"></textarea><button class="button" type="submit">Вернуть исполнителю</button></form></div></section>{% endif %}
+      {% if can_delete %}<section class="panel"><div class="panel-body"><form method="post" action="{% url 'todo:delete' task.pk %}" onsubmit="return confirm('Удалить новую задачу?')">{% csrf_token %}<button class="button danger" style="width:100%" type="submit">Удалить задачу</button></form></div></section>{% endif %}
+    </aside>
+  </div>
+{% endblock %}

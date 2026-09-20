@@ -1,0 +1,185 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}История товара {{ scope.sku_code|default:scope.barcode }}{% endblock %}
+{% block workspace_crumb %}<a href="{% url 'fbs:operator_stock_history' %}">История товара</a><span>/</span><strong>{{ scope.sku_code|default:scope.barcode }}</strong>{% endblock %}
+{% block workspace_title %}{{ balance_sample.name|default:scope.sku_code|default:scope.barcode }}{% endblock %}
+{% block workspace_subtitle %}{% if scope.marking %}Экземпляр {{ scope.marking }}{% else %}Движение позиции по FBS: приход, места, отбор, проблемы, отгрузка{% endif %}{% endblock %}
+{% block workspace_actions %}
+  {% if scope.marking %}<a class="button button-secondary" href="{{ reset_url }}">Вся позиция</a>{% endif %}
+  <a class="button button-secondary" href="{{ export_url }}">Выгрузить хронологию</a>
+{% endblock %}
+
+{% block workspace_body %}
+  <style>
+    .stock-item-scan { display: block; margin-top: 4px; overflow-wrap: anywhere; white-space: normal; }
+    .stock-item-blocker-list > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(48,48,48,.12); }
+    .stock-item-blocker-list > div:last-child { border-bottom: 0; }
+    .stock-item-markings { margin-top: 12px; }
+    .stock-item-markings summary { cursor: pointer; font-weight: 600; }
+    .stock-item-markings code { display: inline-block; margin: 2px 6px 2px 0; overflow-wrap: anywhere; }
+  </style>
+
+  <section class="detail-hero">
+    <div>
+      <h2>{{ balance_sample.name|default:"Наименование не заполнено" }}</h2>
+      <span>{{ agency }}{% if balance_sample.size %} · размер {{ balance_sample.size }}{% endif %}</span>
+    </div>
+    <div class="detail-status">
+      <strong>{{ totals.qty }} шт.</strong>
+      <small>Доступно {{ totals.available }} · в резерве {{ totals.reserved }}</small>
+      <small>Строк остатка {{ totals.rows }}{% if totals.marked %} · с КИЗ {{ totals.marked }}{% endif %}</small>
+    </div>
+  </section>
+
+  <section class="fbs-panel fbs-order-passport" aria-label="Паспорт товара">
+    <div><span>Клиент</span><strong>{{ agency }}</strong></div>
+    <div><span>Артикул</span><strong>{{ scope.sku_code|default:"—" }}</strong></div>
+    <div><span>Штрихкод</span><strong>{% for barcode in barcodes %}{{ barcode }}{% if not forloop.last %}, {% endif %}{% empty %}{{ scope.barcode|default:"—" }}{% endfor %}</strong></div>
+    <div><span>Тип товара</span><strong>{{ balance_sample.goods_type|default:"—" }}</strong></div>
+    <div><span>Честный знак</span><strong>{% if balance_sample.sku_ref.honest_sign %}Да{% else %}Нет{% endif %}</strong></div>
+    <div><span>Партия</span><strong>{{ balance_sample.lot_code|default:"—" }}</strong></div>
+    <div><span>Срок годности</span><strong>{{ balance_sample.expiry_date|date:"d.m.Y"|default:"—" }}</strong></div>
+    <div><span>Первый приход на FBS</span><strong>{{ first_arrival|date:"d.m.Y H:i"|default:"Не зафиксирован" }}</strong></div>
+    <div><span>Последнее изменение остатка</span><strong>{{ totals.updated|date:"d.m.Y H:i"|default:"—" }}</strong></div>
+    {% if scope.marking %}<div><span>Экземпляр КИЗ</span><strong>{{ scope.marking }}</strong></div>{% endif %}
+  </section>
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading">
+      <div><span class="section-kicker">Физическое размещение</span><h2>Где сейчас</h2></div>
+      <strong>{{ placements|length }}</strong>
+    </div>
+    <div class="operator-table-scroll">
+      <table class="operator-table">
+        <thead><tr><th>Ячейка</th><th>Паллета</th><th>Короб</th><th>Партия</th><th>Срок годности</th><th>Всего</th><th>Доступно</th><th>В резерве</th><th>Экземпляров</th><th>Обновлено</th></tr></thead>
+        <tbody>
+          {% for row in placements %}
+            <tr>
+              <td><strong>{{ row.cell_label|default:"—" }}</strong></td>
+              <td>{{ row.box__pallet__pallet_code|default:"—" }}</td>
+              <td>{{ row.box__box_code|default:"—" }}</td>
+              <td>{{ row.lot_code|default:"—" }}</td>
+              <td>{{ row.expiry_date|date:"d.m.Y"|default:"—" }}</td>
+              <td><strong>{{ row.qty }} шт.</strong></td>
+              <td>{{ row.available }}</td>
+              <td>{{ row.reserved }}</td>
+              <td>{{ row.rows }}{% if row.marked %}<small>с КИЗ {{ row.marked }}</small>{% endif %}</td>
+              <td>{{ row.updated|date:"d.m.Y H:i" }}</td>
+            </tr>
+          {% empty %}<tr><td class="empty-row" colspan="10">{% if show_empty %}Товар на FBS не размещался{% else %}Остатка нет — включите «показать выбывшие», чтобы увидеть, где он лежал{% endif %}</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="filter-actions">
+      {% if show_empty %}
+        <a class="button button-secondary button-compact" href="?{{ page_query }}&show_empty=0">Скрыть выбывшие</a>
+      {% else %}
+        <a class="button button-secondary button-compact" href="?{{ page_query }}&show_empty=1">Показать выбывшие</a>
+      {% endif %}
+    </div>
+    {% if marking_rows %}
+      <details class="stock-item-markings">
+        <summary>Экземпляры с КИЗ ({{ marking_rows|length }}{% if totals.marked > marking_limit %} из {{ totals.marked }}{% endif %})</summary>
+        <p>
+          {% for row in marking_rows %}
+            <a href="?agency={{ scope.agency_id }}&sku={{ scope.sku_code|urlencode }}&barcode={{ scope.barcode|urlencode }}&marking={{ row.marking_code|urlencode }}"><code>{{ row.marking_code }}</code></a>{% if row.qty == 0 %}<small>выбыл</small>{% endif %}
+          {% endfor %}
+        </p>
+      </details>
+    {% endif %}
+  </section>
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading">
+      <div><span class="section-kicker">Активные блокировки</span><h2>Где застрял</h2></div>
+      <strong>{{ blockers|length }}</strong>
+    </div>
+    {% if blockers %}
+      <div class="compact-list stock-item-blocker-list">
+        {% for row in blockers %}
+          <div class="{% if row.severity == 'critical' %}row-problem{% endif %}">
+            <span>
+              <strong>{{ row.title }}</strong>
+              <small>{{ row.at|date:"d.m.Y H:i" }} · {{ row.actor|default:"Система" }}{% if row.place %} · {{ row.place }}{% endif %}</small>
+              {% if row.detail %}<small>{{ row.detail }}</small>{% endif %}
+            </span>
+            {% if row.url %}<a href="{{ row.url }}">Открыть</a>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-muted">Товар нигде не застрял: открытых проблем, зависших резервов и заявок на возврат нет.</p>
+    {% endif %}
+  </section>
+
+  <form class="operator-filters" method="get">
+    <input type="hidden" name="agency" value="{{ scope.agency_id }}">
+    <input type="hidden" name="sku" value="{{ scope.sku_code }}">
+    <input type="hidden" name="barcode" value="{{ scope.barcode }}">
+    {% if scope.marking %}<input type="hidden" name="marking" value="{{ scope.marking }}">{% endif %}
+    {% if show_empty %}<input type="hidden" name="show_empty" value="1">{% endif %}
+    <label>
+      <span>Период</span>
+      <select name="period">
+        <option value=""{% if period.mode != 'all' %} selected{% endif %}>Выбранные даты</option>
+        <option value="all"{% if period.mode == 'all' %} selected{% endif %}>Весь период</option>
+      </select>
+    </label>
+    <label><span>Дата с</span><input type="date" name="date_from" value="{{ period.date_from }}"></label>
+    <label><span>Дата по</span><input type="date" name="date_to" value="{{ period.date_to }}"></label>
+    <label>
+      <span>Тип события</span>
+      <select name="kind" multiple size="4">
+        {% for value, label in kind_choices %}<option value="{{ value }}"{% if value in selected_kinds %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label><span>Заказ</span><input type="search" name="order" value="{{ order_query }}" placeholder="Номер заказа"></label>
+    <label><span>Сотрудник</span><input type="search" name="actor" value="{{ actor_query }}" placeholder="Фамилия или логин"></label>
+    <label><span>Только ошибки</span><input type="checkbox" name="errors" value="1"{% if errors_only %} checked{% endif %}></label>
+    <label><span>Только события товара</span><input type="checkbox" name="item_only" value="1"{% if item_only %} checked{% endif %}></label>
+    <label><span>На странице</span><select name="page_size">{% for size in page_sizes %}<option value="{{ size }}"{% if page_size == size %} selected{% endif %}>{{ size }}</option>{% endfor %}</select></label>
+    <div class="filter-actions"><button class="button button-primary button-compact" type="submit">Показать</button><a class="button button-secondary button-compact" href="{{ reset_url }}">Сбросить</a></div>
+  </form>
+
+  {% if truncated %}<div class="notice notice-error" role="status"><strong>Показана часть событий.</strong> По какому-то из источников достигнут предел выборки — сузьте период, чтобы история была полной.</div>{% endif %}
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading">
+      <div>
+        <span class="section-kicker">
+          {% if period.mode == 'all' %}За весь период{% else %}С {{ period.date_from|default:"начала" }} по {{ period.date_to|default:"сегодня" }}{% endif %}
+          {% if item_only %} · только события товара{% else %} · с событиями заказов{% endif %}
+        </span>
+        <h2>Хронология</h2>
+      </div>
+      <strong>{{ event_total }}</strong>
+    </div>
+    <div class="operator-table-scroll">
+      <table class="operator-table">
+        <thead><tr><th>Дата и время</th><th>Событие</th><th>Кто</th><th>Где</th><th>Кол-во</th><th>Детали</th><th>Результат</th><th>Документ</th></tr></thead>
+        <tbody>
+          {% for row in page.object_list %}
+            <tr class="{% if row.result == 'Ошибка' %}row-problem{% endif %}">
+              <td><strong>{{ row.at|date:"d.m.Y H:i:s" }}</strong><small>{{ row.kind_label }}</small></td>
+              <td><strong>{{ row.title }}</strong>{% if row.level == 'order' %}<small>событие заказа</small>{% endif %}</td>
+              <td>{{ row.actor }}</td>
+              <td>{{ row.place }}</td>
+              <td>{% if row.qty != None %}{{ row.qty }} шт.{% else %}—{% endif %}</td>
+              <td><span class="stock-item-scan">{{ row.detail|default:"—" }}</span></td>
+              <td>{% if row.result %}<span class="status status-{% if row.result == 'Ошибка' %}error{% else %}approved{% endif %}">{{ row.result }}</span>{% else %}—{% endif %}</td>
+              <td>{% if row.doc_url %}<a class="table-main-link" href="{{ row.doc_url }}">{{ row.doc_label }}</a>{% else %}{{ row.doc_label|default:"—" }}{% endif %}</td>
+            </tr>
+          {% empty %}<tr><td class="empty-row" colspan="8">За выбранный период событий по товару нет</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if page.paginator.num_pages > 1 %}
+    <nav class="operator-pagination">
+      {% if page.has_previous %}<a class="button button-secondary button-compact" href="?{{ page_query }}&page={{ page.previous_page_number }}">Назад</a>{% endif %}
+      <span>Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="button button-secondary button-compact" href="?{{ page_query }}&page={{ page.next_page_number }}">Далее</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,2655 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ browser_title|default:"Перемещение паллет" }} | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f0e7;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #1b6a5b;
+      --accent-strong: #0b5246;
+      --accent-soft: rgba(27,106,91,0.12);
+      --sun: #f2b747;
+      --danger: #d4543c;
+      --stroke: rgba(28,31,26,0.12);
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      overflow: hidden;
+      background:
+        radial-gradient(1200px 520px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(27,106,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      position: relative;
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 24px 24px 72px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      align-items: stretch;
+      min-height: calc(100vh - 96px);
+    }
+    .side {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 16px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+    }
+    .brand-title {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.6px;
+    }
+    .profile {
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+    }
+    .profile-value { font-weight: 600; }
+    .nav { display: grid; gap: 10px; }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      padding: 12px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .nav-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(27,106,91,0.4);
+      box-shadow: 0 12px 24px rgba(27,106,91,0.12);
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub { font-size: 12px; color: var(--muted); }
+    .side-footer { display: grid; gap: 10px; }
+    .content {
+      display: grid;
+      gap: 18px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .panel-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+    }
+    .panel-subtitle { color: var(--muted); font-size: 13px; }
+    .alert {
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      border: 1px solid transparent;
+    }
+    .alert.success {
+      border-color: rgba(27,106,91,0.35);
+      background: rgba(27,106,91,0.12);
+      color: var(--accent-strong);
+    }
+    .alert.error {
+      border-color: rgba(212,84,60,0.35);
+      background: rgba(212,84,60,0.14);
+      color: #7f1d1d;
+    }
+    .btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      font-weight: 700;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(27,106,91,0.4);
+      box-shadow: 0 10px 24px rgba(27,106,91,0.14);
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .btn.ghost { background: transparent; }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(28,31,26,0.38);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 1000;
+    }
+    .overlay.is-open { display: flex; }
+    .dialog {
+      width: min(560px, 94vw);
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+    .dialog-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+    }
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .moves-grid {
+      display: grid;
+      gap: 12px;
+    }
+    .move-card {
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      padding: 12px;
+      background: var(--surface-2);
+      display: grid;
+      gap: 10px;
+    }
+    .move-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .move-title {
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(27,106,91,0.12);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .pill.done { background: rgba(27,106,91,0.2); }
+    .move-meta {
+      display: grid;
+      gap: 6px;
+      font-size: 13px;
+    }
+    .meta-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+    }
+    .pick-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      overflow: hidden;
+      font-size: 13px;
+      background: var(--surface);
+    }
+    .pick-table th,
+    .pick-table td {
+      padding: 7px 8px;
+      border-bottom: 1px solid var(--stroke);
+      text-align: left;
+      vertical-align: top;
+    }
+    .pick-table th {
+      font-weight: 700;
+      color: var(--muted);
+      background: rgba(28,31,26,0.03);
+    }
+    .pick-table tr:last-child td {
+      border-bottom: none;
+    }
+    .pick-table tr.return-row td {
+      background: rgba(212,84,60,0.14);
+      color: #8b1e16;
+    }
+    .pick-table tr.return-row td strong {
+      color: #8b1e16;
+    }
+    .pick-table .return-action {
+      color: #8b1e16;
+    }
+    .box-select-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .box-select-label.is-disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+    .box-select-input {
+      width: 16px !important;
+      height: 16px;
+      margin: 0;
+      padding: 0;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .box-select-input:disabled {
+      cursor: not-allowed;
+    }
+    .desktop-selection-hint {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px dashed var(--stroke);
+      background: rgba(255,196,78,0.12);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .desktop-selection-status {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(28,31,26,0.12);
+      background: rgba(27,106,91,0.06);
+      font-size: 12px;
+      color: var(--ink);
+    }
+    .desktop-selection-status.is-error {
+      background: rgba(212,84,60,0.12);
+      border-color: rgba(212,84,60,0.28);
+      color: #7f1d1d;
+    }
+    .desktop-selection-status.is-ready {
+      background: rgba(27,106,91,0.12);
+      border-color: rgba(27,106,91,0.28);
+      color: var(--accent-strong);
+    }
+    .move-section-title {
+      font-weight: 700;
+      color: var(--ink);
+    }
+    form { display: grid; gap: 12px; }
+    label { font-weight: 600; color: var(--muted); }
+    input, select {
+      width: 100%;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .form-row {
+      display: grid;
+      gap: 6px;
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .divider {
+      height: 1px;
+      background: var(--stroke);
+      margin: 8px 0;
+    }
+    .mobile-header {
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      padding: 12px;
+      border-radius: 18px;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .mobile-title {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 20px;
+    }
+    .device-actions {
+      display: grid;
+      gap: 8px;
+    }
+    .desktop-flow {
+      display: grid;
+      gap: 18px;
+    }
+    .mobile-flow {
+      display: none;
+      gap: 10px;
+      padding: 12px 12px 10px;
+    }
+    .mobile-flow .panel-header {
+      margin-bottom: 6px;
+    }
+    .mobile-flow .panel-title {
+      font-size: 18px;
+      line-height: 1.05;
+    }
+    .mobile-flow .panel-subtitle {
+      font-size: 12px;
+      line-height: 1.2;
+    }
+    .mobile-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .mobile-menu,
+    .mobile-task-list,
+    .mobile-box-list {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+      align-items: start;
+      grid-auto-rows: max-content;
+    }
+    .mobile-box-section {
+      display: grid;
+      gap: 10px;
+    }
+    .mobile-box-section-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #fffdf8;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .mobile-box-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .mobile-menu-btn,
+    .mobile-task-btn {
+      display: grid;
+      gap: 6px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(28,31,26,0.16);
+      background: linear-gradient(135deg, #f68a2a, #f47b25);
+      color: #fffdf8;
+      box-shadow: 0 12px 26px rgba(244,123,37,0.18);
+    }
+    .mobile-request-card {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 8px 10px;
+      border-radius: 14px;
+      box-shadow: 0 6px 12px rgba(244,123,37,0.14);
+      min-height: 0;
+      height: auto;
+      align-self: start;
+      max-width: 100%;
+    }
+    .mobile-menu-top,
+    .mobile-task-top {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .mobile-menu-title,
+    .mobile-task-number {
+      font-weight: 800;
+      font-size: 17px;
+    }
+    .mobile-menu-count,
+    .mobile-task-badge {
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: rgba(255,253,248,0.18);
+      border: 1px solid rgba(255,253,248,0.28);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .mobile-menu-sub,
+    .mobile-task-sub {
+      font-size: 14px;
+      opacity: 0.96;
+    }
+    .mobile-request-card .mobile-task-number {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-size: 19px;
+      line-height: 1.08;
+      overflow-wrap: anywhere;
+    }
+    .mobile-task-order-id {
+      color: #1c1f1a;
+    }
+    .mobile-request-card .mobile-task-badge {
+      padding: 2px 7px;
+      font-size: 13px;
+      line-height: 1.1;
+    }
+    .mobile-task-meta {
+      display: grid;
+      gap: 8px;
+    }
+    .mobile-task-card {
+      max-width: 100%;
+    }
+    .mobile-task-inline-form {
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .mobile-task-inline-btn {
+      width: 100%;
+    }
+    .mobile-task-source,
+    .mobile-task-destination {
+      display: grid;
+      gap: 4px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      line-height: 1.15;
+      word-break: break-word;
+      box-shadow: 0 8px 18px rgba(91,39,0,0.12);
+    }
+    .mobile-task-source {
+      background: linear-gradient(135deg, #dff9ff, #8ddfff);
+      border: 2px solid rgba(7, 92, 120, 0.24);
+      color: #073848;
+      box-shadow: 0 8px 18px rgba(7,92,120,0.14);
+    }
+    .mobile-task-destination {
+      background: linear-gradient(135deg, rgba(255,253,248,0.98), rgba(255,242,190,0.92));
+      border: 2px solid rgba(255,239,185,0.94);
+      color: #213000;
+    }
+    .mobile-task-meta-label {
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1;
+      opacity: 0.76;
+      text-transform: uppercase;
+    }
+    .mobile-task-meta-main {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 6px;
+      font-size: 20px;
+      font-weight: 900;
+      line-height: 1.12;
+    }
+    .mobile-task-source-code {
+      font-size: 23px;
+      font-weight: 900;
+    }
+    .mobile-task-source-label {
+      font-size: 14px;
+      font-weight: 800;
+      opacity: 0.92;
+    }
+    .mobile-request-card .mobile-task-top {
+      gap: 10px;
+      align-items: baseline;
+      flex-wrap: nowrap;
+    }
+    .mobile-request-topline,
+    .mobile-request-bottomline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex-wrap: nowrap;
+    }
+    .mobile-request-topline {
+      font-size: 16px;
+      opacity: 0.98;
+      line-height: 1.08;
+    }
+    .mobile-request-bottomline {
+      justify-content: space-between;
+      font-size: 14px;
+      opacity: 0.96;
+      line-height: 1.08;
+    }
+    .mobile-request-client {
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 800;
+    }
+    .mobile-request-route {
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+    .mobile-exec {
+      display: grid;
+      gap: 16px;
+    }
+    .mobile-request-batch-card {
+      border-color: rgba(27,106,91,0.34);
+      box-shadow: 0 14px 28px rgba(27,106,91,0.16);
+    }
+    .mobile-task-summary {
+      display: grid;
+      gap: 10px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #f68a2a, #f47b25);
+      color: #fffdf8;
+      box-shadow: 0 12px 26px rgba(244,123,37,0.18);
+    }
+    .mobile-task-summary-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .mobile-task-summary-title strong {
+      font-size: 18px;
+    }
+    .mobile-task-summary-body {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .scan-status-badge {
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: rgba(255,253,248,0.2);
+      border: 1px solid rgba(255,253,248,0.28);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .scan-stage-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .scan-stage,
+    .scan-box {
+      border-radius: 14px;
+      padding: 12px 14px;
+      border: 2px solid rgba(28,31,26,0.12);
+      background: #eef3fb;
+      display: grid;
+      gap: 6px;
+    }
+    .scan-stage.ready,
+    .scan-box.ready {
+      background: #97d34f;
+      border-color: rgba(74,122,18,0.55);
+      color: #fffdf8;
+    }
+    .scan-stage.waiting,
+    .scan-box.waiting {
+      background: #f68a2a;
+      border-color: rgba(155,84,21,0.45);
+      color: #fffdf8;
+    }
+    .scan-box.candidate {
+      background: #fffdf8;
+      border-color: rgba(27,106,91,0.34);
+      color: var(--ink);
+      box-shadow: 0 8px 18px rgba(79,33,0,0.12);
+    }
+    .scan-box.candidate.ready {
+      background: #e9f8d9;
+      border-color: rgba(74,122,18,0.55);
+      color: #24440d;
+    }
+    .scan-stage-label,
+    .scan-box-code {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .scan-stage-value,
+    .scan-box-name {
+      font-size: 15px;
+      font-weight: 800;
+      word-break: break-word;
+    }
+    .scan-stage-sub,
+    .scan-box-sub {
+      font-size: 12px;
+      opacity: 0.92;
+    }
+    .scan-progress {
+      justify-self: center;
+      padding: 8px 14px;
+      border-radius: 12px;
+      background: #97d34f;
+      color: #fffdf8;
+      font-weight: 800;
+      box-shadow: 0 10px 18px rgba(75,120,26,0.18);
+    }
+    .scan-panel {
+      display: grid;
+      gap: 12px;
+      padding: 16px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, #f68a2a, #f47b25);
+      box-shadow: 0 18px 32px rgba(244,123,37,0.18);
+    }
+    .scan-panel-head {
+      display: grid;
+      gap: 10px;
+      color: #fffdf8;
+    }
+    .scan-panel-title {
+      font-size: 18px;
+      font-weight: 900;
+      line-height: 1.08;
+    }
+    .scan-panel-subtitle {
+      font-size: 13px;
+      opacity: 0.95;
+    }
+    .scan-visible-boxes {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 18px;
+      background: rgba(255,253,248,0.18);
+      border: 1px solid rgba(255,253,248,0.28);
+    }
+    .scan-visible-boxes-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: #fffdf8;
+    }
+    .scan-visible-boxes-title {
+      font-size: 14px;
+      font-weight: 900;
+    }
+    .scan-visible-boxes-count {
+      font-size: 12px;
+      font-weight: 800;
+      opacity: 0.92;
+    }
+    .scan-priority-block {
+      display: grid;
+      gap: 6px;
+    }
+    .scan-priority-label {
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: rgba(92, 43, 0, 0.88);
+    }
+    .scan-priority-code {
+      display: block;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 2px solid rgba(91, 39, 0, 0.18);
+      background: linear-gradient(135deg, #fff4cd, #ffe39a);
+      color: #4f2100;
+      font-size: clamp(24px, 4.9vw, 34px);
+      font-weight: 900;
+      line-height: 1.05;
+      letter-spacing: 0.02em;
+      word-break: break-word;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.58), 0 8px 18px rgba(91,39,0,0.16);
+    }
+    .scan-priority-code.destination {
+      background: linear-gradient(135deg, #f7ffb3, #cfff6c);
+      color: #1f2d00;
+      border-color: rgba(74,122,18,0.32);
+    }
+    .scan-priority-code.pickup-address {
+      background: linear-gradient(135deg, #dff9ff, #8ddfff);
+      color: #073848;
+      border-color: rgba(7, 92, 120, 0.28);
+      font-size: clamp(30px, 6.2vw, 42px);
+      line-height: 1;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.62), 0 10px 22px rgba(7,92,120,0.18);
+    }
+    .scan-priority-code.pallet {
+      background: linear-gradient(135deg, #fff8e4, #ffd7a0);
+      color: #5b2700;
+      border-color: rgba(143,68,0,0.24);
+    }
+    .scan-priority-code.neutral {
+      background: linear-gradient(135deg, #fffdf8, #f0f4ff);
+      color: #1c1f1a;
+      border-color: rgba(28,31,26,0.14);
+    }
+    .scan-collapse {
+      display: grid;
+      gap: 10px;
+    }
+    .scan-collapse-summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(28,31,26,0.12);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 10px 22px rgba(15,23,42,0.08);
+    }
+    .scan-collapse-summary::-webkit-details-marker {
+      display: none;
+    }
+    .scan-collapse-summary::after {
+      content: "Показать";
+      color: var(--accent-strong);
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .scan-collapse[open] .scan-collapse-summary::after {
+      content: "Скрыть";
+    }
+    .scan-collapse-content {
+      display: grid;
+      gap: 10px;
+    }
+    .scan-form {
+      display: grid;
+      gap: 10px;
+    }
+    .scan-form.is-submitting .scan-input {
+      opacity: 0.82;
+      background: rgba(255,253,248,0.88);
+    }
+    .scan-form.is-submitting .btn {
+      opacity: 0.72;
+      pointer-events: none;
+    }
+    .scan-input {
+      padding: 14px 16px;
+      font-size: 18px;
+      border-radius: 14px;
+      border: 2px solid rgba(255,253,248,0.5);
+      background: rgba(255,253,248,0.96);
+    }
+    .scan-input:focus {
+      outline: none;
+      border-color: rgba(255, 247, 209, 0.94);
+      box-shadow: 0 0 0 3px rgba(255, 247, 209, 0.24);
+    }
+    .scan-input.mobile-capture {
+      caret-color: currentColor;
+      user-select: text;
+    }
+    .scan-actions {
+      display: grid;
+      gap: 8px;
+    }
+    .scan-hint {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .mobile-pallet-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .mobile-pallet-chip,
+    .mobile-task-code-accent {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 14px;
+      background: rgba(255,253,248,0.96);
+      color: #4f2100;
+      border: 2px solid rgba(255,232,176,0.9);
+      font-size: 18px;
+      font-weight: 900;
+      line-height: 1.05;
+      box-shadow: 0 6px 14px rgba(91,39,0,0.12);
+      word-break: break-word;
+    }
+    .mobile-task-code-accent {
+      padding: 5px 9px;
+      font-size: 19px;
+    }
+    .mobile-task-summary-line {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .mobile-candidate-pallet-form {
+      margin: 0;
+    }
+    .mobile-candidate-pallet-btn {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .mobile-location-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #dff9ff, #8ddfff);
+      color: #073848;
+      border: 2px solid rgba(7, 92, 120, 0.24);
+      font-size: 18px;
+      font-weight: 900;
+      line-height: 1.05;
+      box-shadow: 0 6px 14px rgba(7,92,120,0.12);
+      word-break: break-word;
+    }
+    .scan-return-note {
+      margin-top: 2px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    body.mobile-flash-error {
+      background:
+        radial-gradient(900px 440px at 50% 0%, rgba(212,84,60,0.42), transparent 60%),
+        #f5d3cb;
+    }
+    body.mobile-flash-success {
+      background:
+        radial-gradient(900px 440px at 50% 0%, rgba(151,211,79,0.34), transparent 60%),
+        var(--bg);
+    }
+    @media (max-width: 900px) {
+      body { overflow: auto; }
+      .layout { grid-template-columns: 1fr; }
+      .side { display: none; }
+      .content { max-height: none; overflow: visible; padding-right: 0; }
+      .mobile-header {
+        display: flex;
+        order: 30;
+      }
+      .desktop-flow { display: none; }
+      .mobile-flow {
+        display: grid;
+        order: 10;
+      }
+      .move-title { font-size: 18px; }
+      .panel { padding: 14px; }
+      .btn { width: 100%; padding: 12px 14px; font-size: 16px; }
+      .pill { font-size: 12px; }
+      input, select { font-size: 16px; padding: 12px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .scan-stage-grid { grid-template-columns: 1fr 1fr; }
+      .scan-panel { border-radius: 26px; }
+      .mobile-box-grid { grid-template-columns: 1fr; }
+      .mobile-request-topline,
+      .mobile-request-bottomline {
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+      .mobile-request-client,
+      .mobile-request-route {
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+      .mobile-request-card .mobile-task-badge {
+        flex: 0 0 auto;
+        align-self: flex-start;
+      }
+    }
+    @media (max-width: 560px) {
+      .wrap { padding: 16px 14px 44px; }
+      .mobile-header { padding: 10px 12px; }
+      .scan-stage-grid { grid-template-columns: 1fr; }
+      .mobile-task-summary { padding: 12px 14px; }
+      .mobile-menu-btn,
+      .mobile-task-btn { padding: 12px 14px; }
+      .mobile-flow { padding: 10px; }
+      .mobile-request-card {
+        padding: 10px 12px;
+      }
+      .mobile-request-card .mobile-task-number {
+        font-size: 17px;
+      }
+      .mobile-request-topline,
+      .mobile-request-bottomline {
+        gap: 6px;
+      }
+      .mobile-request-client,
+      .mobile-request-route {
+        font-size: 13px;
+        line-height: 1.2;
+      }
+    }
+  </style>
+</head>
+<body class="{% if mobile_flash_state == 'error' %}mobile-flash-error{% elif mobile_flash_state == 'success' %}mobile-flash-success{% endif %}">
+  <audio id="scan-success-audio" preload="auto" src="{% static 'reachtruck/audio/scan-success.mp3' %}"></audio>
+  <audio id="scan-error-audio" preload="auto" src="{% static 'reachtruck/audio/scan-error.mp3' %}"></audio>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand">
+          <div class="brand-title">FULLBOX</div>
+        </div>
+        <div class="profile">
+          <div class="profile-value">
+            {{ profile_title|default:"Перемещение паллет" }}<br>
+            {% if request.user.is_authenticated and request.user.employee_profile %}
+              {{ request.user.employee_profile.full_name }}
+            {% elif request.session.employee_name %}
+              {{ request.session.employee_name }}
+            {% elif request.user.is_authenticated %}
+              {{ request.user.get_full_name|default:request.user.username }}
+            {% else %}
+              Гость
+            {% endif %}
+          </div>
+        </div>
+        <nav class="nav">
+          <a class="nav-link" href="/sku/?view=table">
+            <span class="nav-title">Номенклатура товаров</span>
+            <span class="nav-sub">Все клиенты</span>
+          </a>
+          <a class="nav-link" href="/sklad/journal/">
+            <span class="nav-title">Складские остатки</span>
+            <span class="nav-sub">Проверка мест хранения</span>
+          </a>
+          <a class="nav-link" href="/stockmap/visual/">
+            <span class="nav-title">Карта склада</span>
+            <span class="nav-sub">Паллетные места</span>
+          </a>
+          <a class="nav-link" href="/audit/moves/">
+            <span class="nav-title">Журнал перемещений</span>
+            <span class="nav-sub">Фиксация переездов</span>
+          </a>
+          <a class="nav-link" href="{{ cabinet_url }}">
+            <span class="nav-title">В кабинет</span>
+            <span class="nav-sub">Главная роль</span>
+          </a>
+        </nav>
+        <div class="side-footer">
+          <a class="btn ghost" href="/logout/">Выход</a>
+        </div>
+      </aside>
+
+      <main class="content">
+        <div class="mobile-header">
+          <div>
+            <div class="mobile-title">{{ panel_title|default:"Перемещения" }}</div>
+            <div class="panel-subtitle">{{ panel_subtitle|default:"Контроль заданий ричтрака" }}</div>
+          </div>
+          <a class="btn ghost" href="/logout/">Выход</a>
+        </div>
+
+        {% if error %}
+          <div class="alert error">{{ error }}</div>
+        {% endif %}
+        {% if ok_message %}
+          <div class="alert success">{{ ok_message }}</div>
+        {% endif %}
+
+        <section class="panel mobile-flow">
+          {% if not mobile_category and not mobile_section and not mobile_extra %}
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Выбор работы</h2>
+                <div class="panel-subtitle">Выберите тип задач для ричтрака.</div>
+              </div>
+            </div>
+            {% if mobile_current_requests and not mobile_root_only %}
+              <div class="panel-header" style="margin-top: 4px;">
+                <div>
+                  <h3 class="panel-title" style="font-size:18px;">Продолжить текущую работу</h3>
+                  <div class="panel-subtitle">Если вышли со страницы сканирования, вернитесь в активную заявку отсюда.</div>
+                </div>
+              </div>
+              <div class="mobile-task-list" style="margin-bottom: 10px;">
+                {% for request_card in mobile_current_requests %}
+                  <a class="mobile-task-btn mobile-request-card mobile-request-batch-card" href="{{ request_card.url }}">
+                    <div class="mobile-request-topline">
+                      <div class="mobile-task-number">{{ request_card.type_label }} №{{ request_card.label }}</div>
+                      <div class="mobile-request-client">{{ request_card.agency_name_short }}</div>
+                    </div>
+                    <div class="mobile-request-bottomline">
+                      <span class="mobile-request-route">{{ request_card.prompt|default:request_card.summary }}</span>
+                      <div class="mobile-task-badge">{{ request_card.remaining_label }}</div>
+                    </div>
+                  </a>
+                {% endfor %}
+              </div>
+            {% endif %}
+            <div class="mobile-menu">
+              {% for section in mobile_root_sections %}
+                <a class="mobile-menu-btn" href="{{ section.url }}">
+                  <div class="mobile-menu-top">
+                    <div class="mobile-menu-title">{{ section.label }}</div>
+                    {% if section.show_count %}
+                      <div class="mobile-menu-count">{{ section.count }}</div>
+                    {% endif %}
+                  </div>
+                  <div class="mobile-menu-sub">
+                    {{ section.subtitle }}
+                    {% if category.in_progress_count %}
+                      В работе: {{ category.in_progress_count }}
+                    {% else %}
+                      Показать задачи категории
+                    {% endif %}
+                  </div>
+                </a>
+              {% endfor %}
+            </div>
+          {% elif mobile_section and not mobile_category and not mobile_extra and not mobile_selected_task %}
+            <a class="mobile-back" href="/super-car/">← К выбору работы</a>
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">{{ mobile_section_label }}</h2>
+                <div class="panel-subtitle">{{ mobile_section_subtitle }}</div>
+              </div>
+            </div>
+            <div class="mobile-menu">
+              {% for item in mobile_section_menu %}
+                <a class="mobile-menu-btn" href="{{ item.url }}">
+                  <div class="mobile-menu-top">
+                    <div class="mobile-menu-title">{{ item.label }}</div>
+                    {% if item.show_count %}
+                      <div class="mobile-menu-count">{{ item.count }}</div>
+                    {% endif %}
+                  </div>
+                  <div class="mobile-menu-sub">{{ item.subtitle }}</div>
+                </a>
+              {% empty %}
+                <div class="move-card">Пока здесь нет доступных действий.</div>
+              {% endfor %}
+            </div>
+          {% elif mobile_extra == "locate_pallet" %}
+            <a class="mobile-back" href="{{ mobile_extra_back_url }}">← К допам</a>
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">{{ mobile_extra_label }}</h2>
+                <div class="panel-subtitle">{{ mobile_extra_subtitle }}</div>
+              </div>
+            </div>
+            <div class="scan-panel">
+              <div class="scan-panel-head">
+                <div class="scan-panel-title">Отсканируйте паллету</div>
+                <div class="scan-panel-subtitle">Суперкар покажет, где паллета стоит сейчас.</div>
+              </div>
+              <form method="post" class="scan-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="lookup_pallet_location">
+                <input type="hidden" name="mobile_section" value="{{ mobile_section }}">
+                <input type="hidden" name="mobile_extra" value="{{ mobile_extra }}">
+                <input
+                  class="scan-input"
+                  type="text"
+                  name="lookup_code"
+                  value="{{ mobile_extra_lookup_code }}"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  autocorrect="off"
+                  spellcheck="false"
+                  enterkeyhint="done"
+                  placeholder="Сканируйте код паллеты">
+                <button class="btn primary" type="submit">Показать место</button>
+              </form>
+              {% if mobile_extra_lookup_result %}
+                <div class="scan-priority-block">
+                  <div class="scan-priority-label">Текущее место</div>
+                  <div class="scan-priority-code destination">{{ mobile_extra_lookup_result.label }}</div>
+                </div>
+                <div class="mobile-task-summary">
+                  <div class="mobile-task-summary-title">
+                    <strong>Паллета {{ mobile_extra_lookup_result.code }}</strong>
+                  </div>
+                  <div class="mobile-task-summary-body">
+                    <div class="mobile-task-summary-line">
+                      <span class="mobile-location-chip">{{ mobile_extra_lookup_result.location_label }}</span>
+                    </div>
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+          {% elif mobile_category and not mobile_request_key and not mobile_selected_task %}
+            <a class="mobile-back" href="{{ mobile_category_parent_url }}">← К выбору работы</a>
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">{{ mobile_category_label }}</h2>
+                <div class="panel-subtitle">Сначала выберите заявку, затем конкретное задание.</div>
+              </div>
+            </div>
+            {% if mobile_current_requests %}
+              <div class="mobile-task-list" style="margin-bottom: 10px;">
+                {% for request_card in mobile_current_requests %}
+                  <a class="mobile-task-btn mobile-request-card mobile-request-batch-card" href="{{ request_card.url }}">
+                    <div class="mobile-request-topline">
+                      <div class="mobile-task-number">Продолжить {{ request_card.type_label|lower }} №{{ request_card.label }}</div>
+                    </div>
+                    <div class="mobile-request-bottomline">
+                      <span class="mobile-request-route">{{ request_card.prompt|default:request_card.summary }}</span>
+                      <div class="mobile-task-badge">{{ request_card.remaining_label }}</div>
+                    </div>
+                  </a>
+                {% endfor %}
+              </div>
+            {% endif %}
+            <div class="mobile-task-list">
+              {% for request_card in mobile_requests %}
+                <a class="mobile-task-btn mobile-request-card" href="{{ request_card.url }}">
+                  <div class="mobile-request-topline">
+                    <div class="mobile-task-number">{{ request_card.type_label }} №{{ request_card.label }}</div>
+                    <div class="mobile-request-client">{{ request_card.agency_name_short }}</div>
+                  </div>
+                  <div class="mobile-request-bottomline">
+                    <span class="mobile-request-route">{{ request_card.summary }}</span>
+                    <div class="mobile-task-badge">{{ request_card.pallet_count_label }}</div>
+                  </div>
+                </a>
+              {% empty %}
+                {% if not mobile_current_requests %}
+                  <div class="move-card">Заявок в этой категории пока нет.</div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% elif mobile_category and mobile_request_key and mobile_request_batch_mode %}
+            <a class="mobile-back" href="/super-car/?mobile_category={{ mobile_category }}&amp;mobile_show_list=1">← К списку заявок</a>
+            <div class="mobile-exec">
+              <div class="panel-header">
+                <div>
+                  <h2 class="panel-title">{{ mobile_request_type_label }} №{{ mobile_request_label }}</h2>
+                  <div class="panel-subtitle">{{ mobile_request_client_label }}</div>
+                </div>
+              </div>
+
+              {% if mobile_request_execution.can_take %}
+                <form method="post" class="scan-actions">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="take_request">
+                  <input type="hidden" name="mobile_category" value="{{ mobile_category }}">
+                  <input type="hidden" name="mobile_request" value="{{ mobile_request_key }}">
+                  <button class="btn primary" type="submit">Взять заявку в работу</button>
+                </form>
+              {% elif mobile_request_execution.can_scan %}
+                <div class="scan-panel">
+                  <div class="scan-panel-head">
+                    <div class="scan-panel-title">{{ mobile_request_prompt_title }}</div>
+                    <div class="scan-panel-subtitle">{{ mobile_request_prompt_subtitle }}</div>
+                    {% if mobile_request_execution.current_step == "pallet" and mobile_request_candidate_locations %}
+                      <div class="mobile-task-summary" style="margin-top: 10px;">
+                        <div class="mobile-task-summary-title">
+                          <strong>Подходящие места</strong>
+                          <span class="scan-status-badge">{{ mobile_request_candidate_locations|length }}</span>
+                        </div>
+                        <div class="mobile-task-summary-body">
+                          {% for location in mobile_request_candidate_locations %}
+                            {% if location.pallet_code %}
+                              <form method="post" class="mobile-candidate-pallet-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="scan_request">
+                                <input type="hidden" name="mobile_category" value="{{ mobile_category }}">
+                                <input type="hidden" name="mobile_request" value="{{ mobile_request_key }}">
+                                <input type="hidden" name="scan_value" value="{{ location.pallet_code }}">
+                                <button class="mobile-task-summary-line mobile-candidate-pallet-btn" type="submit">
+                                  <span class="mobile-location-chip">{{ location.source_code|default:location.source_label }}</span>
+                                  <span class="mobile-pallet-chip">{{ location.pallets_label }}</span>
+                                </button>
+                              </form>
+                            {% else %}
+                              <div class="mobile-task-summary-line">
+                                <span class="mobile-location-chip">{{ location.source_code|default:location.source_label }}</span>
+                                <span class="mobile-pallet-chip">{{ location.pallets_label }}</span>
+                              </div>
+                            {% endif %}
+                          {% endfor %}
+                        </div>
+                      </div>
+                    {% endif %}
+                    {% if mobile_request_execution.current_step == "pallet" and mobile_request_single_remaining %}
+                      <div class="scan-priority-block">
+                        <div class="scan-priority-label">Адрес паллеты</div>
+                        <div class="scan-priority-code pickup-address">{{ mobile_request_single_remaining.source_code }}</div>
+                      </div>
+                    {% endif %}
+                    {% if mobile_request_execution.current_step == "destination" %}
+                      {% if not mobile_request_execution.destination_override_pending or mobile_request_execution.destination_override_confirm_pending %}
+                        <div class="scan-priority-block">
+                          <div class="scan-priority-label">Место назначения</div>
+                          <div class="scan-priority-code destination">{{ mobile_request_execution.active_destination_code }}</div>
+                        </div>
+                      {% endif %}
+                    {% endif %}
+                    {% if mobile_request_execution.current_step == "destination" and mobile_request_execution.active_pallet_code %}
+                      <div class="scan-priority-block">
+                        <div class="scan-priority-label">Паллета в работе</div>
+                        <div class="scan-priority-code pallet">{{ mobile_request_execution.active_pallet_code }}</div>
+                      </div>
+                    {% endif %}
+                    {% if mobile_request_execution.current_step == "destination" and mobile_request_execution.destination_override_confirm_pending %}
+                      <form method="post" class="scan-actions">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="confirm_request_destination">
+                        <input type="hidden" name="mobile_category" value="{{ mobile_category }}">
+                        <input type="hidden" name="mobile_request" value="{{ mobile_request_key }}">
+                        <button class="btn primary" type="submit">Подтвердить место</button>
+                      </form>
+                    {% endif %}
+                    {% if mobile_request_execution.current_step == "destination" and mobile_request_execution.active_pallet_code and not mobile_request_execution.destination_override_pending %}
+                      <form method="post" class="scan-actions">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="change_request_destination">
+                        <input type="hidden" name="mobile_category" value="{{ mobile_category }}">
+                        <input type="hidden" name="mobile_request" value="{{ mobile_request_key }}">
+                        <button class="btn" type="submit">Изменить место</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                  <form method="post" class="scan-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="scan_request">
+                    <input type="hidden" name="mobile_category" value="{{ mobile_category }}">
+                    <input type="hidden" name="mobile_request" value="{{ mobile_request_key }}">
+                    <input
+                      class="scan-input"
+                      type="text"
+                      name="scan_value"
+                      autocomplete="off"
+                      autocapitalize="off"
+                      autocorrect="off"
+                      spellcheck="false"
+                      enterkeyhint="done"
+                      placeholder="Сканируйте код">
+                    <button class="btn primary" type="submit">Подтвердить скан</button>
+                  </form>
+                  <div class="scan-hint">Зеленый экран и короткий сигнал означают верный скан, красный экран и тревожный звук — неверный.</div>
+                </div>
+              {% endif %}
+
+              {% if mobile_request_remaining_pallets %}
+                <div class="mobile-task-summary" style="margin-top: 10px;">
+                  <div class="mobile-task-summary-title">
+                    <strong>Осталось паллет</strong>
+                    <span class="scan-status-badge">{{ mobile_request_remaining_label }}</span>
+                  </div>
+                  <div class="mobile-task-summary-body">
+                    {% for pallet in mobile_request_remaining_pallets %}
+                      <div class="mobile-task-summary-line">
+                        <span class="mobile-pallet-chip">
+                          {% if pallet.candidate_count %}{{ pallet.candidate_count }} паллет: {% endif %}{{ pallet.pallet_code }}
+                        </span>
+                        {% if pallet.source_code %}
+                          <span class="mobile-location-chip">{{ pallet.source_code }}</span>
+                        {% endif %}
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+          {% elif mobile_category and mobile_request_key and not mobile_selected_task %}
+            <a class="mobile-back" href="/super-car/?mobile_category={{ mobile_category }}&amp;mobile_show_list=1">← К списку заявок</a>
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">{{ mobile_request_heading }}</h2>
+                <div class="panel-subtitle">{{ mobile_request_pick_subtitle }}</div>
+              </div>
+            </div>
+            <div class="mobile-task-list">
+              {% for move in mobile_request_tasks %}
+                {% if move.can_take %}
+                  <div class="mobile-task-btn mobile-task-card">
+                    <div class="mobile-task-top">
+                      <div class="mobile-task-number"><span class="mobile-task-order-id">№{{ move.order_id }}</span> {{ move.mobile_route_title }}</div>
+                    </div>
+                    <div class="mobile-task-sub">
+                      {% if move.pallet_choice_pending %}
+                        Выбор паллеты из подходящих мест
+                      {% else %}
+                        Паллета <span class="mobile-task-code-accent">{{ move.pallet_code }}</span>
+                      {% endif %}
+                    </div>
+                    <div class="mobile-task-meta">
+                      {% if move.pallet_choice_pending and move.candidate_locations %}
+                        {% for location in move.candidate_locations %}
+                          <span class="mobile-task-source">
+                            <span class="mobile-task-meta-label">Подходящее место</span>
+                            <span class="mobile-task-meta-main">
+                              <span class="mobile-task-source-code">{{ location.source_code|default:location.source_label }}</span>
+                              <span class="mobile-task-source-label">{{ location.pallets_label }}</span>
+                            </span>
+                          </span>
+                        {% endfor %}
+                      {% endif %}
+                      <span class="mobile-task-source">
+                        <span class="mobile-task-meta-label">Адрес паллеты</span>
+                        <span class="mobile-task-meta-main">
+                          {% if move.from_code %}
+                            <span class="mobile-task-source-code">{{ move.from_code }}</span>
+                          {% endif %}
+                          <span class="mobile-task-source-label">{{ move.from_label }}</span>
+                        </span>
+                      </span>
+                      <span class="mobile-task-destination">
+                        <span class="mobile-task-meta-label">Куда</span>
+                        <span class="mobile-task-meta-main">{{ move.to_label }}</span>
+                      </span>
+                    </div>
+                    <form method="post" class="mobile-task-inline-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="take_move">
+                      <input type="hidden" name="order_id" value="{{ move.order_id }}">
+                      <input type="hidden" name="mobile_task" value="{{ move.order_id }}">
+                      <input type="hidden" name="mobile_category" value="{{ mobile_category }}">
+                      <input type="hidden" name="mobile_request" value="{{ mobile_request_key }}">
+                      <button class="btn primary mobile-task-inline-btn" type="submit">Взять в работу</button>
+                    </form>
+                  </div>
+                {% else %}
+                  <a class="mobile-task-btn" href="/super-car/?mobile_category={{ mobile_category }}&amp;mobile_request={{ mobile_request_key }}&amp;mobile_task={{ move.order_id }}">
+                    <div class="mobile-task-top">
+                      <div class="mobile-task-number"><span class="mobile-task-order-id">№{{ move.order_id }}</span> {{ move.mobile_route_title }}</div>
+                    </div>
+                    <div class="mobile-task-sub">
+                      {% if move.pallet_choice_pending %}
+                        Выбор паллеты из подходящих мест
+                      {% else %}
+                        Паллета <span class="mobile-task-code-accent">{{ move.pallet_code }}</span>
+                      {% endif %}
+                    </div>
+                    <div class="mobile-task-meta">
+                      {% if move.pallet_choice_pending and move.candidate_locations %}
+                        {% for location in move.candidate_locations %}
+                          <span class="mobile-task-source">
+                            <span class="mobile-task-meta-label">Подходящее место</span>
+                            <span class="mobile-task-meta-main">
+                              <span class="mobile-task-source-code">{{ location.source_code|default:location.source_label }}</span>
+                              <span class="mobile-task-source-label">{{ location.pallets_label }}</span>
+                            </span>
+                          </span>
+                        {% endfor %}
+                      {% endif %}
+                      <span class="mobile-task-source">
+                        <span class="mobile-task-meta-label">Адрес паллеты</span>
+                        <span class="mobile-task-meta-main">
+                          {% if move.from_code %}
+                            <span class="mobile-task-source-code">{{ move.from_code }}</span>
+                          {% endif %}
+                          <span class="mobile-task-source-label">{{ move.from_label }}</span>
+                        </span>
+                      </span>
+                      <span class="mobile-task-destination">
+                        <span class="mobile-task-meta-label">Куда</span>
+                        <span class="mobile-task-meta-main">{{ move.to_label }}</span>
+                      </span>
+                    </div>
+                  </a>
+                {% endif %}
+              {% empty %}
+                <div class="move-card">В этой заявке активных заданий пока нет.</div>
+              {% endfor %}
+            </div>
+          {% elif mobile_selected_task %}
+            <a class="mobile-back" href="/super-car/?mobile_category={{ mobile_category }}&amp;mobile_request={{ mobile_request_key }}">← К заданиям заявки</a>
+            <div class="mobile-exec">
+              {% if mobile_selected_task.can_take %}
+                <form method="post" class="scan-actions">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="take_move">
+                  <input type="hidden" name="order_id" value="{{ mobile_selected_task.order_id }}">
+                  <input type="hidden" name="mobile_task" value="{{ mobile_selected_task.order_id }}">
+                  <input type="hidden" name="mobile_category" value="{{ mobile_category }}">
+                  <input type="hidden" name="mobile_request" value="{{ mobile_request_key }}">
+                  <button class="btn primary" type="submit">Взять в работу</button>
+                </form>
+              {% elif mobile_selected_task.can_manage %}
+                <div class="scan-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
+                  <button
+                    class="btn"
+                    type="button"
+                    data-edit-move-btn
+                    data-order-id="{{ mobile_selected_task.order_id }}"
+                    data-pallet-code="{{ mobile_selected_task.pallet_code }}"
+                    data-to-zone="{{ mobile_selected_task.to_location.zone|default:'' }}"
+                    data-to-row="{{ mobile_selected_task.to_location.row|default:'' }}"
+                    data-to-section="{{ mobile_selected_task.to_location.section|default:'' }}"
+                    data-to-tier="{{ mobile_selected_task.to_location.tier|default:'' }}"
+                    data-to-cell="{{ mobile_selected_task.to_location.cell|default:'' }}"
+                  >Изменить заявку ричтраку</button>
+                  <form method="post" onsubmit="return confirm('Удалить это задание ричтрака до начала выполнения?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="cancel_move">
+                    <input type="hidden" name="order_id" value="{{ mobile_selected_task.order_id }}">
+                    <input type="hidden" name="mobile_task" value="{{ mobile_selected_task.order_id }}">
+                    <input type="hidden" name="mobile_category" value="{{ mobile_category }}">
+                    <input type="hidden" name="mobile_request" value="{{ mobile_request_key }}">
+                    <button class="btn" type="submit">Удалить задание</button>
+                  </form>
+                </div>
+              {% elif mobile_selected_task.can_complete %}
+                {% if mobile_selected_execution.current_step == "done" %}
+                  <div class="scan-panel">
+                    <div class="scan-panel-head">
+                      <div class="scan-panel-title">Задание выполнено.</div>
+                      <div class="scan-panel-subtitle">Сканировать больше ничего не нужно. Закройте задание, чтобы обновить заявку.</div>
+                    </div>
+                    <form method="post" class="scan-actions">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="complete_move">
+                      <input type="hidden" name="order_id" value="{{ mobile_selected_task.order_id }}">
+                      <input type="hidden" name="mobile_task" value="{{ mobile_selected_task.order_id }}">
+                      <input type="hidden" name="mobile_category" value="{{ mobile_category }}">
+                      <input type="hidden" name="mobile_request" value="{{ mobile_request_key }}">
+                      <button class="btn primary" type="submit">Закрыть задание</button>
+                    </form>
+                  </div>
+                {% else %}
+                  <div class="scan-panel">
+                    <div class="scan-panel-head">
+                      {% if mobile_selected_execution.current_step == "pallet" %}
+                        <div class="scan-panel-title">Возьми паллету по адресу:</div>
+                        {% if mobile_selected_execution.candidate_locations %}
+                          <div class="mobile-task-summary" style="margin-top: 10px;">
+                            <div class="mobile-task-summary-title">
+                              <strong>Подходящие места</strong>
+                              <span class="scan-status-badge">{{ mobile_selected_execution.candidate_locations|length }}</span>
+                            </div>
+                            <div class="mobile-task-summary-body">
+                              {% for location in mobile_selected_execution.candidate_locations %}
+                                {% if location.pallet_code %}
+                                  <form method="post" class="mobile-candidate-pallet-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="scan_move">
+                                    <input type="hidden" name="order_id" value="{{ mobile_selected_task.order_id }}">
+                                    <input type="hidden" name="mobile_task" value="{{ mobile_selected_task.order_id }}">
+                                    <input type="hidden" name="mobile_category" value="{{ mobile_category }}">
+                                    <input type="hidden" name="mobile_request" value="{{ mobile_request_key }}">
+                                    <input type="hidden" name="scan_value" value="{{ location.pallet_code }}">
+                                    <button class="mobile-task-summary-line mobile-candidate-pallet-btn" type="submit">
+                                      <span class="mobile-location-chip">{{ location.source_code|default:location.source_label }}</span>
+                                      <span class="mobile-pallet-chip">{{ location.pallets_label }}</span>
+                                    </button>
+                                  </form>
+                                {% else %}
+                                  <div class="mobile-task-summary-line">
+                                    <span class="mobile-location-chip">{{ location.source_code|default:location.source_label }}</span>
+                                    <span class="mobile-pallet-chip">{{ location.pallets_label }}</span>
+                                  </div>
+                                {% endif %}
+                              {% endfor %}
+                            </div>
+                          </div>
+                        {% else %}
+                        <div class="scan-priority-block">
+                          <div class="scan-priority-label">Адрес паллеты</div>
+                          <div class="scan-priority-code pickup-address">{{ mobile_selected_execution.source_code }}</div>
+                        </div>
+                        {% endif %}
+                        <div class="scan-panel-subtitle">Ждем QR паллеты.</div>
+                      {% else %}
+                        <div class="scan-panel-title">{{ mobile_selected_execution.prompt }}</div>
+                      {% endif %}
+                      {% if mobile_selected_execution.current_step != "boxes" and mobile_selected_execution.expected_scan %}
+                        <div class="scan-priority-block">
+                          <div class="scan-priority-label">
+                            {% if mobile_selected_execution.current_step == "source" %}
+                              Место отбора
+                            {% elif mobile_selected_execution.current_step == "pallet" %}
+                              QR паллеты
+                            {% elif mobile_selected_execution.current_step == "destination" %}
+                              Место назначения
+                            {% else %}
+                              Код для сканирования
+                            {% endif %}
+                          </div>
+                          <div class="scan-priority-code {% if mobile_selected_execution.current_step == 'destination' %}destination{% elif mobile_selected_execution.current_step == 'pallet' %}pallet{% else %}neutral{% endif %}">{{ mobile_selected_execution.expected_scan }}</div>
+                        </div>
+                      {% elif mobile_selected_execution.expected_scan %}
+                        <div class="scan-panel-subtitle">Ожидается код: {{ mobile_selected_execution.expected_scan }}</div>
+                      {% endif %}
+                    </div>
+                    <form method="post" class="scan-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="scan_move">
+                      <input type="hidden" name="order_id" value="{{ mobile_selected_task.order_id }}">
+                      <input type="hidden" name="mobile_task" value="{{ mobile_selected_task.order_id }}">
+                      <input type="hidden" name="mobile_category" value="{{ mobile_category }}">
+                      <input type="hidden" name="mobile_request" value="{{ mobile_request_key }}">
+                      <input
+                        class="scan-input"
+                        type="text"
+                        name="scan_value"
+                        autocomplete="off"
+                        autocapitalize="off"
+                        autocorrect="off"
+                        spellcheck="false"
+                        enterkeyhint="done"
+                        placeholder="Сканируйте код">
+                      <button class="btn primary" type="submit">Подтвердить скан</button>
+                    </form>
+                    {% if mobile_selected_execution.current_step == "boxes" and mobile_selected_execution.boxes %}
+                      <div class="scan-visible-boxes">
+                        <div class="scan-visible-boxes-head">
+                          <div class="scan-visible-boxes-title">
+                            {% if mobile_selected_execution.flexible_box_selection %}
+                              Подходящие короба
+                            {% else %}
+                              Нужные короба
+                            {% endif %}
+                          </div>
+                          <div class="scan-visible-boxes-count">Найдено {{ mobile_selected_execution.pallet_boxes_found_count|default:mobile_selected_execution.boxes_completed }} из {{ mobile_selected_execution.pallet_boxes_total|default:mobile_selected_execution.boxes_total }}</div>
+                        </div>
+                        <div class="mobile-box-grid">
+                          {% for box in mobile_selected_execution.boxes_pending %}
+                            <div class="scan-box candidate">
+                              <div class="scan-box-code">{{ box.box_code }}</div>
+                              <div class="scan-box-name">
+                                {% if box.requires_unit_scan %}
+                                  {{ box.unit_scanned_total }} из {{ box.units_required }} шт.
+                                {% else %}
+                                  Короб целиком
+                                {% endif %}
+                              </div>
+                              <div class="scan-box-sub">
+                                {% if box.requires_unit_scan %}
+                                  ШК: {{ box.unit_barcode_preview|default:"по списку задания" }}
+                                {% else %}
+                                  В коробе: {{ box.box_qty }} шт.
+                                {% endif %}
+                              </div>
+                            </div>
+                          {% endfor %}
+                          {% for box in mobile_selected_execution.boxes_found %}
+                            <div class="scan-box candidate ready">
+                              <div class="scan-box-code">{{ box.box_code }}</div>
+                              <div class="scan-box-name">Найден</div>
+                              <div class="scan-box-sub">
+                                {% if box.requires_unit_scan %}
+                                  {{ box.unit_scanned_total }} из {{ box.units_required }} шт.
+                                {% else %}
+                                  В коробе: {{ box.box_qty }} шт.
+                                {% endif %}
+                              </div>
+                            </div>
+                          {% endfor %}
+                        </div>
+                      </div>
+                    {% endif %}
+                    <div class="scan-hint">Неверный скан даст красный экран и предупреждение. Прогресс сохраняется после каждого правильного скана.</div>
+                  </div>
+                {% endif %}
+              {% endif %}
+
+              <div class="scan-stage-grid">
+                <div class="scan-stage {% if mobile_selected_execution.source_confirmed %}ready{% else %}waiting{% endif %}">
+                  <div class="scan-stage-label">Маршрут</div>
+                  <div class="scan-stage-value">{{ mobile_selected_task.mobile_route_summary }}</div>
+                  <div class="scan-stage-sub">{{ mobile_selected_task.mobile_route_detail }}</div>
+                </div>
+                <div class="scan-stage {% if mobile_selected_execution.pallet_confirmed %}ready{% else %}{% if mobile_selected_execution.source_confirmed %}waiting{% endif %}{% endif %}">
+                  <div class="scan-stage-label">Паллета</div>
+                  <div class="scan-stage-value">{{ mobile_selected_execution.pallet_code|default:mobile_selected_task.pallet_code }}</div>
+                  <div class="scan-stage-sub">Подтверждение паллеты</div>
+                </div>
+              </div>
+
+              {% if mobile_selected_execution.boxes %}
+                <details class="scan-collapse">
+                  <summary class="scan-collapse-summary">Содержимое паллеты</summary>
+                  <div class="scan-collapse-content">
+                    <div class="scan-progress">Найдено {{ mobile_selected_execution.pallet_boxes_found_count|default:mobile_selected_execution.boxes_completed }} из {{ mobile_selected_execution.pallet_boxes_total|default:mobile_selected_execution.boxes_total }}</div>
+                    <div class="scan-panel">
+                      <div class="scan-panel-head">
+                        <div class="scan-panel-title">Короба паллеты</div>
+                        <div class="scan-panel-subtitle">Сканируйте короба в любом порядке. Для штучного отбора затем сканируйте каждую единицу товара.</div>
+                      </div>
+                      <div class="mobile-box-list">
+                        <div class="mobile-box-section">
+                          <div class="mobile-box-section-title">Не найдены</div>
+                          <div class="mobile-box-grid">
+                            {% for box in mobile_selected_execution.boxes_pending %}
+                              <div class="scan-box {% if mobile_selected_execution.boxes_ready %}waiting{% endif %}">
+                                <div class="scan-box-code">{{ box.box_code }}</div>
+                                <div class="scan-box-name">
+                                  {% if box.requires_unit_scan %}
+                                    {{ box.unit_scanned_total }} из {{ box.units_required }} шт.
+                                  {% else %}
+                                    Короб целиком
+                                  {% endif %}
+                                </div>
+                                <div class="scan-box-sub">
+                                  {% if box.requires_unit_scan %}
+                                    ШК: {{ box.unit_barcode_preview|default:"по списку задания" }}
+                                  {% else %}
+                                    В коробе: {{ box.box_qty }} шт.
+                                  {% endif %}
+                                </div>
+                              </div>
+                            {% empty %}
+                              <div class="scan-box ready">
+                                <div class="scan-box-code">Все найдены</div>
+                                <div class="scan-box-sub">Ненайденных коробов не осталось.</div>
+                              </div>
+                            {% endfor %}
+                          </div>
+                        </div>
+                        <div class="mobile-box-section">
+                          <div class="mobile-box-section-title">Найдены</div>
+                          <div class="mobile-box-grid">
+                            {% for box in mobile_selected_execution.boxes_found %}
+                              <div class="scan-box ready">
+                                <div class="scan-box-code">{{ box.box_code }}</div>
+                                <div class="scan-box-name">
+                                  {% if box.requires_unit_scan %}
+                                    {{ box.unit_scanned_total }} из {{ box.units_required }} шт.
+                                  {% else %}
+                                    Короб целиком
+                                  {% endif %}
+                                </div>
+                                <div class="scan-box-sub">
+                                  {% if box.requires_unit_scan %}
+                                    ШК: {{ box.unit_barcode_preview|default:"по списку задания" }}
+                                  {% else %}
+                                    В коробе: {{ box.box_qty }} шт.
+                                  {% endif %}
+                                </div>
+                                {% if box.return_required %}
+                                  <div class="scan-return-note">Верни короб на место</div>
+                                {% endif %}
+                              </div>
+                            {% empty %}
+                              <div class="scan-box">
+                                <div class="scan-box-code">Пока пусто</div>
+                                <div class="scan-box-sub">Найденные короба будут появляться здесь.</div>
+                              </div>
+                            {% endfor %}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </details>
+              {% endif %}
+
+              {% if mobile_selected_execution.all_boxes_complete %}
+                <div class="scan-stage {% if mobile_selected_execution.destination_confirmed %}ready{% else %}waiting{% endif %}">
+                  <div class="scan-stage-label">Место назначения</div>
+                  <div class="scan-stage-value">{{ mobile_selected_execution.destination_code|default:mobile_selected_task.to_label }}</div>
+                  <div class="scan-stage-sub">{{ mobile_selected_task.mobile_destination|default:mobile_selected_task.to_label }}</div>
+                </div>
+              {% endif %}
+
+              <div class="mobile-task-summary">
+                <div class="mobile-task-summary-title">
+                  <strong>{{ mobile_selected_task.mobile_number }}</strong>
+                  <span class="scan-status-badge">{{ mobile_selected_task.status_label }}</span>
+                </div>
+                <div>{{ mobile_selected_task.agency_name }}</div>
+                <div>{{ mobile_selected_task.mobile_destination|default:mobile_selected_task.to_label }}</div>
+              </div>
+            </div>
+          {% endif %}
+        </section>
+
+        <div class="desktop-flow">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Активные перемещения</h2>
+              <div class="panel-subtitle">Паллеты, ожидающие перевозки или в работе.</div>
+            </div>
+          </div>
+          <div class="moves-grid">
+            {% for move in moves_active %}
+              <div class="move-card">
+                <div class="move-head">
+                  <div class="move-title">Паллета {{ move.pallet_code }}</div>
+                  <div class="pill">{{ move.status_label }}</div>
+                </div>
+                <div class="move-meta">
+                  {% if move.task_kind_label %}
+                    <div><strong>Тип задания:</strong> {{ move.task_kind_label }}</div>
+                  {% endif %}
+                  <div><strong>Откуда:</strong> {{ move.from_label }}</div>
+                  <div><strong>Куда:</strong> {{ move.to_label }}</div>
+                  {% if move.instruction %}
+                    <div><strong>Задание:</strong> {{ move.instruction }}</div>
+                  {% endif %}
+                  {% if move.move_mode == "box_partial" %}
+                    <div><strong>Потребность заявки:</strong> {{ move.requested_qty }} шт.</div>
+                    {% if move.requested_box %}
+                      <div><strong>Короб-источник:</strong> {{ move.requested_box }}</div>
+                    {% endif %}
+                    {% if move.box_execution_plan %}
+                      <div class="move-section-title">План отбора по коробам</div>
+                      <table class="pick-table">
+                        <thead>
+                          <tr>
+                            <th>Короб</th>
+                            <th>ШК / состав</th>
+                            <th>В коробе</th>
+                            <th>{{ move.partial_pick_destination_label|default:"К месту" }}</th>
+                            <th>Останется</th>
+                            <th>Вернуть назад</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for row in move.box_execution_plan %}
+                            <tr{% if row.return_back_qty %} class="return-row"{% endif %}>
+                              <td>{{ row.box_code }}</td>
+                              <td>{% if row.barcode_preview %}{{ row.barcode_preview }}{% else %}-{% endif %}</td>
+                              <td>{{ row.box_qty }} шт.</td>
+                              <td>{{ row.to_obr_qty }} шт.</td>
+                              <td>{{ row.remain_in_box_qty }} шт.</td>
+                              <td{% if row.return_back_qty %} class="return-action"{% endif %}><strong>{{ row.return_back_qty }} шт.</strong></td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    {% endif %}
+                  {% endif %}
+                  {% if move.pallet_box_plan and move.move_mode != "box_partial" %}
+                    <table class="pick-table">
+                      <thead>
+                        <tr>
+                          <th>Короб</th>
+                          <th>Количество</th>
+                          <th>ШК / состав</th>
+                          <th>Действие</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                          {% for row in move.pallet_box_plan %}
+                          <tr{% if row.action == "Вернуть" %} class="return-row"{% endif %}>
+                            <td>{{ row.box_code }}</td>
+                            <td>{{ row.qty }} шт.</td>
+                            <td>{% if row.barcode_preview %}{{ row.barcode_preview }}{% else %}-{% endif %}</td>
+                            <td{% if row.action == "Вернуть" %} class="return-action"{% endif %}>
+                              {% if move.can_complete and move.desktop_manual_box_choice_enabled and row.is_matching %}
+                                <label class="box-select-label" data-box-select-label>
+                                  <input
+                                    class="box-select-input"
+                                    type="checkbox"
+                                    name="selected_boxes"
+                                    value="{{ row.box_code }}"
+                                    form="complete-move-{{ move.order_id }}"
+                                    data-pattern-slots="{{ row.selection_pattern_slots|join:',' }}"
+                                    {% if row.box_code in move.desktop_default_selected_boxes %}checked{% endif %}
+                                  >
+                                  <span>Выбрать</span>
+                                </label>
+                              {% else %}
+                                <strong>{{ row.action }}</strong>
+                              {% endif %}
+                            </td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  {% endif %}
+                  {% if move.move_mode == "box_full" and move.requested_box_selection == "pattern_matching" %}
+                    <div><strong>Нужно отобрать:</strong> {{ move.requested_box_pattern_summary }}{% if move.matching_box_count %} · всего подходящих коробов {{ move.matching_box_count }}{% endif %}.</div>
+                    {% if move.picked_boxes %}
+                      <div><strong>Фактически отобраны:</strong> {{ move.picked_boxes|join:", " }}</div>
+                    {% endif %}
+                    {% if move.otg_already_delivered_boxes %}
+                      <div><strong>Уже в OTG:</strong> {{ move.otg_already_delivered_boxes|join:", " }}</div>
+                    {% endif %}
+                  {% elif move.move_mode == "box_full" and move.requested_box_selection == "any_matching" %}
+                    <div><strong>Нужно отобрать:</strong> любые {{ move.requested_box_count }} подходящих короба{% if move.matching_box_count %} из {{ move.matching_box_count }}{% endif %}.</div>
+                    {% if move.picked_boxes %}
+                      <div><strong>Фактически отобраны:</strong> {{ move.picked_boxes|join:", " }}</div>
+                    {% endif %}
+                    {% if move.otg_already_delivered_boxes %}
+                      <div><strong>Уже в OTG:</strong> {{ move.otg_already_delivered_boxes|join:", " }}</div>
+                    {% endif %}
+                  {% elif move.move_mode == "box_full" and move.requested_boxes %}
+                    <div><strong>Короба:</strong> {{ move.requested_boxes|join:", " }}</div>
+                  {% endif %}
+                  {% if move.can_complete and move.desktop_manual_box_choice_enabled %}
+                    <div class="desktop-selection-hint">
+                      В desktop-режиме можно вручную отметить нужные короба и завершить задание без сканера.
+                      {% if move.desktop_default_selected_boxes %}
+                        По умолчанию отмечены текущие короба из резерва.
+                      {% endif %}
+                    </div>
+                    <div class="desktop-selection-status" data-desktop-selection-status>
+                      {% if move.desktop_otg_completion_ready %}
+                        Короба уже в OTG. Можно завершить задачу без повторного отбора.
+                      {% elif move.requested_box_selection == "pattern_matching" and move.requested_box_pattern_summary %}
+                        Нужно выбрать: {{ move.requested_box_pattern_summary }}.
+                      {% else %}
+                        Выберите {{ move.requested_box_count }} подходящих коробов.
+                      {% endif %}
+                    </div>
+                  {% endif %}
+                  <div class="meta-line">
+                    <span>Задание №{{ move.order_id }}</span>
+                    <span>Приемка №{{ move.receiving_order_id }}</span>
+                  </div>
+                  <div class="meta-line">
+                    <span>Запросил: {{ move.requested_by_name }}</span>
+                    {% if move.assigned_to_id %}
+                      <span>Исполнитель: {{ move.assigned_to_name }}</span>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="device-actions">
+                  {% if move.can_manage %}
+                    <button
+                      class="btn"
+                      type="button"
+                      data-edit-move-btn
+                      data-order-id="{{ move.order_id }}"
+                      data-pallet-code="{{ move.pallet_code }}"
+                      data-to-zone="{{ move.to_location.zone|default:'' }}"
+                      data-to-row="{{ move.to_location.row|default:'' }}"
+                      data-to-section="{{ move.to_location.section|default:'' }}"
+                      data-to-tier="{{ move.to_location.tier|default:'' }}"
+                      data-to-cell="{{ move.to_location.cell|default:'' }}"
+                    >Изменить заявку ричтраку</button>
+                    <form method="post" onsubmit="return confirm('Удалить это задание ричтрака до начала выполнения?');">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="cancel_move">
+                      <input type="hidden" name="order_id" value="{{ move.order_id }}">
+                      <button class="btn" type="submit">Удалить задание</button>
+                    </form>
+                  {% endif %}
+                  {% if move.can_take %}
+                    <form method="post">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="take_move">
+                      <input type="hidden" name="order_id" value="{{ move.order_id }}">
+                      <button class="btn primary" type="submit">Взять в работу</button>
+                    </form>
+                  {% endif %}
+                  {% if move.can_complete %}
+                    <form
+                      method="post"
+                      id="complete-move-{{ move.order_id }}"
+                      {% if move.desktop_manual_box_choice_enabled %}
+                        data-desktop-box-selector="{{ move.requested_box_selection }}"
+                        data-required-count="{{ move.requested_box_count }}"
+                        data-pattern-summary="{{ move.requested_box_pattern_summary }}"
+                        data-already-delivered-ready="{% if move.desktop_otg_completion_ready %}1{% else %}0{% endif %}"
+                      {% endif %}
+                    >
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="complete_move">
+                      <input type="hidden" name="order_id" value="{{ move.order_id }}">
+                      <input type="hidden" name="execution_mode" value="desktop_debug">
+                      {% if move.desktop_manual_box_choice_enabled %}
+                        <input type="hidden" name="desktop_box_selection_active" value="1">
+                      {% endif %}
+                      <button
+                        class="btn primary"
+                        type="submit"
+                        {% if move.desktop_manual_box_choice_enabled %}data-desktop-complete-button{% endif %}
+                      >Завершить перемещение</button>
+                    </form>
+                  {% endif %}
+                </div>
+              </div>
+            {% empty %}
+              <div class="move-card">Активных перемещений пока нет.</div>
+            {% endfor %}
+          </div>
+        </section>
+
+        {% if moves_done %}
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">История перемещений</h2>
+                <div class="panel-subtitle">Последние выполненные задания.</div>
+              </div>
+            </div>
+            <div class="moves-grid">
+              {% for move in moves_done %}
+                <div class="move-card">
+                  <div class="move-head">
+                    <div class="move-title">Паллета {{ move.pallet_code }}</div>
+                    <div class="pill done">{{ move.status_label }}</div>
+                  </div>
+                  <div class="move-meta">
+                    {% if move.task_kind_label %}
+                      <div><strong>Тип задания:</strong> {{ move.task_kind_label }}</div>
+                    {% endif %}
+                    <div><strong>Откуда:</strong> {{ move.from_label }}</div>
+                    <div><strong>Куда:</strong> {{ move.to_label }}</div>
+                      {% if move.instruction %}
+                        <div><strong>Задание:</strong> {{ move.instruction }}</div>
+                      {% endif %}
+                      {% if move.move_mode == "box_partial" %}
+                        <div><strong>Потребность заявки:</strong> {{ move.requested_qty }} шт.</div>
+                        {% if move.requested_box %}
+                          <div><strong>Короб-источник:</strong> {{ move.requested_box }}</div>
+                        {% endif %}
+                        {% if move.box_execution_plan %}
+                          <div class="move-section-title">План отбора по коробам</div>
+                          <table class="pick-table">
+                            <thead>
+                              <tr>
+                                <th>Короб</th>
+                                <th>ШК / состав</th>
+                                <th>В коробе</th>
+                                <th>В OBR</th>
+                                <th>Останется</th>
+                                <th>Вернуть назад</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {% for row in move.box_execution_plan %}
+                                <tr{% if row.return_back_qty %} class="return-row"{% endif %}>
+                                  <td>{{ row.box_code }}</td>
+                                  <td>{% if row.barcode_preview %}{{ row.barcode_preview }}{% else %}-{% endif %}</td>
+                                  <td>{{ row.box_qty }} шт.</td>
+                                  <td>{{ row.to_obr_qty }} шт.</td>
+                                  <td>{{ row.remain_in_box_qty }} шт.</td>
+                                  <td{% if row.return_back_qty %} class="return-action"{% endif %}><strong>{{ row.return_back_qty }} шт.</strong></td>
+                                </tr>
+                              {% endfor %}
+                            </tbody>
+                          </table>
+                        {% endif %}
+                    {% endif %}
+                    {% if move.pallet_box_plan and move.move_mode != "box_partial" and not move.hide_history_pallet_box_plan %}
+                      <table class="pick-table">
+                        <thead>
+                          <tr>
+                            <th>Короб</th>
+                            <th>Количество</th>
+                            <th>ШК / состав</th>
+                            <th>Действие</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for row in move.pallet_box_plan %}
+                            <tr{% if row.action == "Вернуть" %} class="return-row"{% endif %}>
+                              <td>{{ row.box_code }}</td>
+                              <td>{{ row.qty }} шт.</td>
+                              <td>{% if row.barcode_preview %}{{ row.barcode_preview }}{% else %}-{% endif %}</td>
+                              <td{% if row.action == "Вернуть" %} class="return-action"{% endif %}><strong>{{ row.action }}</strong></td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    {% endif %}
+                    {% if move.move_mode == "box_full" and move.requested_box_selection == "pattern_matching" %}
+                      <div><strong>Нужно отобрать:</strong> {{ move.requested_box_pattern_summary }}{% if move.matching_box_count %} · всего подходящих коробов {{ move.matching_box_count }}{% endif %}.</div>
+                      {% if move.picked_boxes %}
+                        <div><strong>Фактически отобраны:</strong> {{ move.picked_boxes|join:", " }}</div>
+                      {% endif %}
+                    {% elif move.move_mode == "box_full" and move.requested_box_selection == "any_matching" %}
+                      <div><strong>Нужно отобрать:</strong> любые {{ move.requested_box_count }} подходящих короба{% if move.matching_box_count %} из {{ move.matching_box_count }}{% endif %}.</div>
+                      {% if move.picked_boxes %}
+                        <div><strong>Фактически отобраны:</strong> {{ move.picked_boxes|join:", " }}</div>
+                      {% endif %}
+                    {% elif move.move_mode == "box_full" and move.requested_boxes %}
+                      <div><strong>Короба:</strong> {{ move.requested_boxes|join:", " }}</div>
+                    {% endif %}
+                    <div class="meta-line">
+                      <span>Задание №{{ move.order_id }}</span>
+                      <span>Приемка №{{ move.receiving_order_id }}</span>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </section>
+        {% endif %}
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="overlay" id="edit-move-modal" aria-hidden="true">
+    <div class="dialog">
+      <div>
+        <h3 class="dialog-title">Изменить заявку ричтраку</h3>
+        <div class="panel-subtitle" id="edit-move-subtitle">Место назначения задания.</div>
+      </div>
+      <form method="post" id="edit-move-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="edit_move_destination">
+        <input type="hidden" name="order_id" id="edit-move-order-id">
+        <input type="hidden" name="mobile_category" value="{{ mobile_category|default:'' }}">
+        <input type="hidden" name="mobile_request" value="{{ mobile_request_key|default:'' }}">
+        <input type="hidden" name="mobile_task" value="{{ mobile_selected_task.order_id|default:'' }}">
+        <div class="form-grid">
+          <div>
+            <label for="edit-move-zone">Зона</label>
+            <select id="edit-move-zone" name="to_zone" required>
+              <option value="">Выберите зону</option>
+              <option value="PR">PR</option>
+              <option value="MR">MR</option>
+              <option value="OS">OS</option>
+              <option value="OBR">OBR</option>
+              <option value="OTG">OTG</option>
+            </select>
+          </div>
+          <div data-edit-field="row">
+            <label for="edit-move-row">Стеллаж</label>
+            <input id="edit-move-row" name="to_row" type="number" min="1" step="1">
+          </div>
+          <div data-edit-field="section">
+            <label for="edit-move-section">Линия</label>
+            <input id="edit-move-section" name="to_section" type="number" min="1" step="1">
+          </div>
+          <div data-edit-field="tier">
+            <label for="edit-move-tier">Этаж</label>
+            <input id="edit-move-tier" name="to_tier" type="number" min="1" step="1">
+          </div>
+          <div data-edit-field="cell">
+            <label for="edit-move-cell">Ячейка</label>
+            <input id="edit-move-cell" name="to_cell" type="number" min="1" step="1">
+          </div>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn ghost" type="button" id="edit-move-cancel">Отмена</button>
+          <button class="btn primary" type="submit">Сохранить заявку</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const zoneSelect = document.getElementById('to-zone');
+      const rowField = document.querySelector('[data-field="row"]');
+      const sectionField = document.querySelector('[data-field="section"]');
+      const tierField = document.querySelector('[data-field="tier"]');
+      const cellField = document.querySelector('[data-field="cell"]');
+      const palletInput = document.getElementById('pallet-code');
+      const editMoveModal = document.getElementById('edit-move-modal');
+      const editMoveOrderId = document.getElementById('edit-move-order-id');
+      const editMoveSubtitle = document.getElementById('edit-move-subtitle');
+      const editMoveZone = document.getElementById('edit-move-zone');
+      const editMoveRow = document.getElementById('edit-move-row');
+      const editMoveSection = document.getElementById('edit-move-section');
+      const editMoveTier = document.getElementById('edit-move-tier');
+      const editMoveCell = document.getElementById('edit-move-cell');
+      const editMoveCancel = document.getElementById('edit-move-cancel');
+      const editRowField = document.querySelector('[data-edit-field="row"]');
+      const editSectionField = document.querySelector('[data-edit-field="section"]');
+      const editTierField = document.querySelector('[data-edit-field="tier"]');
+      const editCellField = document.querySelector('[data-edit-field="cell"]');
+
+      const toggleFields = () => {
+        if (!zoneSelect) {
+          return;
+        }
+        const zone = zoneSelect.value;
+        const showRow = zone === 'MR' || zone === 'OS';
+        const showOS = zone === 'OS';
+        if (rowField) {
+          rowField.style.display = showRow ? 'grid' : 'none';
+        }
+        if (sectionField) {
+          sectionField.style.display = showOS ? 'grid' : 'none';
+        }
+        if (tierField) {
+          tierField.style.display = showOS ? 'grid' : 'none';
+        }
+        if (cellField) {
+          cellField.style.display = showOS ? 'grid' : 'none';
+        }
+      };
+      const toggleEditMoveFields = () => {
+        if (!editMoveZone) {
+          return;
+        }
+        const zone = String(editMoveZone.value || '').toUpperCase();
+        const showRow = zone === 'MR' || zone === 'OS';
+        const showOS = zone === 'OS';
+        if (editRowField) {
+          editRowField.style.display = showRow ? 'grid' : 'none';
+        }
+        if (editSectionField) {
+          editSectionField.style.display = showOS ? 'grid' : 'none';
+        }
+        if (editTierField) {
+          editTierField.style.display = showOS ? 'grid' : 'none';
+        }
+        if (editCellField) {
+          editCellField.style.display = showOS ? 'grid' : 'none';
+        }
+      };
+      const closeEditMoveModal = () => {
+        if (!editMoveModal) {
+          return;
+        }
+        editMoveModal.classList.remove('is-open');
+        editMoveModal.setAttribute('aria-hidden', 'true');
+      };
+      const openEditMoveModal = (button) => {
+        if (!editMoveModal || !button) {
+          return;
+        }
+        if (editMoveOrderId) {
+          editMoveOrderId.value = String(button.dataset.orderId || '').trim();
+        }
+        if (editMoveSubtitle) {
+          const palletCode = String(button.dataset.palletCode || '').trim();
+          editMoveSubtitle.textContent = palletCode
+            ? `Паллета ${palletCode}: измените место назначения задания.`
+            : 'Измените место назначения задания.';
+        }
+        if (editMoveZone) {
+          editMoveZone.value = String(button.dataset.toZone || '').trim().toUpperCase();
+        }
+        if (editMoveRow) {
+          editMoveRow.value = String(button.dataset.toRow || '').trim();
+        }
+        if (editMoveSection) {
+          editMoveSection.value = String(button.dataset.toSection || '').trim();
+        }
+        if (editMoveTier) {
+          editMoveTier.value = String(button.dataset.toTier || '').trim();
+        }
+        if (editMoveCell) {
+          editMoveCell.value = String(button.dataset.toCell || '').trim();
+        }
+        toggleEditMoveFields();
+        editMoveModal.classList.add('is-open');
+        editMoveModal.setAttribute('aria-hidden', 'false');
+      };
+
+      if (zoneSelect) {
+        zoneSelect.addEventListener('change', toggleFields);
+        toggleFields();
+      }
+      if (editMoveZone) {
+        editMoveZone.addEventListener('change', toggleEditMoveFields);
+        toggleEditMoveFields();
+      }
+      document.querySelectorAll('[data-edit-move-btn]').forEach((btn) => {
+        btn.addEventListener('click', () => openEditMoveModal(btn));
+      });
+      if (editMoveCancel) {
+        editMoveCancel.addEventListener('click', closeEditMoveModal);
+      }
+      if (editMoveModal) {
+        editMoveModal.addEventListener('click', (event) => {
+          if (event.target === editMoveModal) {
+            closeEditMoveModal();
+          }
+        });
+      }
+      if (palletInput && window.matchMedia('(max-width: 900px)').matches) {
+        palletInput.focus();
+      }
+      const scanInput = document.querySelector('.scan-input');
+      const scanForm = scanInput ? scanInput.closest('.scan-form') : null;
+      const scanPanel = scanInput ? scanInput.closest('.scan-panel') : null;
+      const scanSubmitButtons = scanForm
+        ? Array.from(scanForm.querySelectorAll('button[type="submit"], input[type="submit"]'))
+        : [];
+      const mobileScanMode = Boolean(scanInput && window.matchMedia('(max-width: 900px)').matches);
+      if (mobileScanMode && scanInput && scanForm) {
+        const nonScanInteractiveSelector = 'a, button, input:not(.scan-input), textarea, select, [contenteditable="true"], summary';
+        let scanSubmitting = false;
+        let scanFocusTimer = 0;
+        const isNonScanInteractive = (value) => (
+          value instanceof HTMLElement
+          && Boolean(value.closest(nonScanInteractiveSelector))
+        );
+        const focusScanInput = () => {
+          if (!document.body.contains(scanInput)) {
+            return;
+          }
+          try {
+            scanInput.focus({ preventScroll: true });
+          } catch (e) {
+            scanInput.focus();
+          }
+        };
+        const scheduleScanFocus = (delay = 30) => {
+          window.clearTimeout(scanFocusTimer);
+          scanFocusTimer = window.setTimeout(() => {
+            if (scanSubmitting || !document.body.contains(scanInput)) {
+              return;
+            }
+            const active = document.activeElement;
+            if (active === scanInput) {
+              return;
+            }
+            if (isNonScanInteractive(active)) {
+              return;
+            }
+            focusScanInput();
+          }, delay);
+        };
+        const lockScanForm = () => {
+          if (scanSubmitting) {
+            return;
+          }
+          scanSubmitting = true;
+          scanInput.value = String(scanInput.value || '').trim();
+          scanInput.readOnly = true;
+          scanInput.setAttribute('aria-disabled', 'true');
+          scanForm.classList.add('is-submitting');
+          scanSubmitButtons.forEach((button) => {
+            if ('disabled' in button) {
+              button.disabled = true;
+            }
+            if (button instanceof HTMLInputElement) {
+              button.value = 'Отправляем...';
+            } else {
+              button.textContent = 'Отправляем...';
+            }
+          });
+          try {
+            scanInput.blur();
+          } catch (e) {
+            // ignore blur issues on mobile browsers
+          }
+        };
+        const submitScanValue = (scanValue) => {
+          const normalized = String(scanValue || '').trim();
+          if (!normalized || scanSubmitting) {
+            return;
+          }
+          scanInput.value = normalized;
+          if (typeof scanForm.requestSubmit === 'function') {
+            scanForm.requestSubmit();
+          } else {
+            lockScanForm();
+            scanForm.submit();
+          }
+        };
+        scanInput.classList.add('mobile-capture');
+        scanInput.addEventListener('blur', () => {
+          scheduleScanFocus(20);
+        });
+        if (scanPanel) {
+          scanPanel.addEventListener('click', (event) => {
+            const target = event.target;
+            if (
+              target instanceof HTMLElement
+              && target.closest('a, button, input, textarea, select, label')
+            ) {
+              return;
+            }
+            focusScanInput();
+          });
+        }
+        scanForm.addEventListener('submit', (event) => {
+          const normalized = String(scanInput.value || '').trim();
+          if (scanSubmitting) {
+            event.preventDefault();
+            return;
+          }
+          if (!normalized) {
+            event.preventDefault();
+            scheduleScanFocus(20);
+            return;
+          }
+          scanInput.value = normalized;
+          lockScanForm();
+        });
+        scanInput.addEventListener('keydown', (event) => {
+          if (scanSubmitting) {
+            event.preventDefault();
+            return;
+          }
+          if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) {
+            return;
+          }
+          const key = String(event.key || '');
+          if (key === 'Enter' || key === 'NumpadEnter' || key === 'Tab') {
+            event.preventDefault();
+            submitScanValue(scanInput.value);
+            return;
+          }
+          if (key === 'Escape') {
+            scanInput.value = '';
+            event.preventDefault();
+            return;
+          }
+        });
+        window.addEventListener('focus', () => {
+          scheduleScanFocus(20);
+        });
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden) {
+            scheduleScanFocus(20);
+          }
+        });
+        focusScanInput();
+        scheduleScanFocus(50);
+      } else if (scanInput && window.matchMedia('(max-width: 900px)').matches) {
+        try {
+          scanInput.focus({ preventScroll: true });
+        } catch (e) {
+          scanInput.focus();
+        }
+      }
+      const buildSlotArray = (rawValue) => (
+        String(rawValue || '')
+          .split(',')
+          .map((token) => Number.parseInt(String(token || '').trim(), 10))
+          .filter((value) => Number.isInteger(value) && value >= 0)
+      );
+      const maxPatternMatching = (boxes, slotCount) => {
+        if (!Array.isArray(boxes) || !slotCount) {
+          return 0;
+        }
+        const matchBySlot = new Array(slotCount).fill(-1);
+        const tryMatch = (boxIndex, seen) => {
+          const box = boxes[boxIndex];
+          if (!box || !Array.isArray(box.slots)) {
+            return false;
+          }
+          for (const slotIndex of box.slots) {
+            if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= slotCount || seen[slotIndex]) {
+              continue;
+            }
+            seen[slotIndex] = true;
+            const assignedBoxIndex = matchBySlot[slotIndex];
+            if (assignedBoxIndex === -1 || tryMatch(assignedBoxIndex, seen)) {
+              matchBySlot[slotIndex] = boxIndex;
+              return true;
+            }
+          }
+          return false;
+        };
+        let matched = 0;
+        boxes.forEach((box, boxIndex) => {
+          if (!box || !Array.isArray(box.slots) || !box.slots.length) {
+            return;
+          }
+          const seen = new Array(slotCount).fill(false);
+          if (tryMatch(boxIndex, seen)) {
+            matched += 1;
+          }
+        });
+        return matched;
+      };
+      const syncDesktopBoxSelector = (form) => {
+        if (!(form instanceof HTMLFormElement)) {
+          return;
+        }
+        const selectionMode = String(form.dataset.desktopBoxSelector || '').trim();
+        if (!selectionMode) {
+          return;
+        }
+        const requiredCount = Number.parseInt(String(form.dataset.requiredCount || '0'), 10) || 0;
+        const patternSummary = String(form.dataset.patternSummary || '').trim();
+        const alreadyDeliveredReady = String(form.dataset.alreadyDeliveredReady || '') === '1';
+        const submitButton = form.querySelector('[data-desktop-complete-button]');
+        const statusNode = form.closest('.move-card')?.querySelector('[data-desktop-selection-status]');
+        const checkboxes = Array.from(
+          document.querySelectorAll(`input[name="selected_boxes"][form="${form.id}"]`)
+        ).filter((node) => node instanceof HTMLInputElement);
+        const getChecked = () => checkboxes.filter((checkbox) => checkbox.checked);
+        const getUnchecked = () => checkboxes.filter((checkbox) => !checkbox.checked);
+        const boxMeta = (checkbox) => ({
+          checkbox,
+          slots: buildSlotArray(checkbox.dataset.patternSlots),
+        });
+        const setStatus = (text, state) => {
+          if (!(statusNode instanceof HTMLElement)) {
+            return;
+          }
+          statusNode.textContent = text;
+          statusNode.classList.toggle('is-error', state === 'error');
+          statusNode.classList.toggle('is-ready', state === 'ready');
+        };
+        const refresh = () => {
+          if (alreadyDeliveredReady) {
+            checkboxes.forEach((checkbox) => {
+              const label = checkbox.closest('[data-box-select-label]');
+              checkbox.disabled = true;
+              if (label instanceof HTMLElement) {
+                label.classList.add('is-disabled');
+              }
+            });
+            if (submitButton instanceof HTMLButtonElement) {
+              submitButton.disabled = false;
+            }
+            setStatus('Короба уже в OTG. Можно завершить задачу без повторного отбора.', 'ready');
+            return;
+          }
+          const checked = getChecked();
+          const checkedCount = checked.length;
+          const checkedBoxes = checked.map(boxMeta);
+          const unchecked = getUnchecked();
+          const partialValid = (
+            selectionMode !== 'pattern_matching'
+            || maxPatternMatching(checkedBoxes, requiredCount) === checkedBoxes.length
+          );
+          const ready = (
+            checkedCount === requiredCount
+            && (
+              selectionMode !== 'pattern_matching'
+              || maxPatternMatching(checkedBoxes, requiredCount) === requiredCount
+            )
+          );
+          checkboxes.forEach((checkbox) => {
+            const label = checkbox.closest('[data-box-select-label]');
+            let shouldDisable = false;
+            if (!checkbox.checked) {
+              if (selectionMode === 'pattern_matching') {
+                if (!partialValid || checkedCount >= requiredCount) {
+                  shouldDisable = true;
+                } else {
+                  const candidateBoxes = checkedBoxes.concat([boxMeta(checkbox)]);
+                  const candidatePartialValid = (
+                    maxPatternMatching(candidateBoxes, requiredCount) === candidateBoxes.length
+                  );
+                  if (!candidatePartialValid) {
+                    shouldDisable = true;
+                  } else {
+                    const remainingBoxes = unchecked
+                      .filter((node) => node !== checkbox)
+                      .map(boxMeta);
+                    shouldDisable = (
+                      maxPatternMatching(candidateBoxes.concat(remainingBoxes), requiredCount) < requiredCount
+                    );
+                  }
+                }
+              } else {
+                shouldDisable = checkedCount >= requiredCount;
+              }
+            }
+            checkbox.disabled = shouldDisable;
+            if (label instanceof HTMLElement) {
+              label.classList.toggle('is-disabled', shouldDisable);
+            }
+          });
+          if (submitButton instanceof HTMLButtonElement) {
+            submitButton.disabled = !ready;
+          }
+          if (ready) {
+            setStatus('Схема собрана. Можно завершать перемещение.', 'ready');
+            return;
+          }
+          if (selectionMode === 'pattern_matching') {
+            if (!checkedCount) {
+              setStatus(
+                patternSummary ? `Нужно выбрать: ${patternSummary}.` : 'Выберите короба по коробочной схеме.',
+                ''
+              );
+              return;
+            }
+            if (!partialValid) {
+              setStatus(
+                patternSummary ? `Текущий выбор не подходит. Нужна схема: ${patternSummary}.` : 'Текущий выбор не подходит под схему задания.',
+                'error'
+              );
+              return;
+            }
+            setStatus(
+              patternSummary
+                ? `Выбрано ${checkedCount} из ${requiredCount}. Дособерите схему: ${patternSummary}.`
+                : `Выбрано ${checkedCount} из ${requiredCount}.`,
+              ''
+            );
+            return;
+          }
+          setStatus(`Выбрано ${checkedCount} из ${requiredCount} подходящих коробов.`, '');
+        };
+        checkboxes.forEach((checkbox) => {
+          checkbox.addEventListener('change', refresh);
+        });
+        refresh();
+      };
+      document.querySelectorAll('[data-desktop-box-selector]').forEach((form) => {
+        syncDesktopBoxSelector(form);
+      });
+      const searchParams = new URLSearchParams(window.location.search);
+      const isSuperCarRoot = (
+        !searchParams.get('mobile_section')
+        && !searchParams.get('mobile_category')
+        && !searchParams.get('mobile_extra')
+        && !searchParams.get('mobile_request')
+        && !searchParams.get('mobile_task')
+      );
+      if (isSuperCarRoot) {
+        const mobileFlow = document.querySelector('.mobile-flow');
+        const rootTitle = mobileFlow?.querySelector('.panel-header .panel-title');
+        const rootSubtitle = mobileFlow?.querySelector('.panel-header .panel-subtitle');
+        if (rootTitle) {
+          rootTitle.textContent = '{{ mobile_root_title|default:""|escapejs }}';
+        }
+        if (rootSubtitle) {
+          rootSubtitle.textContent = '{{ mobile_root_subtitle|default:""|escapejs }}';
+        }
+        mobileFlow?.querySelectorAll('.mobile-menu-btn').forEach((button) => {
+          const title = button.querySelector('.mobile-menu-title')?.textContent?.trim() || '';
+          const subtitle = button.querySelector('.mobile-menu-sub');
+          if (!subtitle) {
+            return;
+          }
+          if (title === '\u0420\u0430\u0437\u043c\u0435\u0449\u0435\u043d\u0438\u0435') {
+            subtitle.textContent = '\u041f\u0430\u043b\u043b\u0435\u0442\u044b \u043d\u0430 \u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435';
+            return;
+          }
+          if (title === '\u0421\u0431\u043e\u0440\u043a\u0430') {
+            subtitle.textContent = '\u041f\u043e\u0434\u0431\u043e\u0440 \u0438 \u043f\u043e\u0434\u0430\u0447\u0430 \u0433\u0440\u0443\u0437\u0430';
+            return;
+          }
+          if (title === '\u0414\u043e\u043f\u044b') {
+            subtitle.textContent = '\u0411\u044b\u0441\u0442\u0440\u044b\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044f';
+          }
+        });
+      }
+      const flashState = '{{ mobile_flash_state|default:""|escapejs }}';
+      if (flashState === 'error' || flashState === 'success') {
+        const playFallbackTone = () => {
+          try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) {
+              return;
+            }
+            const ctx = new AudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = flashState === 'error' ? 'sawtooth' : 'sine';
+            osc.frequency.value = flashState === 'error' ? 180 : 720;
+            gain.gain.value = flashState === 'error' ? 0.06 : 0.05;
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.frequency.setValueAtTime(osc.frequency.value, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(
+              flashState === 'error' ? 120 : 520,
+              ctx.currentTime + 0.16
+            );
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+            osc.stop(ctx.currentTime + 0.18);
+          } catch (e) {}
+        };
+        try {
+          const audioId = flashState === 'error' ? 'scan-error-audio' : 'scan-success-audio';
+          const audioEl = document.getElementById(audioId);
+          if (audioEl) {
+            audioEl.currentTime = 0;
+            const playPromise = audioEl.play();
+            if (playPromise && typeof playPromise.catch === 'function') {
+              playPromise.catch(() => playFallbackTone());
+            }
+          } else {
+            playFallbackTone();
+          }
+        } catch (e) {
+          playFallbackTone();
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

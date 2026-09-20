@@ -1,0 +1,578 @@
+{% extends "accountant/_base.html" %}
+{% block title %}Тариф {% if version %}{{ client_display }}{% endif %}{% endblock %}
+{% block content %}
+{% if not version %}
+<div class="err-box">Тариф не найден</div>
+{% else %}
+<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+  <div>
+    <div class="muted" style="font-size:12px"><a href="/accountant/tariffs/">Тарифы</a> › {{ client_display }}</div>
+    <h1 class="page-title">Тарифы клиента: {{ client_display }}</h1>
+    <div class="page-sub">{{ version.name }} · <span class="badge">{{ version.get_status_display }}</span></div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    {% if tariff_can_edit %}
+      {% if version.status == 'draft' %}
+        <button class="btn primary" type="button" id="js-apply-price">Заполнить из прайса FullBox</button>
+      {% endif %}
+      <button class="btn" type="button" id="js-save-draft">Сохранить тариф</button>
+      {% if version.status == 'draft' %}
+        <button class="btn primary" type="button" id="js-publish">Опубликовать тариф</button>
+      {% endif %}
+      <form method="post" action="/accountant/tariffs/{{ version.id }}/delete/" onsubmit="return confirm('Удалить черновик прайса «{{ version.name|escapejs }}»?');">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="/accountant/tariffs/?status=draft">
+        {% if version.status == 'draft' %}<button class="btn danger" type="submit">Удалить черновик</button>{% endif %}
+      </form>
+      {% if version.status != 'draft' %}
+        <button class="btn" type="button" id="js-duplicate">Создать новую редакцию</button>
+        <button class="btn danger" type="button" id="js-archive">Архивировать</button>
+      {% endif %}
+    {% else %}
+      <button class="btn" type="button" id="js-duplicate">Редактировать тариф (копия)</button>
+      <button class="btn danger" type="button" id="js-archive">Архивировать</button>
+    {% endif %}
+    <a class="btn" href="/team-manager/billing/tariff-versions/{{ version.id }}/download/" target="_blank">Печать / Excel</a>
+    <a class="btn" href="/accountant/clients/{{ version.client_id }}/">Карточка клиента</a>
+  </div>
+</div>
+
+<div class="card" style="background:var(--accent-soft);border-color:transparent">
+  <div class="grid-3">
+    <div>
+      <div class="lbl">Клиент обслуживания</div>
+      <strong style="font-size:16px">{{ version.client.agn_name }}</strong>
+      <div class="muted" style="font-size:12px;margin-top:4px">ID #{{ version.client_id }} · ИНН {{ version.client.inn|default:"—" }}</div>
+    </div>
+    <div>
+      <div class="lbl">Компания FullBox (кто обслуживает)</div>
+      <strong>
+        {% if serving_company %}
+          {{ serving_company.short_name|default:serving_company.name }}
+        {% else %}
+          <span style="color:var(--red)">не выбрана</span>
+        {% endif %}
+      </strong>
+      <div class="muted" style="font-size:12px;margin-top:4px">
+        {% if serving_company %}
+          {% if serving_company.tax_mode == 'no_vat' %}Без НДС{% else %}НДС {{ serving_company.vat_rate }}%{% endif %}
+        {% else %}
+          Укажите в <a href="/accountant/clients/{{ version.client_id }}/">карточке клиента</a>
+        {% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="lbl">Договор / КП</div>
+      <strong>{{ version.contract_number|default:version.client.contract_numb|default:"—" }}</strong>
+      <div class="muted" style="font-size:12px;margin-top:4px">КП: {{ version.additional_agreement_number|default:lifecycle.commercial_offer_number|default:"—" }}</div>
+    </div>
+  </div>
+</div>
+
+{% if publish_errors %}
+<div class="warn-box">
+  Перед публикацией:
+  <ul style="margin:8px 0 0;padding-left:18px">{% for e in publish_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+<div id="flash" hidden></div>
+
+{% if tariff_edit_block_reason %}
+<div class="warn-box">
+  {{ tariff_edit_block_reason }}
+  {% if tariff_can_add_services %}
+  <div style="margin-top:6px">Существующие строки и их цены защищены. Ниже можно добавить только новую услугу с новой ценой.</div>
+  {% endif %}
+</div>
+{% elif version.status != 'draft' and tariff_can_edit %}
+<div class="warn-box">
+  Эта опубликованная редакция ещё не используется в начислениях, поэтому её можно исправить напрямую без создания новой версии.
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="grid-3">
+    <div>
+      <div class="lbl">Дата начала</div>
+      {% if tariff_can_edit %}
+        <input class="field" type="date" id="valid-from" value="{{ version.valid_from|date:'Y-m-d' }}">
+      {% else %}
+        <strong>{{ version.valid_from|date:"d.m.Y" }}</strong>
+      {% endif %}
+    </div>
+    <div><div class="lbl">Статус тарифа</div><strong>{{ version.get_status_display }}</strong></div>
+    <div><div class="lbl">Комментарий</div>
+      {% if tariff_can_edit %}
+        <input class="field" id="general-comment" value="{{ version.general_comment }}">
+      {% else %}
+        <strong>{{ version.general_comment|default:"—" }}</strong>
+      {% endif %}
+    </div>
+  </div>
+  {% if tariff_can_edit %}
+  <div class="muted" style="font-size:12px;margin-top:12px">
+    {% if version.status == 'draft' %}
+      Цены подставляются из прайса FullBox от 17.07.2026. В черновике можно изменить услугу, наименование в прайсе и цену клиента — сохраните черновик после правок.
+    {% else %}
+      Услуги ещё не выставлялись по этой редакции. Можно исправить услугу, наименование и цену прямо в опубликованном тарифе.
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="card" id="storage-rule-card">
+  <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+    <div>
+      <h2 style="margin:0;font-size:16px">Тарифы → Хранение</h2>
+      <div class="muted" style="font-size:12px;margin-top:4px">Правила расчёта объёма и тарификации хранения (без отдельного StorageTariff)</div>
+    </div>
+    {% if tariff_can_edit %}
+    <button class="btn" type="button" id="js-save-storage-rule">Сохранить правила хранения</button>
+    {% endif %}
+  </div>
+  {% if storage_rule_data %}
+  <div class="warn-box" style="margin-bottom:14px">
+    Выберите <b>единицу</b> (палета / литр / м³) и <b>период цены</b> (сутки / неделя / месяц).
+    Ежедневный расчёт сам пересчитает недельную и месячную цену в долю за день снимка.
+  </div>
+  <div class="grid-3">
+    <div>
+      <div class="lbl">Единица тарифа</div>
+      {% if tariff_can_edit %}
+      <select class="field" id="sr-charge-basis">
+        {% for val,label in storage_rule_choices.charge_basis %}
+        <option value="{{ val }}" {% if storage_rule_data.charge_basis == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <strong>{{ storage_rule_data.charge_basis_label }}</strong>
+      {% endif %}
+    </div>
+    <div>
+      <div class="lbl">Период тарифа</div>
+      {% if tariff_can_edit %}
+      <select class="field" id="sr-charge-period">
+        {% for val,label in storage_rule_choices.charge_period %}
+        <option value="{{ val }}" {% if storage_rule_data.charge_period == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <strong>{{ storage_rule_data.charge_period_label }}</strong>
+      {% endif %}
+      <div class="muted" style="font-size:11px;margin-top:4px">Цена в строке тарифа указана за этот период</div>
+    </div>
+    <div>
+      <div class="lbl">Итоговый режим</div>
+      <strong id="sr-mode-label">{{ storage_rule.get_billing_mode_display }}</strong>
+      <input type="hidden" id="sr-billing-mode" value="{{ storage_rule_data.billing_mode }}">
+    </div>
+    <div>
+      <div class="lbl">Уровень объёма</div>
+      {% if tariff_can_edit %}
+      <select class="field" id="sr-volume-level">
+        {% for val,label in storage_rule_choices.volume_level %}
+        <option value="{{ val }}" {% if storage_rule_data.volume_level == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <strong>{{ storage_rule.get_volume_level_display }}</strong>
+      {% endif %}
+    </div>
+    <div>
+      <div class="lbl">Нет габаритов</div>
+      {% if tariff_can_edit %}
+      <select class="field" id="sr-missing-dims">
+        {% for val,label in storage_rule_choices.missing_dims_policy %}
+        <option value="{{ val }}" {% if storage_rule_data.missing_dims_policy == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <strong>{{ storage_rule.get_missing_dims_policy_display }}</strong>
+      {% endif %}
+    </div>
+    <div>
+      <div class="lbl">Месячный режим</div>
+      {% if tariff_can_edit %}
+      <select class="field" id="sr-month-mode">
+        {% for val,label in storage_rule_choices.month_mode %}
+        <option value="{{ val }}" {% if storage_rule_data.month_mode == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <strong>{{ storage_rule.get_month_mode_display }}</strong>
+      {% endif %}
+    </div>
+    <div>
+      <div class="lbl">Округление</div>
+      {% if tariff_can_edit %}
+      <select class="field" id="sr-rounding">
+        {% for val,label in storage_rule_choices.rounding_mode %}
+        <option value="{{ val }}" {% if storage_rule_data.rounding_mode == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <strong>{{ storage_rule.get_rounding_mode_display }}</strong>
+      {% endif %}
+    </div>
+    <div>
+      <div class="lbl">Коэффициент по умолчанию</div>
+      {% if tariff_can_edit %}
+      <input class="field" id="sr-coeff" value="{{ storage_rule_data.space_coefficient_default }}">
+      {% else %}
+      <strong>{{ storage_rule.space_coefficient_default }}</strong>
+      {% endif %}
+    </div>
+    <div>
+      <div class="lbl">Бесплатный период</div>
+      {% if tariff_can_edit %}
+      <select class="field" id="sr-free-type">
+        {% for val,label in storage_rule_choices.free_period_type %}
+        <option value="{{ val }}" {% if storage_rule_data.free_period_type == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <strong>{{ storage_rule.get_free_period_type_display }}</strong>
+      {% endif %}
+    </div>
+    <div>
+      <div class="lbl">Значение бесплатного периода</div>
+      {% if tariff_can_edit %}
+      <input class="field" id="sr-free-value" value="{{ storage_rule_data.free_period_value }}">
+      {% else %}
+      <strong>{{ storage_rule.free_period_value }}</strong>
+      {% endif %}
+    </div>
+    <div>
+      <div class="lbl">Мин. объём</div>
+      {% if tariff_can_edit %}
+      <input class="field" id="sr-min-vol" value="{{ storage_rule_data.min_billable_volume }}">
+      {% else %}
+      <strong>{{ storage_rule.min_billable_volume }}</strong>
+      {% endif %}
+    </div>
+  </div>
+  {% if storage_items %}
+  <div class="muted" style="font-size:12px;margin-top:12px">Услуги хранения в тарифе: {% for i in storage_items %}{{ i.service_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+  {% endif %}
+  {% endif %}
+</div>
+
+{% if tariff_can_add_services %}
+<div class="card" id="custom-service-card">
+  <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;margin-bottom:12px">
+    <div>
+      <h2 style="margin:0;font-size:16px">Добавить услугу клиенту</h2>
+      <div class="muted" style="font-size:12px;margin-top:4px">
+        {% if tariff_can_edit %}
+          Для индивидуальных услуг, которых нет в стандартном прайсе FullBox. Услуга добавится только в этот тариф клиента.
+        {% else %}
+          Тариф уже используется: существующие строки не меняются. Новая услуга добавится отдельной активной строкой и будет доступна для новых начислений.
+        {% endif %}
+      </div>
+    </div>
+    <button class="btn primary" type="button" id="js-add-custom-item">Добавить услугу</button>
+  </div>
+  <div class="grid-3">
+    <div>
+      <div class="lbl">Наименование услуги *</div>
+      <input class="field" id="custom-service-name" placeholder="Например: Индивидуальная маркировка">
+    </div>
+    <div>
+      <div class="lbl">Категория</div>
+      <select class="field" id="custom-service-category">
+        <option value="">Индивидуальные услуги клиента</option>
+        {% for category in tariff_categories %}
+          <option value="{{ category.id }}">{{ category.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <div class="lbl">Единица</div>
+      <input class="field" id="custom-service-unit" value="шт" list="tariff-units-list">
+      <datalist id="tariff-units-list">
+        {% for unit in tariff_units %}
+          <option value="{{ unit.short_name|default:unit.name }}"></option>
+        {% endfor %}
+      </datalist>
+    </div>
+    <div>
+      <div class="lbl">Цена клиента</div>
+      <input class="field" id="custom-service-price" inputmode="decimal" placeholder="0.0000">
+    </div>
+    <div>
+      <div class="lbl">Мин. стоимость</div>
+      <input class="field" id="custom-service-min" inputmode="decimal" placeholder="не обязательно">
+    </div>
+    <div>
+      <div class="lbl">Комментарий</div>
+      <input class="field" id="custom-service-comment" placeholder="условия применения">
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card" style="padding:0;overflow:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Категория</th>
+        <th style="min-width:420px">Наименование в прайсе</th>
+        <th>Ед.</th>
+        <th>Прайс FullBox</th>
+        <th>Цена клиента</th>
+        <th>Мин. стоимость</th>
+        <th>Активна</th>
+        <th>Комментарий</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+        <tr data-item-id="{{ item.id }}">
+          <td>{{ item.category.name }}</td>
+          <td>
+            {% if tariff_can_edit %}
+              <div style="display:flex;gap:8px;align-items:center;min-width:420px">
+                <input class="field js-service-name" style="min-width:360px;flex:1" value="{{ item.service_name }}">
+                <button class="js-remove-item" type="button" title="Убрать строку из тарифа" style="border:0;background:transparent;color:var(--danger);font:inherit;font-size:11px;font-weight:800;cursor:pointer;padding:4px 0;white-space:nowrap">
+                  убрать
+                </button>
+              </div>
+            {% else %}
+              {{ item.service_name }}
+            {% endif %}
+          </td>
+          <td>{{ item.unit.short_name|default:item.unit.name }}</td>
+          <td>
+            {% if item.service.standard_price.base_price != None %}
+              {{ item.service.standard_price.base_price }}
+              {% if item.service.standard_price.price_note %}
+                <div class="muted" style="font-size:11px">{{ item.service.standard_price.price_note }}</div>
+              {% endif %}
+            {% else %}
+              {{ item.service.default_price|default:"—" }}
+            {% endif %}
+          </td>
+          <td>
+            {% if tariff_can_edit %}
+              <input class="field js-price" style="min-width:90px" value="{{ item.price }}">
+            {% else %}
+              {{ item.price }}
+            {% endif %}
+          </td>
+          <td>
+            {% if tariff_can_edit %}
+              <input class="field js-min" style="min-width:90px" value="{{ item.minimum_amount|default:'' }}">
+            {% else %}
+              {{ item.minimum_amount|default:"—" }}
+            {% endif %}
+          </td>
+          <td>
+            {% if tariff_can_edit %}
+              <input type="checkbox" class="js-active" {% if item.is_active %}checked{% endif %}>
+            {% else %}
+              {% if item.is_active %}да{% else %}нет{% endif %}
+            {% endif %}
+          </td>
+          <td>
+            {% if tariff_can_edit %}
+              <input class="field js-comment" value="{{ item.conditions }}">
+            {% else %}
+              {{ item.conditions|default:"—" }}
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
+{% block extra_js %}
+{% if version %}
+<script>
+(function(){
+  var id = {{ version.id }};
+  var removedItemIds = [];
+  function csrf(){ return (document.cookie.match(/csrftoken=([^;]+)/)||[])[1]||''; }
+  function flash(msg, ok){
+    var el = document.getElementById('flash');
+    el.hidden = false;
+    el.className = ok ? 'warn-box' : 'err-box';
+    if(ok){ el.style.background='var(--accent-soft)'; el.style.color='var(--accent-strong)'; el.style.borderColor='transparent'; }
+    el.textContent = msg;
+  }
+  document.querySelectorAll('.js-remove-item').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var tr = btn.closest('tr[data-item-id]');
+      if(!tr) return;
+      var serviceName = (tr.querySelector('.js-service-name')||{}).value || 'услугу';
+      if(!confirm('Убрать строку тарифа «' + serviceName + '»? Нажмите «Сохранить тариф», чтобы применить удаление.')) return;
+      removedItemIds.push(Number(tr.getAttribute('data-item-id')));
+      tr.remove();
+      flash('Строка убрана из таблицы. Нажмите «Сохранить тариф», чтобы применить удаление.', true);
+    });
+  });
+  function collectItems(){
+    var rows = Array.from(document.querySelectorAll('tr[data-item-id]')).map(function(tr){
+      return {
+        id: Number(tr.getAttribute('data-item-id')),
+        service_name: (tr.querySelector('.js-service-name')||{}).value || '',
+        price: (tr.querySelector('.js-price')||{}).value,
+        minimum_amount: (tr.querySelector('.js-min')||{}).value || null,
+        is_active: !!(tr.querySelector('.js-active')||{}).checked,
+        comment: (tr.querySelector('.js-comment')||{}).value || ''
+      };
+    });
+    removedItemIds.forEach(function(itemId){
+      rows.push({id: itemId, delete: true});
+    });
+    return rows;
+  }
+  var saveBtn = document.getElementById('js-save-draft');
+  if(saveBtn) saveBtn.onclick = async function(){
+    var body = {
+      valid_from: (document.getElementById('valid-from')||{}).value,
+      general_comment: (document.getElementById('general-comment')||{}).value || '',
+      items: collectItems()
+    };
+    var r = await fetch('/accountant/api/client-tariffs/'+id+'/patch/', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
+      body: JSON.stringify(body)
+    });
+    var d = await r.json();
+    if(d.ok){ flash('Черновик сохранён', true); location.reload(); }
+    else flash(typeof d.error==='string'?d.error:JSON.stringify(d.error));
+  };
+  var addCustomBtn = document.getElementById('js-add-custom-item');
+  if(addCustomBtn) addCustomBtn.onclick = async function(){
+    var name = ((document.getElementById('custom-service-name')||{}).value || '').trim();
+    if(!name){
+      flash('Укажите наименование индивидуальной услуги.');
+      return;
+    }
+    var body = {
+      new_items: [{
+        service_name: name,
+        category_id: (document.getElementById('custom-service-category')||{}).value || null,
+        unit: ((document.getElementById('custom-service-unit')||{}).value || 'шт').trim(),
+        price: (document.getElementById('custom-service-price')||{}).value || '0',
+        minimum_amount: (document.getElementById('custom-service-min')||{}).value || null,
+        comment: (document.getElementById('custom-service-comment')||{}).value || '',
+        is_active: true
+      }]
+    };
+    addCustomBtn.disabled = true;
+    var r = await fetch('/accountant/api/client-tariffs/'+id+'/patch/', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
+      body: JSON.stringify(body)
+    });
+    var d = await r.json();
+    addCustomBtn.disabled = false;
+    if(d.ok){ flash('Индивидуальная услуга добавлена в тариф клиента', true); location.reload(); }
+    else flash(typeof d.error==='string'?d.error:JSON.stringify(d.error));
+  };
+  var applyBtn = document.getElementById('js-apply-price');
+  if(applyBtn) applyBtn.onclick = async function(){
+    if(!confirm('Подставить цены из прайса FullBox (17.07.2026) для клиента «{{ client_display|escapejs }}»?\nТекущие цены черновика будут перезаписаны, после этого их можно править вручную.')) return;
+    applyBtn.disabled = true;
+    var r = await fetch('/accountant/api/client-tariffs/'+id+'/apply-price-list/', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
+      body: JSON.stringify({overwrite:true})
+    });
+    var d = await r.json();
+    applyBtn.disabled = false;
+    if(d.ok){
+      var res = d.data && d.data.result ? d.data.result : {};
+      flash('Прайсы загружены: обновлено '+ (res.filled||0) +', добавлено '+ (res.added||0), true);
+      location.reload();
+    } else flash(typeof d.error==='string'?d.error:JSON.stringify(d.error));
+  };
+  var pub = document.getElementById('js-publish');
+  if(pub) pub.onclick = async function(){
+    if(saveBtn) await saveBtn.onclick();
+    var r = await fetch('/accountant/api/client-tariffs/'+id+'/publish/', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
+      body: '{}'
+    });
+    var d = await r.json();
+    if(d.ok) location.reload();
+    else {
+      var msg = d.error && d.error.message ? d.error.message : (typeof d.error==='string'?d.error:JSON.stringify(d.error));
+      flash(msg);
+    }
+  };
+  var dup = document.getElementById('js-duplicate');
+  if(dup) dup.onclick = async function(){
+    var r = await fetch('/accountant/api/client-tariffs/'+id+'/duplicate/', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
+      body: '{}'
+    });
+    var d = await r.json();
+    if(d.ok) location.href = '/accountant/tariffs/'+d.data.id+'/';
+    else flash(typeof d.error==='string'?d.error:JSON.stringify(d.error));
+  };
+  var arch = document.getElementById('js-archive');
+  if(arch) arch.onclick = async function(){
+    if(!confirm('Архивировать тариф?')) return;
+    var r = await fetch('/accountant/api/client-tariffs/'+id+'/archive/', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
+      body: '{}'
+    });
+    var d = await r.json();
+    if(d.ok) location.reload();
+    else flash(typeof d.error==='string'?d.error:JSON.stringify(d.error));
+  };
+  var modeLabels = {
+    'pallet_day':'За палетоместо в сутки','pallet_week':'За палетоместо в неделю','pallet_month':'За палетоместо в месяц',
+    'liter_day':'За 1 литр в сутки','liter_week':'За 1 литр в неделю','liter_month':'За 1 литр в месяц',
+    'm3_day':'За 1 м³ в сутки','m3_week':'За 1 м³ в неделю','m3_month':'За 1 м³ в месяц'
+  };
+  function syncModePreview(){
+    var basis = (document.getElementById('sr-charge-basis')||{}).value || 'pallet';
+    var period = (document.getElementById('sr-charge-period')||{}).value || 'day';
+    var mode = basis + '_' + period;
+    var hidden = document.getElementById('sr-billing-mode');
+    var label = document.getElementById('sr-mode-label');
+    if(hidden) hidden.value = mode;
+    if(label) label.textContent = modeLabels[mode] || mode;
+  }
+  ['sr-charge-basis','sr-charge-period'].forEach(function(fid){
+    var el = document.getElementById(fid);
+    if(el) el.addEventListener('change', syncModePreview);
+  });
+  syncModePreview();
+  var saveRule = document.getElementById('js-save-storage-rule');
+  if(saveRule) saveRule.onclick = async function(){
+    syncModePreview();
+    var body = {
+      charge_basis: (document.getElementById('sr-charge-basis')||{}).value,
+      charge_period: (document.getElementById('sr-charge-period')||{}).value,
+      billing_mode: (document.getElementById('sr-billing-mode')||{}).value,
+      volume_level: (document.getElementById('sr-volume-level')||{}).value,
+      missing_dims_policy: (document.getElementById('sr-missing-dims')||{}).value,
+      month_mode: (document.getElementById('sr-month-mode')||{}).value,
+      rounding_mode: (document.getElementById('sr-rounding')||{}).value,
+      space_coefficient_default: (document.getElementById('sr-coeff')||{}).value,
+      free_period_type: (document.getElementById('sr-free-type')||{}).value,
+      free_period_value: (document.getElementById('sr-free-value')||{}).value,
+      min_billable_volume: (document.getElementById('sr-min-vol')||{}).value
+    };
+    var r = await fetch('/accountant/api/client-tariffs/'+id+'/storage-rule/patch/', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
+      body: JSON.stringify(body)
+    });
+    var d = await r.json();
+    if(d.ok) flash('Правила хранения сохранены: ' + ((d.data && d.data.billing_mode_label) || ''), true);
+    else flash(typeof d.error==='string'?d.error:JSON.stringify(d.error));
+  };
+})();
+</script>
+{% endif %}
+{% endblock %}

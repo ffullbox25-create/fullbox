@@ -1,0 +1,50 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}Сохранённые отчёты{% endblock %}
+
+{% block extra_css %}
+  .head { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+  .title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:32px; line-height:1.1; letter-spacing:-.03em; }
+  .sub { margin-top:6px; color:var(--muted); font-size:14px; line-height:1.45; }
+  .panel { display:grid; gap:12px; padding:16px; border:1px solid var(--stroke); border-radius:20px; background:var(--surface); box-shadow:var(--shadow); min-width:0; }
+  .saved-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .saved-card { display:grid; gap:9px; padding:15px; border:1px solid var(--stroke); border-radius:18px; background:#fff; color:var(--ink); text-decoration:none; }
+  .saved-card:hover { border-color:rgba(14,107,91,.35); }
+  .saved-title { font-size:17px; font-weight:900; }
+  .meta { color:var(--muted); font-size:12px; line-height:1.4; }
+  .format { border-radius:999px; background:var(--surface-2); border:1px solid var(--stroke); padding:3px 7px; font-size:10px; font-weight:900; color:var(--muted); width:fit-content; }
+  .empty { padding:22px; border:1px dashed var(--stroke); border-radius:16px; background:var(--surface-2); color:var(--muted); font-size:13px; text-align:center; line-height:1.45; }
+  @media (max-width:900px){ .saved-grid{grid-template-columns:1fr;} }
+{% endblock %}
+
+{% block content %}
+  <div class="head">
+    <div>
+      <h1 class="title">Сохранённые отчёты</h1>
+      <div class="sub">Личные конфигурации фильтров, сортировки, столбцов и формата экспорта.</div>
+    </div>
+    <div>
+      <a class="btn" href="/team-manager/reports/">← Все отчёты</a>
+      <a class="btn" href="/team-manager/reports/history/">История выгрузок</a>
+    </div>
+  </div>
+
+  <section class="panel">
+    {% if saved_report_cards %}
+      <div class="saved-grid">
+        {% for item in saved_report_cards %}
+          {% with saved=item.row %}
+          <a class="saved-card" href="{{ item.url }}">
+            <span class="saved-title">{{ saved.title }}</span>
+            <span class="meta">{{ saved.section }}/{{ saved.report_code }} · обновлено {{ saved.updated_at|date:"d.m.Y H:i" }}</span>
+            <span class="meta">Открыть с сохранёнными фильтрами, сортировкой и колонками.</span>
+            <span class="format">{{ saved.export_format|upper }}</span>
+          </a>
+          {% endwith %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">Сохранённых отчётов пока нет. Откройте конкретный отчёт, задайте фильтры и сохраните конфигурацию.</div>
+    {% endif %}
+  </section>
+{% endblock %}

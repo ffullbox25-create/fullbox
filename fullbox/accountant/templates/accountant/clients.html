@@ -1,0 +1,352 @@
+{% extends "accountant/_base.html" %}
+{% block title %}Клиенты и реквизиты{% endblock %}
+{% block extra_css %}
+<style>
+  .client-create-modal[hidden] { display:none; }
+  .client-create-modal { position:fixed; z-index:50; inset:0; display:grid; place-items:center; padding:20px; background:rgba(48,48,48,.42); }
+  .client-create-dialog { width:min(1120px,100%); max-height:calc(100vh - 40px); display:flex; flex-direction:column; overflow:hidden; border:1px solid var(--stroke); border-radius:18px; background:var(--surface); box-shadow:0 24px 70px rgba(48,48,48,.26); }
+  .client-create-head, .client-create-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:18px 20px; }
+  .client-create-head { border-bottom:1px solid var(--stroke); }
+  .client-create-actions { border-top:1px solid var(--stroke); }
+  .client-create-body { overflow:auto; padding:20px; display:grid; gap:18px; }
+  .client-create-section { padding:16px; border:1px solid var(--stroke); border-radius:14px; background:var(--surface-2); }
+  .client-create-section h3 { margin:0 0 12px; font-size:15px; }
+  .client-create-close { border:0; background:transparent; color:var(--muted); font-size:25px; line-height:1; cursor:pointer; }
+  @media (max-width:700px) { .client-create-modal { padding:0; } .client-create-dialog { max-height:100vh; border-radius:0; } .client-create-head, .client-create-actions, .client-create-body { padding-left:14px; padding-right:14px; } }
+</style>
+{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-end">
+  <div>
+    <h1 class="page-title">Клиенты и реквизиты</h1>
+    <div class="page-sub">Юридические данные, договоры, реквизиты и компания обслуживания.</div>
+  </div>
+  <button class="btn primary" type="button" id="js-create-client">Создать клиента</button>
+</div>
+
+{% if messages %}
+  <div style="display:grid;gap:8px">
+    {% for message in messages %}
+      <div class="{% if message.tags == 'error' %}err-box{% else %}warn-box{% endif %}">{{ message }}</div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<form class="card" method="get" style="display:grid;grid-template-columns:180px 1fr auto;gap:10px;align-items:center">
+  <select class="field" name="status">
+    <option value="">Все статусы</option>
+    {% for code, label in status_choices %}
+      <option value="{{ code }}" {% if filter_status == code %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <input class="field" type="search" name="q" value="{{ filter_q }}" placeholder="Поиск по названию, ИНН…">
+  <button class="btn primary" type="submit">Найти</button>
+</form>
+
+<div class="card" style="padding:0;overflow:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Клиент</th>
+        <th>ИНН</th>
+        <th>Статус</th>
+        <th>НДС</th>
+        <th>Доступ ЛК</th>
+        <th>Компания FullBox</th>
+        <th>Договор / КП</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in client_rows %}
+        <tr>
+          <td>
+            <div style="font-weight:800">{{ row.agency.short_name|default:row.agency.agn_name }}</div>
+            <div class="muted" style="font-size:11px">{{ row.agency.agn_name }}</div>
+          </td>
+          <td>{{ row.agency.inn|default:"—" }}</td>
+          <td>
+            <span class="badge {% if row.lifecycle.status == 'active' %}green{% elif row.lifecycle.status == 'draft' %}orange{% else %}blue{% endif %}">
+              {{ row.lifecycle.get_status_display }}
+            </span>
+          </td>
+          <td>
+            <select class="field js-client-vat" data-client-id="{{ row.agency.id }}" style="min-width:150px;font-size:12px;padding:7px 9px">
+              {% for code, label in vat_type_choices %}
+                <option value="{{ code }}" {% if row.lifecycle.vat_type == code %}selected{% endif %}>
+                  {% if code == 'vat_extra' and row.lifecycle.serving_company and row.lifecycle.serving_company.vat_rate %}
+                    НДС {{ row.lifecycle.serving_company.vat_rate }}% сверху
+                  {% else %}
+                    {{ label }}
+                  {% endif %}
+                </option>
+              {% endfor %}
+            </select>
+          </td>
+          <td>
+            {% if row.agency.portal_user %}
+              <div style="font-weight:800">{{ row.agency.portal_user.username }}</div>
+              <div class="muted" style="font-size:11px">пароль: {% if row.agency.portal_user.has_usable_password %}задан{% else %}не задан{% endif %}</div>
+            {% else %}
+              <span class="badge orange">не создан</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if row.lifecycle.serving_company %}
+              {{ row.lifecycle.serving_company.short_name|default:row.lifecycle.serving_company.name }}
+              <div class="muted" style="font-size:11px">
+                {% if row.lifecycle.serving_company.tax_mode == 'no_vat' %}Без НДС{% else %}НДС {{ row.lifecycle.serving_company.vat_rate }}%{% endif %}
+              </div>
+            {% else %}
+              <span class="badge orange">не выбрана</span>
+            {% endif %}
+          </td>
+          <td>
+            {{ row.agency.contract_numb|default:"—" }}
+            {% if row.lifecycle.commercial_offer_number %}<div class="muted" style="font-size:11px">КП {{ row.lifecycle.commercial_offer_number }}</div>{% endif %}
+          </td>
+          <td>
+            <div style="display:grid;gap:4px;justify-items:end">
+              <a class="btn" href="/accountant/clients/{{ row.agency.id }}/">Открыть</a>
+              {% if row.delete_state.can_delete %}
+                <form method="post" action="/accountant/clients/{{ row.agency.id }}/delete/" onsubmit="return confirm('Удалить пустого клиента «{{ row.agency.short_name|default:row.agency.agn_name|escapejs }}»? Действие нельзя отменить.');">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button class="btn ghost" type="submit" style="padding:3px 8px;border-color:transparent;color:var(--danger);font-size:11px">удалить</button>
+                </form>
+              {% else %}
+                <span class="muted" title="{{ row.delete_state.reason_text }}" style="font-size:11px;text-align:right">нельзя удалить: {{ row.delete_state.reasons.0 }}</span>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8" style="text-align:center;padding:40px" class="muted">Клиентов нет</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="client-create-modal" id="create-client-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="create-client-title">
+  <div class="client-create-dialog" id="create-client-dialog">
+    <div class="client-create-head">
+      <div>
+        <h2 id="create-client-title" style="margin:0;font-size:20px">Новый клиент</h2>
+        <div class="muted" style="font-size:12px;margin-top:4px">Заполните нужные параметры — тарифы услуг и логистики создадутся отдельными черновиками.</div>
+      </div>
+      <button class="client-create-close" type="button" id="js-create-close" aria-label="Закрыть">×</button>
+    </div>
+    <div class="client-create-body">
+      <section class="client-create-section">
+        <h3>Основные данные</h3>
+        <div class="grid-3">
+          <div><label class="lbl">Юридическое название *</label><input class="field" id="c-legal"></div>
+          <div><label class="lbl">Краткое название</label><input class="field" id="c-short"></div>
+          <div><label class="lbl" for="c-pref">Префикс клиента *</label><input class="field" id="c-pref" maxlength="32" autocomplete="off" placeholder="Например, TDT" required aria-required="true"><div class="muted" style="font-size:11px;margin-top:4px">Должен быть уникальным. Только латинские буквы и цифры.</div></div>
+          <div><label class="lbl">Тип клиента *</label><select class="field" id="c-type"><option value="">—</option>{% for code, label in type_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div>
+          <div><label class="lbl">ИНН *</label><input class="field" id="c-inn" inputmode="numeric" autocomplete="off"><div class="muted" id="inn-lookup-status" style="font-size:11px;margin-top:4px">После ввода 10 или 12 цифр реквизиты заполнятся из DaData.</div></div>
+          <div><label class="lbl">КПП</label><input class="field" id="c-kpp" inputmode="numeric"></div>
+          <div><label class="lbl">ОГРН / ОГРНИП</label><input class="field" id="c-ogrn" inputmode="numeric"></div>
+        </div>
+      </section>
+      <section class="client-create-section">
+        <h3>Контакты и адреса</h3>
+        <div class="grid-3">
+          <div><label class="lbl">Контактное лицо</label><input class="field" id="c-contact"></div>
+          <div><label class="lbl">Телефон</label><input class="field" id="c-phone" type="tel"></div>
+          <div><label class="lbl">Основной email</label><input class="field" id="c-email" type="email"></div>
+          <div><label class="lbl">Юридический адрес</label><input class="field" id="c-legal-address"></div>
+          <div><label class="lbl">Фактический адрес</label><input class="field" id="c-actual-address"></div>
+          <div><label class="lbl">Почтовый адрес</label><input class="field" id="c-postal-address"></div>
+          <div><label class="lbl">Email для документов</label><input class="field" id="c-email-documents" type="email"></div>
+          <div><label class="lbl">Email для уведомлений</label><input class="field" id="c-email-notifications" type="email"></div>
+        </div>
+      </section>
+      <section class="client-create-section">
+        <h3>Банковские реквизиты</h3>
+        <div class="grid-3">
+          <div><label class="lbl">Расчётный счёт</label><input class="field" id="c-account-number"></div>
+          <div><label class="lbl">Банк</label><input class="field" id="c-bank-name"></div>
+          <div><label class="lbl">БИК</label><input class="field" id="c-bank-bik" inputmode="numeric" autocomplete="off"><div class="muted" id="bik-lookup-status" style="font-size:11px;margin-top:4px">После ввода 9 цифр подтянутся банк и корреспондентский счёт.</div></div>
+          <div><label class="lbl">Корреспондентский счёт</label><input class="field" id="c-correspondent-account"></div>
+        </div>
+      </section>
+      <section class="client-create-section">
+        <h3>Договор и финансовые условия</h3>
+        <div class="grid-3">
+          <div><label class="lbl">Компания обслуживания FullBox</label><select class="field" id="c-company"><option value="">—</option>{% for c in serving_companies %}<option value="{{ c.id }}">{{ c.short_name|default:c.name }} · {% if c.tax_mode == 'no_vat' %}Без НДС{% else %}НДС {{ c.vat_rate }}%{% endif %}</option>{% endfor %}</select></div>
+          <div><label class="lbl">НДС клиента</label><select class="field" id="c-vat-type">{% for code, label in vat_type_choices %}<option value="{{ code }}" {% if code == 'no_vat' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+          <div><label class="lbl">Номер договора</label><input class="field" id="c-contract"></div>
+          <div><label class="lbl">Дата договора</label><input class="field" id="c-contract-date" type="date"></div>
+          <div><label class="lbl">Номер КП</label><input class="field" id="c-commercial-offer"></div>
+          <div><label class="lbl">Ссылка на договор</label><input class="field" id="c-contract-link" type="url"></div>
+        </div>
+      </section>
+      <section class="client-create-section">
+        <h3>Доступ в ЛК клиента</h3>
+        <div class="grid-2">
+          <div><label class="lbl">Логин ЛК клиента</label><input class="field" value="создастся автоматически: clientN" readonly><div class="muted" style="font-size:11px;margin-top:4px">Используется единый формат: client + системный номер.</div></div>
+          <div><label class="lbl">Пароль ЛК клиента</label><div style="display:flex;gap:8px;align-items:center"><input class="field" id="c-portal-password" type="password" autocomplete="new-password" placeholder="Задайте пароль для входа"><button class="btn" type="button" id="js-create-password">Сгенерировать пароль</button></div><div class="muted" id="create-password-hint" style="font-size:11px;margin-top:4px" hidden></div></div>
+        </div>
+      </section>
+      <section class="client-create-section">
+        <h3>Комментарий бухгалтера</h3>
+        <textarea class="field" id="c-accountant-comment" rows="3" placeholder="Внутренний комментарий"></textarea>
+      </section>
+      <div id="create-error" class="err-box" hidden></div>
+    </div>
+    <div class="client-create-actions">
+      <span class="muted" style="font-size:12px">* обязательные поля</span>
+      <div style="display:flex;gap:8px"><button class="btn" type="button" id="js-create-cancel">Отмена</button><button class="btn primary" type="button" id="js-create-save">Создать клиента</button></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function(){
+  function csrf(){ return (document.cookie.match(/csrftoken=([^;]+)/)||[])[1]||''; }
+  function generatedPassword(){
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#%_-';
+    var length = 14;
+    var values = new Uint32Array(length);
+    if(window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(values);
+    else for(var i=0;i<length;i++) values[i] = Math.floor(Math.random() * chars.length);
+    return Array.from(values).map(function(v){ return chars[v % chars.length]; }).join('');
+  }
+  function fillGeneratedPassword(inputId, hintId){
+    var input = document.getElementById(inputId);
+    if(!input) return;
+    input.type = 'text';
+    input.value = generatedPassword();
+    input.focus();
+    input.select();
+    var hint = document.getElementById(hintId);
+    if(hint){
+      hint.hidden = false;
+      hint.textContent = 'Пароль сгенерирован. Скопируйте его клиенту до сохранения карточки.';
+    }
+  }
+  var modal = document.getElementById('create-client-modal');
+  var dialog = document.getElementById('create-client-dialog');
+  function closeCreateModal(){ modal.hidden=true; modal.setAttribute('aria-hidden', 'true'); }
+  function openCreateModal(){ modal.hidden=false; modal.setAttribute('aria-hidden', 'false'); document.getElementById('c-legal').focus(); }
+  document.getElementById('js-create-client').onclick = openCreateModal;
+  document.getElementById('js-create-cancel').onclick = closeCreateModal;
+  document.getElementById('js-create-close').onclick = closeCreateModal;
+  modal.addEventListener('click', function(event){ if(event.target === modal) closeCreateModal(); });
+  document.addEventListener('keydown', function(event){ if(event.key === 'Escape' && !modal.hidden) closeCreateModal(); });
+  var createPassword = document.getElementById('js-create-password');
+  if(createPassword) createPassword.onclick = function(){ fillGeneratedPassword('c-portal-password', 'create-password-hint'); };
+  document.querySelectorAll('.js-client-vat').forEach(function(select){
+    select.addEventListener('change', async function(){
+      var clientId = select.getAttribute('data-client-id');
+      select.disabled = true;
+      var r = await fetch('/accountant/api/clients/'+clientId+'/patch/', {
+        method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
+        body: JSON.stringify({vat_type: select.value})
+      });
+      var d = await r.json();
+      select.disabled = false;
+      if(!d.ok){
+        alert(typeof d.error === 'string' ? d.error : JSON.stringify(d.error));
+        location.reload();
+      }
+    });
+  });
+  function value(id){ return document.getElementById(id).value.trim(); }
+  var innLookupTimer = null;
+  var innLookupValue = '';
+  function setInnLookupStatus(text, isError){
+    var status = document.getElementById('inn-lookup-status');
+    status.textContent = text;
+    status.style.color = isError ? 'var(--danger)' : '';
+  }
+  function fillIfEmpty(id, nextValue){
+    var field = document.getElementById(id);
+    if(field && !field.value.trim() && nextValue) field.value = nextValue;
+  }
+  async function lookupInn(){
+    var inn = document.getElementById('c-inn').value.replace(/\D/g, '');
+    if(inn.length !== 10 && inn.length !== 12) return;
+    if(inn === innLookupValue) return;
+    innLookupValue = inn;
+    setInnLookupStatus('Ищем реквизиты по ИНН…');
+    try {
+      var response = await fetch('/accountant/api/clients/lookup-inn/?inn=' + encodeURIComponent(inn), {credentials:'same-origin'});
+      var result = await response.json();
+      if(!result.ok) throw new Error(typeof result.error === 'string' ? result.error : 'Не удалось получить реквизиты.');
+      var data = result.data || {};
+      fillIfEmpty('c-legal', data.legal_name); fillIfEmpty('c-short', data.short_name); fillIfEmpty('c-kpp', data.kpp); fillIfEmpty('c-ogrn', data.ogrn);
+      fillIfEmpty('c-legal-address', data.legal_address); fillIfEmpty('c-actual-address', data.actual_address); fillIfEmpty('c-contact', data.contact_person);
+      var type = document.getElementById('c-type');
+      if(type && !type.value && data.client_type) type.value = data.client_type;
+      setInnLookupStatus('Реквизиты заполнены из DaData. Проверьте данные перед сохранением.');
+    } catch (error) { setInnLookupStatus(error.message || 'Не удалось получить реквизиты.', true); }
+  }
+  var innField = document.getElementById('c-inn');
+  innField.addEventListener('input', function(){
+    innLookupValue = '';
+    window.clearTimeout(innLookupTimer);
+    innLookupTimer = window.setTimeout(lookupInn, 450);
+  });
+  innField.addEventListener('blur', lookupInn);
+  var bikLookupTimer = null;
+  var bikLookupValue = '';
+  function setBikLookupStatus(text, isError){
+    var status = document.getElementById('bik-lookup-status');
+    status.textContent = text;
+    status.style.color = isError ? 'var(--danger)' : '';
+  }
+  async function lookupBik(){
+    var bik = document.getElementById('c-bank-bik').value.replace(/\D/g, '');
+    if(bik.length !== 9 || bik === bikLookupValue) return;
+    bikLookupValue = bik;
+    setBikLookupStatus('Ищем банк по БИК…');
+    try {
+      var response = await fetch('/accountant/api/clients/lookup-bik/?bik=' + encodeURIComponent(bik), {credentials:'same-origin'});
+      var result = await response.json();
+      if(!result.ok) throw new Error(typeof result.error === 'string' ? result.error : 'Не удалось получить реквизиты банка.');
+      var data = result.data || {};
+      fillIfEmpty('c-bank-name', data.bank_name); fillIfEmpty('c-correspondent-account', data.correspondent_account);
+      setBikLookupStatus('Банк и корреспондентский счёт заполнены из DaData.');
+    } catch (error) { setBikLookupStatus(error.message || 'Не удалось получить реквизиты банка.', true); }
+  }
+  var bikField = document.getElementById('c-bank-bik');
+  bikField.addEventListener('input', function(){
+    bikLookupValue = '';
+    window.clearTimeout(bikLookupTimer);
+    bikLookupTimer = window.setTimeout(lookupBik, 450);
+  });
+  bikField.addEventListener('blur', lookupBik);
+  document.getElementById('js-create-save').onclick = async function(){
+    var err = document.getElementById('create-error');
+    err.hidden = true;
+    var body = {
+      legal_name: value('c-legal'), short_name: value('c-short'), pref: value('c-pref'), inn: value('c-inn'), kpp: value('c-kpp'), ogrn: value('c-ogrn'),
+      contact_person: value('c-contact'), phone: value('c-phone'), email: value('c-email'), legal_address: value('c-legal-address'),
+      actual_address: value('c-actual-address'), postal_address: value('c-postal-address'), email_documents: value('c-email-documents'), email_notifications: value('c-email-notifications'),
+      account_number: value('c-account-number'), bank_name: value('c-bank-name'), bank_bik: value('c-bank-bik'), correspondent_account: value('c-correspondent-account'),
+      portal_password: value('c-portal-password'), client_type: value('c-type'), vat_type: value('c-vat-type'), serving_company_id: value('c-company') || null,
+      contract_number: value('c-contract'), contract_date: value('c-contract-date') || null, commercial_offer_number: value('c-commercial-offer'), contract_link: value('c-contract-link'), accountant_comment: value('c-accountant-comment')
+    };
+    if(!body.pref){
+      err.hidden = false;
+      err.textContent = 'Укажите префикс клиента.';
+      document.getElementById('c-pref').focus();
+      return;
+    }
+    var save = document.getElementById('js-create-save');
+    save.disabled = true;
+    try {
+      var r = await fetch('/accountant/api/clients/create/', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-CSRFToken':csrf()}, body: JSON.stringify(body) });
+      var d = await r.json();
+      if(d.ok){ closeCreateModal(); window.setTimeout(function(){ location.href = '/accountant/clients/' + d.data.id + '/'; }, 40); }
+      else { err.hidden=false; err.textContent = (typeof d.error === 'string' ? d.error : JSON.stringify(d.error)); }
+    } catch (error) { err.hidden=false; err.textContent = 'Не удалось сохранить клиента. Повторите попытку.'; }
+    finally { save.disabled = false; }
+  };
+})();
+</script>
+{% endblock %}

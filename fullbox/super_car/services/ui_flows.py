@@ -1,0 +1,2670 @@
+from __future__ import annotations
+
+import re
+from urllib.parse import urlencode
+
+from django.db import transaction
+from django.http import HttpResponseForbidden, JsonResponse
+from django.shortcuts import redirect
+
+from audit.models import OrderAuditEntry, log_order_action
+from employees.access import get_employee_for_user, get_request_employee, get_request_role, resolve_cabinet_url
+from sklad.models import WarehouseOperation, WarehouseOperationTask
+from sklad.services.warehouse_state import WarehouseGoodsStateResolver
+from sklad.services.warehouse_transitions import WarehouseStateCode
+from sku.models import Agency, SKUBarcode
+from sklad.services.warehouse_stock_rows import snapshot_stock_rows
+from sklad.services.warehouse_write_path import WarehouseWritePathService
+
+from super_car.models import MoveRequest, MoveRequestItem, MoveTask
+from .move_requests import (
+    _agency_id_for_processing_order as agency_id_for_processing_order_service,
+    _destination_from_request_data as destination_from_request_data_service,
+    _find_pallet_by_code as find_pallet_by_code_service,
+    _latest_moves_by_pallet as latest_moves_by_pallet_service,
+    _location_label,
+    _move_instruction as move_request_instruction_service,
+    _move_payload_matches_selectors as move_payload_matches_selectors_service,
+    _normalize_zone_code,
+    _parse_explicit_requested_rows as parse_explicit_requested_rows_service,
+    _parse_move_request_items as parse_move_request_items_service,
+    _plan_move_request_to_tasks as plan_move_request_to_tasks_service,
+    sync_task_status_by_legacy_order_id,
+)
+
+
+_PALLET_DISPLAY_TRANSLATION = str.maketrans(
+    {
+        "\u0410": "A",
+        "\u0412": "B",
+        "\u0415": "E",
+        "\u041a": "K",
+        "\u041c": "M",
+        "\u041d": "H",
+        "\u041e": "O",
+        "\u0420": "P",
+        "\u0421": "C",
+        "\u0422": "T",
+        "\u0423": "Y",
+        "\u0425": "X",
+        "\u0414": "D",
+        "\u0430": "a",
+        "\u0432": "b",
+        "\u0435": "e",
+        "\u043a": "k",
+        "\u043c": "m",
+        "\u043d": "h",
+        "\u043e": "o",
+        "\u0440": "p",
+        "\u0441": "c",
+        "\u0442": "t",
+        "\u0443": "y",
+        "\u0445": "x",
+        "\u0434": "d",
+    }
+)
+
+
+def _display_pallet_scan_text(value: str | None) -> str:
+    text = str(value or "").strip()
+    prefix, sep, tail = text.partition("-")
+    if not sep:
+        return text
+    ascii_prefix = prefix.translate(_PALLET_DISPLAY_TRANSLATION)
+    if ascii_prefix and ascii_prefix.isascii():
+        return f"{ascii_prefix}{sep}{tail}"
+    return text
+
+from .pallet_ops import (
+    BOX_SELECTION_ANY_MATCHING,
+    MOVE_MODE_BOX_FULL,
+    MOVE_MODE_BOX_PARTIAL,
+    MOVE_MODE_PALLET_FULL,
+    _box_execution_plan as box_execution_plan_service,
+    _matching_stock_boxes_for_pallet as matching_stock_boxes_for_pallet_service,
+    _normalize_goods_type,
+    _normalize_move_mode,
+    _pallet_box_plan as pallet_box_plan_service,
+    _parse_int_value,
+    _parse_json_list,
+    _payload_box_codes,
+    _requested_box_count,
+    _requested_box_selection_mode,
+    _requested_barcode_qty,
+    _requested_partial_rows,
+    _single_requested_box,
+)
+from .putaway_planner import putaway_location_scan_code
+from .task_commands import (
+    _repair_human_mojibake_text,
+    build_mobile_execution_snapshot,
+    build_mobile_request_execution_snapshot,
+    complete_move_task,
+    confirm_move_request_destination_override,
+    display_scan_text,
+    otg_already_delivered_box_codes,
+    scan_move_request_step,
+    scan_move_task_step,
+    take_move_request,
+    take_move_task,
+    update_move_task_destination,
+)
+
+
+def _views():
+    from .. import views as reachtruck_views
+
+    return reachtruck_views
+
+
+def _short_agency_name(name: str) -> str:
+    text = str(name or "").strip()
+    if not text:
+        return "Без клиента"
+    text = re.sub(r"^Индивидуальный предприниматель\s+", "ИП ", text, flags=re.IGNORECASE)
+    return text
+
+
+def _task_count_label(count: int) -> str:
+    count = int(count or 0)
+    mod10 = count % 10
+    mod100 = count % 100
+    if mod10 == 1 and mod100 != 11:
+        suffix = "задание"
+    elif mod10 in {2, 3, 4} and mod100 not in {12, 13, 14}:
+        suffix = "задания"
+    else:
+        suffix = "заданий"
+    return f"{count} {suffix}"
+
+
+def _pallet_count_label(count: int) -> str:
+    count = int(count or 0)
+    mod10 = count % 10
+    mod100 = count % 100
+    if mod10 == 1 and mod100 != 11:
+        suffix = "паллету"
+    elif mod10 in {2, 3, 4} and mod100 not in {12, 13, 14}:
+        suffix = "паллеты"
+    else:
+        suffix = "паллет"
+    return f"{count} {suffix}"
+
+
+def _box_count_label(count: int) -> str:
+    count = int(count or 0)
+    mod10 = count % 10
+    mod100 = count % 100
+    if mod10 == 1 and mod100 != 11:
+        suffix = "короб"
+    elif mod10 in {2, 3, 4} and mod100 not in {12, 13, 14}:
+        suffix = "короба"
+    else:
+        suffix = "коробов"
+    return f"{count} {suffix}"
+
+
+def _unit_count_label(count: int) -> str:
+    count = int(count or 0)
+    mod10 = count % 10
+    mod100 = count % 100
+    if mod10 == 1 and mod100 != 11:
+        suffix = "единицу товара"
+    elif mod10 in {2, 3, 4} and mod100 not in {12, 13, 14}:
+        suffix = "единицы товара"
+    else:
+        suffix = "единиц товара"
+    return f"{count} {suffix}"
+
+
+def _qty_map_total(raw) -> int:
+    if not isinstance(raw, dict):
+        return 0
+    return sum(_parse_int_value(value) for value in raw.values())
+
+
+def _partial_pick_totals(payload: dict) -> tuple[int, int]:
+    raw_patterns = payload.get("partial_pick_patterns") if isinstance(payload, dict) else None
+    if not isinstance(raw_patterns, list):
+        return 0, 0
+    box_count = 0
+    qty = 0
+    for pattern in raw_patterns:
+        if not isinstance(pattern, dict):
+            continue
+        count = _parse_int_value(pattern.get("requested_box_count") or pattern.get("count") or pattern.get("boxes"))
+        if count <= 0:
+            count = 1
+        pick_qty = _parse_int_value(pattern.get("pick_qty") or pattern.get("qty") or pattern.get("requested_qty"))
+        if pick_qty <= 0:
+            pick_qty = _qty_map_total(pattern.get("barcode_qty") or pattern.get("pick_barcode_qty"))
+        box_count += count
+        qty += pick_qty * count
+    return box_count, qty
+
+
+def _mobile_request_work_label(request_group: dict | None) -> str:
+    if not request_group:
+        return ""
+    pallet_count = 0
+    box_count = 0
+    unit_count = 0
+    for move in request_group.get("tasks") or []:
+        if not isinstance(move, dict):
+            continue
+        mode = str(move.get("move_mode") or "").strip().lower()
+        if mode == MOVE_MODE_PALLET_FULL:
+            pallet_count += 1
+            continue
+        if mode == MOVE_MODE_BOX_FULL:
+            current_box_count = _parse_int_value(move.get("requested_box_count"))
+            if current_box_count <= 0:
+                current_box_count = len(move.get("requested_boxes") or [])
+            box_count += current_box_count
+            continue
+        if mode == MOVE_MODE_BOX_PARTIAL:
+            box_count += max(_parse_int_value(move.get("whole_box_count")), 0)
+            partial_qty = _parse_int_value(move.get("partial_pick_qty"))
+            if partial_qty <= 0 and not move.get("whole_box_count"):
+                partial_qty = _parse_int_value(move.get("requested_qty"))
+            unit_count += partial_qty
+            continue
+        pallet_count += 1
+
+    transport_parts: list[str] = []
+    if pallet_count > 0:
+        transport_parts.append(f"перевезти {_pallet_count_label(pallet_count)}")
+    pick_items: list[str] = []
+    if box_count > 0:
+        pick_items.append(_box_count_label(box_count))
+    if unit_count > 0:
+        pick_items.append(_unit_count_label(unit_count))
+    if pick_items:
+        transport_parts.append(f"отобрать {' и '.join(pick_items)}")
+    if transport_parts:
+        return " и ".join(transport_parts)
+    return f"перевезти {request_group.get('pallet_count_label') or _pallet_count_label(0)}"
+
+
+def _mobile_request_pick_subtitle(request_group: dict | None) -> str:
+    tasks = list((request_group or {}).get("tasks") or [])
+    if tasks and all(str(task.get("move_mode") or "").strip().lower() == MOVE_MODE_PALLET_FULL for task in tasks):
+        return "Выберите паллету для перевозки."
+    return "Выберите паллету для отбора."
+
+
+def _processing_request_item_selectors(request_items: list[dict], explicit_requested_rows: list[dict] | None = None) -> list[dict]:
+    selectors: list[dict] = []
+    seen: set[tuple[str, str, tuple[str, ...]]] = set()
+
+    def push(raw_article, raw_goods_type, raw_barcodes) -> None:
+        article = str(raw_article or "").strip().lower()
+        goods_type = _normalize_goods_type(raw_goods_type)
+        if isinstance(raw_barcodes, list):
+            barcode_values = raw_barcodes
+        else:
+            barcode_values = _parse_json_list(raw_barcodes)
+        barcodes = tuple(
+            sorted(
+                {
+                    str(value).strip().lower()
+                    for value in (barcode_values or [])
+                    if str(value or "").strip()
+                }
+            )
+        )
+        if not article and not barcodes:
+            return
+        key = (article, goods_type, barcodes)
+        if key in seen:
+            return
+        seen.add(key)
+        selectors.append(
+            {
+                "article": article,
+                "goods_type": goods_type,
+                "barcodes": set(barcodes),
+            }
+        )
+
+    for item in request_items or []:
+        if not isinstance(item, dict):
+            continue
+        push(
+            item.get("requested_article") or item.get("requested_sku"),
+            item.get("requested_goods_type"),
+            item.get("requested_barcodes"),
+        )
+    for row in explicit_requested_rows or []:
+        if not isinstance(row, dict):
+            continue
+        push(
+            row.get("requested_article") or row.get("requested_sku"),
+            row.get("requested_goods_type"),
+            row.get("requested_barcodes"),
+        )
+    return selectors
+
+
+def _move_request_item_matches_selector(item: MoveRequestItem, selector: dict) -> bool:
+    selector_article = str(selector.get("article") or "").strip().lower()
+    selector_goods_type = _normalize_goods_type(selector.get("goods_type"))
+    selector_barcodes = {
+        str(value).strip().lower()
+        for value in (selector.get("barcodes") or set())
+        if str(value or "").strip()
+    }
+    item_article = str(getattr(item, "sku_code", "") or "").strip().lower()
+    item_barcode = str(getattr(item, "barcode", "") or "").strip().lower()
+    item_goods_type = _normalize_goods_type(getattr(item, "goods_type", "") or "")
+    if selector_goods_type and item_goods_type and selector_goods_type != item_goods_type:
+        return False
+    sku_matched = bool(selector_article and item_article and selector_article == item_article)
+    barcode_matched = bool(selector_barcodes and item_barcode and item_barcode in selector_barcodes)
+    if selector_article and selector_barcodes:
+        return sku_matched or barcode_matched
+    if selector_article:
+        return sku_matched
+    return barcode_matched
+
+
+def _processing_snapshot_matches_selector(snapshot, selector: dict) -> bool:
+    selector_article = str(selector.get("article") or "").strip().lower()
+    selector_goods_type = _normalize_goods_type(selector.get("goods_type"))
+    selector_barcodes = {
+        str(value).strip().lower()
+        for value in (selector.get("barcodes") or set())
+        if str(value or "").strip()
+    }
+    if not selector_article and not selector_barcodes:
+        return False
+    snapshot_article = str(getattr(snapshot, "sku_code", "") or "").strip().lower()
+    snapshot_barcode = str(getattr(snapshot, "barcode", "") or "").strip().lower()
+    snapshot_goods_type = _normalize_goods_type(getattr(snapshot, "goods_type", "") or "")
+    if selector_goods_type and snapshot_goods_type and selector_goods_type != snapshot_goods_type:
+        return False
+    sku_matched = bool(selector_article and snapshot_article and selector_article == snapshot_article)
+    barcode_matched = bool(selector_barcodes and snapshot_barcode and snapshot_barcode in selector_barcodes)
+    if selector_article and selector_barcodes:
+        return sku_matched or barcode_matched
+    if selector_article:
+        return sku_matched
+    return barcode_matched
+
+
+def _existing_processing_obr_request_state(
+    processing_order_id: str,
+    request_items: list[dict],
+    explicit_requested_rows: list[dict] | None = None,
+) -> str:
+    order_key = str(processing_order_id or "").strip()
+    if not order_key:
+        return ""
+    selectors = _processing_request_item_selectors(request_items, explicit_requested_rows)
+    if not selectors:
+        return ""
+    existing_requests = (
+        MoveRequest.objects.prefetch_related("items")
+        .filter(
+            context_type=MoveRequest.CONTEXT_PROCESSING,
+            context_id=order_key,
+            destination_zone="OBR",
+        )
+        .exclude(status__in={MoveRequest.STATUS_CANCELED, MoveRequest.STATUS_BLOCKED})
+        .order_by("-created_at")
+    )
+    for move_request in existing_requests:
+        items = list(move_request.items.all())
+        if not items:
+            continue
+        for selector in selectors:
+            if any(_move_request_item_matches_selector(item, selector) for item in items):
+                if move_request.status == MoveRequest.STATUS_DONE:
+                    return "done"
+                return "active"
+    return ""
+
+
+def _processing_obr_truth_state(
+    *,
+    processing_order_id: str,
+    agency,
+    request_items: list[dict],
+    explicit_requested_rows: list[dict] | None = None,
+) -> str:
+    order_key = str(processing_order_id or "").strip()
+    if not order_key or not agency:
+        return ""
+    selectors = _processing_request_item_selectors(request_items, explicit_requested_rows)
+    if not selectors:
+        return ""
+    snapshots = WarehouseGoodsStateResolver._processing_snapshots(
+        agency=agency,
+        order_id=order_key,
+    )
+    relevant_snapshots = [
+        snapshot
+        for snapshot in snapshots
+        if any(_processing_snapshot_matches_selector(snapshot, selector) for selector in selectors)
+    ]
+    if not relevant_snapshots:
+        return ""
+    delivery_snapshots = [
+        snapshot
+        for snapshot in relevant_snapshots
+        if _parse_int_value(getattr(snapshot, "processing_reserved_qty", 0)) > 0
+    ] or relevant_snapshots
+    if all(
+        _normalize_zone_code(
+            getattr(snapshot, "zone_code", "")
+            or getattr(getattr(snapshot, "location", None), "zone_code", "")
+            or ""
+        )
+        == "OBR"
+        for snapshot in delivery_snapshots
+    ):
+        return "done"
+    dominant_code = WarehouseGoodsStateResolver._dominant_state_code(
+        [snapshot.warehouse_state_code for snapshot in delivery_snapshots],
+        priority=WarehouseGoodsStateResolver._PROCESSING_STATE_PRIORITY,
+    )
+    if dominant_code in {
+        WarehouseStateCode.IN_PROCESSING_ZONE,
+        WarehouseStateCode.PROCESSING_IN_PROGRESS,
+        WarehouseStateCode.PLACED_AFTER_PROCESSING,
+        WarehouseStateCode.STORED,
+    }:
+        return "done"
+    if dominant_code == WarehouseStateCode.MOVING_TO_PROCESSING:
+        return "active"
+    return ""
+
+
+def _mobile_request_type_short_label(source_type: str) -> str:
+    normalized = str(source_type or "").strip().lower()
+    if normalized == "receiving":
+        return "Приемка"
+    if normalized == "processing":
+        return "Обработка"
+    if normalized == "shipping":
+        return "Отгрузка"
+    return "Задание"
+
+
+def _zone_summary_label(location: dict | None) -> str:
+    location = location or {}
+    zone = _normalize_zone_code(location.get("zone") or "") or "PR"
+    if zone == "PR":
+        return "Зона PR"
+    if zone == "OBR":
+        return "Зона OBR"
+    if zone == "OTG":
+        return "Зона OTG"
+    if zone == "MR":
+        return "Между рядами"
+    if zone == "OS":
+        return "Основной склад"
+    return f"Зона {zone}"
+
+
+def _mobile_request_route_summary(move: dict) -> str:
+    if move.get("pallet_choice_pending"):
+        to_zone = _normalize_zone_code((move.get("to_location") or {}).get("zone") or "") or "PR"
+        requested_box_count = _parse_int_value(move.get("requested_box_count"))
+        if requested_box_count > 0:
+            return f"{requested_box_count} \u043a\u043e\u0440\u043e\u0431\u043e\u0432 -> {to_zone}"
+        if move.get("candidate_location_count"):
+            return f"{move.get('candidate_location_count')} \u0432\u0430\u0440\u0438\u0430\u043d\u0442\u043e\u0432 -> {to_zone}"
+    from_zone = _normalize_zone_code((move.get("from_location") or {}).get("zone") or "") or "PR"
+    to_zone = _normalize_zone_code((move.get("to_location") or {}).get("zone") or "") or "PR"
+    return f"{from_zone} -> {to_zone}"
+
+
+def _candidate_pallet_options_from_payload(payload: dict) -> list[dict]:
+    raw_options = payload.get("candidate_pallets") if isinstance(payload, dict) else []
+    if not isinstance(raw_options, list):
+        return []
+    result: list[dict] = []
+    seen: set[str] = set()
+    for raw in raw_options:
+        if not isinstance(raw, dict):
+            continue
+        pallet_code = str(raw.get("pallet_code") or "").strip()
+        key = pallet_code.lower()
+        if not pallet_code or key in seen:
+            continue
+        seen.add(key)
+        from_location = raw.get("from_location") if isinstance(raw.get("from_location"), dict) else {}
+        source_code = str(putaway_location_scan_code(from_location) or "").strip()
+        source_label = str(raw.get("from_label") or _location_label(from_location) or source_code).strip()
+        result.append(
+            {
+                "pallet_code": pallet_code,
+                "from_location": from_location,
+                "source_code": source_code,
+                "source_label": source_label,
+                "available_qty": _parse_int_value(raw.get("available_qty")),
+            }
+        )
+    return result
+
+
+def _candidate_location_groups_from_payload(payload: dict) -> list[dict]:
+    groups: dict[str, dict] = {}
+    for option in _candidate_pallet_options_from_payload(payload):
+        key = option["source_code"] or option["source_label"] or "-"
+        group = groups.setdefault(
+            key,
+            {
+                "source_code": option["source_code"],
+                "source_label": option["source_label"],
+                "pallets": [],
+                "pallet_codes": [],
+                "qty": 0,
+            },
+        )
+        group["pallet_codes"].append(str(option.get("pallet_code") or "").strip())
+        group["pallets"].append(_display_pallet_scan_text(option["pallet_code"]))
+        group["qty"] += _parse_int_value(option.get("available_qty"))
+    result = []
+    for group in groups.values():
+        pallets = [code for code in group["pallets"] if code]
+        result.append(
+            {
+                **group,
+                "pallet_code": next((code for code in group.get("pallet_codes") or [] if code), ""),
+                "pallet_count": len(pallets),
+                "pallets_label": ", ".join(pallets[:6]) + ("..." if len(pallets) > 6 else ""),
+            }
+        )
+    return result
+
+
+_OS_LINE_DISPLAY_LABELS = {
+    1: "0",
+    2: "A",
+    3: "B",
+    4: "C",
+    5: "D",
+    6: "E",
+    7: "F",
+    8: "G",
+    9: "I",
+}
+
+
+def _os_line_display_label(section: int) -> str:
+    return _OS_LINE_DISPLAY_LABELS.get(_parse_int_value(section), str(_parse_int_value(section) or ""))
+
+
+def _mobile_route_title(move: dict) -> str:
+    from_location = move.get("from_location") or {}
+    to_location = move.get("to_location") or {}
+    from_zone = _normalize_zone_code(from_location.get("zone") or "") or "PR"
+    to_zone = _normalize_zone_code(to_location.get("zone") or "") or "PR"
+    if to_zone == "OS":
+        line_label = _os_line_display_label(to_location.get("section"))
+        if line_label:
+            return f"{from_zone} -> OS · Линия {line_label}"
+        return f"{from_zone} -> OS"
+    if to_zone == "MR":
+        row = _parse_int_value(to_location.get("row"))
+        if row > 0:
+            return f"{from_zone} -> MR · Ряд {row}"
+        return f"{from_zone} -> MR"
+    return f"{from_zone} -> {to_zone}"
+
+
+def _request_supports_batch_execution(request_group: dict | None) -> bool:
+    if not request_group:
+        return False
+    tasks = list(request_group.get("tasks") or [])
+    if not tasks:
+        return False
+    if any(bool(task.get("pallet_choice_pending")) for task in tasks):
+        return False
+    return all(str(task.get("move_mode") or "").strip().lower() == MOVE_MODE_PALLET_FULL for task in tasks)
+
+
+def _group_mobile_requests(category_moves: list[dict], mobile_category: str) -> tuple[list[dict], dict[str, dict]]:
+    request_groups: list[dict] = []
+    request_lookup: dict[str, dict] = {}
+    for move in category_moves:
+        request_key = move["mobile_request_key"]
+        group = request_lookup.get(request_key)
+        if not group:
+            group = {
+                "key": request_key,
+                "label": move["mobile_request_label"],
+                "type_label": move["mobile_request_type_label"],
+                "agency_name": move["agency_name"],
+                "agency_name_short": move["agency_name_short"],
+                "source_url": move.get("source_url") or "",
+                "source_label": move.get("source_label") or "",
+                "source_type_label": move.get("source_type_label") or "",
+                "count": 0,
+                "count_label": "",
+                "pallet_count_label": "",
+                "destinations": [],
+                "summary": _mobile_request_route_summary(move),
+                "url": mobile_request_url(mobile_category or move["mobile_category"], request_key),
+                "tasks": [],
+            }
+            request_lookup[request_key] = group
+            request_groups.append(group)
+        group["count"] += 1
+        group["count_label"] = _task_count_label(group["count"])
+        group["pallet_count_label"] = _pallet_count_label(group["count"])
+        group["tasks"].append(move)
+        destination = str(move["mobile_destination"] or move["to_label"] or "").strip()
+        if destination and destination not in group["destinations"]:
+            group["destinations"].append(destination)
+    return request_groups, request_lookup
+
+
+def _resolved_move_assignee_employee_id(move_task: MoveTask | None, payload: dict) -> int | None:
+    assigned_to_id = payload.get("assigned_to_id")
+    if assigned_to_id not in (None, ""):
+        try:
+            return int(assigned_to_id)
+        except (TypeError, ValueError):
+            pass
+    if move_task and getattr(move_task, "assigned_to", None):
+        employee = get_employee_for_user(move_task.assigned_to)
+        if employee and getattr(employee, "id", None):
+            return int(employee.id)
+    if move_task and move_task.assigned_to_id:
+        try:
+            return int(move_task.assigned_to_id)
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _build_current_mobile_requests(
+    request_groups: list[dict],
+    *,
+    employee_id: int | None,
+    is_driver: bool,
+) -> list[dict]:
+    if not is_driver:
+        return []
+    current_requests: list[dict] = []
+    for request_group in request_groups:
+        if not _request_supports_batch_execution(request_group):
+            continue
+        task_ids = [str(task.get("order_id") or "").strip() for task in request_group.get("tasks") or [] if str(task.get("order_id") or "").strip()]
+        if not task_ids:
+            continue
+        execution = build_mobile_request_execution_snapshot(task_ids, employee_id=employee_id)
+        if not execution or not execution.get("can_scan"):
+            continue
+        current_requests.append(
+            {
+                "key": request_group["key"],
+                "label": request_group["label"],
+                "type_label": request_group["type_label"],
+                "agency_name_short": request_group["agency_name_short"],
+                "summary": request_group["summary"],
+                "url": request_group["url"],
+                "remaining_label": _pallet_count_label(execution.get("remaining_count") or 0),
+                "prompt": str(execution.get("prompt") or "").strip(),
+                "active_pallet_code": str(execution.get("active_pallet_code") or "").strip(),
+                "current_step": str(execution.get("current_step") or "").strip(),
+            }
+        )
+    return current_requests
+
+
+def _otg_task_already_closed_by_other_pick(
+    *,
+    status: str,
+    payload: dict,
+    delivered_codes: list[str],
+) -> bool:
+    normalized_status = str(status or "").strip().lower()
+    if normalized_status in {MoveTask.STATUS_DONE, MoveTask.STATUS_CANCELED, "cancelled"}:
+        return False
+    if _normalize_zone_code((payload.get("to_location") or {}).get("zone") or "") != "OTG":
+        return False
+    delivered = {
+        str(code or "").strip().lower()
+        for code in delivered_codes
+        if str(code or "").strip()
+    }
+    if not delivered:
+        return False
+    explicit_codes: list[str] = []
+    for raw_code in list(payload.get("reserved_box_codes") or []) + list(_payload_box_codes(payload) or []):
+        code = str(raw_code or "").strip()
+        if code:
+            explicit_codes.append(code)
+    if explicit_codes:
+        return all(code.lower() in delivered for code in explicit_codes)
+    requested_count = _requested_box_count(payload)
+    return requested_count > 0 and len(delivered) >= requested_count
+
+
+def _mobile_route_detail(move: dict) -> str:
+    from_label = str(move.get("from_label") or "").strip()
+    to_label = str(move.get("mobile_destination") or move.get("to_label") or "").strip()
+    if from_label and to_label:
+        return f"{from_label} -> {to_label}"
+    return from_label or to_label or "-"
+
+
+def _task_kind_label(payload: dict) -> str:
+    if not isinstance(payload, dict):
+        return ""
+    explicit = str(payload.get("task_kind_label") or "").strip()
+    if explicit:
+        return explicit
+    mode = _normalize_move_mode(payload.get("move_mode"), payload.get("pick_mode"))
+    to_location = payload.get("to_location") or {}
+    to_zone = _normalize_zone_code(to_location.get("zone") or "")
+    if mode == "box_partial" and to_zone == "OTG":
+        return "Частичный отбор с палеты для отгрузки"
+    if mode == "box_partial":
+        return "Частичный отбор с палеты"
+    if mode == "box_full":
+        return "Выдача коробов без разбора"
+    return "Перемещение палеты"
+
+
+def _agency_id_for_processing_order(order_id: str | None) -> int | None:
+    order_key = str(order_id or "").strip()
+    if not order_key:
+        return None
+    entry = (
+        OrderAuditEntry.objects.filter(order_type="processing", order_id=order_key)
+        .exclude(agency=None)
+        .order_by("-created_at")
+        .first()
+    )
+    if not entry:
+        return None
+    return int(entry.agency_id)
+
+
+def _move_payload_matches_selectors(
+    payload: dict,
+    barcode_values: set[str] | None = None,
+    sku_values: set[str] | None = None,
+    goods_type_values: set[str] | None = None,
+) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    barcode_values = {str(value).strip() for value in (barcode_values or set()) if str(value or "").strip()}
+    sku_values = {str(value).strip() for value in (sku_values or set()) if str(value or "").strip()}
+    goods_type_values = {
+        _normalize_goods_type(value)
+        for value in (goods_type_values or set())
+        if _normalize_goods_type(value)
+    }
+
+    move_goods_type = _normalize_goods_type(payload.get("requested_goods_type"))
+    if goods_type_values and move_goods_type and move_goods_type not in goods_type_values:
+        return False
+
+    move_sku = str(payload.get("requested_sku") or "").strip()
+    requested_barcodes_raw = payload.get("requested_barcodes")
+    if isinstance(requested_barcodes_raw, list):
+        move_barcodes = {
+            str(value).strip() for value in requested_barcodes_raw if str(value or "").strip()
+        }
+    else:
+        move_barcodes = {
+            str(value).strip() for value in _parse_json_list(requested_barcodes_raw) if str(value or "").strip()
+        }
+
+    if not barcode_values and not sku_values:
+        return True
+    sku_hit = bool(sku_values and move_sku and move_sku in sku_values)
+    barcode_hit = bool(barcode_values and move_barcodes and (move_barcodes & barcode_values))
+    if barcode_values and sku_values:
+        return sku_hit or barcode_hit
+    if barcode_values:
+        return barcode_hit
+    return sku_hit
+
+
+def _move_instruction(payload: dict) -> str:
+    explicit_instruction = str((payload or {}).get("instruction") or "").strip()
+    if explicit_instruction:
+        return explicit_instruction
+    return "Переместить товар по заданию."
+
+
+def _canonical_move_instruction(payload: dict) -> str:
+    normalized_payload = dict(payload or {})
+    normalized_payload.pop("instruction", None)
+    return move_request_instruction_service(normalized_payload)
+
+
+def _normalize_stale_partial_move_payload(
+    payload: dict,
+    pallet_code: str,
+    *,
+    agency_id: int | None = None,
+    include_plan: bool = True,
+) -> tuple[dict, bool, list[dict]]:
+    normalized_payload = dict(payload or {})
+    move_mode = _normalize_move_mode(
+        normalized_payload.get("move_mode"),
+        normalized_payload.get("pick_mode"),
+    )
+    if move_mode != MOVE_MODE_BOX_PARTIAL:
+        if not include_plan:
+            return normalized_payload, False, []
+        return (
+            normalized_payload,
+            False,
+            pallet_box_plan_service(
+                normalized_payload,
+                pallet_code,
+                agency_id=agency_id,
+            ),
+        )
+
+    requested_rows = _requested_partial_rows(normalized_payload)
+    if not requested_rows:
+        if not include_plan:
+            return normalized_payload, False, []
+        return (
+            normalized_payload,
+            False,
+            pallet_box_plan_service(
+                normalized_payload,
+                pallet_code,
+                agency_id=agency_id,
+            ),
+        )
+
+    pallet_plan = pallet_box_plan_service(
+        normalized_payload,
+        pallet_code,
+        agency_id=agency_id,
+    )
+
+    box_qty_by_code = {
+        str(row.get("box_code") or "").strip().lower(): _parse_int_value(row.get("qty"))
+        for row in pallet_plan
+        if str(row.get("box_code") or "").strip()
+    }
+    selected_codes: list[str] = []
+    selected_keys: set[str] = set()
+    full_boxes = True
+    for row in requested_rows:
+        box_code = str(row.get("box_code") or "").strip()
+        requested_qty = _parse_int_value(row.get("qty"))
+        box_key = box_code.lower()
+        box_qty = _parse_int_value(box_qty_by_code.get(box_key))
+        if not box_code or requested_qty <= 0 or box_qty <= 0 or requested_qty < box_qty:
+            full_boxes = False
+            break
+        if box_key not in selected_keys:
+            selected_keys.add(box_key)
+            selected_codes.append(box_code)
+    if not full_boxes or not selected_codes:
+        return normalized_payload, False, pallet_plan
+
+    normalized_payload["move_mode"] = MOVE_MODE_BOX_FULL
+    normalized_payload["pick_mode"] = "box_full"
+    normalized_payload["requested_boxes"] = selected_codes
+    normalized_payload["requested_box"] = selected_codes[0] if len(selected_codes) == 1 else ""
+    normalized_payload["instruction"] = _canonical_move_instruction(normalized_payload)
+    if include_plan:
+        pallet_plan = pallet_box_plan_service(
+            normalized_payload,
+            pallet_code,
+            agency_id=agency_id,
+        )
+    else:
+        pallet_plan = []
+    return normalized_payload, True, pallet_plan
+
+
+def _latest_moves_by_pallet(
+    processing_order_id: str | None = None,
+    barcode_values: set[str] | None = None,
+    sku_values: set[str] | None = None,
+    goods_type_values: set[str] | None = None,
+) -> dict[str, dict]:
+    processing_order_id = str(processing_order_id or "").strip()
+    entries = OrderAuditEntry.objects.filter(order_type="stock_move").order_by("-created_at")
+    latest: dict[str, dict] = {}
+    for entry in entries:
+        payload = entry.payload or {}
+        pallet_code = display_scan_text(payload.get("pallet_code"))
+        move_processing_order_id = str(payload.get("processing_order_id") or "").strip()
+        if processing_order_id and move_processing_order_id != processing_order_id:
+            continue
+        if not _move_payload_matches_selectors(
+            payload,
+            barcode_values=barcode_values,
+            sku_values=sku_values,
+            goods_type_values=goods_type_values,
+        ):
+            continue
+        if not pallet_code or pallet_code in latest:
+            continue
+        status = (payload.get("status") or payload.get("submit_action") or "").strip().lower()
+        status_label = (payload.get("status_label") or "").strip()
+        to_location = payload.get("to_location") or {}
+        requested_barcodes_raw = payload.get("requested_barcodes")
+        if isinstance(requested_barcodes_raw, list):
+            requested_barcodes = [
+                str(value).strip()
+                for value in requested_barcodes_raw
+                if str(value or "").strip()
+            ]
+        else:
+            requested_barcodes = _parse_json_list(requested_barcodes_raw)
+        latest[pallet_code] = {
+            "status": status,
+            "status_label": status_label,
+            "to_label": _location_label(to_location),
+            "to_zone": _normalize_zone_code(to_location.get("zone") or ""),
+            "order_id": entry.order_id,
+            "pick_mode": (payload.get("pick_mode") or "full"),
+            "move_mode": _normalize_move_mode(payload.get("move_mode"), payload.get("pick_mode")),
+            "requested_qty": _parse_int_value(payload.get("requested_qty")),
+            "picked_qty": _parse_int_value(payload.get("picked_qty")),
+            "requested_sku": str(payload.get("requested_sku") or "").strip(),
+            "requested_barcodes": requested_barcodes,
+            "requested_barcode_qty": _requested_barcode_qty(payload),
+            "requested_boxes": _payload_box_codes(payload),
+            "requested_box": _single_requested_box(payload),
+            "requested_rows": _requested_partial_rows(payload),
+            "requested_goods_type": _normalize_goods_type(
+                payload.get("requested_goods_type") or payload.get("requested_goods_type_label")
+            ),
+            "processing_order_id": move_processing_order_id,
+            "instruction": _move_instruction(payload),
+        }
+    return latest
+
+
+def _lookup_pallet_location_data(*, code: str, processing_order_id: str = "") -> tuple[dict | None, str]:
+    pallet_code = str(code or "").strip()
+    if not pallet_code:
+        return None, "\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u043a\u043e\u0434 \u043f\u0430\u043b\u043b\u0435\u0442\u044b."
+    processing_agency_id = _agency_id_for_processing_order(processing_order_id)
+    found = find_pallet_by_code_service(pallet_code, agency_id=processing_agency_id)
+    if not found:
+        return None, "\u041f\u0430\u043b\u043b\u0435\u0442\u0430 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u0430."
+    entry, _, _, location = found
+    return (
+        {
+            "code": pallet_code,
+            "label": putaway_location_scan_code(location),
+            "location_label": _location_label(location),
+            "location": location,
+            "receiving_order_id": entry.order_id,
+        },
+        "",
+    )
+
+
+def lookup_pallet_location_response(request):
+    allowed_categories = {
+        str(definition.get("key") or "").strip().lower()
+        for definition in _super_car_category_definitions()
+        if str(definition.get("key") or "").strip()
+    }
+    reachtruck_views = _views()
+    role = get_request_role(request)
+    if role not in reachtruck_views.ALLOWED_ROLES:
+        return HttpResponseForbidden("Доступ запрещен")
+    code = str(request.GET.get("code") or "").strip()
+    if not code:
+        return JsonResponse({"ok": False, "error": "Укажите код паллеты."}, status=400)
+    processing_order_id = str(request.GET.get("processing_order_id") or "").strip()
+    processing_agency_id = _agency_id_for_processing_order(processing_order_id)
+    found = find_pallet_by_code_service(code, agency_id=processing_agency_id)
+    if not found:
+        return JsonResponse({"ok": False, "error": "Паллета не найдена."}, status=404)
+    entry, _, _, location = found
+    return JsonResponse(
+        {
+            "ok": True,
+            "label": putaway_location_scan_code(location),
+            "location_label": _location_label(location),
+            "location": location,
+            "receiving_order_id": entry.order_id,
+        }
+    )
+
+
+def lookup_item_pallets_response(request):
+    reachtruck_views = _views()
+    role = get_request_role(request)
+    if role not in reachtruck_views.ALLOWED_ROLES:
+        return HttpResponseForbidden("Доступ запрещен")
+    barcodes = request.GET.getlist("barcode")
+    barcode = str(request.GET.get("barcode") or "").strip()
+    if barcode and barcode not in barcodes:
+        barcodes.append(barcode)
+    expanded = []
+    for value in barcodes:
+        for part in str(value or "").split(","):
+            part = part.strip()
+            if part:
+                expanded.append(part)
+    barcodes = expanded
+    sku = str(request.GET.get("sku") or "").strip()
+    requested_goods_type = _normalize_goods_type(request.GET.get("goods_type"))
+    if not barcodes and not sku:
+        return JsonResponse({"ok": False, "error": "Укажите ШК или артикул."}, status=400)
+    barcode_values = {value for value in barcodes if value}
+    sku_values = {sku} if sku else set()
+    goods_type_values = {requested_goods_type} if requested_goods_type else set()
+    processing_order_id = str(request.GET.get("processing_order_id") or "").strip()
+    processing_agency_id = _agency_id_for_processing_order(processing_order_id)
+    if barcode_values:
+        barcode_queryset = SKUBarcode.objects.filter(value__in=barcode_values)
+        if processing_agency_id:
+            barcode_queryset = barcode_queryset.filter(agency_id=processing_agency_id)
+        sku_values.update(
+            barcode_queryset.values_list("sku__sku_code", flat=True)
+        )
+        sku_values.discard(None)
+
+    include_moves = request.GET.get("include_moves") == "1"
+    moves_by_pallet = {}
+    if include_moves:
+        moves_by_pallet = _latest_moves_by_pallet(
+            processing_order_id=processing_order_id,
+            barcode_values=barcode_values,
+            sku_values=sku_values,
+            goods_type_values=goods_type_values,
+        )
+    matches = {}
+
+    def _move_matches_lookup(move_payload: dict) -> bool:
+        return _move_payload_matches_selectors(
+            move_payload,
+            barcode_values=barcode_values,
+            sku_values=sku_values,
+            goods_type_values=goods_type_values,
+        )
+
+    state_rows = snapshot_stock_rows(
+        agency_id=processing_agency_id,
+        sku_values=sku_values,
+        barcode_values=barcode_values,
+        require_pallet=True,
+    )
+
+    for state_row in state_rows:
+        pallet_code = display_scan_text(state_row.get("pallet_code"))
+        if not pallet_code:
+            continue
+        payload_goods_type = _normalize_goods_type(state_row.get("goods_type"))
+        if goods_type_values and payload_goods_type and payload_goods_type not in goods_type_values:
+            continue
+        prev = matches.get(pallet_code)
+        payload = {
+            "pallet": pallet_code,
+            "location": putaway_location_scan_code(
+                {
+                    "zone": state_row.get("zone") or "",
+                    "row": state_row.get("row") or 0,
+                    "section": state_row.get("section") or 0,
+                    "tier": state_row.get("tier") or 0,
+                    "cell": state_row.get("cell") or 0,
+                }
+            ),
+            "location_label": str(state_row.get("location") or "").strip()
+            or _location_label(
+                {
+                    "zone": state_row.get("zone") or "",
+                    "row": state_row.get("row") or 0,
+                    "section": state_row.get("section") or 0,
+                    "tier": state_row.get("tier") or 0,
+                    "cell": state_row.get("cell") or 0,
+                }
+            ),
+            "receiving_order_id": state_row.get("order_id") or "",
+            "qty": int(state_row.get("qty") or 0),
+            "box_qty": 0,
+            "box_matches": [],
+            "goods_type": state_row.get("goods_type") or "",
+        }
+        if include_moves and pallet_code in moves_by_pallet:
+            move_payload = moves_by_pallet[pallet_code]
+            payload.update(
+                {
+                    "move_status": move_payload.get("status") or "",
+                    "move_status_label": move_payload.get("status_label") or "",
+                    "move_to_label": move_payload.get("to_label") or "",
+                    "move_to_zone": move_payload.get("to_zone") or "",
+                    "move_order_id": move_payload.get("order_id") or "",
+                    "move_pick_mode": move_payload.get("pick_mode") or "full",
+                    "move_mode": move_payload.get("move_mode") or MOVE_MODE_PALLET_FULL,
+                    "move_requested_qty": move_payload.get("requested_qty") or 0,
+                    "move_picked_qty": move_payload.get("picked_qty") or 0,
+                    "move_requested_sku": move_payload.get("requested_sku") or "",
+                    "move_requested_barcodes": move_payload.get("requested_barcodes") or [],
+                    "move_requested_barcode_qty": move_payload.get("requested_barcode_qty") or {},
+                    "move_requested_boxes": move_payload.get("requested_boxes") or [],
+                    "move_requested_box": move_payload.get("requested_box") or "",
+                    "move_requested_rows": move_payload.get("requested_rows") or [],
+                    "move_requested_goods_type": move_payload.get("requested_goods_type") or "",
+                    "move_processing_order_id": move_payload.get("processing_order_id") or "",
+                    "move_instruction": move_payload.get("instruction") or "",
+                }
+            )
+        if not prev:
+            matches[pallet_code] = payload
+            continue
+        prev_qty = int(prev.get("qty") or 0)
+        payload["qty"] = prev_qty + int(payload.get("qty") or 0)
+        matches[pallet_code] = payload
+
+    if include_moves:
+        for pallet_code, move_payload in moves_by_pallet.items():
+            pallet_code = str(pallet_code or "").strip()
+            if not pallet_code or pallet_code in matches:
+                continue
+            if not _move_matches_lookup(move_payload):
+                continue
+            move_requested_goods_type = _normalize_goods_type(move_payload.get("requested_goods_type"))
+            payload = {
+                "pallet": pallet_code,
+                "location": str(
+                    move_payload.get("from_code")
+                    or move_payload.get("source_code")
+                    or putaway_location_scan_code(move_payload.get("from_location") or {})
+                    or ""
+                ).strip()
+                or "—",
+                "location_label": str(move_payload.get("from_label") or "").strip()
+                or _location_label(move_payload.get("from_location") or {}),
+                "receiving_order_id": "",
+                "qty": 0,
+                "box_qty": 0,
+                "box_matches": [],
+                "goods_type": move_requested_goods_type or "",
+                "move_status": move_payload.get("status") or "",
+                "move_status_label": move_payload.get("status_label") or "",
+                "move_to_label": move_payload.get("to_label") or "",
+                "move_to_zone": move_payload.get("to_zone") or "",
+                "move_order_id": move_payload.get("order_id") or "",
+                "move_pick_mode": move_payload.get("pick_mode") or "full",
+                "move_mode": move_payload.get("move_mode") or MOVE_MODE_PALLET_FULL,
+                "move_requested_qty": move_payload.get("requested_qty") or 0,
+                "move_picked_qty": move_payload.get("picked_qty") or 0,
+                "move_requested_sku": move_payload.get("requested_sku") or "",
+                "move_requested_barcodes": move_payload.get("requested_barcodes") or [],
+                "move_requested_barcode_qty": move_payload.get("requested_barcode_qty") or {},
+                "move_requested_boxes": move_payload.get("requested_boxes") or [],
+                "move_requested_box": move_payload.get("requested_box") or "",
+                "move_requested_rows": move_payload.get("requested_rows") or [],
+                "move_requested_goods_type": move_requested_goods_type or "",
+                "move_processing_order_id": move_payload.get("processing_order_id") or "",
+                "move_instruction": move_payload.get("instruction") or "",
+            }
+            matches[pallet_code] = payload
+    for pallet_code, payload in matches.items():
+        code = str(pallet_code or "").strip()
+        if not code:
+            continue
+        box_matches = matching_stock_boxes_for_pallet_service(
+            code,
+            barcode_values,
+            sku_values,
+            goods_type_values,
+            agency_id=processing_agency_id,
+        )
+        box_qty = sum(_parse_int_value(item.get("qty")) for item in box_matches)
+        payload["box_matches"] = box_matches
+        payload["box_qty"] = box_qty
+        if box_qty > 0:
+            payload["qty"] = box_qty
+    return JsonResponse({"ok": True, "pallets": list(matches.values())})
+
+
+def create_move_request_response(request):
+    reachtruck_views = _views()
+    role = get_request_role(request)
+    if role not in reachtruck_views.CREATE_ROLES:
+        return HttpResponseForbidden("Доступ запрещен")
+    processing_order_id = str(request.POST.get("processing_order_id") or "").strip()
+    destination = destination_from_request_data_service(
+        {
+            "to_zone": request.POST.get("to_zone") or "OBR",
+            "to_row": request.POST.get("to_row"),
+            "to_section": request.POST.get("to_section"),
+            "to_tier": request.POST.get("to_tier"),
+            "to_cell": request.POST.get("to_cell"),
+        }
+    )
+    zone = _normalize_zone_code(destination.get("zone") or "")
+    row = _parse_int_value(destination.get("row"))
+    section = _parse_int_value(destination.get("section"))
+    tier = _parse_int_value(destination.get("tier"))
+    cell = _parse_int_value(destination.get("cell"))
+    if zone not in reachtruck_views.ALLOWED_ZONES:
+        return JsonResponse({"ok": False, "error": "Некорректная зона назначения."}, status=400)
+    if zone == "MR" and not row:
+        return JsonResponse({"ok": False, "error": "Для зоны MR укажите ряд."}, status=400)
+    if zone == "OS" and not (row and section and tier and cell):
+        return JsonResponse(
+            {"ok": False, "error": "Для зоны OS укажите ряд, секцию, ярус и ячейку."},
+            status=400,
+        )
+    request_items = parse_move_request_items_service(
+        request.POST.get("request_items_json"),
+        fallback_form={
+            "requested_article": request.POST.get("requested_article"),
+            "requested_goods_type": request.POST.get("requested_goods_type"),
+            "requested_qty": request.POST.get("requested_qty"),
+            "pick_qty": request.POST.get("pick_qty"),
+            "requested_barcodes_json": request.POST.get("requested_barcodes_json"),
+        },
+    )
+    explicit_requested_rows = parse_explicit_requested_rows_service(request.POST.get("requested_rows_json"))
+    if not request_items and not explicit_requested_rows:
+        return JsonResponse(
+            {"ok": False, "error": "Укажите товар (SKU/ШК) и количество для перемещения."},
+            status=400,
+        )
+    agency_id = _agency_id_for_processing_order(processing_order_id)
+    if not agency_id:
+        agency_id = _parse_int_value(request.POST.get("agency_id"))
+    if not agency_id:
+        return JsonResponse(
+            {"ok": False, "error": "Не удалось определить клиента для перемещения."},
+            status=400,
+        )
+    agency = Agency.objects.filter(pk=agency_id).first()
+    if not agency:
+        return JsonResponse(
+            {"ok": False, "error": "Клиент не найден."},
+            status=400,
+        )
+    if processing_order_id and zone == "OBR":
+        duplicate_state = _existing_processing_obr_request_state(
+            processing_order_id,
+            request_items,
+            explicit_requested_rows,
+        )
+        if duplicate_state == "done":
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": "Товар по этой заявке уже доставлен в OBR.",
+                    "tasks_created": 0,
+                    "status": "done",
+                },
+                status=400,
+            )
+        if duplicate_state == "active":
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": "Для этого товара уже есть активное задание ричтракеру в OBR.",
+                    "tasks_created": 0,
+                    "status": "active",
+                },
+                status=400,
+            )
+        truth_state = _processing_obr_truth_state(
+            processing_order_id=processing_order_id,
+            agency=agency,
+            request_items=request_items,
+            explicit_requested_rows=explicit_requested_rows,
+        )
+        if truth_state == "done":
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": "Товар по этой заявке уже находится в OBR или обработке.",
+                    "tasks_created": 0,
+                    "status": "done",
+                },
+                status=400,
+            )
+        if truth_state == "active":
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": "Товар по этой заявке уже доставляется в OBR.",
+                    "tasks_created": 0,
+                    "status": "active",
+                },
+                status=400,
+            )
+    employee = get_employee_for_user(request.user)
+    if employee and employee.full_name:
+        requested_by_name = employee.full_name
+    else:
+        requested_by_name = request.user.get_full_name().strip() or request.user.username
+    context_type = MoveRequest.CONTEXT_PROCESSING if processing_order_id else MoveRequest.CONTEXT_MANUAL
+    move_request = MoveRequest.objects.create(
+        context_type=context_type,
+        context_id=processing_order_id,
+        agency=agency,
+        requested_by=request.user if request.user.is_authenticated else None,
+        requested_by_role=role or "",
+        requested_by_name=requested_by_name,
+        destination_zone=zone or "PR",
+        destination_row=row or None,
+        destination_section=section or None,
+        destination_tier=tier or None,
+        destination_cell=cell or None,
+        status=MoveRequest.STATUS_CREATED,
+        comment=str(request.POST.get("comment") or "").strip(),
+    )
+    move_request_items: list[MoveRequestItem] = []
+    for item in request_items:
+        requested_barcodes = item.get("requested_barcodes") or []
+        barcode_value = requested_barcodes[0] if len(requested_barcodes) == 1 else ""
+        move_request_items.append(
+            MoveRequestItem.objects.create(
+                request=move_request,
+                sku_code=str(item.get("requested_article") or "").strip(),
+                barcode=barcode_value,
+                goods_type=str(item.get("requested_goods_type") or "").strip(),
+                qty_requested=_parse_int_value(item.get("requested_qty")),
+                qty_planned=0,
+            )
+        )
+    result = plan_move_request_to_tasks_service(
+        move_request=move_request,
+        move_request_items=move_request_items,
+        request_items=request_items,
+        explicit_requested_rows=explicit_requested_rows,
+        destination=destination,
+        processing_order_id=processing_order_id,
+        requested_by_name=requested_by_name,
+        requested_by_role=role or "",
+        user=request.user,
+    )
+    created = _parse_int_value(result.get("created"))
+    shortage_qty = _parse_int_value(result.get("shortage_qty"))
+    already_at_destination = _parse_int_value(result.get("already_at_destination"))
+    ok = created > 0 or (already_at_destination > 0 and move_request.status == MoveRequest.STATUS_DONE)
+    return JsonResponse(
+        {
+            "ok": ok,
+            "request_id": move_request.id,
+            "tasks_created": created,
+            "shortage_qty": shortage_qty,
+            "already_at_destination": already_at_destination,
+            "status": move_request.status,
+            "error": "" if ok else move_request.planning_error,
+        },
+        status=200 if ok else 400,
+    )
+
+
+def mobile_category_key(move: dict, payload: dict) -> str:
+    allowed_categories = {
+        str(definition.get("key") or "").strip().lower()
+        for definition in _super_car_category_definitions()
+        if str(definition.get("key") or "").strip()
+    }
+    explicit = str(payload.get("task_category") or payload.get("mobile_category") or "").strip().lower()
+    if explicit in allowed_categories:
+        return explicit
+    from_zone = _normalize_zone_code((move.get("from_location") or {}).get("zone") or "")
+    to_zone = _normalize_zone_code((move.get("to_location") or {}).get("zone") or "")
+    if payload.get("shipping_order_pk") or payload.get("shipping_order_id") or to_zone == "OTG":
+        return "assembly_shipping"
+    if to_zone == "OBR":
+        return "assembly_processing"
+    if payload.get("receiving_order_id") or from_zone == "PR":
+        return "placement_receiving"
+    if payload.get("processing_order_id") or from_zone == "OBR":
+        return "placement_processing"
+    if to_zone in {"OS", "MR"}:
+        return "placement_processing"
+    return "assembly_processing"
+    if "инвентар" in task_kind:
+        return "inventory"
+    if "комплект" in task_kind or "оптим" in task_kind:
+        return "optimization"
+    return "movement"
+
+
+def mobile_category_label(key: str) -> str:
+    for category_key, label in _views().MOBILE_MOVE_CATEGORIES:
+        if category_key == key:
+            return label
+    return "Перемещения"
+
+
+def _super_car_category_definitions() -> tuple[dict, ...]:
+    return tuple(getattr(_views(), "SUPER_CAR_CATEGORY_DEFINITIONS", ()) or ())
+
+
+def _super_car_root_sections() -> tuple[dict, ...]:
+    return tuple(getattr(_views(), "SUPER_CAR_ROOT_SECTIONS", ()) or ())
+
+
+def _super_car_extra_actions() -> tuple[dict, ...]:
+    return tuple(getattr(_views(), "SUPER_CAR_EXTRA_ACTIONS", ()) or ())
+
+
+def _super_car_category_definition(category_key: str) -> dict | None:
+    normalized = str(category_key or "").strip().lower()
+    if not normalized:
+        return None
+    return next(
+        (
+            definition
+            for definition in _super_car_category_definitions()
+            if str(definition.get("key") or "").strip().lower() == normalized
+        ),
+        None,
+    )
+
+
+def _super_car_category_section(category_key: str) -> str:
+    definition = _super_car_category_definition(category_key)
+    return str((definition or {}).get("section") or "").strip().lower()
+
+
+def _super_car_section_definition(section_key: str) -> dict | None:
+    normalized = str(section_key or "").strip().lower()
+    if not normalized:
+        return None
+    return next(
+        (
+            definition
+            for definition in _super_car_root_sections()
+            if str(definition.get("key") or "").strip().lower() == normalized
+        ),
+        None,
+    )
+
+
+def _super_car_extra_definition(extra_key: str) -> dict | None:
+    normalized = str(extra_key or "").strip().lower()
+    if not normalized:
+        return None
+    return next(
+        (
+            definition
+            for definition in _super_car_extra_actions()
+            if str(definition.get("key") or "").strip().lower() == normalized
+        ),
+        None,
+    )
+
+
+def _super_car_extra_section(extra_key: str) -> str:
+    definition = _super_car_extra_definition(extra_key)
+    return str((definition or {}).get("section") or "").strip().lower()
+
+
+def mobile_task_url(category: str, order_id: str) -> str:
+    return f"/super-car/?{urlencode({'mobile_category': category, 'mobile_task': order_id})}"
+
+
+def _source_order_identity(
+    payload: dict,
+    *,
+    request_context_type: str = "",
+    request_context_id: str = "",
+) -> tuple[str, str]:
+    processing_number = str(payload.get("processing_order_id") or "").strip()
+    if processing_number:
+        return "processing", processing_number
+    shipping_number = str(payload.get("shipping_order_id") or "").strip()
+    if shipping_number:
+        return "shipping", shipping_number
+    receiving_number = str(payload.get("receiving_order_id") or "").strip()
+    if receiving_number:
+        return "receiving", receiving_number
+    context_type = str(request_context_type or "").strip().lower()
+    context_id = str(request_context_id or "").strip()
+    if context_type in {"processing", "receiving", "shipping"} and context_id:
+        return context_type, context_id
+    stockmap_source_type = str(payload.get("stockmap_source_order_type") or "").strip().lower()
+    stockmap_source_id = str(payload.get("stockmap_source_order_id") or "").strip()
+    if stockmap_source_type in {"processing", "receiving", "shipping"} and stockmap_source_id:
+        return stockmap_source_type, stockmap_source_id
+    return "task", ""
+
+
+def mobile_request_identity(
+    payload: dict,
+    order_id: str,
+    *,
+    request_context_type: str = "",
+    request_context_id: str = "",
+) -> tuple[str, str, str, str]:
+    source_type, source_id = _source_order_identity(
+        payload,
+        request_context_type=request_context_type,
+        request_context_id=request_context_id,
+    )
+    if source_type == "processing" and source_id:
+        return (
+            "processing",
+            source_id,
+            _views().format_order_number("processing", source_id),
+            "Обработка",
+        )
+    if source_type == "receiving" and source_id:
+        return (
+            "receiving",
+            source_id,
+            _views().format_order_number("receiving", source_id),
+            "Приемка",
+        )
+    if source_type == "shipping" and source_id:
+        return (
+            "shipping",
+            source_id,
+            _views().format_order_number("shipping", source_id),
+            "Отгрузка",
+        )
+    fallback_order_id = str(order_id or "").strip() or "-"
+    return ("task", fallback_order_id, fallback_order_id, "Задание ричтрака")
+
+
+def mobile_request_key(
+    payload: dict,
+    order_id: str,
+    *,
+    request_context_type: str = "",
+    request_context_id: str = "",
+) -> str:
+    source_type, source_id, _label, _type_label = mobile_request_identity(
+        payload,
+        order_id,
+        request_context_type=request_context_type,
+        request_context_id=request_context_id,
+    )
+    return f"{source_type}:{source_id}"
+
+
+def mobile_request_url(category: str, request_key: str) -> str:
+    return f"/super-car/?{urlencode({'mobile_category': category, 'mobile_request': request_key})}"
+
+
+def mobile_number_label(
+    category: str,
+    payload: dict,
+    order_id: str,
+    shipping_order_pk: int,
+    *,
+    request_context_type: str = "",
+    request_context_id: str = "",
+) -> str:
+    suffix_map = {
+        "shipping": "OTG",
+        "movement": "MOV",
+        "inventory": "INV",
+        "optimization": "OPT",
+    }
+    suffix = suffix_map.get(category, "MOV")
+    if category == "shipping":
+        shipping_number = str(payload.get("shipping_order_id") or "").strip()
+        if shipping_number:
+            return _views().format_order_number("shipping", shipping_number)
+        base = shipping_order_pk or order_id
+    else:
+        source_type, _source_id, source_label, _type_label = mobile_request_identity(
+            payload,
+            order_id,
+            request_context_type=request_context_type,
+            request_context_id=request_context_id,
+        )
+        if source_type != "task":
+            return source_label
+        base = (
+            payload.get("processing_order_id")
+            or payload.get("receiving_order_id")
+            or payload.get("stockmap_source_order_id")
+            or payload.get("shipping_order_id")
+            or order_id
+        )
+    base_str = str(base or order_id).strip() or str(order_id)
+    if base_str.endswith(f"_{suffix}"):
+        return base_str
+    return f"{base_str}_{suffix}"
+
+
+def move_source_link(
+    payload: dict,
+    order_id: str,
+    *,
+    request_context_type: str = "",
+    request_context_id: str = "",
+) -> tuple[str, str, str]:
+    reachtruck_views = _views()
+    source_type, source_id = _source_order_identity(
+        payload,
+        request_context_type=request_context_type,
+        request_context_id=request_context_id,
+    )
+    processing_number = source_id if source_type == "processing" else ""
+    if processing_number:
+        return (
+            f"/orders/processing/{processing_number}/work/",
+            reachtruck_views.format_order_number("processing", processing_number),
+            "заявку на обработку",
+        )
+    receiving_number = source_id if source_type == "receiving" else ""
+    if receiving_number:
+        return (
+            f"/orders/receiving/{receiving_number}/flow/",
+            reachtruck_views.format_order_number("receiving", receiving_number),
+            "приемку",
+        )
+    shipping_order_pk = _parse_int_value(payload.get("shipping_order_pk"))
+    shipping_number = str(payload.get("shipping_order_id") or "").strip()
+    if shipping_order_pk > 0:
+        shipping_label = (
+            reachtruck_views.format_order_number("shipping", shipping_number)
+            if shipping_number
+            else f"Отгрузка #{shipping_order_pk}"
+        )
+        return (
+            f"/shipping/{shipping_order_pk}/",
+            shipping_label,
+            "отгрузку",
+        )
+    return "", "", ""
+
+
+def dashboard_identity(role: str | None) -> dict[str, str]:
+    role_key = str(role or "").strip().lower()
+    if role_key == "super_car":
+        return {
+            "browser_title": "Кабинет водителя ричтрака",
+            "profile_title": "Кабинет водителя ричтрака",
+            "panel_title": "Ричтрак",
+            "panel_subtitle": "Перемещение паллет",
+        }
+    if role_key == "storekeeper":
+        return {
+            "browser_title": "Перемещение паллет кладовщика",
+            "profile_title": "Кабинет кладовщика",
+            "panel_title": "Склад",
+            "panel_subtitle": "Задания на перемещение паллет",
+        }
+    if role_key == "processing_head":
+        return {
+            "browser_title": "Перемещение паллет обработки",
+            "profile_title": "Кабинет руководителя обработки",
+            "panel_title": "Перемещения",
+            "panel_subtitle": "Контроль заданий ричтрака",
+        }
+    if role_key == "manager":
+        return {
+            "browser_title": "Перемещение паллет менеджера",
+            "profile_title": "Кабинет менеджера",
+            "panel_title": "Перемещения",
+            "panel_subtitle": "Контроль заданий ричтрака",
+        }
+    return {
+        "browser_title": "Перемещение паллет",
+        "profile_title": "Перемещение паллет",
+        "panel_title": "Перемещения",
+        "panel_subtitle": "Контроль заданий ричтрака",
+    }
+
+
+@transaction.atomic
+def cancel_move_before_take(*, legacy_order_id: str, actor_role: str) -> tuple[bool, str]:
+    target_id = str(legacy_order_id or "").strip()
+    if not target_id:
+        return False, "Задание не найдено."
+    if actor_role not in _views().CREATE_ROLES:
+        return False, "Доступ запрещен."
+    task = (
+        MoveTask.objects.select_related("request")
+        .filter(legacy_order_id=target_id)
+        .order_by("-updated_at")
+        .first()
+    )
+    if not task:
+        return False, "Задание не найдено."
+    payload = dict(task.payload or {})
+    assigned_to_id = task.assigned_to_id
+    if assigned_to_id is None:
+        try:
+            assigned_to_id = int(payload.get("assigned_to_id") or 0) or None
+        except (TypeError, ValueError):
+            assigned_to_id = None
+    if task.status == MoveTask.STATUS_CANCELED:
+        return False, "Задание уже отменено."
+    if task.status == MoveTask.STATUS_DONE:
+        return False, "Задание уже выполнено и не может быть удалено."
+    if task.status != MoveTask.STATUS_CREATED or assigned_to_id:
+        return False, "Задание уже взято в работу и не может быть удалено."
+
+    updated = sync_task_status_by_legacy_order_id(
+        target_id,
+        status=MoveTask.STATUS_CANCELED,
+    )
+    if not updated:
+        return False, "Не удалось обновить статус задания."
+    updated_payload = dict(updated.payload or {})
+    updated_payload["status"] = MoveTask.STATUS_CANCELED
+    updated_payload["status_label"] = "Отменено до начала выполнения"
+    updated.payload = updated_payload
+    updated.save(update_fields=["payload", "updated_at"])
+
+    warehouse_task_id = updated_payload.get("warehouse_operation_task_id")
+    warehouse_operation_id = updated_payload.get("warehouse_operation_id")
+    warehouse_task = None
+    if warehouse_task_id:
+        try:
+            warehouse_task = WarehouseOperationTask.objects.select_related("operation").get(id=int(warehouse_task_id))
+        except (WarehouseOperationTask.DoesNotExist, TypeError, ValueError):
+            warehouse_task = None
+    if warehouse_task:
+        warehouse_task.status = WarehouseOperationTask.STATUS_CANCELED
+        warehouse_task.payload = {
+            **dict(warehouse_task.payload or {}),
+            "legacy_move_id": target_id,
+            "status_label": "Отменено до начала выполнения",
+        }
+        warehouse_task.save(update_fields=["status", "payload", "updated_at"])
+        operation = warehouse_task.operation
+    else:
+        operation = None
+        if warehouse_operation_id:
+            try:
+                operation = WarehouseOperation.objects.get(id=int(warehouse_operation_id))
+            except (WarehouseOperation.DoesNotExist, TypeError, ValueError):
+                operation = None
+    if operation:
+        statuses = list(operation.tasks.values_list("status", flat=True))
+        if statuses and all(status == WarehouseOperationTask.STATUS_CANCELED for status in statuses):
+            operation.status = WarehouseOperation.STATUS_CANCELED
+            operation.save(update_fields=["status", "updated_at"])
+    return True, "Задание удалено."
+
+
+@transaction.atomic
+def edit_move_destination_before_take(
+    *,
+    legacy_order_id: str,
+    actor_role: str,
+    destination_data: dict,
+    user=None,
+) -> tuple[bool, str]:
+    target_id = str(legacy_order_id or "").strip()
+    if not target_id:
+        return False, "Задание не найдено."
+    if actor_role not in _views().CREATE_ROLES:
+        return False, "Доступ запрещен."
+    result = update_move_task_destination(
+        legacy_order_id=target_id,
+        destination=destination_from_request_data_service(destination_data or {}),
+        user=user,
+        require_created_status=True,
+        allow_same_context_reservations=True,
+    )
+    return result.ok, result.message if result.ok else result.error
+
+
+def collect_moves(
+    employee_id: int | None,
+    driver_view: bool,
+    *,
+    include_done: bool = True,
+    include_plans: bool = True,
+) -> tuple[list[dict], list[dict]]:
+    reachtruck_views = _views()
+    closed_statuses = {"done", "canceled", "cancelled"}
+    entries = (
+        OrderAuditEntry.objects.filter(order_type="stock_move")
+        .select_related("user", "agency")
+        .order_by("order_id", "created_at")
+    )
+    latest_by_order = {}
+    created_at_by_order = {}
+    for entry in entries:
+        created_at_by_order.setdefault(entry.order_id, entry.created_at)
+        latest_by_order[entry.order_id] = entry
+    move_tasks_by_order = {
+        str(task.legacy_order_id or "").strip(): task
+        for task in MoveTask.objects.select_related("request", "request__agency", "assigned_to").exclude(
+            legacy_order_id=""
+        )
+    }
+    order_ids = list(dict.fromkeys([*latest_by_order.keys(), *move_tasks_by_order.keys()]))
+
+    shipping_destinations: dict[int, str] = {}
+    shipping_order_pks_from_entries = {
+        _parse_int_value((entry.payload or {}).get("shipping_order_pk"))
+        for entry in latest_by_order.values()
+        if _parse_int_value((entry.payload or {}).get("shipping_order_pk")) > 0
+    }
+    shipping_order_pks_from_tasks = {
+        _parse_int_value((task.payload or {}).get("shipping_order_pk"))
+        for task in move_tasks_by_order.values()
+        if isinstance(task.payload, dict)
+        and _parse_int_value((task.payload or {}).get("shipping_order_pk")) > 0
+    }
+    shipping_order_pks = shipping_order_pks_from_entries | shipping_order_pks_from_tasks
+    if shipping_order_pks:
+        try:
+            from shipping.models import ShippingOrder
+
+            shipping_destinations = {
+                int(order.pk): str(order.destination_warehouse or order.destination_address or "").strip()
+                for order in ShippingOrder.objects.filter(pk__in=shipping_order_pks)
+            }
+        except Exception:
+            shipping_destinations = {}
+
+    moves = []
+    for order_id in order_ids:
+        entry = latest_by_order.get(order_id)
+        move_task = move_tasks_by_order.get(str(order_id or "").strip())
+        if not entry and not move_task:
+            continue
+        move_request = move_task.request if move_task else None
+        agency = getattr(entry, "agency", None) or getattr(move_request, "agency", None)
+        agency_id = getattr(entry, "agency_id", None) or getattr(move_request, "agency_id", None)
+        payload = entry.payload or {} if entry else {}
+        request_context_type = str(getattr(move_request, "context_type", "") or "").strip().lower()
+        request_context_id = str(getattr(move_request, "context_id", "") or "").strip()
+        task_payload = dict(move_task.payload or {}) if move_task and isinstance(move_task.payload, dict) else {}
+        effective_payload = {**payload, **task_payload}
+        pallet_code = display_scan_text(effective_payload.get("pallet_code"))
+        effective_payload, payload_normalized, pallet_plan = _normalize_stale_partial_move_payload(
+            effective_payload,
+            pallet_code,
+            agency_id=agency_id,
+            include_plan=include_plans,
+        )
+        if payload_normalized and move_task and isinstance(move_task.payload, dict):
+            task_payload.update(
+                {
+                    "move_mode": effective_payload.get("move_mode") or "",
+                    "pick_mode": effective_payload.get("pick_mode") or "",
+                    "requested_boxes": effective_payload.get("requested_boxes") or [],
+                    "requested_box": effective_payload.get("requested_box") or "",
+                    "instruction": effective_payload.get("instruction") or "",
+                }
+            )
+            move_task.payload = task_payload
+            move_task.move_mode = str(effective_payload.get("move_mode") or move_task.move_mode or "")
+            move_task.save(update_fields=["payload", "move_mode", "updated_at"])
+        status = str(
+            (move_task.status if move_task else "")
+            or effective_payload.get("status")
+            or effective_payload.get("submit_action")
+            or ""
+        ).strip().lower()
+        raw_status_label = str(effective_payload.get("status_label") or "").strip()
+        status_label = _repair_human_mojibake_text(raw_status_label) or {
+            MoveTask.STATUS_CREATED: "Ожидает перевозки",
+            MoveTask.STATUS_IN_PROGRESS: "В работе",
+            MoveTask.STATUS_DONE: "Выполнено",
+            MoveTask.STATUS_CANCELED: "Отменено",
+            MoveTask.STATUS_FAILED: "Ошибка",
+        }.get(status, status or "-")
+        from_location = effective_payload.get("from_location") or {}
+        to_location = effective_payload.get("to_location") or {}
+        from_code = str(putaway_location_scan_code(from_location) or "").strip()
+        to_zone_code = _normalize_zone_code((to_location or {}).get("zone") or "")
+        otg_delivered_boxes = (
+            otg_already_delivered_box_codes(effective_payload, agency)
+            if to_zone_code == "OTG"
+            else []
+        )
+        if _otg_task_already_closed_by_other_pick(
+            status=status,
+            payload=effective_payload,
+            delivered_codes=otg_delivered_boxes,
+        ):
+            continue
+        partial_pick_destination_label = (
+            "К отгрузке"
+            if to_zone_code == "OTG"
+            else ("В OBR" if to_zone_code == "OBR" else f"В {to_zone_code}" if to_zone_code else "К месту")
+        )
+        assigned_to_id = _resolved_move_assignee_employee_id(move_task, effective_payload)
+        assigned_to_name = (
+            move_task.assigned_to_name
+            if move_task and move_task.assigned_to_name
+            else effective_payload.get("assigned_to_name") or "-"
+        )
+        requested_box_count = _requested_box_count(effective_payload)
+        partial_pick_box_count, partial_pick_qty = _partial_pick_totals(effective_payload)
+        whole_box_count = max(requested_box_count - partial_pick_box_count, 0)
+        source_type, source_id = _source_order_identity(
+            effective_payload,
+            request_context_type=request_context_type,
+            request_context_id=request_context_id,
+        )
+        move = {
+            "order_id": order_id,
+            "agency_id": agency_id,
+            "created_at": (
+                created_at_by_order.get(order_id)
+                or (move_task.created_at if move_task else None)
+                or (entry.created_at if entry else None)
+            ),
+            "updated_at": (move_task.updated_at if move_task else None) or (entry.created_at if entry else None),
+            "status": status or "-",
+            "status_label": status_label,
+            "task_kind_label": _task_kind_label(effective_payload),
+            "pallet_code": pallet_code or "-",
+            "pallet_choice_pending": bool(effective_payload.get("flexible_pallet_choice") and not str(effective_payload.get("pallet_code") or "").strip()),
+            "candidate_pallets": _candidate_pallet_options_from_payload(effective_payload),
+            "candidate_locations": _candidate_location_groups_from_payload(effective_payload),
+            "from_location": from_location,
+            "to_location": to_location,
+            "from_code": "" if bool(effective_payload.get("flexible_pallet_choice") and not str(effective_payload.get("pallet_code") or "").strip()) else from_code,
+            "from_label": (
+                "См. подходящие места"
+                if bool(effective_payload.get("flexible_pallet_choice") and not str(effective_payload.get("pallet_code") or "").strip())
+                else _location_label(from_location)
+            ),
+            "to_label": _location_label(to_location),
+            "to_zone_code": to_zone_code,
+            "partial_pick_destination_label": partial_pick_destination_label,
+            "assigned_to_id": assigned_to_id,
+            "assigned_to_name": assigned_to_name,
+            "requested_by_name": effective_payload.get("requested_by_name") or "-",
+            "receiving_order_id": (
+                source_id if source_type == "receiving" else ""
+                or "-"
+            ),
+            "pick_mode": (effective_payload.get("pick_mode") or "full"),
+            "move_mode": _normalize_move_mode(effective_payload.get("move_mode"), effective_payload.get("pick_mode")),
+            "requested_qty": _parse_int_value(effective_payload.get("requested_qty")),
+            "picked_qty": _parse_int_value(effective_payload.get("picked_qty")),
+            "requested_sku": (effective_payload.get("requested_sku") or "").strip(),
+            "requested_barcode_qty": _requested_barcode_qty(effective_payload),
+            "requested_rows": _requested_partial_rows(effective_payload),
+            "requested_boxes": _payload_box_codes(effective_payload),
+            "requested_box": _single_requested_box(effective_payload),
+            "requested_box_selection": _requested_box_selection_mode(effective_payload),
+            "requested_box_count": requested_box_count,
+            "requested_box_pattern_summary": str(effective_payload.get("requested_box_pattern_summary") or "").strip(),
+            "whole_box_count": whole_box_count,
+            "partial_pick_box_count": partial_pick_box_count,
+            "partial_pick_qty": partial_pick_qty,
+            "picked_boxes": [
+                str(code).strip()
+                for code in (effective_payload.get("picked_boxes") or [])
+                if str(code or "").strip()
+            ],
+            "reserved_box_codes": [
+                str(code).strip()
+                for code in (effective_payload.get("reserved_box_codes") or [])
+                if str(code or "").strip()
+            ],
+            "instruction": _move_instruction(effective_payload),
+        }
+        move["desktop_default_selected_boxes"] = (
+            move["reserved_box_codes"]
+            or move["requested_boxes"]
+            or move["picked_boxes"]
+        )
+        move["candidate_location_count"] = len(move.get("candidate_locations") or [])
+        move["desktop_manual_box_choice_enabled"] = bool(
+            move["move_mode"] == "box_full"
+            and move["requested_box_selection"] in {"pattern_matching", "any_matching"}
+        )
+        move["otg_already_delivered_boxes"] = otg_delivered_boxes
+        move["desktop_otg_completion_ready"] = bool(move["otg_already_delivered_boxes"])
+        move["hide_history_pallet_box_plan"] = bool(
+            status in closed_statuses
+            and _normalize_zone_code((to_location or {}).get("zone") or "") == "OTG"
+            and move["picked_boxes"]
+        )
+        move["pallet_box_plan"] = pallet_plan if include_plans else []
+        move["box_execution_plan"] = (
+            box_execution_plan_service(
+                effective_payload,
+                move["pallet_code"],
+                agency_id=agency_id,
+                pallet_plan=pallet_plan,
+            )
+            if include_plans
+            else []
+        )
+        move["matching_box_count"] = (
+            sum(1 for row in move["pallet_box_plan"] if row.get("is_matching"))
+            if include_plans
+            else 0
+        )
+        shipping_order_pk = _parse_int_value(effective_payload.get("shipping_order_pk"))
+        move["agency_name"] = str(getattr(agency, "agn_name", "") or "").strip() or "Без клиента"
+        move["agency_name_short"] = _short_agency_name(move["agency_name"])
+        move["mobile_category"] = mobile_category_key(move, effective_payload)
+        move["mobile_number"] = mobile_number_label(
+            move["mobile_category"],
+            effective_payload,
+            order_id,
+            shipping_order_pk,
+            request_context_type=request_context_type,
+            request_context_id=request_context_id,
+        )
+        move["mobile_request_key"] = mobile_request_key(
+            effective_payload,
+            order_id,
+            request_context_type=request_context_type,
+            request_context_id=request_context_id,
+        )
+        (
+            _mobile_request_source,
+            _mobile_request_source_id,
+            move["mobile_request_label"],
+            move["mobile_request_type_label"],
+        ) = mobile_request_identity(
+            effective_payload,
+            order_id,
+            request_context_type=request_context_type,
+            request_context_id=request_context_id,
+        )
+        move["mobile_destination"] = (
+            shipping_destinations.get(shipping_order_pk)
+            or str(effective_payload.get("destination_label") or "").strip()
+            or move["to_label"]
+        )
+        move["mobile_route_summary"] = _mobile_request_route_summary(move)
+        move["mobile_route_title"] = _mobile_route_title(move)
+        move["mobile_route_detail"] = _mobile_route_detail(move)
+        move["source_url"], move["source_label"], move["source_type_label"] = move_source_link(
+            effective_payload,
+            order_id,
+            request_context_type=request_context_type,
+            request_context_id=request_context_id,
+        )
+        if driver_view:
+            if status in closed_statuses:
+                moves.append(move)
+                continue
+            if assigned_to_id and employee_id and assigned_to_id != employee_id:
+                continue
+        moves.append(move)
+
+    moves.sort(key=lambda item: item["updated_at"], reverse=True)
+    active = [move for move in moves if move["status"] not in closed_statuses]
+    done = [move for move in moves if move["status"] in closed_statuses][:10] if include_done else []
+    for move in active:
+        assigned_to_current_employee = bool(
+            driver_view
+            and move["assigned_to_id"]
+            and employee_id
+            and move["assigned_to_id"] == employee_id
+        )
+        move["can_take"] = driver_view and move["status"] == "created" and not move["assigned_to_id"]
+        move["can_complete"] = (
+            assigned_to_current_employee
+            and move["status"] in (MoveTask.STATUS_CREATED, MoveTask.STATUS_IN_PROGRESS)
+        )
+        move["can_manage"] = False
+    for move in done:
+        move["can_take"] = False
+        move["can_complete"] = False
+        move["can_manage"] = False
+    return active, done
+
+
+def build_dashboard_context(request, **kwargs) -> dict:
+    role = get_request_role(request)
+    employee = get_request_employee(request)
+    employee_id = employee.id if employee else None
+    ctx: dict = {}
+    ctx["role"] = role
+    ctx["is_driver"] = role == "super_car"
+    ctx["can_create"] = False
+    ctx["cabinet_url"] = resolve_cabinet_url(role)
+    ctx.update(dashboard_identity(role))
+    if role == "super_car":
+        ctx["browser_title"] = "\u0421\u0443\u043f\u0435\u0440\u043a\u0430\u0440"
+        ctx["profile_title"] = "\u0421\u0443\u043f\u0435\u0440\u043a\u0430\u0440"
+        ctx["panel_title"] = "\u0421\u0443\u043f\u0435\u0440\u043a\u0430\u0440"
+        ctx["panel_subtitle"] = "\u041f\u0435\u0440\u0435\u043c\u0435\u0449\u0435\u043d\u0438\u0435, \u0440\u0430\u0437\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0438 \u0441\u0431\u043e\u0440\u043a\u0430"
+    ctx["error"] = kwargs.get("error")
+    mobile_flash_state = kwargs.get("mobile_flash_state") or ""
+    mobile_section = str(
+        kwargs.get("mobile_section")
+        or request.GET.get("mobile_section")
+        or request.POST.get("mobile_section")
+        or ""
+    ).strip().lower()
+    mobile_extra = str(
+        kwargs.get("mobile_extra")
+        or request.GET.get("mobile_extra")
+        or request.POST.get("mobile_extra")
+        or ""
+    ).strip().lower()
+    mobile_category = str(kwargs.get("mobile_category") or request.GET.get("mobile_category") or request.POST.get("mobile_category") or "").strip().lower()
+    mobile_request_key = str(kwargs.get("mobile_request_key") or request.GET.get("mobile_request") or request.POST.get("mobile_request") or "").strip()
+    mobile_task_id = str(kwargs.get("mobile_task_id") or request.GET.get("mobile_task") or request.POST.get("mobile_task") or "").strip()
+    mobile_show_list = str(kwargs.get("mobile_show_list") or request.GET.get("mobile_show_list") or request.POST.get("mobile_show_list") or "").strip() == "1"
+    if mobile_category and not mobile_section:
+        mobile_section = _super_car_category_section(mobile_category)
+    if mobile_extra and not mobile_section:
+        mobile_section = _super_car_extra_section(mobile_extra)
+    mobile_flow_active = bool(
+        mobile_section or mobile_extra or mobile_category or mobile_request_key or mobile_task_id or mobile_show_list
+    )
+    if request.GET.get("ok") == "1":
+        order_id = str(request.GET.get("order") or "").strip()
+        ctx["ok_message"] = f"Задание №{order_id} создано." if order_id else "Задание создано."
+    if request.GET.get("mobile_done") == "1":
+        ctx["ok_message"] = "Задание ричтрака выполнено."
+        mobile_flash_state = mobile_flash_state or "success"
+    if kwargs.get("ok_message"):
+        ctx["ok_message"] = kwargs.get("ok_message")
+        mobile_flash_state = mobile_flash_state or "success"
+    active_moves, done_moves = collect_moves(
+        employee_id,
+        ctx["is_driver"],
+        include_done=not mobile_flow_active,
+        include_plans=not mobile_flow_active and not ctx["is_driver"],
+    )
+    ctx["moves_active"] = active_moves
+    ctx["moves_done"] = done_moves
+    category_definitions = list(_super_car_category_definitions())
+    extra_actions = list(_super_car_extra_actions())
+    category_counts = {str(definition.get("key") or ""): 0 for definition in category_definitions}
+    for move in active_moves:
+        category_counts[move["mobile_category"]] = category_counts.get(move["mobile_category"], 0) + 1
+    from otg_reachtruck.views import _active_otg_groups
+
+    category_counts["assembly_shipping"] = sum(
+        len(group.get("tasks") or [])
+        for group in _active_otg_groups().values()
+    )
+    ctx["mobile_categories"] = [
+        {
+            "key": key,
+            "label": label,
+            "count": category_counts.get(key, 0),
+            "in_progress_count": sum(
+                1
+                for move in active_moves
+                if move["mobile_category"] == key
+                and move["status"] == MoveTask.STATUS_IN_PROGRESS
+                and move["assigned_to_id"]
+                and (employee_id is None or move["assigned_to_id"] == employee_id)
+            ),
+            "url": f"/super-car/?mobile_category={key}",
+        }
+        for key, label in _views().MOBILE_MOVE_CATEGORIES
+    ]
+    ctx["mobile_root_sections"] = [
+        {
+            "key": str(section.get("key") or "").strip().lower(),
+            "label": str(section.get("label") or "").strip(),
+            "subtitle": str(section.get("subtitle") or "").strip(),
+            "count": sum(
+                category_counts.get(str(definition.get("key") or "").strip(), 0)
+                for definition in category_definitions
+                if str(definition.get("section") or "").strip().lower()
+                == str(section.get("key") or "").strip().lower()
+            ),
+            "show_count": str(section.get("key") or "").strip().lower() != "extras",
+            "url": f"/super-car/?mobile_section={section.get('key')}",
+        }
+        for section in _super_car_root_sections()
+    ]
+    ctx["mobile_root_title"] = "\u0412\u044b\u0431\u043e\u0440 \u0440\u0430\u0431\u043e\u0442\u044b"
+    ctx["mobile_root_subtitle"] = "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u0439 \u0440\u0430\u0431\u043e\u0442\u044b \u0434\u043b\u044f \u0441\u0443\u043f\u0435\u0440\u043a\u0430\u0440\u0430."
+    ctx["mobile_root_only"] = True
+    ctx["mobile_section"] = mobile_section
+    ctx["mobile_section_label"] = str((_super_car_section_definition(mobile_section) or {}).get("label") or "").strip()
+    ctx["mobile_section_subtitle"] = str((_super_car_section_definition(mobile_section) or {}).get("subtitle") or "").strip()
+    ctx["mobile_section_menu"] = [
+        {
+            "key": str(definition.get("key") or "").strip(),
+            "label": str(definition.get("label") or "").strip(),
+            "subtitle": str(definition.get("subtitle") or "").strip(),
+            "count": category_counts.get(str(definition.get("key") or "").strip(), 0),
+            "show_count": True,
+            "url": f"/super-car/?mobile_section={mobile_section}&mobile_category={definition.get('key')}",
+        }
+        for definition in category_definitions
+        if str(definition.get("section") or "").strip().lower() == mobile_section
+    ]
+    if mobile_section == "extras":
+        ctx["mobile_section_menu"] = [
+            {
+                "key": str(action_def.get("key") or "").strip(),
+                "label": str(action_def.get("label") or "").strip(),
+                "subtitle": str(action_def.get("subtitle") or "").strip(),
+                "count": "",
+                "show_count": False,
+                "url": f"/super-car/?mobile_section=extras&mobile_extra={action_def.get('key')}",
+            }
+            for action_def in extra_actions
+            if str(action_def.get("section") or "").strip().lower() == "extras"
+        ]
+    ctx["mobile_category"] = mobile_category
+    ctx["mobile_category_label"] = mobile_category_label(mobile_category) if mobile_category else ""
+    ctx["mobile_category_parent_section"] = _super_car_category_section(mobile_category) if mobile_category else ""
+    ctx["mobile_category_parent_url"] = (
+        f"/super-car/?mobile_section={ctx['mobile_category_parent_section']}"
+        if ctx["mobile_category_parent_section"]
+        else "/super-car/"
+    )
+    ctx["mobile_extra"] = mobile_extra
+    ctx["mobile_extra_label"] = str((_super_car_extra_definition(mobile_extra) or {}).get("label") or "").strip()
+    ctx["mobile_extra_subtitle"] = str((_super_car_extra_definition(mobile_extra) or {}).get("subtitle") or "").strip()
+    ctx["mobile_extra_back_url"] = (
+        f"/super-car/?mobile_section={mobile_section}"
+        if mobile_section
+        else "/super-car/"
+    )
+    ctx["mobile_extra_lookup_code"] = str(kwargs.get("extra_lookup_code") or "").strip()
+    ctx["mobile_extra_lookup_result"] = kwargs.get("extra_lookup_result") or {}
+    category_moves = [move for move in active_moves if not mobile_category or move["mobile_category"] == mobile_category]
+    inferred_task = next((move for move in category_moves if str(move["order_id"]) == mobile_task_id), None)
+    if inferred_task and not mobile_request_key:
+        mobile_request_key = inferred_task["mobile_request_key"]
+
+    request_groups, request_lookup = _group_mobile_requests(category_moves, mobile_category)
+    ctx["mobile_current_requests"] = _build_current_mobile_requests(
+        request_groups,
+        employee_id=employee_id,
+        is_driver=ctx["is_driver"],
+    )
+    current_request_keys = {
+        str(card.get("key") or "").strip()
+        for card in ctx["mobile_current_requests"]
+        if str(card.get("key") or "").strip()
+    }
+    if (
+        ctx["is_driver"]
+        and mobile_category
+        and not mobile_request_key
+        and not mobile_show_list
+        and len(ctx["mobile_current_requests"]) == 1
+    ):
+        mobile_request_key = str(ctx["mobile_current_requests"][0].get("key") or "").strip()
+
+    selected_request = request_lookup.get(mobile_request_key) if mobile_request_key else None
+    if mobile_request_key and not selected_request:
+        mobile_request_key = ""
+    request_tasks = list(selected_request["tasks"]) if selected_request else []
+    ctx["mobile_requests"] = [
+        request_group
+        for request_group in request_groups
+        if str(request_group.get("key") or "").strip() not in current_request_keys
+    ]
+    ctx["mobile_request_key"] = mobile_request_key
+    ctx["mobile_request_label"] = selected_request["label"] if selected_request else ""
+    ctx["mobile_request_type_label"] = selected_request["type_label"] if selected_request else ""
+    ctx["mobile_request_client_label"] = selected_request["agency_name_short"] if selected_request else ""
+    ctx["mobile_request_heading"] = (
+        f"По заявке №{selected_request['label']} нужно {_mobile_request_work_label(selected_request)}"
+        if selected_request
+        else ""
+    )
+    ctx["mobile_request_pick_subtitle"] = _mobile_request_pick_subtitle(selected_request) if selected_request else ""
+    ctx["mobile_request_tasks"] = request_tasks
+    ctx["mobile_selected_request"] = selected_request
+    ctx["mobile_tasks"] = category_moves
+    ctx["mobile_request_batch_mode"] = bool(
+        ctx["is_driver"] and selected_request and _request_supports_batch_execution(selected_request)
+    )
+    ctx["mobile_request_execution"] = (
+        build_mobile_request_execution_snapshot(
+            [move["order_id"] for move in request_tasks],
+            employee_id=employee_id,
+        )
+        if ctx["mobile_request_batch_mode"]
+        else {}
+    )
+    active_request_order_id = str((ctx["mobile_request_execution"] or {}).get("active_order_id") or "").strip()
+    for move in request_tasks:
+        move["is_request_active"] = str(move["order_id"]) == active_request_order_id
+    ctx["mobile_request_active_task"] = next(
+        (move for move in request_tasks if str(move["order_id"]) == active_request_order_id),
+        None,
+    )
+    ctx["mobile_request_remaining_label"] = _pallet_count_label(
+        (ctx["mobile_request_execution"] or {}).get("remaining_count") or len(request_tasks)
+    )
+    current_step = str((ctx["mobile_request_execution"] or {}).get("current_step") or "").strip()
+    active_request_destination_code = str(
+        (ctx["mobile_request_execution"] or {}).get("active_destination_code") or ""
+    ).strip()
+    ctx["mobile_request_candidate_locations"] = list(
+        (ctx["mobile_request_execution"] or {}).get("candidate_locations") or []
+    )
+    destination_override_pending = bool(
+        (ctx["mobile_request_execution"] or {}).get("destination_override_pending")
+    )
+    destination_override_confirm_pending = bool(
+        (ctx["mobile_request_execution"] or {}).get("destination_override_confirm_pending")
+    )
+    if current_step == "destination" and ctx["mobile_request_active_task"]:
+        if destination_override_pending:
+            if destination_override_confirm_pending:
+                ctx["mobile_request_prompt_title"] = "Точно сюда?"
+                ctx["mobile_request_prompt_subtitle"] = (
+                    "Проверь новое место. Подтверди его кнопкой или отсканируй другой адрес."
+                )
+            else:
+                ctx["mobile_request_prompt_title"] = "Измени место хранения"
+                ctx["mobile_request_prompt_subtitle"] = "Поле очищено. Отсканируй новое место назначения."
+        else:
+            ctx["mobile_request_prompt_title"] = (
+                f"Отвези -> {active_request_destination_code}"
+                if active_request_destination_code
+                else "Отвези паллету"
+            )
+            ctx["mobile_request_prompt_subtitle"] = "Отсканируй место назначения"
+    else:
+        ctx["mobile_request_prompt_title"] = "Отсканируй паллету"
+        ctx["mobile_request_prompt_subtitle"] = f"Осталось перевезти {ctx['mobile_request_remaining_label']}."
+    remaining_request_pallets: list[dict[str, str]] = []
+    for move in request_tasks:
+        if move["status"] == MoveTask.STATUS_DONE:
+            continue
+        if current_step == "destination" and str(move["order_id"]) == active_request_order_id:
+            continue
+        if move.get("pallet_choice_pending"):
+            for location in move.get("candidate_locations") or []:
+                remaining_request_pallets.append(
+                    {
+                        "pallet_code": str(location.get("pallets_label") or "").strip(),
+                        "source_code": str(location.get("source_code") or "").strip(),
+                        "source_label": str(location.get("source_label") or "").strip(),
+                        "candidate_count": int(location.get("pallet_count") or 0),
+                    }
+                )
+            continue
+        from_location = move.get("from_location") or {}
+        source_code = str(putaway_location_scan_code(from_location) or "").strip()
+        source_label = str(move.get("from_label") or "").strip()
+        remaining_request_pallets.append(
+            {
+                "pallet_code": str(move.get("pallet_code") or "").strip(),
+                "source_code": source_code or source_label,
+                "source_label": source_label,
+            }
+        )
+    ctx["mobile_request_remaining_pallets"] = remaining_request_pallets
+    ctx["mobile_request_single_remaining"] = (
+        remaining_request_pallets[0]
+        if len(remaining_request_pallets) == 1
+        else None
+    )
+    ctx["mobile_selected_task"] = (
+        None
+        if ctx["mobile_request_batch_mode"]
+        else next(
+        (move for move in request_tasks if str(move["order_id"]) == mobile_task_id),
+        None,
+        )
+    )
+    ctx["mobile_selected_execution"] = (
+        build_mobile_execution_snapshot(ctx["mobile_selected_task"]["order_id"])
+        if ctx["mobile_selected_task"]
+        else {}
+    )
+    can_manage_moves = role in _views().CREATE_ROLES and role != "super_car"
+    for move in active_moves:
+        move["can_manage"] = bool(
+            can_manage_moves
+            and move["status"] == MoveTask.STATUS_CREATED
+            and not move["assigned_to_id"]
+        )
+    ctx["mobile_flash_state"] = mobile_flash_state
+    return ctx
+
+
+def handle_dashboard_post(view, request, *args, **kwargs):
+    role = get_request_role(request)
+    employee = get_request_employee(request)
+    employee_id = employee.id if employee else None
+    employee_name = employee.full_name if employee else request.user.get_full_name() or request.user.username
+    mobile_section = str(request.POST.get("mobile_section") or "").strip().lower()
+    mobile_extra = str(request.POST.get("mobile_extra") or "").strip().lower()
+    mobile_category = str(request.POST.get("mobile_category") or "").strip().lower()
+    if mobile_category and not mobile_section:
+        mobile_section = _super_car_category_section(mobile_category)
+    if mobile_extra and not mobile_section:
+        mobile_section = _super_car_extra_section(mobile_extra)
+    mobile_request_key = str(request.POST.get("mobile_request") or "").strip()
+    mobile_task_param = str(request.POST.get("mobile_task") or "").strip()
+    mobile_task = str(mobile_task_param or request.POST.get("order_id") or "").strip()
+    action = str(request.POST.get("action") or "").strip()
+    execution_mode = str(request.POST.get("execution_mode") or "").strip().lower()
+    is_mobile_execution = bool(mobile_section or mobile_extra or mobile_category or mobile_request_key or mobile_task_param)
+    selected_request = None
+    request_task_ids: list[str] = []
+    request_batch_mode = False
+
+    def ensure_selected_request():
+        nonlocal selected_request, request_task_ids, request_batch_mode
+        if selected_request is not None or not mobile_request_key:
+            return
+        is_driver = role == "super_car"
+        active_moves, _done_moves = collect_moves(employee_id, is_driver, include_plans=not is_driver)
+        category_moves = [move for move in active_moves if not mobile_category or move["mobile_category"] == mobile_category]
+        _request_groups, request_lookup = _group_mobile_requests(category_moves, mobile_category)
+        selected_request = request_lookup.get(mobile_request_key)
+        request_task_ids = [move["order_id"] for move in (selected_request.get("tasks") or [])] if selected_request else []
+        request_batch_mode = _request_supports_batch_execution(selected_request)
+
+    if action == "create_move":
+        return view._render_error(
+            "Ручное создание заданий отключено. Используйте автоматическое планирование по потребности или сценарий перемещения на хранение.",
+            status=403,
+        )
+    if action == "lookup_pallet_location":
+        if role != "super_car":
+            return HttpResponseForbidden("Р”РѕСЃС‚СѓРї Р·Р°РїСЂРµС‰РµРЅ")
+        lookup_code = str(request.POST.get("lookup_code") or request.POST.get("scan_value") or "").strip()
+        lookup_result, lookup_error = _lookup_pallet_location_data(code=lookup_code)
+        ctx = view.get_context_data(
+            mobile_section=mobile_section or "extras",
+            mobile_extra=mobile_extra or "locate_pallet",
+            extra_lookup_code=lookup_code,
+            extra_lookup_result=lookup_result,
+            error=lookup_error or None,
+            ok_message="\u041c\u0435\u0441\u0442\u043e \u043f\u0430\u043b\u043b\u0435\u0442\u044b \u043d\u0430\u0439\u0434\u0435\u043d\u043e." if lookup_result else None,
+            mobile_flash_state="error" if lookup_error else "success",
+        )
+        return view.render_to_response(ctx, status=400 if lookup_error else 200)
+    if action == "cancel_move":
+        ok, message = cancel_move_before_take(
+            legacy_order_id=str(request.POST.get("order_id") or "").strip(),
+            actor_role=role or "",
+        )
+        if not ok:
+            return view._render_error(message, status=400)
+        if mobile_category:
+            target_params = {"mobile_category": mobile_category}
+            if mobile_request_key:
+                target_params["mobile_request"] = mobile_request_key
+            return redirect(f"/super-car/?{urlencode(target_params)}")
+        return redirect("/super-car/")
+    if action == "edit_move_destination":
+        ok, message = edit_move_destination_before_take(
+            legacy_order_id=str(request.POST.get("order_id") or "").strip(),
+            actor_role=role or "",
+            destination_data={
+                "to_zone": request.POST.get("to_zone") or "",
+                "to_row": request.POST.get("to_row"),
+                "to_section": request.POST.get("to_section"),
+                "to_tier": request.POST.get("to_tier"),
+                "to_cell": request.POST.get("to_cell"),
+            },
+            user=request.user if request.user.is_authenticated else None,
+        )
+        if not ok:
+            return view._render_error(message, status=400)
+        if mobile_category:
+            target_params = {"mobile_category": mobile_category}
+            if mobile_request_key:
+                target_params["mobile_request"] = mobile_request_key
+            if mobile_task:
+                target_params["mobile_task"] = mobile_task
+            return redirect(f"/super-car/?{urlencode(target_params)}")
+        return redirect("/super-car/")
+    if action == "take_request":
+        if role != "super_car":
+            return HttpResponseForbidden("Доступ запрещен")
+        ensure_selected_request()
+        if not selected_request or not request_batch_mode:
+            return view._render_error("Паллетная заявка не найдена.", status=404)
+        result = take_move_request(
+            legacy_order_ids=request_task_ids,
+            user=request.user,
+            employee_id=employee_id,
+            employee_name=employee_name,
+        )
+        if not result.ok:
+            return view._render_error(result.error)
+        ctx = view.get_context_data(
+            mobile_category=mobile_category,
+            mobile_request_key=mobile_request_key,
+            ok_message=result.message or "Заявка взята в работу.",
+            mobile_flash_state="success",
+        )
+        return view.render_to_response(ctx)
+    if action == "change_request_destination":
+        if role != "super_car":
+            return HttpResponseForbidden("Доступ запрещен")
+        ensure_selected_request()
+        if not employee_id:
+            return view._render_error("Профиль сотрудника не найден.", status=400)
+        if not selected_request or not request_batch_mode:
+            return view._render_error("Паллетная заявка не найдена.", status=404)
+        execution_snapshot = build_mobile_request_execution_snapshot(
+            request_task_ids,
+            employee_id=employee_id,
+        )
+        active_order_id = str(execution_snapshot.get("active_order_id") or "").strip()
+        if str(execution_snapshot.get("current_step") or "").strip() != "destination" or not active_order_id:
+            return view._render_error("Сначала подтвердите паллету и перейдите к шагу места назначения.", status=400)
+        active_task = (
+            MoveTask.objects.filter(legacy_order_id=active_order_id)
+            .order_by("-updated_at")
+            .first()
+        )
+        if not active_task:
+            return view._render_error("Активная паллета заявки не найдена.", status=404)
+        payload = dict(active_task.payload or {})
+        execution = dict(payload.get("mobile_execution") or {})
+        execution["destination_override_pending"] = True
+        execution.pop("destination_override_candidate", None)
+        payload["mobile_execution"] = execution
+        active_task.payload = payload
+        active_task.save(update_fields=["payload", "updated_at"])
+        ctx = view.get_context_data(
+            mobile_category=mobile_category,
+            mobile_request_key=mobile_request_key,
+            ok_message="Отсканируйте новое место назначения.",
+            mobile_flash_state="success",
+        )
+        return view.render_to_response(ctx)
+    if action == "confirm_request_destination":
+        if role != "super_car":
+            return HttpResponseForbidden("Доступ запрещен")
+        ensure_selected_request()
+        if not selected_request or not request_batch_mode:
+            return view._render_error("Паллетная заявка не найдена.", status=404)
+        result = confirm_move_request_destination_override(
+            legacy_order_ids=request_task_ids,
+            user=request.user,
+            employee_id=employee_id,
+            employee_name=employee_name,
+        )
+        if not result.ok:
+            ctx = view.get_context_data(
+                mobile_category=mobile_category,
+                mobile_request_key=mobile_request_key,
+                error=result.error,
+                mobile_flash_state="error",
+            )
+            return view.render_to_response(ctx, status=400)
+        if result.completed:
+            target_params = {"mobile_done": 1}
+            if mobile_category:
+                target_params["mobile_category"] = mobile_category
+            return redirect(f"/super-car/?{urlencode(target_params)}")
+        ctx = view.get_context_data(
+            mobile_category=mobile_category,
+            mobile_request_key=mobile_request_key,
+            ok_message=result.message,
+            mobile_flash_state="success",
+        )
+        return view.render_to_response(ctx)
+    if action == "scan_request":
+        if role != "super_car":
+            return HttpResponseForbidden("Доступ запрещен")
+        ensure_selected_request()
+        if not selected_request or not request_batch_mode:
+            return view._render_error("Паллетная заявка не найдена.", status=404)
+        result = scan_move_request_step(
+            legacy_order_ids=request_task_ids,
+            scan_value=str(request.POST.get("scan_value") or "").strip(),
+            user=request.user,
+            employee_id=employee_id,
+            employee_name=employee_name,
+        )
+        if not result.ok:
+            ctx = view.get_context_data(
+                mobile_category=mobile_category,
+                mobile_request_key=mobile_request_key,
+                error=result.error,
+                mobile_flash_state="error",
+            )
+            return view.render_to_response(ctx, status=400)
+        if result.completed:
+            target_params = {"mobile_done": 1}
+            if mobile_category:
+                target_params["mobile_category"] = mobile_category
+            return redirect(f"/super-car/?{urlencode(target_params)}")
+        ctx = view.get_context_data(
+            mobile_category=mobile_category,
+            mobile_request_key=mobile_request_key,
+            ok_message=result.message,
+            mobile_flash_state="success",
+        )
+        return view.render_to_response(ctx)
+    if action == "take_move":
+        if role != "super_car":
+            return HttpResponseForbidden("Доступ запрещен")
+        result = take_move_task(
+            legacy_order_id=str(request.POST.get("order_id") or "").strip(),
+            user=request.user,
+            employee_id=employee_id,
+            employee_name=employee_name,
+        )
+        if not result.ok:
+            return view._render_error(result.error)
+        if mobile_category and mobile_task:
+            ctx = view.get_context_data(
+                mobile_category=mobile_category,
+                mobile_request_key=mobile_request_key,
+                mobile_task_id=mobile_task,
+                ok_message="Задание взято в работу.",
+                mobile_flash_state="success",
+            )
+            return view.render_to_response(ctx)
+        return redirect("/super-car/")
+    if action == "scan_move":
+        if role != "super_car":
+            return HttpResponseForbidden("Доступ запрещен")
+        result = scan_move_task_step(
+            legacy_order_id=str(request.POST.get("order_id") or "").strip(),
+            scan_value=str(request.POST.get("scan_value") or "").strip(),
+            user=request.user,
+            employee_id=employee_id,
+            employee_name=employee_name,
+        )
+        if not result.ok:
+            ctx = view.get_context_data(
+                mobile_category=mobile_category,
+                mobile_request_key=mobile_request_key,
+                mobile_task_id=mobile_task,
+                error=result.error,
+                mobile_flash_state="error",
+            )
+            return view.render_to_response(ctx, status=400)
+        if result.completed:
+            target_params = {"mobile_done": 1}
+            if mobile_category:
+                target_params["mobile_category"] = mobile_category
+            if mobile_request_key:
+                target_params["mobile_request"] = mobile_request_key
+            target = f"/super-car/?{urlencode(target_params)}"
+            return redirect(target)
+        ctx = view.get_context_data(
+            mobile_category=mobile_category,
+            mobile_request_key=mobile_request_key,
+            mobile_task_id=mobile_task,
+            ok_message=result.message,
+            mobile_flash_state="success",
+        )
+        return view.render_to_response(ctx)
+    if action == "complete_move":
+        if role != "super_car":
+            return HttpResponseForbidden("Доступ запрещен")
+        allow_desktop_debug = execution_mode == "desktop_debug" and not is_mobile_execution
+        desktop_selected_boxes = None
+        if allow_desktop_debug and str(request.POST.get("desktop_box_selection_active") or "").strip() == "1":
+            desktop_selected_boxes = request.POST.getlist("selected_boxes")
+        result = complete_move_task(
+            legacy_order_id=str(request.POST.get("order_id") or "").strip(),
+            user=request.user,
+            employee_id=employee_id,
+            employee_name=employee_name,
+            require_scan_confirmation=not allow_desktop_debug,
+            desktop_selected_boxes=desktop_selected_boxes,
+        )
+        if not result.ok:
+            return view._render_error(result.error)
+        if mobile_category:
+            target_params = {"mobile_category": mobile_category, "mobile_done": 1}
+            if mobile_request_key:
+                target_params["mobile_request"] = mobile_request_key
+            return redirect(f"/super-car/?{urlencode(target_params)}")
+        return redirect("/super-car/")
+    return view.get(request, *args, **kwargs)

@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Отчет | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #0e6b5b;
+      --sun: #f2b747;
+      --stroke: rgba(28,31,26,0.12);
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      width: 100%;
+      max-width: 100%;
+      padding: 24px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      min-height: calc(100vh - 48px);
+    }
+    .side,
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+    }
+    .side {
+      padding: 18px;
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+    .brand-title {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.6px;
+    }
+    .profile,
+    .nav-link {
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+    }
+    .profile {
+      padding: 12px;
+      min-height: 110px;
+      display: grid;
+      align-content: center;
+    }
+    .profile-value { font-weight: 600; }
+    .nav {
+      display: grid;
+      gap: 10px;
+    }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      padding: 12px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .nav-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 12px 24px rgba(14,107,91,0.12);
+    }
+    .nav-link.primary {
+      background: linear-gradient(135deg, rgba(242,183,71,0.45), rgba(14,107,91,0.15));
+      border-color: transparent;
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub { font-size: 12px; color: var(--muted); }
+    .content {
+      min-width: 0;
+      display: grid;
+      align-content: start;
+    }
+    .panel {
+      padding: 18px;
+      min-height: 420px;
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .panel-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 26px;
+    }
+    .panel-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(220px, 1fr));
+      gap: 14px;
+      max-width: 980px;
+    }
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+    .field.full { grid-column: 1 / -1; }
+    label {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      background: var(--surface-2);
+      color: var(--ink);
+      padding: 11px 12px;
+      font: inherit;
+      outline: none;
+    }
+    textarea {
+      min-height: 130px;
+      resize: vertical;
+    }
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: rgba(14,107,91,0.5);
+      box-shadow: 0 0 0 3px rgba(14,107,91,0.12);
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.14);
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    @media (max-width: 900px) {
+      .wrap { padding: 14px; }
+      .layout { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand">
+          <div class="brand-title">FULLBOX</div>
+        </div>
+        <div class="profile">
+          <div class="profile-value">
+            Кабинет начальника склада<br>
+            {% if request.user.is_authenticated and request.user.employee_profile %}
+              {{ request.user.employee_profile.full_name }}
+            {% elif request.session.employee_name %}
+              {{ request.session.employee_name }}
+            {% elif request.user.is_authenticated %}
+              {{ request.user.get_full_name|default:request.user.username }}
+            {% else %}
+              Гость
+            {% endif %}
+          </div>
+        </div>
+        <nav class="nav">
+          <a class="nav-link" href="/head-manager/">
+            <span class="nav-title">В кабинет</span>
+            <span class="nav-sub">Доска задач</span>
+          </a>
+          <a class="nav-link primary" href="/head-manager/report/">
+            <span class="nav-title">Отчет</span>
+            <span class="nav-sub">Движение товара для счетов</span>
+          </a>
+          <a class="nav-link" href="/logout/">
+            <span class="nav-title">Выход</span>
+          </a>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h1 class="panel-title">Отчет</h1>
+              <div class="panel-subtitle">Движение товара для счетов</div>
+            </div>
+          </div>
+
+          <form method="get" action="/head-manager/report/">
+            <input type="hidden" name="download" value="1">
+            <div class="form-grid">
+              <div class="field">
+                <label for="date_from">Дата с</label>
+                <input id="date_from" name="date_from" type="date" value="{{ filters.date_from_raw }}">
+              </div>
+              <div class="field">
+                <label for="date_to">Дата по</label>
+                <input id="date_to" name="date_to" type="date" value="{{ filters.date_to_raw }}">
+              </div>
+              <div class="field full">
+                <label for="client">Клиент</label>
+                <select id="client" name="client">
+                  <option value="">Все клиенты</option>
+                  {% for client in clients %}
+                    <option value="{{ client.id }}"{% if selected_client_id == client.id|stringformat:"s" %} selected{% endif %}>
+                      {{ client.short_name|default:client.agn_name|default:client.id }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="field full">
+                <label for="product">Товар / группа</label>
+                <textarea id="product" name="product" placeholder="Артикул, наименование, штрихкод">{{ filters.product }}</textarea>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn primary" type="submit">Сформировать Excel</button>
+              <a class="btn" href="/head-manager/report/">Сбросить</a>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

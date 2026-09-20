@@ -1,0 +1,1150 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ trip_display_number }} · Погрузка | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f3efe5;
+      --surface: #fffdf7;
+      --surface-2: #f7f1e7;
+      --ink: #23211d;
+      --muted: #756f65;
+      --stroke: rgba(35, 33, 29, 0.11);
+      --sun: #f1bf62;
+      --sun-2: #f6d695;
+      --shadow: 0 20px 55px rgba(15, 23, 42, 0.12);
+      --ok: #1f7a4f;
+      --ok-bg: #d9f1e2;
+      --err: #a63d45;
+      --err-bg: #f6d7da;
+      --current: #fff3d5;
+      --warn: #c08a21;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 560px at -15% -20%, rgba(241, 191, 98, 0.18), transparent 60%),
+        radial-gradient(900px 540px at 115% 8%, rgba(14, 107, 91, 0.12), transparent 52%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    .wrap { padding: 24px; }
+    .layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 20px; }
+    .side, .main, .panel, .order-card {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+    .side { padding: 18px; display: grid; gap: 14px; align-content: start; }
+    .main { padding: 18px; display: grid; gap: 16px; }
+    .brand { font-family: "Bricolage Grotesque", "Manrope", sans-serif; font-size: 24px; }
+    .profile, .nav-link, .stat-card, .side-card {
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      background: var(--surface-2);
+      padding: 12px;
+    }
+    .side-card { display: grid; gap: 12px; }
+    .side-card-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 18px;
+      line-height: 1.1;
+    }
+    .nav { display: grid; gap: 10px; }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .nav-title { font-weight: 700; }
+    .muted, .nav-sub, .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .btn {
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: rgba(35, 33, 29, 0.04);
+      color: var(--ink);
+      padding: 10px 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), var(--sun-2));
+      border-color: transparent;
+      color: #2d2312;
+    }
+    .btn.full { width: 100%; }
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .hero-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 30px;
+      line-height: 1.1;
+    }
+    .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .panel { padding: 18px; display: grid; gap: 14px; }
+    .scanner-panel { display: grid; gap: 10px; }
+    .scanner-select {
+      width: 100%;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 10px 12px;
+      font: inherit;
+    }
+    .scanner-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .scanner-line strong {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .scanner-value {
+      text-align: right;
+      font-weight: 700;
+      word-break: break-word;
+    }
+    .scanner-value.success { color: var(--ok); }
+    .scanner-value.error { color: var(--err); }
+    .scanner-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+    }
+    .scanner-indicator .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(35, 33, 29, 0.18);
+      flex: 0 0 auto;
+    }
+    .scanner-indicator.ok .dot { background: var(--ok); }
+    .scanner-indicator.warn .dot { background: var(--warn); }
+    .scanner-indicator.error .dot { background: var(--err); }
+    .scanner-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .scan-grid { display: grid; grid-template-columns: minmax(0, 1fr) 180px; gap: 12px; }
+    .scan-input {
+      width: 100%;
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 14px 16px;
+      font: inherit;
+      font-size: 18px;
+    }
+    .status-banner {
+      border-radius: 18px;
+      padding: 14px 16px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.7);
+      font-weight: 700;
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+    }
+    .status-banner.success { background: var(--ok-bg); color: var(--ok); border-color: rgba(31, 122, 79, 0.24); }
+    .status-banner.error { background: var(--err-bg); color: var(--err); border-color: rgba(166, 61, 69, 0.24); }
+    .queue-board {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .stat-card strong {
+      display: block;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 28px;
+      line-height: 1;
+      margin-top: 6px;
+    }
+    .orders { display: grid; gap: 14px; }
+    .order-card { padding: 16px; display: grid; gap: 14px; }
+    .order-card.current { border-color: rgba(241, 191, 98, 0.5); background: var(--current); }
+    .order-card.complete { opacity: 0.78; }
+    .completion-card {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+      border-radius: 22px;
+      border: 1px solid rgba(31, 122, 79, 0.18);
+      background: linear-gradient(180deg, rgba(217, 241, 226, 0.9), rgba(255, 253, 247, 0.98));
+    }
+    .completion-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .completion-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+      line-height: 1.1;
+    }
+    .completion-docs {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+    .completion-doc {
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: rgba(255, 255, 255, 0.72);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+    .completion-doc-title {
+      font-weight: 800;
+      font-size: 16px;
+    }
+    .completion-doc-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .completion-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .order-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .order-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 20px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .chip.current { background: rgba(241, 191, 98, 0.22); color: #8b6221; border-color: rgba(241, 191, 98, 0.35); }
+    .chip.complete { background: var(--ok-bg); color: var(--ok); border-color: rgba(31, 122, 79, 0.24); }
+    .chip.pending { background: rgba(35, 33, 29, 0.06); color: var(--muted); border-color: rgba(35, 33, 29, 0.08); }
+    .order-meta { display: grid; gap: 4px; }
+    .pallet-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+    .pallet-card {
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.72);
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .pallet-card.loaded { background: var(--ok-bg); border-color: rgba(31, 122, 79, 0.24); }
+    .pallet-title { font-weight: 800; }
+    .pallet-code { font-size: 12px; color: var(--muted); word-break: break-word; }
+    .empty-note {
+      border-radius: 16px;
+      border: 1px dashed var(--stroke);
+      background: rgba(255,255,255,0.54);
+      padding: 16px;
+      color: var(--muted);
+    }
+    @media (max-width: 1180px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 860px) {
+      .wrap { padding: 14px; }
+      .scan-grid, .queue-board { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand">FULLBOX</div>
+        <div class="profile">
+          <div style="font-weight:700;">{% include "partials/current_user.html" %}</div>
+          <div class="muted">Погрузка рейса {{ trip_display_number }}</div>
+        </div>
+        <nav class="nav">
+          <a class="nav-link" href="{{ trip_detail_url }}">
+            <span class="nav-title">К рейсу</span>
+            <span class="nav-sub">Вернуться в карточку рейса</span>
+          </a>
+          <a class="nav-link" href="/logistics/trips/">
+            <span class="nav-title">Все рейсы</span>
+            <span class="nav-sub">Вернуться в журнал рейсов</span>
+          </a>
+          <a class="nav-link" href="{{ cabinet_url }}">
+            <span class="nav-title">В кабинет</span>
+            <span class="nav-sub">Назад в основной кабинет роли</span>
+          </a>
+        </nav>
+        <section class="side-card">
+          <h2 class="side-card-title">Сканер</h2>
+          <div class="scanner-panel">
+            <div class="hint" id="scanner-mode-hint">Режим Agent · сканер подключается через агент рабочего места.</div>
+            <select id="agent-select" class="scanner-select" {% if not can_scan_loading %}disabled{% endif %}>
+              <option value="">Выбери агент</option>
+              {% for agent in scanner_agents %}
+                <option
+                  value="{{ agent.agent_id }}"
+                  data-title="{{ agent.title }}"
+                  data-status="{{ agent.status }}"
+                  data-online="{{ agent.is_online|yesno:'1,0' }}"
+                  data-last-seen="{{ agent.last_seen }}"
+                  data-com-port="{{ agent.com_port }}"
+                  data-com-enabled="{{ agent.com_enabled|yesno:'1,0' }}"
+                  data-com-connected="{{ agent.com_connected|yesno:'1,0' }}"
+                  data-com-error="{{ agent.com_error }}"
+                >
+                  {{ agent.title }}{% if agent.com_port %} · {{ agent.com_port }}{% endif %}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="scanner-line">
+              <strong>Сканирование</strong>
+              <span class="scanner-value" id="scanner-status">Ожидаю ШК поставки</span>
+            </div>
+            <div class="scanner-line">
+              <strong id="scanner-connection-label">Статус агента</strong>
+              <span class="scanner-value" id="agent-status">не выбран</span>
+            </div>
+            <div class="scanner-line">
+              <strong>Контекст</strong>
+              <span class="scanner-value" id="agent-context-status">-</span>
+            </div>
+            <div class="scanner-line">
+              <strong>Индикатор</strong>
+              <span class="scanner-indicator" id="agent-indicator">
+                <span class="dot"></span>
+                <span class="text">не выбран</span>
+              </span>
+            </div>
+            <div class="scanner-line">
+              <strong>Последний скан</strong>
+              <span class="scanner-value" id="agent-last">-</span>
+            </div>
+            <div class="scanner-actions">
+              <button class="btn" type="button" id="agent-claim-force" {% if not can_scan_loading %}disabled{% endif %}>Перехватить сканер</button>
+              <a class="btn" id="agent-download" href="/labels/scanners/agent/download/" target="_blank" rel="noopener">Скачать агента</a>
+            </div>
+            <div class="hint" id="agent-hint">
+              {% if can_scan_loading %}
+                {% if scanner_agents %}Слушаю события агента.{% else %}Агенты не найдены.{% endif %}
+              {% else %}
+                Сканер доступен только кладовщику на рейсе в статусе «Погрузка».
+              {% endif %}
+            </div>
+          </div>
+        </section>
+        <a class="btn full" href="/logout/">Выход</a>
+      </aside>
+
+      <main class="main">
+        <section class="hero">
+          <div>
+            <h1 class="hero-title">Погрузка рейса {{ trip_display_number }}</h1>
+            <div class="muted">Заявки показаны в обратном порядке выгрузки. Сначала грузим те, которые будут разгружаться последними.</div>
+          </div>
+          <div class="hero-actions">
+            <a class="btn" href="{{ trip_detail_url }}">Назад к рейсу</a>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="queue-board">
+            <div class="stat-card">
+              <div class="muted">Текущая очередь</div>
+              <strong id="current-order-label">{{ loading_state_payload.current_order_number|default:"Все загружено" }}</strong>
+            </div>
+            <div class="stat-card">
+              <div class="muted">Загружено паллет</div>
+              <strong id="loaded-total">{{ loading_state_payload.loaded_total }}</strong>
+            </div>
+            <div class="stat-card">
+              <div class="muted">Всего паллет</div>
+              <strong id="total-pallets">{{ loading_state_payload.total_pallets }}</strong>
+            </div>
+          </div>
+
+          <div class="status-banner" id="scan-status-banner">
+            {% if can_scan_loading %}
+              Сканируй ШК поставки текущей заявки. При верном скане все паллеты заявки станут загруженными.
+            {% else %}
+              Погрузка доступна только кладовщику на рейсе в статусе «Погрузка».
+            {% endif %}
+          </div>
+
+          <form id="scan-form" class="scan-grid" {% if not can_scan_loading %}style="display:none"{% endif %}>
+            <input id="scan-input" class="scan-input" type="text" inputmode="text" autocomplete="off" placeholder="Сканируй ШК поставки и нажми Enter">
+            <button class="btn primary" type="submit">Подтвердить скан</button>
+          </form>
+        </section>
+
+        {% if can_finish_loading %}
+          <section class="completion-card">
+            <div class="completion-head">
+              <div>
+                <h2 class="completion-title">Погрузка завершена</h2>
+                <div class="muted">Все паллеты по рейсу уже загружены. Теперь можно открыть документы по каждой заявке и завершить погрузку.</div>
+              </div>
+              <span class="chip complete">Готово к отправке</span>
+            </div>
+
+            <div class="completion-docs">
+              {% for row in loading_document_rows %}
+                <section class="completion-doc">
+                  <div>
+                    <div class="completion-doc-title">{{ row.display_number }}</div>
+                    <div class="muted">{{ row.agency_name }}</div>
+                  </div>
+                  <div class="completion-doc-actions">
+                    <a class="btn" href="{{ row.transport_note_url }}" target="_blank" rel="noopener">Транспортная накладная</a>
+                    <a class="btn" href="{{ row.return_act_url }}" target="_blank" rel="noopener">Акт возврата</a>
+                  </div>
+                </section>
+              {% endfor %}
+            </div>
+
+            <div class="completion-actions">
+              <form method="post" id="finish-loading-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="finish_loading">
+                <button class="btn primary" type="submit">Завершить погрузку</button>
+              </form>
+            </div>
+          </section>
+        {% endif %}
+
+        <section class="orders" id="loading-orders"></section>
+      </main>
+    </div>
+  </div>
+
+  {{ loading_state_payload|json_script:"trip-loading-state" }}
+  {{ shipping_service_targets|json_script:"shipping-service-targets" }}
+  {{ scanner_agents|json_script:"scanner-agents-data" }}
+  {% include "billing/_warehouse_services_modal.html" %}
+  <script src="/static/fullbox/agent_realtime.js"></script>
+  <script>
+    (() => {
+      const canScan = {{ can_scan_loading|yesno:"true,false" }};
+      const supportsDesktopMode = Boolean(window.fullboxDesktop);
+      const state = JSON.parse(document.getElementById('trip-loading-state').textContent || '{}');
+      const shippingServiceTargets = JSON.parse(document.getElementById('shipping-service-targets')?.textContent || '[]');
+      const scannerAgents = JSON.parse(document.getElementById('scanner-agents-data').textContent || '[]');
+      const tripId = Number('{{ trip.pk }}') || 0;
+      const scanForm = document.getElementById('scan-form');
+      const scanInput = document.getElementById('scan-input');
+      const ordersEl = document.getElementById('loading-orders');
+      const currentOrderLabelEl = document.getElementById('current-order-label');
+      const loadedTotalEl = document.getElementById('loaded-total');
+      const totalPalletsEl = document.getElementById('total-pallets');
+      const statusBannerEl = document.getElementById('scan-status-banner');
+      const scannerStatusEl = document.getElementById('scanner-status');
+      const agentSelect = document.getElementById('agent-select');
+      const agentStatusEl = document.getElementById('agent-status');
+      const agentContextStatusEl = document.getElementById('agent-context-status');
+      const agentIndicatorEl = document.getElementById('agent-indicator');
+      const agentLastEl = document.getElementById('agent-last');
+      const agentHintEl = document.getElementById('agent-hint');
+      const agentClaimForceBtn = document.getElementById('agent-claim-force');
+      const agentDownloadEl = document.getElementById('agent-download');
+      const scannerModeHintEl = document.getElementById('scanner-mode-hint');
+      const scannerConnectionLabelEl = document.getElementById('scanner-connection-label');
+      const csrfToken = '{{ csrf_token }}';
+      const finishLoadingForm = document.getElementById('finish-loading-form');
+      const agentEventsUrl = '/agent/events/poll/';
+      const agentContextUrl = '/agent/contexts/claim/';
+      const agentStatusUrl = '/agent/status/';
+      let agentId = '';
+      let agentContextId = '';
+      let agentSinceId = 0;
+      let agentPollTimer = null;
+      let agentStatusTimer = null;
+      let agentContextTimer = null;
+      let agentRealtimeClient = null;
+      let scanBusy = false;
+
+      finishLoadingForm?.addEventListener('submit', (event) => {
+        if (finishLoadingForm.dataset.servicesReady === '1') return;
+        event.preventDefault();
+        if (finishLoadingForm.dataset.servicesOpening === '1') return;
+        const modal = window.FullboxWarehouseServicesModal;
+        if (!modal || typeof modal.open !== 'function') {
+          window.alert('Не удалось открыть перечень услуг. Обновите страницу и повторите.');
+          return;
+        }
+        const submitter = event.submitter;
+        finishLoadingForm.dataset.servicesOpening = '1';
+        shippingServiceTargets.reduce((chain, target) => chain.then(() => modal.open(
+          {items: target.items || 0, boxes: target.boxes || 0, pallets: target.pallets || 0},
+          {
+            clientId: target.clientId,
+            clientName: target.clientName,
+            orderType: 'shipping',
+            orderId: target.orderId,
+            source: target.source || 'shipping_loading_manual',
+            title: 'Фактически оказанные услуги по отгрузке '+String(target.displayNumber || target.orderId || ''),
+            itemsLabel: 'Товар к отгрузке',
+            itemsUnit: 'шт.',
+          }
+        )), Promise.resolve()).then(() => {
+          finishLoadingForm.dataset.servicesReady = '1';
+          delete finishLoadingForm.dataset.servicesOpening;
+          if (submitter) finishLoadingForm.requestSubmit(submitter);
+          else HTMLFormElement.prototype.submit.call(finishLoadingForm);
+        }).catch((error) => {
+          delete finishLoadingForm.dataset.servicesOpening;
+          if (!error || error.message !== 'cancelled') {
+            window.alert((error && error.message) || 'Не удалось сохранить услуги отгрузки.');
+          }
+        });
+      }, true);
+
+      const escapeHtml = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+      const playTone = (kind) => {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const now = ctx.currentTime;
+        const sequence = kind === 'success' ? [740, 980] : [220, 180, 220];
+        sequence.forEach((frequency, index) => {
+          const oscillator = ctx.createOscillator();
+          const gain = ctx.createGain();
+          oscillator.type = kind === 'success' ? 'sine' : 'square';
+          oscillator.frequency.value = frequency;
+          gain.gain.setValueAtTime(0.0001, now + index * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.08, now + index * 0.12 + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + index * 0.12 + 0.1);
+          oscillator.connect(gain);
+          gain.connect(ctx.destination);
+          oscillator.start(now + index * 0.12);
+          oscillator.stop(now + index * 0.12 + 0.11);
+        });
+        window.setTimeout(() => ctx.close().catch(() => null), 500);
+      };
+
+      const setScannerStatus = (text, tone) => {
+        if (!scannerStatusEl) return;
+        scannerStatusEl.textContent = String(text || '');
+        scannerStatusEl.className = `scanner-value${tone === 'success' ? ' success' : tone === 'error' ? ' error' : ''}`;
+      };
+
+      const setAgentStatus = (text, isError) => {
+        if (!agentStatusEl) return;
+        agentStatusEl.textContent = String(text || 'не выбран');
+        agentStatusEl.className = `scanner-value${isError ? ' error' : ''}`;
+      };
+
+      const setAgentContextStatus = (text, isError) => {
+        if (!agentContextStatusEl) return;
+        agentContextStatusEl.textContent = String(text || '-');
+        agentContextStatusEl.className = `scanner-value${isError ? ' error' : ''}`;
+      };
+
+      const setAgentHint = (text, isError) => {
+        if (!agentHintEl) return;
+        agentHintEl.textContent = String(text || '');
+        agentHintEl.style.color = isError ? 'var(--err)' : '';
+      };
+
+      const setAgentIndicator = (stateKey, text) => {
+        if (!agentIndicatorEl) return;
+        agentIndicatorEl.classList.remove('ok', 'warn', 'error');
+        if (stateKey) {
+          agentIndicatorEl.classList.add(stateKey);
+        }
+        const textEl = agentIndicatorEl.querySelector('.text');
+        if (textEl) {
+          textEl.textContent = String(text || '-');
+        }
+      };
+
+      const setAgentLast = (value, eventAgentId) => {
+        if (!agentLastEl) return;
+        const stamp = new Date().toLocaleTimeString('ru-RU');
+        const suffix = eventAgentId ? ` · ${eventAgentId}` : '';
+        agentLastEl.textContent = `${stamp} · ${String(value || '').trim() || '-'}${suffix}`;
+      };
+
+      const handleAgentScanEvent = async (eventItem) => {
+        if (eventItem?.id) {
+          agentSinceId = Math.max(agentSinceId, Number(eventItem.id) || 0);
+        }
+        const eventAgentId = eventItem?.agent_id ? String(eventItem.agent_id).trim() : '';
+        const value = eventItem?.payload ? String(eventItem.payload.value || '').trim() : '';
+        if (!value) {
+          return;
+        }
+        setAgentLast(value, eventAgentId);
+        await submitScan(value, 'agent');
+      };
+      const isAgentRealtimeConnected = () => !!(agentRealtimeClient && agentRealtimeClient.isConnected());
+      const closeAgentRealtime = () => {
+        if (agentRealtimeClient) {
+          agentRealtimeClient.close();
+          agentRealtimeClient = null;
+        }
+      };
+      const connectAgentRealtime = () => {
+        if (!window.FullboxAgentRealtime || !agentContextId || !canScan) {
+          return;
+        }
+        if (!agentRealtimeClient) {
+          agentRealtimeClient = window.FullboxAgentRealtime.createContextClient({
+            onEvent: (evt) => {
+              if (evt && evt.event_type === 'scan') {
+                handleAgentScanEvent(evt).catch(() => null);
+              }
+            },
+          });
+        }
+        agentRealtimeClient.connect(agentContextId);
+      };
+
+      const describeScannerState = (data) => {
+        const ready = data && typeof data.scanner_ready === 'boolean' ? data.scanner_ready : null;
+        const reason = String((data && data.scanner_reason) || '').trim();
+        const port = String((data && data.scanner_port) || '').trim();
+        const error = String((data && data.scanner_error) || '').trim();
+        if (ready === true) {
+          return { text: 'Сканер готов', level: 'ok' };
+        }
+        if (reason === 'disabled') {
+          return { text: 'Сканер выключен в агенте', level: 'warn' };
+        }
+        if (reason === 'port_missing') {
+          return { text: 'Не выбран COM порт', level: 'warn' };
+        }
+        if (reason === 'port_not_found') {
+          return { text: `COM порт не найден${port ? ` (${port})` : ''}`, level: 'error' };
+        }
+        if (reason === 'not_connected') {
+          return { text: 'Нет соединения со сканером', level: 'warn' };
+        }
+        if (reason === 'error' || error) {
+          return { text: `Ошибка сканера${error ? `: ${error}` : ''}`, level: 'error' };
+        }
+        if (ready === false) {
+          return { text: 'Сканер не готов', level: 'warn' };
+        }
+        return { text: 'Сканер: нет данных', level: 'muted' };
+      };
+
+      const applyScannerState = (data, agentOnline) => {
+        if (!agentId) {
+          setAgentStatus('не выбран', true);
+          setAgentIndicator('', 'не выбран');
+          setScannerStatus('Ожидаю ШК поставки', '');
+          return;
+        }
+        if (!agentOnline) {
+          setAgentStatus(`агент не в сети: ${agentId}`, true);
+          setAgentIndicator('error', 'нет связи');
+          setScannerStatus('Агент не в сети', 'error');
+          return;
+        }
+        const scannerState = describeScannerState(data);
+        const isError = scannerState.level === 'error';
+        setAgentStatus(scannerState.text, isError);
+        if (scannerState.level === 'ok') {
+          setAgentIndicator('ok', 'готов');
+          setScannerStatus('Ожидаю ШК поставки', '');
+        } else if (scannerState.level === 'warn') {
+          setAgentIndicator('warn', 'не готов');
+          setScannerStatus(scannerState.text, '');
+        } else if (scannerState.level === 'error') {
+          setAgentIndicator('error', 'ошибка');
+          setScannerStatus(scannerState.text, 'error');
+        } else {
+          setAgentIndicator('', 'нет данных');
+          setScannerStatus(scannerState.text, '');
+        }
+      };
+
+      const applyResultBanner = (result) => {
+        const tone = String(result?.tone || '');
+        statusBannerEl.className = `status-banner${tone === 'success' ? ' success' : tone === 'error' ? ' error' : ''}`;
+        statusBannerEl.textContent = String(result?.message || '');
+        if (tone === 'success' || tone === 'error') {
+          playTone(tone);
+        }
+      };
+
+      const renderOrders = (payload) => {
+        const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+        if (!rows.length) {
+          ordersEl.innerHTML = '<div class="empty-note">В рейсе нет паллет для погрузки.</div>';
+          return;
+        }
+        ordersEl.innerHTML = rows.map((row) => {
+          const cardClass = `order-card${row.is_current ? ' current' : ''}${row.is_complete ? ' complete' : ''}`;
+          const chipClass = row.is_complete ? 'complete' : row.is_current ? 'current' : 'pending';
+          const chipLabel = row.is_complete ? 'Загружено' : row.is_current ? 'Грузим сейчас' : 'Ожидает очереди';
+          const palletsMarkup = Array.isArray(row.pallets) && row.pallets.length
+            ? row.pallets.map((pallet, index) => `
+                <div class="pallet-card${pallet.is_loaded ? ' loaded' : ''}">
+                  <div class="pallet-title">${escapeHtml(pallet.pallet_code || pallet.pallet_label || pallet.qr_value || '-')}</div>
+                  <div class="muted">Коробов: ${escapeHtml(pallet.box_count || 0)}</div>
+                  <span class="chip ${pallet.is_loaded ? 'complete' : 'pending'}">${pallet.is_loaded ? 'Загружена' : 'Не загружена'}</span>
+                </div>
+              `).join('')
+            : '<div class="empty-note">Паллеты для этой заявки не найдены.</div>';
+          return `
+            <section class="${cardClass}">
+              <div class="order-head">
+                <div class="order-meta">
+                  <h2 class="order-title">${escapeHtml(row.display_number)}</h2>
+                  <div class="muted">${escapeHtml(row.agency_name)} · ${escapeHtml(row.destination)}</div>
+                  <div class="muted">ШК поставки: ${escapeHtml(row.shipping_barcode || row.load_key || '-')}</div>
+                  <div class="muted">Паллет: ${escapeHtml(row.loaded_count)}/${escapeHtml(row.pallet_count)}</div>
+                </div>
+                <span class="chip ${chipClass}">${chipLabel}</span>
+              </div>
+              <div class="pallet-list">${palletsMarkup}</div>
+            </section>
+          `;
+        }).join('');
+      };
+
+      const applyPayload = (payload, result) => {
+        Object.assign(state, payload || {});
+        currentOrderLabelEl.textContent = String(payload?.current_order_number || 'Все загружено');
+        loadedTotalEl.textContent = String(payload?.loaded_total || 0);
+        totalPalletsEl.textContent = String(payload?.total_pallets || 0);
+        renderOrders(payload);
+        if (result) {
+          applyResultBanner(result);
+        } else if (payload?.all_complete) {
+          applyResultBanner({ tone: 'success', message: 'Все паллеты по рейсу уже загружены.' });
+        }
+      };
+
+      const submitScan = async (rawValue, source) => {
+        if (!canScan || scanBusy) {
+          return;
+        }
+        const scanValue = String(rawValue || '').trim();
+        if (!scanValue) {
+          applyResultBanner({ tone: 'error', message: 'Отсканируй ШК поставки перед подтверждением.' });
+          scanInput?.focus();
+          return;
+        }
+        scanBusy = true;
+        setScannerStatus(
+          source === 'agent'
+            ? 'Режим Agent · скан получен'
+            : source === 'desktop'
+              ? 'Режим Desktop · скан получен напрямую'
+              : 'Режим ручного ввода · отправляю скан',
+          '',
+        );
+        const formData = new FormData();
+        formData.append('scan_value', scanValue);
+        if (agentId) {
+          formData.append('agent_id', agentId);
+        }
+        try {
+          const response = await fetch(window.location.pathname, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: {
+              'X-CSRFToken': csrfToken,
+              'X-Requested-With': 'XMLHttpRequest',
+            },
+          });
+          const payload = await response.json().catch(() => ({}));
+          applyPayload(payload, payload?.result || null);
+          if (payload?.result?.tone === 'success') {
+            setScannerStatus('Скан принят', 'success');
+          } else if (payload?.result?.tone === 'error') {
+            setScannerStatus(payload?.result?.message || 'Ошибка сканирования', 'error');
+          }
+        } catch (error) {
+          applyResultBanner({ tone: 'error', message: 'Не удалось отправить скан на сервер.' });
+          setScannerStatus('Ошибка связи с сервером', 'error');
+        } finally {
+          scanBusy = false;
+          if (scanInput) {
+            scanInput.value = '';
+            scanInput.focus();
+          }
+        }
+      };
+
+      const resolveDefaultAgentId = () => {
+        const saved = localStorage.getItem('fullbox_trip_loading_agent_id') || '';
+        if (saved && scannerAgents.some((agent) => String(agent.agent_id || '') === saved)) {
+          return saved;
+        }
+        if (scannerAgents.length === 1) {
+          return String(scannerAgents[0].agent_id || '');
+        }
+        const online = scannerAgents.filter((agent) => !!agent?.is_online);
+        if (online.length === 1) {
+          return String(online[0].agent_id || '');
+        }
+        return '';
+      };
+
+      const getSelectedAgentOption = () => {
+        if (!agentSelect) {
+          return null;
+        }
+        return Array.from(agentSelect.options).find((option) => option.value === agentId) || null;
+      };
+
+      const updateSelectedAgentMeta = () => {
+        const selected = getSelectedAgentOption();
+        if (!selected) {
+          setAgentStatus('не выбран', true);
+          setAgentContextStatus('не назначен', true);
+          setAgentHint(scannerAgents.length ? 'Выбери агента для приёма сканов.' : 'Агенты не найдены.', !scannerAgents.length);
+          setAgentIndicator('', 'не выбран');
+          return;
+        }
+        const isOnline = selected.dataset.online === '1';
+        const title = selected.dataset.title || selected.value;
+        const status = selected.dataset.status || '';
+        const port = selected.dataset.comPort || '';
+        const error = selected.dataset.comError || '';
+        const baseLabel = [title, status, port].filter(Boolean).join(' · ');
+        setAgentStatus(baseLabel || title, !isOnline);
+        setAgentHint(isOnline ? 'Слушаю события агента.' : 'Агент не в сети.', !isOnline);
+        if (!isOnline) {
+          setAgentIndicator('error', 'нет связи');
+        } else if (selected.dataset.comConnected === '1') {
+          setAgentIndicator('ok', 'подключен');
+        } else if (selected.dataset.comEnabled === '1') {
+          setAgentIndicator('warn', 'включен');
+        } else {
+          setAgentIndicator('', 'ожидание');
+        }
+        if (error) {
+          setScannerStatus(`Ошибка сканера: ${error}`, 'error');
+        }
+      };
+
+      const postJson = async (url, payload) => fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken,
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload || {}),
+      });
+
+      const scheduleAgentContextKeepalive = (delay) => {
+        if (agentContextTimer) {
+          clearTimeout(agentContextTimer);
+        }
+        agentContextTimer = window.setTimeout(() => {
+          claimAgentContext(false).catch(() => null);
+        }, delay);
+      };
+
+      const claimAgentContext = async (force) => {
+        if (!canScan) {
+          return false;
+        }
+        if (!agentId) {
+          setAgentContextStatus('не назначен', true);
+          scheduleAgentContextKeepalive(5000);
+          return false;
+        }
+        const payload = {
+          agent_id: agentId,
+          order_id: tripId || null,
+          box_id: String(state.current_order_id || ''),
+          force: !!force,
+        };
+        if (agentContextId) {
+          payload.context_id = agentContextId;
+        }
+        try {
+          const previousContextId = agentContextId;
+          const response = await postJson(agentContextUrl, payload);
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || data.ok === false) {
+            if (data?.error === 'busy') {
+              const owner = data.owner || {};
+              const ownerLabel = owner.user ? `Занят: ${owner.user}` : 'Занят другим пользователем';
+              setAgentContextStatus(ownerLabel, true);
+              setAgentHint(ownerLabel, true);
+              setAgentIndicator('warn', 'занят');
+            } else {
+              setAgentContextStatus('ошибка', true);
+              setAgentHint('Контекст агента: ошибка.', true);
+              setAgentIndicator('error', 'ошибка');
+            }
+            agentContextId = '';
+            closeAgentRealtime();
+            scheduleAgentContextKeepalive(5000);
+            return false;
+          }
+          agentContextId = data.context_id || agentContextId;
+          if (agentContextId && agentContextId !== previousContextId) {
+            agentSinceId = 0;
+          }
+          setAgentContextStatus('активен', false);
+          const lastScanEventId = Number(data && data.last_scan_event_id) || 0;
+          if (lastScanEventId > agentSinceId) {
+            agentSinceId = lastScanEventId;
+          }
+          if (data && data.realtime_enabled) {
+            connectAgentRealtime();
+          } else {
+            closeAgentRealtime();
+          }
+          applyScannerState(data, data.agent_online !== undefined ? !!data.agent_online : true);
+          scheduleAgentContextKeepalive(10000);
+          return true;
+        } catch (error) {
+          setAgentContextStatus('ошибка', true);
+          setAgentHint('Контекст агента: ошибка соединения.', true);
+          setAgentIndicator('error', 'ошибка');
+          agentContextId = '';
+          closeAgentRealtime();
+          scheduleAgentContextKeepalive(5000);
+          return false;
+        }
+      };
+
+      const scheduleAgentStatusPoll = (delay) => {
+        if (agentStatusTimer) {
+          clearTimeout(agentStatusTimer);
+        }
+        agentStatusTimer = window.setTimeout(pollAgentStatus, delay);
+      };
+
+      const pollAgentStatus = async () => {
+        if (!canScan || !agentId) {
+          scheduleAgentStatusPoll(5000);
+          return;
+        }
+        try {
+          const response = await fetch(`${agentStatusUrl}?agent_id=${encodeURIComponent(agentId)}`, {
+            credentials: 'same-origin',
+          });
+          if (response.ok) {
+            const data = await response.json().catch(() => ({}));
+            applyScannerState(data, data.agent_online !== undefined ? !!data.agent_online : true);
+          }
+        } catch (error) {
+          // ignore
+        } finally {
+          scheduleAgentStatusPoll(5000);
+        }
+      };
+
+      const scheduleAgentPoll = (delay) => {
+        if (agentPollTimer) {
+          clearTimeout(agentPollTimer);
+        }
+        agentPollTimer = window.setTimeout(pollAgentEvents, delay);
+      };
+
+      const pollAgentEvents = async () => {
+        if (!canScan || !agentContextId) {
+          scheduleAgentPoll(1200);
+          return;
+        }
+        if (document.hidden) {
+          scheduleAgentPoll(1500);
+          return;
+        }
+        const params = new URLSearchParams();
+        params.set('since', String(agentSinceId || 0));
+        params.set('type', 'scan');
+        params.set('context_id', agentContextId);
+        try {
+          const response = await fetch(`${agentEventsUrl}?${params.toString()}`, {
+            credentials: 'same-origin',
+          });
+          if (response.ok) {
+            const data = await response.json().catch(() => ({}));
+            if (Array.isArray(data?.events) && data.events.length) {
+              for (const eventItem of data.events) {
+                if (eventItem?.id) {
+                  agentSinceId = Math.max(agentSinceId, Number(eventItem.id) || 0);
+                }
+                const eventAgentId = eventItem?.agent_id ? String(eventItem.agent_id).trim() : '';
+                const value = eventItem?.payload ? String(eventItem.payload.value || '').trim() : '';
+                if (!value) {
+                  continue;
+                }
+                setAgentLast(value, eventAgentId);
+                await submitScan(value, 'agent');
+              }
+            }
+          }
+        } catch (error) {
+          // ignore poll errors
+        } finally {
+          scheduleAgentPoll(isAgentRealtimeConnected() ? 15000 : 1000);
+        }
+      };
+
+      const applyAgentId = async (value) => {
+        agentId = String(value || '').trim();
+        agentContextId = '';
+        agentSinceId = 0;
+        closeAgentRealtime();
+        if (agentId) {
+          localStorage.setItem('fullbox_trip_loading_agent_id', agentId);
+        } else {
+          localStorage.removeItem('fullbox_trip_loading_agent_id');
+        }
+        if (agentSelect) {
+          agentSelect.value = agentId;
+        }
+        updateSelectedAgentMeta();
+        if (!canScan || !agentId) {
+          setAgentContextStatus(agentId ? 'ожидание' : 'не назначен', !agentId);
+          return;
+        }
+        await claimAgentContext(false);
+        scheduleAgentStatusPoll(500);
+        scheduleAgentPoll(200);
+      };
+
+      const refreshDesktopScanner = async () => {
+        if (!supportsDesktopMode) return;
+        try {
+          const status = await window.fullboxDesktop.getStatus();
+          const scanner = status?.scanner || {};
+          const port = String(scanner.port || '-').trim() || '-';
+          const connected = scanner.connected === true;
+          setAgentStatus(
+            connected
+              ? `Desktop · напрямую · ${port} · подключён`
+              : `Desktop · напрямую · ${port} · ${String(scanner.error || 'нет связи')}`,
+            !connected,
+          );
+          setAgentContextStatus('Agent не нужен', false);
+          setAgentIndicator(connected ? 'ok' : 'error', connected ? 'готов напрямую' : 'нет связи');
+          setAgentHint(
+            connected
+              ? 'Сканирование напрямую через Fullbox Desktop.'
+              : 'Проверьте COM-порт в верхней строке Fullbox Desktop.',
+            !connected,
+          );
+          setScannerStatus(
+            connected ? `Режим Desktop · ожидаю ШК · ${port}` : `Режим Desktop · ${port} · нет связи`,
+            connected ? '' : 'error',
+          );
+        } catch (_) {
+          setAgentStatus('Desktop · нет связи с приложением', true);
+          setAgentIndicator('error', 'нет связи');
+        }
+      };
+
+      const handleDesktopScan = async (event) => {
+        if (!supportsDesktopMode || !canScan) return;
+        const detail = event?.detail && typeof event.detail === 'object' ? event.detail : {};
+        detail.fullboxHandled = true;
+        detail.fullboxMode = 'desktop-direct';
+        if (event.cancelable) event.preventDefault();
+        const value = String(detail.value || '').trim();
+        if (!value) return;
+        setAgentLast(value, `Desktop · напрямую · ${String(detail.port || 'COM')}`);
+        await submitScan(value, 'desktop');
+      };
+
+      const initDesktopScanner = () => {
+        if (!supportsDesktopMode) return false;
+        if (agentSelect) {
+          agentSelect.replaceChildren(new Option('Fullbox Desktop · напрямую', 'desktop'));
+          agentSelect.value = 'desktop';
+          agentSelect.disabled = true;
+        }
+        if (agentClaimForceBtn) agentClaimForceBtn.hidden = true;
+        if (agentDownloadEl) agentDownloadEl.hidden = true;
+        if (scannerModeHintEl) scannerModeHintEl.textContent = 'Режим Desktop · прямое USB-COM подключение без Agent.';
+        if (scannerConnectionLabelEl) scannerConnectionLabelEl.textContent = 'Режим подключения';
+        window.addEventListener('fullbox:scan', (event) => { void handleDesktopScan(event); });
+        window.addEventListener('fullbox:desktop-ready', () => { void refreshDesktopScanner(); });
+        window.addEventListener('focus', () => { void refreshDesktopScanner(); });
+        void refreshDesktopScanner();
+        return true;
+      };
+
+      scanForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        await submitScan(scanInput?.value || '', 'manual');
+      });
+
+      agentSelect?.addEventListener('change', async () => {
+        await applyAgentId(agentSelect.value || '');
+      });
+
+      agentClaimForceBtn?.addEventListener('click', async () => {
+        if (!agentId) {
+          setAgentHint('Сначала выбери агента.', true);
+          return;
+        }
+        const ok = window.confirm('Перехватить сканер у другого пользователя?');
+        if (!ok) {
+          return;
+        }
+        await claimAgentContext(true);
+      });
+
+      applyPayload(state, null);
+      if (canScan) {
+        window.setTimeout(() => scanInput?.focus(), 50);
+        if (!initDesktopScanner()) {
+          window.setTimeout(() => {
+            applyAgentId(resolveDefaultAgentId()).catch(() => null);
+          }, 0);
+        }
+      } else {
+        if (!initDesktopScanner()) updateSelectedAgentMeta();
+      }
+    })();
+  </script>
+</body>
+</html>

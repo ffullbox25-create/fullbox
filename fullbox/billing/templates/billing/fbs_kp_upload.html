@@ -1,0 +1,153 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}FBS по КП | Биллинг{% endblock %}
+
+{% block extra_css %}
+  .main { gap: 14px; }
+  .page-head { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+  .page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:30px; }
+  .page-sub { color:var(--muted); font-size:13px; margin-top:5px; max-width:860px; line-height:1.45; }
+  .panel { background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .panel-head { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:14px 16px; border-bottom:1px solid var(--line); }
+  .panel-head h2 { margin:0; font-size:17px; }
+  .panel-body { padding:16px; }
+  .upload-grid { display:grid; grid-template-columns:1.1fr 150px 150px 1fr; gap:10px; align-items:end; }
+  .upload-grid label { display:grid; gap:5px; font-size:12px; color:var(--muted); }
+  .field { min-height:38px; border:1px solid var(--line); border-radius:8px; padding:8px 10px; background:#fff; color:var(--ink); }
+  .file-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+  .file-box { border:1px dashed var(--line); border-radius:8px; padding:12px; background:var(--surface-2); display:grid; gap:8px; }
+  .file-box strong { font-size:13px; }
+  .actions { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .note { margin:12px 0 0; color:var(--muted); font-size:12px; line-height:1.45; }
+  .kpis { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }
+  .kpi { padding:14px; background:var(--surface); border:1px solid var(--line); border-radius:8px; }
+  .kpi span { display:block; color:var(--muted); font-size:12px; }
+  .kpi strong { display:block; margin-top:6px; font-size:24px; }
+  .table-wrap { overflow:auto; }
+  table { width:100%; min-width:920px; border-collapse:collapse; font-size:12px; }
+  th,td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); background:var(--surface-2); font-size:11px; }
+  tr:last-child td { border-bottom:0; }
+  .muted { color:var(--muted); font-size:11px; }
+  .warning { padding:12px 14px; border:1px solid rgba(180,80,70,.25); background:rgba(180,80,70,.08); color:#7c2d24; border-radius:8px; }
+  .empty { padding:24px; text-align:center; color:var(--muted); }
+  @media(max-width:980px){
+    .upload-grid,.file-grid{grid-template-columns:1fr;}
+    .kpis{grid-template-columns:1fr 1fr;}
+  }
+{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">FBS расчет по КП из файлов</h1>
+      <div class="page-sub">Загрузите PDF-акты приемки из внешней WMS и Excel-отчет отгрузок. Система сопоставит строки с номенклатурой клиента, возьмет литраж SKU и ставки FBS по КП. Расчет только проверочный: счета, акты, начисления и складские остатки не меняются.</div>
+    </div>
+    <a class="btn btn-ghost" href="/team-manager/billing/fbs/">← Назад в FBS</a>
+  </div>
+  {% include "billing/_billing_nav.html" %}
+
+  <section class="panel">
+    <div class="panel-head"><h2>Файлы для расчета</h2></div>
+    <form class="panel-body" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="upload-grid">
+        <label>Клиент
+          <select class="field" name="client" required>
+            <option value="">Выберите клиента</option>
+            {% for client in fbs_clients %}
+              <option value="{{ client.id }}" {% if filter_client == client.id|stringformat:'s' %}selected{% endif %}>{{ client }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Дата от
+          <input class="field" type="date" name="date_from" value="{{ fbs_date_from }}" required>
+        </label>
+        <label>Дата до
+          <input class="field" type="date" name="date_to" value="{{ fbs_date_to }}" required>
+        </label>
+        <div class="muted">Период применяется к датам актов приемки и строкам Excel-отгрузки.</div>
+      </div>
+      <div class="file-grid">
+        <label class="file-box">
+          <strong>PDF-акты приемки</strong>
+          <span class="muted">Можно выбрать несколько файлов `ts-wms_act-*.pdf`.</span>
+          <input class="field" type="file" name="receiving_acts" accept="application/pdf,.pdf" multiple>
+        </label>
+        <label class="file-box">
+          <strong>Excel-отчет отгрузок</strong>
+          <span class="muted">Ожидаются колонки: Дата, Товар, Артикул, ШК, WB, OZON, Yandex, ВСЕГО.</span>
+          <input class="field" type="file" name="shipping_report" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        </label>
+      </div>
+      <p class="note">Для скачивания Excel файлы нужно выбрать в этой же форме: расчет не сохраняется в базе и не остается черновиком счета.</p>
+      <div class="actions">
+        <button class="btn btn-ghost" name="action" value="preview" type="submit">Рассчитать на экране</button>
+        <button class="btn btn-primary" name="action" value="download" type="submit">Скачать Excel</button>
+      </div>
+    </form>
+  </section>
+
+  {% if result %}
+    <section class="kpis">
+      <div class="kpi"><span>Строк источников</span><strong>{{ result.summary.source_rows }}</strong></div>
+      <div class="kpi"><span>Рассчитано строк</span><strong>{{ result.summary.calculated_rows }}</strong></div>
+      <div class="kpi"><span>Ошибок</span><strong>{{ result.summary.error_rows }}</strong></div>
+      <div class="kpi"><span>Сумма без НДС</span><strong>{{ result.summary.amount }} ₽</strong></div>
+      <div class="kpi"><span>Итого с НДС</span><strong>{{ result.summary.total_amount }} ₽</strong></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Услуги по КП</h2></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Операция</th><th>Диапазон КП</th><th>Количество</th><th>Ед.</th><th>Цена</th><th>Сумма без НДС</th><th>НДС</th><th>Итого</th><th>Строк</th></tr></thead>
+          <tbody>
+            {% for group in result.groups %}
+              <tr>
+                <td><strong>{{ group.operation_label }}</strong></td>
+                <td>{{ group.rate_label }}</td>
+                <td>{{ group.quantity }}</td>
+                <td>{{ group.unit }}</td>
+                <td>{{ group.price }} ₽</td>
+                <td>{{ group.amount }} ₽</td>
+                <td>{{ group.vat_amount }} ₽</td>
+                <td><strong>{{ group.total_amount }} ₽</strong></td>
+                <td>{{ group.rows_count }}</td>
+              </tr>
+            {% empty %}
+              <tr><td class="empty" colspan="9">Расчетных строк нет.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {% if result.errors %}
+      <section class="panel">
+        <div class="panel-head"><h2>Что нужно исправить</h2><span class="warning">Не попало в сумму: {{ result.summary.error_rows }} строк</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Источник</th><th>Операция</th><th>Документ</th><th>Дата</th><th>SKU</th><th>Наименование</th><th>ШК</th><th>Кол-во</th><th>Литры</th><th>Ошибка</th></tr></thead>
+            <tbody>
+              {% for row in result.errors|slice:":80" %}
+                <tr>
+                  <td>{{ row.source }}</td>
+                  <td>{{ row.operation_label }}</td>
+                  <td>{{ row.source_number }}</td>
+                  <td>{% if row.service_date %}{{ row.service_date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
+                  <td>{{ row.sku_code }}</td>
+                  <td>{{ row.name }}</td>
+                  <td>{{ row.barcode }}</td>
+                  <td>{{ row.quantity }}</td>
+                  <td>{% if row.liters %}{{ row.liters }}{% else %}—{% endif %}</td>
+                  <td>{{ row.problem }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+  {% endif %}
+{% endblock %}

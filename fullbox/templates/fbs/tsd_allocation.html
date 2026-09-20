@@ -1,0 +1,68 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Задание FBS #{{ allocation.id }}{% endblock %}
+
+{% block content %}
+  <div class="progress-line">
+    <span>План #{{ plan.id }}</span>
+    <strong>Осталось операций: {{ open_count }}</strong>
+  </div>
+
+  <section class="detail-surface scan-summary">
+    <div class="metric-grid">
+      <div><span>Клиент</span><strong>{{ plan.agency }}</strong></div>
+      <div><span>Количество</span><strong>{{ allocation.qty_planned }} шт.</strong></div>
+      <div><span>Товар</span><strong>{{ allocation.source_snapshot.sku_code }}</strong></div>
+      <div><span>Откуда</span><strong>{{ allocation.source_snapshot.location.location_code }}</strong></div>
+      <div><span>Источник</span><strong>{{ source_code }}</strong></div>
+      <div><span>Рекомендация</span><strong>{% if is_staging_transfer %}{{ plan.staging_location.location_code|default:plan.staging_location.zone_code }}{% else %}{{ plan.target_cell.warehouse_location_label }}{% endif %}</strong></div>
+    </div>
+  </section>
+
+  {% if not source_confirmed %}
+    <section class="scan-step" aria-labelledby="source-step-title">
+      <div class="step-number">1</div>
+      <div class="step-copy">
+        <h2 id="source-step-title">Источник</h2>
+        <strong>{{ source_code }}</strong>
+      </div>
+    </section>
+    <form class="scan-form" method="post" autocomplete="off">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="scan_source">
+      <label for="source-scan">Скан источника</label>
+      <input id="source-scan" type="text" name="source_scan" autofocus required autocapitalize="off" spellcheck="false">
+      <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Подтвердить источник</button>
+    </form>
+  {% else %}
+    <section class="scan-step scan-step-done">
+      <div class="step-number">1</div>
+      <div class="step-copy"><h2>Источник</h2><strong>Подтвержден</strong></div>
+    </section>
+    <section class="scan-step" aria-labelledby="target-step-title">
+      <div class="step-number">2</div>
+      <div class="step-copy">
+        <h2 id="target-step-title">{% if is_staging_transfer %}Временный короб заявки{% else %}Выберите место FBS{% endif %}</h2>
+        <strong>{% if is_staging_transfer %}{{ staging_container_code }}{% elif plan.mode == 'item' %}QR короба{% else %}QR ячейки или паллеты{% endif %}</strong>
+      </div>
+    </section>
+    <form class="scan-form" method="post" autocomplete="off" data-submit-once>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="complete">
+      {% if is_staging_transfer %}
+        <label for="staging-container-scan">Скан QR временного короба</label>
+        <input id="staging-container-scan" type="text" name="staging_container_scan" autofocus required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-scan-next="#target-scan">
+        <section class="scan-step" aria-labelledby="zone-step-title">
+          <div class="step-number">3</div>
+          <div class="step-copy"><h2 id="zone-step-title">Зона подготовки FBS</h2><strong>{{ plan.staging_location.location_code|default:plan.staging_location.zone_code }}</strong></div>
+        </section>
+        <label for="target-scan">Скан QR зоны подготовки FBS</label>
+        <input id="target-scan" type="text" name="staging_scan" required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only>
+      {% else %}
+        <label for="target-scan">{% if plan.mode == 'item' %}Скан QR короба FBS{% else %}Скан QR ячейки или паллеты FBS{% endif %}</label>
+        <input id="target-scan" type="text" name="target_box_scan" autofocus required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only>
+      {% endif %}
+      <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>{% if is_staging_transfer %}Передать кладовщику{% else %}Завершить перемещение{% endif %}</button>
+    </form>
+  {% endif %}
+{% endblock %}

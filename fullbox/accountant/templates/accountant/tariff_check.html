@@ -1,0 +1,29 @@
+{% extends "accountant/_base.html" %}
+{% block title %}Проверка тарифов{% endblock %}
+{% block content %}
+<div>
+  <h1 class="page-title">Проверка тарифов</h1>
+  <div class="page-sub">Клиенты с пробелами в реквизитах, компании обслуживания или тарифах.</div>
+</div>
+<div class="card" style="padding:0;overflow:auto">
+  <table>
+    <thead><tr><th>Клиент</th><th>Статус</th><th>Проблемы</th><th></th></tr></thead>
+    <tbody>
+      {% for row in problems %}
+        <tr>
+          <td>{{ row.agency.short_name|default:row.agency.agn_name }}</td>
+          <td><span class="badge orange">{{ row.lifecycle.get_status_display }}</span></td>
+          <td>
+            <ul style="margin:0;padding-left:16px;font-size:12px">
+              {% for e in row.errors %}<li>{{ e }}</li>{% empty %}<li>Нет активного тарифа</li>{% endfor %}
+            </ul>
+          </td>
+          <td><a class="btn" href="/accountant/clients/{{ row.agency.id }}/">Исправить</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4" class="muted" style="text-align:center;padding:40px">Проблем не найдено</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

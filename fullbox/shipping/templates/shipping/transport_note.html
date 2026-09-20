@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Сопроводительные документы {{ preview.print_title }}</title>
+    <style>
+        :root {
+            --line: #d9d1c3;
+            --paper-shadow: 0 18px 40px rgba(95, 72, 39, 0.12);
+            --bg: #f5f1e8;
+            --panel: rgba(255, 252, 246, 0.92);
+            --text: #32281c;
+            --muted: #7d6f60;
+            --accent: #b7862f;
+            --accent-2: #d6a23c;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(214, 162, 60, 0.12), transparent 25%),
+                radial-gradient(circle at bottom right, rgba(183, 134, 47, 0.1), transparent 22%),
+                var(--bg);
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .screen-shell {
+            padding: 24px;
+        }
+
+        .screen-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .screen-title h1 {
+            margin: 0 0 6px;
+            font-size: 28px;
+            line-height: 1.15;
+        }
+
+        .screen-title p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .screen-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 0 18px;
+            border-radius: 14px;
+            border: 1px solid rgba(90, 68, 41, 0.14);
+            background: rgba(255, 255, 255, 0.76);
+            cursor: pointer;
+            font: inherit;
+            transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+            box-shadow: 0 10px 25px rgba(95, 72, 39, 0.08);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .messages {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .message {
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid rgba(90, 68, 41, 0.12);
+            box-shadow: 0 10px 24px rgba(95, 72, 39, 0.08);
+        }
+
+        .message.success { border-left: 4px solid #5a9a61; }
+        .message.error { border-left: 4px solid #bf5549; }
+
+        .tn-layout {
+            display: grid;
+            grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+            gap: 22px;
+            align-items: start;
+        }
+
+        .tn-editor,
+        .tn-preview-panel {
+            background: var(--panel);
+            border: 1px solid rgba(90, 68, 41, 0.12);
+            border-radius: 24px;
+            box-shadow: 0 18px 40px rgba(95, 72, 39, 0.08);
+            backdrop-filter: blur(12px);
+        }
+
+        .tn-editor {
+            padding: 18px;
+            position: sticky;
+            top: 18px;
+        }
+
+        .tn-editor h2,
+        .tn-preview-panel h2 {
+            margin: 0 0 6px;
+            font-size: 20px;
+        }
+
+        .tn-editor p,
+        .tn-preview-panel p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .form-section {
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(90, 68, 41, 0.1);
+        }
+
+        .form-section.accordion {
+            padding-top: 0;
+            border-top: 0;
+            margin-top: 12px;
+            overflow: hidden;
+            border-radius: 18px;
+            border: 1px solid rgba(90, 68, 41, 0.1);
+            background: rgba(255, 255, 255, 0.52);
+        }
+
+        .accordion-summary {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 14px 16px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .accordion-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .accordion-summary::after {
+            content: "▾";
+            flex: 0 0 auto;
+            font-size: 15px;
+            color: var(--muted);
+            transition: transform 140ms ease;
+        }
+
+        .accordion[open] .accordion-summary::after {
+            transform: rotate(180deg);
+        }
+
+        .accordion-title {
+            display: grid;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .accordion-title strong {
+            font-size: 15px;
+            line-height: 1.2;
+        }
+
+        .accordion-hint {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .accordion-value {
+            min-width: 0;
+            max-width: 220px;
+            margin-left: auto;
+            color: var(--muted);
+            font-size: 12px;
+            text-align: right;
+            line-height: 1.35;
+        }
+
+        .accordion-body {
+            padding: 0 16px 16px;
+            border-top: 1px solid rgba(90, 68, 41, 0.08);
+        }
+
+        .form-section h3 {
+            margin: 0 0 12px;
+            font-size: 15px;
+            line-height: 1.2;
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .field-grid-single {
+            display: grid;
+            gap: 12px;
+        }
+
+        .field {
+            display: grid;
+            gap: 6px;
+        }
+
+        .field label {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .field input,
+        .field textarea,
+        .field select {
+            width: 100%;
+            border: 1px solid rgba(90, 68, 41, 0.15);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.88);
+            padding: 10px 12px;
+            font: inherit;
+            color: var(--text);
+        }
+
+        .field textarea {
+            min-height: 82px;
+            resize: vertical;
+        }
+
+        .help-row {
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: rgba(183, 134, 47, 0.08);
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .preview-head {
+            padding: 18px 18px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .pdf-wrap {
+            padding: 18px;
+        }
+
+        .pdf-frame {
+            width: 100%;
+            min-height: 1200px;
+            border: 0;
+            border-radius: 18px;
+            background: #fffefb;
+            box-shadow: var(--paper-shadow);
+        }
+
+        @media (max-width: 1420px) {
+            .tn-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .tn-editor {
+                position: static;
+            }
+
+            .pdf-frame { min-height: 840px; }
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 0;
+            }
+
+            html, body {
+                background: #fff;
+            }
+
+            .screen-shell {
+                padding: 0;
+            }
+
+            .screen-top,
+            .messages,
+            .tn-editor,
+            .preview-head {
+                display: none !important;
+            }
+
+            .tn-layout,
+            .tn-preview-panel,
+            .pdf-wrap {
+                display: block;
+                margin: 0;
+                padding: 0;
+                border: 0;
+                box-shadow: none;
+                background: transparent;
+            }
+
+            .pdf-frame {
+                min-height: 0;
+                height: 100vh;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="screen-shell">
+        <div class="screen-top">
+            <div class="screen-title">
+                <h1>Сопроводительные документы</h1>
+                <p>Заявка {{ order.display_number }}. Здесь собраны документы по отгрузке и возврату.</p>
+            </div>
+            <div class="screen-actions">
+                <a href="{{ cabinet_url }}" class="btn">В кабинет</a>
+                <a href="{{ detail_url }}" class="btn">К заявке</a>
+                <button type="button" class="btn btn-primary" onclick="window.print()">Печать</button>
+            </div>
+        </div>
+
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="message {{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="tn-layout">
+            <form method="post" class="tn-editor">
+                {% csrf_token %}
+                <h2>Реквизиты</h2>
+                <p>Заполняй поля слева. Справа сразу видно, как текст ложится на официальный бланк.</p>
+
+                <div class="form-section">
+                    <h3>Документ</h3>
+                    <div class="field-grid">
+                        <div class="field">
+                            <label for="{{ form.document_number.id_for_label }}">Номер ТН</label>
+                            {{ form.document_number }}
+                        </div>
+                        <div class="field">
+                            <label for="{{ form.document_date.id_for_label }}">Дата ТН</label>
+                            {{ form.document_date }}
+                        </div>
+                    </div>
+                </div>
+
+                <details class="form-section accordion">
+                    <summary class="accordion-summary">
+                        <span class="accordion-title">
+                            <strong>Заказчик услуг</strong>
+                            <span class="accordion-hint">Клиент из справочника</span>
+                        </span>
+                        <span class="accordion-value">{{ preview.customer_name_label|default:"Не заполнено"|truncatechars:44 }}</span>
+                    </summary>
+                    <div class="accordion-body">
+                        <div class="field-grid-single">
+                            <div class="field">
+                                <label>Краткое название</label>
+                                <input type="text" value="{{ preview.customer_name_label }}" readonly>
+                            </div>
+                            <div class="field-grid">
+                                <div class="field">
+                                    <label>ИНН</label>
+                                    <input type="text" value="{{ order.agency.inn|default:'' }}" readonly>
+                                </div>
+                                <div class="field">
+                                    <label>Договор</label>
+                                    <input type="text" value="{{ order.agency.contract_numb|default:'' }}" readonly>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label>Адрес</label>
+                                <textarea rows="3" readonly>{{ order.agency.fakt_adres|default:order.agency.adres }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="form-section accordion" open>
+                    <summary class="accordion-summary">
+                        <span class="accordion-title">
+                            <strong>Грузоотправитель</strong>
+                            <span class="accordion-hint">Основные реквизиты отправителя</span>
+                        </span>
+                        <span class="accordion-value">{{ note.shipper_name|default:"Не заполнено"|truncatechars:44 }}</span>
+                    </summary>
+                    <div class="accordion-body">
+                    <div class="field-grid-single">
+                        <div class="field"><label for="{{ form.shipper_name.id_for_label }}">Грузоотправитель</label>{{ form.shipper_name }}</div>
+                        <div class="field-grid">
+                            <div class="field"><label for="{{ form.shipper_inn.id_for_label }}">ИНН</label>{{ form.shipper_inn }}</div>
+                            <div class="field"><label for="{{ form.shipper_phone.id_for_label }}">Телефон</label>{{ form.shipper_phone }}</div>
+                        </div>
+                        <div class="field"><label for="{{ form.shipper_address.id_for_label }}">Адрес грузоотправителя</label>{{ form.shipper_address }}</div>
+                    </div>
+                    </div>
+                </details>
+
+                <details class="form-section accordion">
+                    <summary class="accordion-summary">
+                        <span class="accordion-title">
+                            <strong>Грузополучатель</strong>
+                            <span class="accordion-hint">Получатель и адрес выгрузки</span>
+                        </span>
+                        <span class="accordion-value">{{ note.consignee_name|default:"Не заполнено"|truncatechars:44 }}</span>
+                    </summary>
+                    <div class="accordion-body">
+                    <div class="field-grid-single">
+                        <div class="field"><label for="{{ form.consignee_name.id_for_label }}">Грузополучатель</label>{{ form.consignee_name }}</div>
+                        <div class="field-grid">
+                            <div class="field"><label for="{{ form.consignee_inn.id_for_label }}">ИНН</label>{{ form.consignee_inn }}</div>
+                            <div class="field"><label for="{{ form.consignee_phone.id_for_label }}">Телефон</label>{{ form.consignee_phone }}</div>
+                        </div>
+                        <div class="field"><label for="{{ form.consignee_address.id_for_label }}">Адрес грузополучателя</label>{{ form.consignee_address }}</div>
+                    </div>
+                    </div>
+                </details>
+
+                <details class="form-section accordion">
+                    <summary class="accordion-summary">
+                        <span class="accordion-title">
+                            <strong>Перевозчик и транспорт</strong>
+                            <span class="accordion-hint">Перевозчик, водитель, машина</span>
+                        </span>
+                        <span class="accordion-value">
+                            {{ note.carrier_name|default:"Не заполнено"|truncatechars:28 }}
+                            {% if note.vehicle_number %}<br>{{ note.vehicle_number }}{% endif %}
+                        </span>
+                    </summary>
+                    <div class="accordion-body">
+                    <div class="field-grid-single">
+                        <div class="field"><label for="{{ form.carrier_name.id_for_label }}">Перевозчик</label>{{ form.carrier_name }}</div>
+                        <div class="field-grid">
+                            <div class="field"><label for="{{ form.carrier_inn.id_for_label }}">ИНН</label>{{ form.carrier_inn }}</div>
+                            <div class="field"><label for="{{ form.carrier_phone.id_for_label }}">Телефон</label>{{ form.carrier_phone }}</div>
+                        </div>
+                        <div class="field"><label for="{{ form.carrier_address.id_for_label }}">Адрес перевозчика</label>{{ form.carrier_address }}</div>
+                        <div class="field-grid">
+                            <div class="field"><label for="{{ form.driver_name.id_for_label }}">Водитель</label>{{ form.driver_name }}</div>
+                            <div class="field"><label for="{{ form.driver_phone.id_for_label }}">Телефон водителя</label>{{ form.driver_phone }}</div>
+                        </div>
+                        <div class="field-grid">
+                            <div class="field"><label for="{{ form.vehicle_number.id_for_label }}">Номер автомобиля</label>{{ form.vehicle_number }}</div>
+                            <div class="field"><label for="{{ form.trailer_number.id_for_label }}">Номер прицепа</label>{{ form.trailer_number }}</div>
+                        </div>
+                    </div>
+                    </div>
+                </details>
+
+                <details class="form-section accordion">
+                    <summary class="accordion-summary">
+                        <span class="accordion-title">
+                            <strong>Груз</strong>
+                            <span class="accordion-hint">Описание, места, вес, документы</span>
+                        </span>
+                        <span class="accordion-value">
+                            {{ note.cargo_name|default:"Не заполнено"|truncatechars:38 }}
+                            {% if note.cargo_package_count %}<br>{{ note.cargo_package_count }} {{ note.cargo_package_type|default:"мест" }}{% endif %}
+                        </span>
+                    </summary>
+                    <div class="accordion-body">
+                    <div class="field-grid-single">
+                        <div class="field"><label for="{{ form.cargo_name.id_for_label }}">Наименование груза</label>{{ form.cargo_name }}</div>
+                        <div class="field-grid">
+                            <div class="field"><label for="{{ form.cargo_package_count.id_for_label }}">Количество мест</label>{{ form.cargo_package_count }}</div>
+                            <div class="field"><label for="{{ form.cargo_package_type.id_for_label }}">Тип мест</label>{{ form.cargo_package_type }}</div>
+                        </div>
+                        <div class="field-grid">
+                            <div class="field"><label for="{{ form.cargo_weight_kg.id_for_label }}">Вес, кг</label>{{ form.cargo_weight_kg }}</div>
+                            <div class="field"><label for="{{ form.cargo_declared_value.id_for_label }}">Объявленная стоимость</label>{{ form.cargo_declared_value }}</div>
+                        </div>
+                        <div class="field"><label for="{{ form.accompanying_documents.id_for_label }}">Сопроводительные документы</label>{{ form.accompanying_documents }}</div>
+                    </div>
+                    </div>
+                </details>
+
+                <details class="form-section accordion">
+                    <summary class="accordion-summary">
+                        <span class="accordion-title">
+                            <strong>Погрузка и выгрузка</strong>
+                            <span class="accordion-hint">Точки маршрута</span>
+                        </span>
+                        <span class="accordion-value">
+                            {{ note.loading_address|default:"Погрузка не заполнена"|truncatechars:26 }}
+                            {% if note.unloading_address %}<br>{{ note.unloading_address|truncatechars:26 }}{% endif %}
+                        </span>
+                    </summary>
+                    <div class="accordion-body">
+                    <div class="field-grid-single">
+                        <div class="field"><label for="{{ form.loading_address.id_for_label }}">Адрес погрузки</label>{{ form.loading_address }}</div>
+                        <div class="field"><label for="{{ form.unloading_address.id_for_label }}">Адрес выгрузки</label>{{ form.unloading_address }}</div>
+                    </div>
+                    </div>
+                </details>
+
+                <details class="form-section accordion">
+                    <summary class="accordion-summary">
+                        <span class="accordion-title">
+                            <strong>Условия и отметки</strong>
+                            <span class="accordion-hint">Указания, оговорки, стоимость</span>
+                        </span>
+                        <span class="accordion-value">
+                            {% if note.service_cost %}{{ note.service_cost }} руб.{% else %}Без стоимости{% endif %}
+                            {% if note.special_instructions %}<br>{{ note.special_instructions|truncatechars:24 }}{% endif %}
+                        </span>
+                    </summary>
+                    <div class="accordion-body">
+                    <div class="field-grid-single">
+                        <div class="field"><label for="{{ form.special_instructions.id_for_label }}">Указания грузоотправителя</label>{{ form.special_instructions }}</div>
+                        <div class="field"><label for="{{ form.transportation_conditions.id_for_label }}">Условия перевозки</label>{{ form.transportation_conditions }}</div>
+                        <div class="field"><label for="{{ form.delivery_notes.id_for_label }}">Оговорки и замечания</label>{{ form.delivery_notes }}</div>
+                        <div class="field"><label for="{{ form.service_cost.id_for_label }}">Стоимость услуг перевозки</label>{{ form.service_cost }}</div>
+                    </div>
+                    </div>
+                </details>
+
+                <div class="help-row">
+                    Печать идёт на две страницы A4. Если какой-то текст не помещается в ячейку, его нужно сокращать в реквизитах слева, а не пытаться растягивать шаблон.
+                </div>
+
+                <div class="form-section">
+                    <button type="submit" class="btn btn-primary">Сохранить ТН</button>
+                </div>
+            </form>
+
+            <section class="tn-preview-panel">
+                <div class="preview-head">
+                    <div>
+                        <h2>Транспортная накладная</h2>
+                        <p>Формируется исходный Word-документ по готовому шаблону. Браузерный HTML-preview отключен, чтобы не искажать разметку.</p>
+                    </div>
+                    <div class="screen-actions">
+                        <a href="{{ docx_open_url }}" class="btn" target="_blank" rel="noopener">Открыть DOCX</a>
+                        <a href="{{ docx_url }}" class="btn btn-primary">Скачать DOCX</a>
+                    </div>
+                </div>
+
+                <div class="pdf-wrap">
+                    <div class="help-row" style="margin: 0;">
+                        Данные вставляются напрямую в исходный `.docx`-шаблон, без конвертации в HTML и без переразметки таблиц.
+                        Для точного просмотра и печати открой сам Word-документ.
+                    </div>
+                    <div style="margin-top: 14px; padding: 28px; border-radius: 18px; background: rgba(255, 255, 255, 0.82); border: 1px solid rgba(90, 68, 41, 0.12); color: var(--muted); line-height: 1.6;">
+                        Здесь больше нет HTML-предпросмотра.
+                        Он менял форматирование Word-бланка и давал ложную картину документа.
+                        Используй <strong>Открыть DOCX</strong> или <strong>Скачать DOCX</strong>.
+                    </div>
+                    <div style="margin-top: 18px; padding: 22px; border-radius: 18px; background: rgba(255, 255, 255, 0.86); border: 1px solid rgba(90, 68, 41, 0.12);">
+                        <div style="display:flex; justify-content:space-between; gap:14px; align-items:flex-start; flex-wrap:wrap;">
+                            <div>
+                                <h2 style="margin:0 0 6px;">Акт возврата</h2>
+                                <p style="margin:0; color:var(--muted);">Документ МХ-3, заполненный по заявке и справочникам.</p>
+                            </div>
+                            <div class="screen-actions">
+                                <a href="{{ return_act_open_url }}" class="btn" target="_blank" rel="noopener">Открыть DOCX</a>
+                                <a href="{{ return_act_url }}" class="btn btn-primary">Скачать DOCX</a>
+                            </div>
+                        </div>
+                        <div class="help-row" style="margin-top:14px;">
+                            Шапка и товарная часть акта заполняются автоматически из заявки, клиента и справочника наших компаний.
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</body>
+</html>

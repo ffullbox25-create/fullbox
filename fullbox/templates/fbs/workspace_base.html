@@ -1,0 +1,36 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block storekeeper_nav %}{% endblock %}
+
+{% block page_class %}tsd-page-operator{% if workspace_shell %} tsd-page-fbs-workspace{% endif %} {% block workspace_page_class %}{% endblock %}{% endblock %}
+
+{% block content %}
+  {% if workspace_shell %}
+    <div class="fbs-workspace-shell">
+      {% include "fbs/operator_workspace_sidebar.html" %}
+      <section class="fbs-workspace-main">
+        <header class="fbs-workspace-topbar">
+          <div class="fbs-workspace-heading">
+            <nav class="fbs-breadcrumbs" aria-label="Навигация">
+              <a href="{% url 'fbs:tsd_storekeeper' %}">FBS</a>
+              <span>/</span>
+              {% block workspace_crumb %}<strong>{{ workspace_crumb|default:workspace_title|default:"Раздел" }}</strong>{% endblock %}
+            </nav>
+            <h1>{% block workspace_title %}{{ workspace_title|default:page_title|default:"FBS" }}{% endblock %}</h1>
+            <p class="fbs-workspace-subtitle">{% block workspace_subtitle %}{{ workspace_subtitle }}{% endblock %}</p>
+          </div>
+          <div class="fbs-workspace-top-actions">
+            {% if workspace_stamp %}<span class="fbs-last-update">Обновлено: {{ workspace_stamp|date:"d.m.Y H:i:s" }}</span>{% endif %}
+            {% block workspace_actions %}{% endblock %}
+          </div>
+        </header>
+        {% block workspace_summary %}{% endblock %}
+  {% endif %}
+
+        {% block workspace_body %}{% endblock %}
+
+  {% if workspace_shell %}
+      </section>
+    </div>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "accountant/_base.html" %}
+{% block title %}Обзор{% endblock %}
+{% block content %}
+<div>
+  <h1 class="page-title">Кабинет бухгалтера</h1>
+  <div class="page-sub">Финансовое рабочее место: клиенты, тарифы, начисления, документы и контроль биллинга.</div>
+</div>
+
+{% if quick_actions %}
+<div class="actions-row">
+  {% for action in quick_actions %}
+    <a class="btn {% if action.primary %}primary{% endif %}" href="{{ action.href }}">{{ action.title }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="grid-4">
+  {% for card in kpi_cards %}
+  <a class="card kpi-card {% if card.tone == 'danger' %}tone-danger{% endif %}" href="{{ card.href }}" style="text-decoration:none;color:inherit">
+    <div class="muted" style="font-size:11px;font-weight:800;text-transform:uppercase">{{ card.title }}</div>
+    <div class="kpi-val">{{ card.value }}</div>
+    {% if card.hint %}<div class="kpi-hint">{{ card.hint }}</div>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2 style="margin:0 0 8px;font-size:18px">Что требует внимания</h2>
+    {% if attention_items %}
+      {% for item in attention_items %}
+      <a class="attention-row" href="{{ item.href }}" style="text-decoration:none;color:inherit">
+        <span>{{ item.title }}</span>
+        <span class="badge {% if item.tone == 'danger' %}red{% elif item.tone == 'info' %}blue{% else %}orange{% endif %}">{{ item.count }}</span>
+      </a>
+      {% endfor %}
+    {% else %}
+      <div class="muted" style="font-size:13px;font-weight:600">Сейчас нет очереди внимания по доступным данным.</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2 style="margin:0 0 8px;font-size:18px">Быстрый старт</h2>
+    <ol class="quick-start" style="margin:0;padding-left:18px">
+      {% for step in quick_start_steps %}
+      <li><a href="{{ step.href }}">{{ step.title }}</a></li>
+      {% endfor %}
+    </ol>
+  </div>
+</div>
+{% endblock %}

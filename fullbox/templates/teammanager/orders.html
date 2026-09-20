@@ -1,0 +1,803 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}Заявки | Кабинет менеджера{% endblock %}
+
+{% block extra_css %}
+    .side { width: 178px; padding: 18px 10px; background: rgba(255,253,248,.96); }
+    .app { grid-template-columns: 198px minmax(0, 1fr); }
+    .brand { font-size: 22px; letter-spacing: .02em; color: var(--accent-strong); }
+    .profile { grid-template-columns: 34px 1fr; gap: 8px; padding: 8px; border: 0; background: var(--accent-soft); }
+    .avatar { width: 34px; height: 34px; }
+    .profile-name { font-size: 11px; }
+    .profile-role { font-size: 10px; line-height: 1.25; }
+    .nav-link { grid-template-columns: 18px minmax(0, 1fr) auto; min-height: 36px; padding: 8px 9px; border-radius: 9px; }
+    .nav-link.active { background: var(--accent-soft); box-shadow: none; color: var(--accent-strong); }
+    .nav-title { font-size: 12px; }
+    .nav-ico { font-size: 13px; }
+    .main { padding: 18px 18px 30px; gap: 12px; background: var(--bg); }
+
+    .page-head { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; align-items: flex-start; }
+    .page-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: clamp(26px, 2vw, 31px);
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    .page-sub { color: var(--muted); font-size: 13px; margin-top: 5px; line-height: 1.4; }
+    .head-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .head-actions .btn { min-height: 36px; white-space: nowrap; padding: 8px 13px; border-radius: 11px; box-shadow: none; font-size: 12px; }
+    .head-icon {
+      position: relative;
+      width: 36px;
+      height: 36px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid var(--stroke);
+      border-radius: 11px;
+      background: var(--surface);
+      color: var(--ink);
+      text-decoration: none;
+    }
+    .head-icon .nav-badge { position: absolute; top: -7px; right: -6px; background: var(--danger); color: #fff; margin: 0; }
+    .more-btn { min-width: 76px; justify-content: center; }
+
+    .orders-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(220px, 250px);
+      gap: 14px;
+      align-items: start;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+    .main-col, .rail { display: grid; gap: 12px; min-width: 0; max-width: 100%; width: 100%; }
+    .main-col { overflow: hidden; }
+
+    .tab-row { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+    .tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 7px 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .tab-count {
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+    .tab.active .tab-count { background: rgba(42, 33, 16, 0.14); color: #2a2110; }
+
+    .kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .kpi {
+      position: relative;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      min-height: 104px;
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: none;
+      transition: border-color .14s, box-shadow .14s;
+    }
+    .kpi.is-active { border-color: rgba(242, 183, 71, .7); box-shadow: 0 6px 18px rgba(242, 183, 71, .28); }
+    .kpi-ico { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 12px; font-weight: 900; font-size: 14px; flex: 0 0 auto; }
+    .kpi-ico.purple { background: var(--surface-2); color: var(--accent-strong); }
+    .kpi-ico.blue, .kpi-ico.accent { background: var(--accent-soft); color: var(--accent-strong); }
+    .kpi-ico.orange, .kpi-ico.sun { background: var(--sun-soft); color: #8a5a00; }
+    .kpi-ico.green { background: var(--green-soft); color: var(--green-strong); }
+    .kpi-body { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+    .kpi-label { color: var(--muted); font-size: 12px; font-weight: 700; line-height: 1.25; }
+    .kpi strong { display: block; margin: 0; font-family: "Bricolage Grotesque", "Manrope", sans-serif; font-size: 26px; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
+    .kpi-note { color: var(--muted); font-size: 11px; line-height: 1.3; }
+    .kpi-cta { margin-top: 2px; font-size: 12px; font-weight: 700; color: var(--accent-strong); text-decoration: none; }
+    .kpi-cta:hover { text-decoration: underline; }
+
+    .filter-card { display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--stroke); border-radius: 14px; box-shadow: none; padding: 12px; }
+    .search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+    .search-input-wrap { position: relative; min-width: 0; }
+    .search-input-wrap .search-ico { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; pointer-events: none; }
+    .search-input-wrap input.field { padding-left: 32px; }
+    .filters-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) auto; gap: 8px; align-items: end; }
+    .filter-field { display: grid; gap: 4px; min-width: 0; }
+    .filter-field > span { font-size: 11px; font-weight: 700; color: var(--muted); }
+    .field {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      padding: 8px 11px;
+      font: inherit;
+      font-size: 12px;
+      outline: none;
+    }
+    select.field {
+      padding-right: 32px;
+      appearance: none;
+      background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+      background-position: calc(100% - 16px) 55%, calc(100% - 10px) 55%;
+      background-size: 6px 6px, 6px 6px;
+      background-repeat: no-repeat;
+    }
+    .field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .more-filters-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .more-filters-btn:hover { background: var(--surface-2); }
+    .filters-hint { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--muted); }
+    .filters-hint a { font-weight: 700; color: var(--accent-strong); text-decoration: underline; text-underline-offset: 2px; }
+    .btn-reset { display: inline-flex; align-items: center; min-height: 36px; padding: 0 8px; font-size: 13px; font-weight: 700; color: var(--muted); background: transparent; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+    .btn-reset:hover { color: var(--ink); }
+
+    .table-card {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: auto;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .orders-table { width: 100%; min-width: 1080px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+    .orders-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding: 8px 8px;
+      text-align: left;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.25;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--stroke);
+      white-space: nowrap;
+    }
+    .orders-table tbody td { padding: 8px; border-bottom: 1px solid var(--stroke); vertical-align: middle; min-width: 0; }
+    .orders-table tbody tr { height: 68px; }
+    .orders-table tbody tr:last-child td { border-bottom: 0; }
+    .orders-table tbody tr:hover td { background: #fbf8f1; }
+    .orders-table .col-num { width: 11%; }
+    .orders-table .col-type { width: 9%; }
+    .orders-table .col-client { width: 15%; }
+    .orders-table .col-mp { width: 8%; }
+    .orders-table .col-wh { width: 9%; }
+    .orders-table .col-status { width: 13%; }
+    .orders-table .col-event { width: 17%; }
+    .orders-table .col-date { width: 8%; }
+    .orders-table .col-actions { width: 10%; }
+    .orders-table .col-menu { width: 4%; }
+
+    .cell-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; width: 100%; }
+    .cell-primary { font-size: 12px; font-weight: 700; line-height: 1.3; color: var(--ink); word-break: break-word; overflow-wrap: anywhere; text-decoration: none; }
+    a.cell-primary:hover { color: var(--accent-strong); }
+    .cell-muted { font-size: 11px; font-weight: 500; color: var(--muted); line-height: 1.3; word-break: break-word; }
+    .cell-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12px; color: var(--ink); line-height: 1.3; }
+    .cell-date { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .cell-time { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      min-height: 22px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.2;
+      border: 1px solid transparent;
+      white-space: normal;
+      text-align: left;
+    }
+    .badge.green { background: var(--green-soft); color: var(--green-strong); }
+    .badge.blue, .badge.accent { background: var(--accent-soft); color: var(--accent-strong); }
+    .badge.orange, .badge.sun { background: var(--sun-soft); color: #8a5a00; }
+    .badge.red { background: var(--danger-soft); color: var(--danger); }
+    .badge.gray, .badge.neutral { background: var(--surface-2); color: var(--muted); border-color: var(--stroke); }
+    .badge.market { background: var(--surface-2); color: var(--accent-strong); border-color: var(--stroke); }
+
+    .row-actions-cell { display: flex; align-items: center; gap: 6px; }
+    .open-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 0 14px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: var(--accent);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .open-btn:hover { background: var(--accent-strong); }
+    .row-menu { position: relative; flex: 0 0 auto; }
+    .row-menu-btn {
+      display: inline-flex;
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      font-weight: 900;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .row-menu-btn:hover { background: var(--surface-2); }
+    .row-menu-panel {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: calc(100% + 4px);
+      min-width: 190px;
+      background: #fff;
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 6px;
+      z-index: 10;
+    }
+    .row-menu.open .row-menu-panel { display: grid; gap: 2px; }
+    .row-menu-panel a, .row-menu-panel button {
+      display: block;
+      width: 100%;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+      text-decoration: none;
+      text-align: left;
+      cursor: pointer;
+    }
+    .row-menu-panel a:hover, .row-menu-panel button:hover { background: var(--surface-2); }
+    .deadline-summary { display: grid; gap: 2px; margin-top: 4px; }
+    .deadline-summary strong { color: var(--ink); font-size: 11px; }
+    .deadline-summary span { color: var(--muted); font-size: 10px; line-height: 1.25; }
+    .deadline-backdrop { position: fixed; inset: 0; z-index: 300; display: none; place-items: center; padding: 20px; background: rgba(48, 48, 48, .34); }
+    .deadline-backdrop.open { display: grid; }
+    .deadline-modal { width: min(480px, 100%); display: grid; gap: 14px; padding: 20px; border: 1px solid var(--stroke); border-radius: 8px; background: #fff; box-shadow: 0 18px 50px rgba(48, 48, 48, .22); }
+    .deadline-modal h3 { margin: 0; font: 700 20px/1.25 "Bricolage Grotesque", "Manrope", sans-serif; letter-spacing: 0; }
+    .deadline-modal label { display: grid; gap: 6px; color: var(--ink); font-size: 12px; font-weight: 700; }
+    .deadline-modal textarea { min-height: 96px; resize: vertical; }
+    .deadline-modal__actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .deadline-error { min-height: 18px; color: var(--danger); font-size: 12px; font-weight: 700; }
+
+    .empty-state { padding: 28px 18px; text-align: center; border-radius: 14px; background: var(--surface-2); color: var(--ink); font-size: 14px; font-weight: 600; display: grid; gap: 12px; justify-items: center; }
+    .empty-state .btn { min-height: 36px; }
+
+    .table-footer { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border-top: 1px solid var(--stroke); color: var(--muted); font-size: 12px; background: var(--surface); }
+    .pager-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .pager-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 34px;
+      height: 34px;
+      padding: 0 10px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      color: var(--ink);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .pager-btn:hover { background: #f6faf8; border-color: var(--accent); }
+    .pager-btn.is-active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .pager-btn.is-disabled { opacity: .45; pointer-events: none; }
+    .page-size-select { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); font-weight: 700; }
+    .page-size-select select.field { width: auto; min-height: 32px; padding: 5px 26px 5px 10px; font-size: 12px; }
+
+    .rail .card { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--radius-lg); box-shadow: none; padding: 14px; }
+    .rail .card-title { margin: 0 0 12px; font-family: "Bricolage Grotesque", "Manrope", sans-serif; font-size: 16px; font-weight: 700; }
+    .notice-list { display: grid; gap: 8px; }
+    .notice { display: grid; gap: 5px; padding: 10px; border: 1px solid var(--stroke); border-radius: 12px; background: #fff; text-decoration: none; }
+    .notice-head { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; font-size: 13px; font-weight: 700; color: var(--ink); }
+    .notice-time { color: var(--muted); font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .notice-sub { color: var(--muted); font-size: 12px; line-height: 1.35; }
+    .actions { display: grid; gap: 8px; }
+    .actions .btn { width: 100%; min-height: 38px; justify-content: flex-start; gap: 8px; text-align: left; }
+    .actions .btn .act-ico { width: 18px; flex: 0 0 18px; text-align: center; color: var(--muted); font-weight: 800; }
+    .rail .card > .btn { width: 100%; min-height: 38px; margin-top: 12px; justify-content: center; }
+
+    @media (max-width: 1440px) { .orders-shell { grid-template-columns: minmax(0, 1fr) minmax(200px, 240px); } }
+    @media (max-width: 1200px) {
+      .orders-shell { grid-template-columns: 1fr; }
+      .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .filters-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 900px) {
+      .kpi-row { grid-template-columns: 1fr; }
+      .filters-grid, .search-row { grid-template-columns: 1fr; }
+    }
+{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Заявки</h1>
+      <div class="page-sub">Реестр всех клиентских процессов</div>
+    </div>
+    <div class="head-actions">
+      <a class="btn primary" href="/orders/">Создать заявку&nbsp;＋</a>
+      <a class="btn" href="/shipping/new/">Создать отгрузку&nbsp;＋</a>
+      <a class="head-icon" href="#orders-notifications" aria-label="Уведомления">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3a5 5 0 0 0-5 5v3.2c0 .8-.28 1.57-.8 2.18L5 15.2c-.6.72-.1 1.8.83 1.8h12.34c.93 0 1.43-1.08.83-1.8l-1.2-1.82a3.6 3.6 0 0 1-.8-2.18V8a5 5 0 0 0-5-5Z" stroke="currentColor" stroke-width="1.6"/><path d="M9.5 19a2.5 2.5 0 0 0 5 0" stroke="currentColor" stroke-width="1.6"/></svg>
+        {% if order_notifications %}<span class="nav-badge">{{ order_notifications|length }}</span>{% endif %}
+      </a>
+      <a class="btn more-btn" href="/team-manager/?section=tasks">Ещё⌄</a>
+    </div>
+  </div>
+
+  <div class="orders-shell">
+    <section class="main-col">
+      <div class="tab-row" role="tablist" aria-label="Типы заявок">
+        {% for tab in order_type_tabs %}
+          <a class="tab {% if order_filters.type == tab.key %}active{% endif %}" href="?type={{ tab.key }}{% if order_filters.status != 'all' %}&status={{ order_filters.status }}{% endif %}">
+            {{ tab.label }} <span class="tab-count">{{ tab.count }}</span>
+          </a>
+        {% endfor %}
+      </div>
+
+      <section class="kpi-row" aria-label="Показатели заявок">
+        {% with t=order_filters.type c=order_filters.client q=order_filters.q s=order_filters.status %}
+        <a class="kpi {% if s == 'manager' %}is-active{% endif %}" href="?type={{ t }}&status={% if s == 'manager' %}all{% else %}manager{% endif %}&client={{ c }}{% if q %}&q={{ q|urlencode }}{% endif %}">
+          <div class="kpi-ico purple" aria-hidden="true">☰</div>
+          <div class="kpi-body">
+            <div class="kpi-label">Требует менеджера</div>
+            <strong>{{ order_kpi.manager }}</strong>
+            <div class="kpi-note">заявок</div>
+            <span class="kpi-cta">Показать →</span>
+          </div>
+        </a>
+        <a class="kpi {% if s == 'warehouse' %}is-active{% endif %}" href="?type={{ t }}&status={% if s == 'warehouse' %}all{% else %}warehouse{% endif %}&client={{ c }}{% if q %}&q={{ q|urlencode }}{% endif %}">
+          <div class="kpi-ico blue" aria-hidden="true">▤</div>
+          <div class="kpi-body">
+            <div class="kpi-label">На складе</div>
+            <strong>{{ order_kpi.warehouse }}</strong>
+            <div class="kpi-note">заявок</div>
+            <span class="kpi-cta">Показать →</span>
+          </div>
+        </a>
+        <a class="kpi {% if s == 'client' %}is-active{% endif %}" href="?type={{ t }}&status={% if s == 'client' %}all{% else %}client{% endif %}&client={{ c }}{% if q %}&q={{ q|urlencode }}{% endif %}">
+          <div class="kpi-ico orange" aria-hidden="true">◎</div>
+          <div class="kpi-body">
+            <div class="kpi-label">Ждём клиента</div>
+            <strong>{{ order_kpi.client }}</strong>
+            <div class="kpi-note">заявок</div>
+            <span class="kpi-cta">Показать →</span>
+          </div>
+        </a>
+        <a class="kpi {% if s == 'done' %}is-active{% endif %}" href="?type={{ t }}&status={% if s == 'done' %}all{% else %}done{% endif %}&client={{ c }}{% if q %}&q={{ q|urlencode }}{% endif %}">
+          <div class="kpi-ico green" aria-hidden="true">✓</div>
+          <div class="kpi-body">
+            <div class="kpi-label">Завершены</div>
+            <strong>{{ order_kpi.done }}</strong>
+            <div class="kpi-note">заявки</div>
+            <span class="kpi-cta">Показать →</span>
+          </div>
+        </a>
+        {% endwith %}
+      </section>
+
+      <form class="filter-card" method="get" aria-label="Фильтры заявок" id="orders-filter-form">
+        <div class="search-row">
+          <label class="search-input-wrap">
+            <span class="visually-hidden">Поиск</span>
+            <span class="search-ico" aria-hidden="true">⌕</span>
+            <input class="field" type="search" name="q" value="{{ order_filters.q }}" placeholder="Поиск по номеру заявки, клиенту, складу или товару" aria-label="Поиск по номеру заявки, клиенту, складу или товару">
+          </label>
+          <button class="btn primary" type="submit">Применить</button>
+          <a class="btn-reset" href="/team-manager/orders/">↻ Сбросить</a>
+        </div>
+        <div class="filters-grid">
+          <label class="filter-field">
+            <span>Статус</span>
+            <select class="field" name="status" aria-label="Статус">
+              {% for status in order_status_tabs %}
+                <option value="{{ status.key }}" {% if order_filters.status == status.key %}selected{% endif %}>{{ status.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="filter-field">
+            <span>Тип</span>
+            <select class="field" name="type" aria-label="Тип">
+              {% for tab in order_type_tabs %}
+                <option value="{{ tab.key }}" {% if order_filters.type == tab.key %}selected{% endif %}>{{ tab.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="filter-field">
+            <span>Клиент</span>
+            <select class="field" name="client" aria-label="Клиент">
+              <option value="all">Все клиенты</option>
+              {% for client in order_client_options %}
+                <option value="{{ client.id }}" {% if order_filters.client == client.id|stringformat:"s" %}selected{% endif %}>{{ client.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="filter-field">
+            <span>Склад</span>
+            <select class="field" name="warehouse" aria-label="Склад">
+              <option value="all">Все склады</option>
+              {% for wh in order_warehouse_options %}
+                <option value="{{ wh }}" {% if order_filters.warehouse == wh %}selected{% endif %}>{{ wh }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="filter-field">
+            <span>Срок</span>
+            <select class="field" name="period" aria-label="Срок">
+              {% for opt in order_period_options %}
+                <option value="{{ opt.key }}" {% if order_filters.period == opt.key %}selected{% endif %}>{{ opt.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <button type="button" class="more-filters-btn" id="orders-more-filters" aria-expanded="false">⚙ Ещё фильтры</button>
+        </div>
+        <div class="filters-hint" id="orders-more-filters-panel" hidden>
+          <span>Режим чтения · складские остатки и статусы не изменяются</span>
+        </div>
+      </form>
+
+      <section class="table-card" aria-label="Таблица заявок">
+        <table class="orders-table">
+          <thead>
+            <tr>
+              <th class="col-num">№ заявки</th>
+              <th class="col-type">Тип</th>
+              <th class="col-client">Клиент</th>
+              <th class="col-mp">Маркетплейс</th>
+              <th class="col-wh">Склад</th>
+              <th class="col-status">Статус (текущий этап)</th>
+              <th class="col-event">Последнее событие</th>
+              <th class="col-date">Дата подачи</th>
+              <th class="col-actions">Действия</th>
+              <th class="col-menu"><span class="visually-hidden">Меню</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in order_rows %}
+              <tr>
+                <td class="col-num">
+                  <div class="cell-stack">
+                    <a class="cell-primary" href="{{ row.url }}" title="{{ row.number }}">№{{ row.number }}</a>
+                    <span class="cell-muted">{{ row.order_id }}</span>
+                  </div>
+                </td>
+                <td class="col-type"><span class="badge {{ row.type_css }}">{{ row.type_label }}</span></td>
+                <td class="col-client">
+                  <div class="cell-stack">
+                    <span class="cell-primary" title="{{ row.client_name }}">{{ row.client_name }}</span>
+                    {% if row.client_inn %}<span class="cell-muted">ИНН {{ row.client_inn }}</span>{% endif %}
+                  </div>
+                </td>
+                <td class="col-mp"><span class="badge market">{{ row.marketplace }}</span></td>
+                <td class="col-wh">
+                  <div class="cell-stack">
+                    <div class="cell-clamp" title="{{ row.warehouse }}">{{ row.warehouse }}</div>
+                    {% if row.ozon_supply_label %}<span class="cell-muted" title="{{ row.ozon_supply_label }}">{{ row.ozon_supply_label }}</span>{% endif %}
+                    {% if row.ozon_gm_summary %}<span class="cell-muted" title="{{ row.ozon_gm_summary }}">{{ row.ozon_gm_summary }}</span>{% endif %}
+                  </div>
+                </td>
+                <td class="col-status">
+                  <span class="badge {{ row.status_css }}" title="{{ row.status }}">{{ row.status }}</span>
+                </td>
+                <td class="col-event">
+                  <div class="cell-clamp" title="{{ row.description|default:row.next_step }}">{{ row.description|default:row.next_step }}</div>
+                </td>
+                <td class="col-date">
+                  {% if row.submitted_at %}
+                    <div class="cell-date">{{ row.submitted_at|date:"d.m.Y" }}</div>
+                    <div class="cell-time">{{ row.submitted_at|date:"H:i" }}</div>
+                  {% else %}<span class="cell-muted">—</span>{% endif %}
+                  {% if row.warehouse_due_date %}
+                    <div class="deadline-summary">
+                      <strong>Склад {{ row.warehouse_due_date|date:"d.m.Y H:i" }}</strong>
+                      {% if row.warehouse_deadline_change_count %}<span title="{{ row.warehouse_deadline_reason }}">Переносов: {{ row.warehouse_deadline_change_count }}</span>{% endif %}
+                    </div>
+                  {% endif %}
+                </td>
+                <td class="col-actions">
+                  <a class="open-btn" href="{{ row.url }}">Открыть</a>
+                </td>
+                <td class="col-menu">
+                  <div class="row-menu" data-row-menu>
+                    <button type="button" class="row-menu-btn" aria-label="Меню действий заявки №{{ row.number }}" aria-haspopup="true" aria-expanded="false">⋮</button>
+                    <div class="row-menu-panel" role="menu">
+                      <a href="{{ row.url }}" role="menuitem">Открыть заявку</a>
+                      {% if row.act_url %}
+                        <a href="{{ row.act_url }}" role="menuitem">{% if row.next_step == "Подписать акт" %}Подписать акт{% else %}Открыть акт{% endif %}</a>
+                      {% endif %}
+                      {% if row.boxes_url %}
+                        <a href="{{ row.boxes_url }}" download role="menuitem">Состав коробов</a>
+                      {% endif %}
+                      {% if row.can_change_warehouse_deadline %}
+                        <button
+                          type="button"
+                          role="menuitem"
+                          data-deadline-open
+                          data-task-id="{{ row.warehouse_deadline_task_id }}"
+                          data-task-number="{{ row.number }}"
+                          data-due-date="{{ row.warehouse_due_date|date:'Y-m-d\TH:i' }}"
+                        >Изменить срок склада</button>
+                      {% endif %}
+                      <a href="{{ row.client_url }}" role="menuitem">ЛК клиента</a>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="10">
+                  <div class="empty-state">
+                    <div>По выбранным фильтрам заявок нет</div>
+                    <a class="btn" href="/team-manager/orders/">Сбросить фильтры</a>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="table-footer">
+          <span>{% if orders_filtered_total %}{{ orders_range_start }}-{{ orders_range_end }}{% else %}0{% endif %} из {{ orders_filtered_total }}</span>
+          {% if page_obj.paginator.num_pages > 1 %}
+            <nav class="pager-nav" aria-label="Страницы заявок">
+              {% if page_obj.has_previous %}
+                <a class="pager-btn" href="?{{ orders_prev_qs }}" aria-label="Предыдущая страница">‹</a>
+              {% else %}
+                <span class="pager-btn is-disabled" aria-disabled="true">‹</span>
+              {% endif %}
+              {% for link in orders_page_links %}
+                {% if link.ellipsis %}
+                  <span class="pager-btn is-disabled">…</span>
+                {% elif link.current %}
+                  <span class="pager-btn is-active" aria-current="page">{{ link.number }}</span>
+                {% else %}
+                  <a class="pager-btn" href="?{{ link.qs }}">{{ link.number }}</a>
+                {% endif %}
+              {% endfor %}
+              {% if page_obj.has_next %}
+                <a class="pager-btn" href="?{{ orders_next_qs }}" aria-label="Следующая страница">›</a>
+              {% else %}
+                <span class="pager-btn is-disabled" aria-disabled="true">›</span>
+              {% endif %}
+            </nav>
+          {% endif %}
+          <label class="page-size-select">
+            <span>Показать по:</span>
+            <select class="field" id="orders-page-size" aria-label="Показать по">
+              {% for size in orders_page_size_options %}
+                <option value="{{ size }}" {% if orders_page_size == size %}selected{% endif %}>{{ size }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+      </section>
+    </section>
+
+    <aside class="rail" id="orders-notifications">
+      <section class="card">
+        <h2 class="card-title">Уведомления <span class="tab-count">{{ order_notifications|length }}</span></h2>
+        {% if order_notifications %}
+          <div class="notice-list">
+            {% for notice in order_notifications %}
+              <a class="notice" href="{{ notice.url }}">
+                <div class="notice-head">
+                  <span>{{ notice.title }}</span>
+                  {% if notice.time %}<span class="notice-time">{{ notice.time|date:"H:i" }}</span>{% endif %}
+                </div>
+                <div class="notice-sub">{{ notice.subtitle }}</div>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">Новых событий нет.</div>
+        {% endif %}
+        <a class="btn ghost" href="/team-manager/?section=tasks">Все уведомления →</a>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">Быстрые действия</h2>
+        <div class="actions">
+          <a class="btn" href="/orders/"><span class="act-ico" aria-hidden="true">＋</span>Создать заявку</a>
+          <a class="btn" href="/shipping/new/"><span class="act-ico" aria-hidden="true">↗</span>Создать отгрузку</a>
+          <a class="btn" href="/reachtruck/"><span class="act-ico" aria-hidden="true">⇄</span>Перемещение паллет</a>
+          <a class="btn" href="/sku/?view=table"><span class="act-ico" aria-hidden="true">⇧</span>Импорт номенклатуры</a>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">Новые события</h2>
+        {% if order_notifications %}
+          <div class="notice-list">
+            {% for notice in order_notifications|slice:":3" %}
+              <a class="notice" href="{{ notice.url }}">
+                <div class="notice-head">
+                  <span>{{ notice.title }}</span>
+                  {% if notice.time %}<span class="notice-time">{{ notice.time|date:"H:i" }}</span>{% endif %}
+                </div>
+                <div class="notice-sub">{{ notice.subtitle }}</div>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">Новых событий нет.</div>
+        {% endif %}
+      </section>
+    </aside>
+  </div>
+
+  <div class="deadline-backdrop" id="warehouse-deadline-modal" aria-hidden="true">
+    <div class="deadline-modal" role="dialog" aria-modal="true" aria-labelledby="warehouse-deadline-title">
+      <div>
+        <h3 id="warehouse-deadline-title">Изменить срок склада</h3>
+        <div class="page-sub" id="warehouse-deadline-subtitle">—</div>
+      </div>
+      <input type="hidden" id="warehouse-deadline-task-id" value="">
+      <label>
+        Новый срок
+        <input class="field" id="warehouse-deadline-date" type="datetime-local" required>
+      </label>
+      <label>
+        Причина изменения
+        <textarea class="field" id="warehouse-deadline-reason" maxlength="1000" placeholder="Почему склад не успевает и на какой срок согласован перенос" required></textarea>
+      </label>
+      <div class="deadline-error" id="warehouse-deadline-error" role="alert"></div>
+      <div class="deadline-modal__actions">
+        <button class="btn" id="warehouse-deadline-cancel" type="button">Отмена</button>
+        <button class="btn primary" id="warehouse-deadline-submit" type="button">Сохранить срок</button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0);
+      white-space: nowrap; border: 0;
+    }
+  </style>
+
+  <script>
+  (function(){
+    document.addEventListener("click", function(ev){
+      var openBtn = ev.target.closest(".row-menu-btn");
+      document.querySelectorAll(".row-menu.open").forEach(function(el){
+        if(!openBtn || el !== openBtn.closest(".row-menu")) el.classList.remove("open");
+      });
+      if(openBtn){
+        var wrap = openBtn.closest(".row-menu");
+        var willOpen = !wrap.classList.contains("open");
+        wrap.classList.toggle("open", willOpen);
+        openBtn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      }
+    });
+    document.addEventListener("keydown", function(ev){
+      if(ev.key === "Escape"){
+        document.querySelectorAll(".row-menu.open").forEach(function(el){ el.classList.remove("open"); });
+      }
+    });
+
+    var moreBtn = document.getElementById("orders-more-filters");
+    var morePanel = document.getElementById("orders-more-filters-panel");
+    if(moreBtn && morePanel){
+      moreBtn.addEventListener("click", function(){
+        var open = moreBtn.getAttribute("aria-expanded") === "true";
+        moreBtn.setAttribute("aria-expanded", open ? "false" : "true");
+        morePanel.hidden = open;
+      });
+    }
+
+    var pageSizeSelect = document.getElementById("orders-page-size");
+    if(pageSizeSelect){
+      pageSizeSelect.addEventListener("change", function(){
+        var params = new URLSearchParams(window.location.search);
+        params.set("page_size", pageSizeSelect.value);
+        params.set("page", "1");
+        window.location.search = params.toString();
+      });
+    }
+
+    var deadlineModal = document.getElementById("warehouse-deadline-modal");
+    var deadlineTaskId = document.getElementById("warehouse-deadline-task-id");
+    var deadlineDate = document.getElementById("warehouse-deadline-date");
+    var deadlineReason = document.getElementById("warehouse-deadline-reason");
+    var deadlineError = document.getElementById("warehouse-deadline-error");
+    var deadlineSubmit = document.getElementById("warehouse-deadline-submit");
+    var deadlineSubtitle = document.getElementById("warehouse-deadline-subtitle");
+    function csrfToken(){
+      var match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+      return match ? decodeURIComponent(match[1]) : "";
+    }
+    function closeDeadlineModal(){
+      deadlineModal.classList.remove("open");
+      deadlineModal.setAttribute("aria-hidden", "true");
+      deadlineError.textContent = "";
+    }
+    document.addEventListener("click", function(ev){
+      var button = ev.target.closest("[data-deadline-open]");
+      if(!button) return;
+      deadlineTaskId.value = button.dataset.taskId || "";
+      deadlineDate.value = button.dataset.dueDate || "";
+      deadlineReason.value = "";
+      deadlineError.textContent = "";
+      deadlineSubtitle.textContent = "Заявка №" + (button.dataset.taskNumber || "—");
+      deadlineModal.classList.add("open");
+      deadlineModal.setAttribute("aria-hidden", "false");
+      deadlineDate.focus();
+    });
+    document.getElementById("warehouse-deadline-cancel").addEventListener("click", closeDeadlineModal);
+    deadlineModal.addEventListener("click", function(ev){ if(ev.target === deadlineModal) closeDeadlineModal(); });
+    deadlineSubmit.addEventListener("click", function(){
+      var reason = deadlineReason.value.trim();
+      if(!deadlineDate.value){ deadlineError.textContent = "Укажите новый срок"; return; }
+      if(reason.length < 5){ deadlineError.textContent = "Укажите причину изменения срока"; return; }
+      deadlineSubmit.disabled = true;
+      deadlineError.textContent = "";
+      fetch("/team-manager/api/tasks/" + deadlineTaskId.value + "/warehouse-deadline/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {"Content-Type": "application/json", "X-CSRFToken": csrfToken()},
+        body: JSON.stringify({due_date: deadlineDate.value, reason: reason})
+      }).then(function(response){
+        return response.json().then(function(data){ return {ok: response.ok, data: data}; });
+      }).then(function(result){
+        if(!result.ok || !result.data.ok){
+          deadlineError.textContent = result.data.error || "Не удалось изменить срок";
+          return;
+        }
+        window.location.reload();
+      }).catch(function(){
+        deadlineError.textContent = "Не удалось связаться с сервером";
+      }).finally(function(){ deadlineSubmit.disabled = false; });
+    });
+  })();
+  </script>
+{% endblock %}

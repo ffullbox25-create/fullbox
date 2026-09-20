@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Распределение по направлениям</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #0e6b5b;
+      --accent-strong: #0b5246;
+      --sun: #f2b747;
+      --danger: #d4543c;
+      --stroke: rgba(28,31,26,0.12);
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    .wrap {
+      width: 100%;
+      max-width: none;
+      padding: 24px 24px 48px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .title {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 26px;
+      margin: 0 0 4px;
+    }
+    .muted { color: var(--muted); }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      position: relative;
+      z-index: 2;
+      pointer-events: auto;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.14);
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+      margin-bottom: 16px;
+      position: relative;
+    }
+    .form-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      position: relative;
+      z-index: 1;
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+      min-width: 220px;
+    }
+    .field span {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    input[type="number"],
+    input[type="text"] {
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      font-family: inherit;
+      font-size: 13px;
+    }
+    .addresses {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .address-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .address-row label {
+      min-width: 120px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .address-row input {
+      flex: 1;
+      min-width: 240px;
+    }
+    .table-wrap {
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      overflow: auto;
+      background: var(--surface);
+      min-height: 120px;
+    }
+    table {
+      width: 100%;
+      min-width: 840px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--stroke);
+      vertical-align: middle;
+    }
+    th {
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      background: var(--surface-2);
+      position: sticky;
+      top: 0;
+    }
+    td input[type="number"] {
+      width: 90px;
+      min-width: 70px;
+      padding: 6px 8px;
+      font-size: 12px;
+      background: #fff;
+    }
+    td input[type="number"]::-webkit-outer-spin-button,
+    td input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    td input[type="number"] {
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+    .remaining-cell {
+      font-weight: 600;
+      color: var(--accent-strong);
+      text-align: center;
+    }
+    .note {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+    @media (max-width: 980px) {
+      .wrap { padding: 18px 16px 32px; }
+      .title { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div>
+        <div class="title">Распределение по направлениям</div>
+        <div class="muted">Укажите направления и заполните таблицу распределения.</div>
+      </div>
+      <div class="actions">
+        <button class="btn" type="button" data-action="back">Вернуться</button>
+        <button class="btn primary" type="button" data-action="save">Сохранить и вернуться</button>
+      </div>
+    </div>
+
+    <section class="panel">
+      <div class="form-row">
+        <label class="field">
+          <span>Количество направлений</span>
+          <input type="number" min="1" max="20" id="direction-count">
+        </label>
+        <button class="btn" type="button" id="build-table">Сформировать таблицу</button>
+      </div>
+      <div class="addresses" id="direction-addresses"></div>
+    </section>
+
+    <section class="panel">
+      <div class="table-wrap" id="direction-table"></div>
+      <div class="note">Заполняйте количество для каждого товара и размера по каждому направлению.</div>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      let storage = null;
+      try {
+        storage = window.sessionStorage;
+        storage.setItem("__ping", "1");
+        storage.removeItem("__ping");
+      } catch (err) {
+        storage = null;
+      }
+      const STORAGE_KEYS = {
+        cards: "processingDirectionCards",
+        plan: "processingDirectionPlan",
+        addresses: "processingDirectionAddresses",
+        count: "processingDirectionCount",
+        returnUrl: "processingDirectionReturn",
+      };
+
+      const safeGet = (key) => {
+        if (!storage) {
+          return null;
+        }
+        try {
+          return storage.getItem(key);
+        } catch (err) {
+          return null;
+        }
+      };
+
+      const safeSet = (key, value) => {
+        if (!storage) {
+          return;
+        }
+        try {
+          storage.setItem(key, value);
+        } catch (err) {
+          // ignore storage errors
+        }
+      };
+
+      const countInput = document.getElementById("direction-count");
+      const addressesWrap = document.getElementById("direction-addresses");
+      const tableWrap = document.getElementById("direction-table");
+      const buildBtn = document.getElementById("build-table");
+      const saveBtn = document.querySelector('[data-action="save"]');
+      const backBtn = document.querySelector('[data-action="back"]');
+      const isReadOnly = new URLSearchParams(window.location.search).get("view") === "1";
+
+      const safeParse = (raw, fallback) => {
+        if (!raw) {
+          return fallback;
+        }
+        try {
+          return JSON.parse(raw);
+        } catch (err) {
+          return fallback;
+        }
+      };
+
+      const storedCards = safeParse(safeGet(STORAGE_KEYS.cards), []);
+      const storedPlan = safeParse(safeGet(STORAGE_KEYS.plan), {});
+      let addresses = safeParse(safeGet(STORAGE_KEYS.addresses), []);
+      if (!Array.isArray(addresses)) {
+        addresses = [];
+      }
+
+      const storedPlanRows = Array.isArray(storedPlan?.rows) ? storedPlan.rows : [];
+      const rowMap = new Map();
+      storedPlanRows.forEach((row) => {
+        const article = (row?.article || "").toString().trim().toLowerCase();
+        const size = (row?.size || "").toString().trim().toLowerCase();
+        if (!article && !size) {
+          return;
+        }
+        rowMap.set(`${article}||${size}`, row);
+      });
+
+      const parseQtyValue = (raw) => {
+        const text = String(raw ?? "").trim();
+        if (!text) {
+          return null;
+        }
+        const num = Number(text);
+        if (!Number.isFinite(num)) {
+          return 0;
+        }
+        return Math.max(0, Math.floor(num));
+      };
+
+      const normalizeQty = (raw) => {
+        const value = parseQtyValue(raw);
+        return value === null ? 0 : value;
+      };
+
+      const updateRemaining = (tr) => {
+        if (!tr) {
+          return;
+        }
+        const total = normalizeQty(tr.dataset.totalQty);
+        const inputs = tr.querySelectorAll("input[data-direction-index]");
+        let sum = 0;
+        inputs.forEach((input) => {
+          sum += normalizeQty(input.value);
+        });
+        const remaining = Math.max(total - sum, 0);
+        const cell = tr.querySelector(".remaining-cell");
+        if (cell) {
+          cell.textContent = String(remaining);
+        }
+      };
+
+      const clampRowInput = (tr, input) => {
+        if (!tr || !input) {
+          return;
+        }
+        const total = normalizeQty(tr.dataset.totalQty);
+        const inputs = Array.from(tr.querySelectorAll("input[data-direction-index]"));
+        const otherSum = inputs.reduce((sum, item) => {
+          if (item === input) {
+            return sum;
+          }
+          return sum + normalizeQty(item.value);
+        }, 0);
+        const maxAllowed = Math.max(total - otherSum, 0);
+        const parsed = parseQtyValue(input.value);
+        if (parsed === null) {
+          updateRemaining(tr);
+          return;
+        }
+        const next = Math.min(parsed, maxAllowed);
+        if (String(input.value).trim() !== String(next)) {
+          input.value = String(next);
+        }
+        updateRemaining(tr);
+      };
+
+      const getReturnUrl = () => {
+        const fromStorage = safeGet(STORAGE_KEYS.returnUrl);
+        if (fromStorage) {
+          return fromStorage;
+        }
+        const raw = {{ return_url_json|default:'\"\"'|safe }};
+        return raw || document.referrer || "/orders/processing/";
+      };
+
+      const updateAddresses = (count) => {
+        const target = Math.max(0, count);
+        if (addresses.length > target) {
+          addresses = addresses.slice(0, target);
+        }
+        while (addresses.length < target) {
+          addresses.push("");
+        }
+      };
+
+      const renderAddresses = () => {
+        addressesWrap.innerHTML = "";
+        addresses.forEach((value, index) => {
+          const row = document.createElement("div");
+          row.className = "address-row";
+          const label = document.createElement("label");
+          label.textContent = `Направление ${index + 1}`;
+          const input = document.createElement("input");
+          input.type = "text";
+          input.placeholder = "Адрес направления";
+          input.value = value || "";
+          input.disabled = isReadOnly;
+          input.addEventListener("input", () => {
+            addresses[index] = input.value;
+            updateTableHeaders();
+            writePlan();
+          });
+          row.append(label, input);
+          addressesWrap.appendChild(row);
+        });
+      };
+
+      const collectRows = () => {
+        const rows = [];
+        if (Array.isArray(storedCards) && storedCards.length) {
+          storedCards.forEach((card) => {
+            const article = (card.article || "").toString().trim();
+            const productName = (card.product_name || "").toString().trim();
+            const cardRows = Array.isArray(card.rows) ? card.rows : [];
+            cardRows.forEach((row) => {
+              const size = (row.size || "").toString().trim();
+              if (!article && !productName && !size) {
+                return;
+              }
+              rows.push({
+                article,
+                product_name: productName,
+                size,
+                qty: row.qty ?? "",
+              });
+            });
+          });
+        }
+        if (!rows.length && storedPlanRows.length) {
+          storedPlanRows.forEach((row) => {
+            rows.push({
+              article: (row.article || "").toString().trim(),
+              product_name: (row.product_name || "").toString().trim(),
+              size: (row.size || "").toString().trim(),
+              qty: row.total_qty ?? row.totalQty ?? row.total ?? row.qty ?? "",
+            });
+          });
+        }
+        return rows;
+      };
+
+      const updateTableHeaders = () => {
+        tableWrap.querySelectorAll("th[data-direction-index]").forEach((cell) => {
+          const index = parseInt(cell.dataset.directionIndex || "0", 10);
+          const address = addresses[index] ? addresses[index].trim() : "";
+          cell.textContent = address ? `${index + 1}. ${address}` : `Направление ${index + 1}`;
+        });
+      };
+
+      const buildTable = () => {
+        tableWrap.innerHTML = "";
+        if (!addresses.length) {
+          return;
+        }
+        const rows = collectRows();
+        if (!rows.length) {
+          const note = document.createElement("div");
+          note.className = "note";
+          note.textContent = "Нет товаров для распределения. Вернитесь и добавьте товары.";
+          tableWrap.appendChild(note);
+          return;
+        }
+        const table = document.createElement("table");
+        const thead = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        ["Товар", "Артикул", "Нераспределенный товар", "Размер"].forEach((label) => {
+          const th = document.createElement("th");
+          th.textContent = label;
+          headRow.appendChild(th);
+        });
+        addresses.forEach((address, index) => {
+          const th = document.createElement("th");
+          th.dataset.directionIndex = index.toString();
+          const text = address ? `${index + 1}. ${address}` : `Направление ${index + 1}`;
+          th.textContent = text;
+          headRow.appendChild(th);
+        });
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+        const tbody = document.createElement("tbody");
+        rows.forEach((row) => {
+          const tr = document.createElement("tr");
+          tr.dataset.article = row.article;
+          tr.dataset.productName = row.product_name;
+          tr.dataset.size = row.size;
+          const nameCell = document.createElement("td");
+          nameCell.textContent = row.product_name || "-";
+          const articleCell = document.createElement("td");
+          articleCell.textContent = row.article || "-";
+          const remainingCell = document.createElement("td");
+          remainingCell.className = "remaining-cell";
+          const sizeCell = document.createElement("td");
+          sizeCell.textContent = row.size || "-";
+          const key = `${row.article.toLowerCase()}||${row.size.toLowerCase()}`;
+          const stored = rowMap.get(key);
+          const storedQuantities = Array.isArray(stored?.quantities) ? stored.quantities : [];
+          const storedSum = storedQuantities.reduce((sum, value) => sum + normalizeQty(value), 0);
+          const storedTotal = stored?.total_qty ?? stored?.totalQty ?? stored?.total ?? "";
+          let totalQty = Math.max(normalizeQty(row.qty), normalizeQty(storedTotal));
+          if (storedSum > totalQty) {
+            totalQty = storedSum;
+          }
+          tr.dataset.totalQty = String(totalQty);
+          remainingCell.textContent = String(Math.max(totalQty - storedSum, 0));
+          tr.append(nameCell, articleCell, remainingCell, sizeCell);
+          addresses.forEach((_, index) => {
+            const cell = document.createElement("td");
+            const input = document.createElement("input");
+            input.type = "number";
+            input.min = "0";
+            input.step = "1";
+            input.dataset.directionIndex = index.toString();
+            input.value = storedQuantities[index] ?? "";
+            input.disabled = isReadOnly;
+            input.addEventListener("input", () => {
+              clampRowInput(tr, input);
+              writePlan();
+            });
+            cell.appendChild(input);
+            tr.appendChild(cell);
+          });
+          tbody.appendChild(tr);
+          updateRemaining(tr);
+        });
+        table.appendChild(tbody);
+        tableWrap.appendChild(table);
+        writePlan();
+      };
+
+      const writePlan = () => {
+        const rows = [];
+        tableWrap.querySelectorAll("tbody tr").forEach((tr) => {
+          const quantities = [];
+          tr.querySelectorAll("input[data-direction-index]").forEach((input) => {
+            quantities.push(input.value);
+          });
+          const totalQty = normalizeQty(tr.dataset.totalQty);
+          rows.push({
+            product_name: tr.dataset.productName || "",
+            article: tr.dataset.article || "",
+            size: tr.dataset.size || "",
+            total_qty: totalQty,
+            quantities,
+          });
+        });
+        if (!rows.length) {
+          return "";
+        }
+        const payload = { rows, directions: addresses };
+        return JSON.stringify(payload);
+      };
+
+      const save = () => {
+        const countValue = countInput?.value ? String(countInput.value) : "";
+        safeSet(STORAGE_KEYS.count, countValue);
+        safeSet(STORAGE_KEYS.addresses, JSON.stringify(addresses));
+        const planValue = writePlan();
+        safeSet(STORAGE_KEYS.plan, planValue);
+        window.location.href = getReturnUrl();
+      };
+
+      const back = () => {
+        window.location.href = getReturnUrl();
+      };
+
+      if (buildBtn) {
+        buildBtn.addEventListener("click", () => {
+          const count = parseInt(countInput?.value || "", 10);
+          if (Number.isFinite(count) && count > 0) {
+            updateAddresses(count);
+          }
+          renderAddresses();
+          buildTable();
+        });
+      }
+
+      if (countInput) {
+        countInput.addEventListener("change", () => {
+          const count = parseInt(countInput.value || "", 10);
+          if (Number.isFinite(count) && count > 0) {
+            updateAddresses(count);
+            renderAddresses();
+          }
+        });
+      }
+
+      if (saveBtn) {
+        saveBtn.addEventListener("click", save);
+      }
+      if (backBtn) {
+        backBtn.addEventListener("click", back);
+      }
+
+      if (isReadOnly) {
+        if (countInput) {
+          countInput.disabled = true;
+        }
+        if (buildBtn) {
+          buildBtn.disabled = true;
+        }
+        if (saveBtn) {
+          saveBtn.disabled = true;
+          saveBtn.setAttribute("hidden", "");
+        }
+      }
+
+      const initialCount = parseInt(safeGet(STORAGE_KEYS.count) || "", 10);
+      if (!Number.isNaN(initialCount) && initialCount > 0 && countInput) {
+        countInput.value = initialCount;
+        updateAddresses(initialCount);
+      } else if (!addresses.length && Array.isArray(storedPlan?.directions)) {
+        addresses = storedPlan.directions.map((item) => String(item || ""));
+        if (countInput) {
+          countInput.value = addresses.length || "";
+        }
+      }
+
+      if (addresses.length) {
+        renderAddresses();
+        buildTable();
+      }
+    })();
+  </script>
+</body>
+</html>

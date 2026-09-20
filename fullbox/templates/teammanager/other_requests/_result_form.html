@@ -1,0 +1,35 @@
+{% if item.result_outcome or item.result_comment or item.completed_at %}
+<section class="or-card">
+  <h2>Результат выполнения</h2>
+  {% if item.result_outcome %}
+    <div class="or-info-label">Итог</div>
+    <div class="or-info-value">{{ result_outcome_label }}</div>
+  {% endif %}
+  {% if item.result_comment %}
+    <div class="or-info-label">Комментарий исполнителя</div>
+    <div class="or-info-value">{{ item.result_comment|linebreaksbr }}</div>
+  {% endif %}
+  {% if item.result_qty %}
+    <div class="or-info-label">Факт. количество</div>
+    <div class="or-info-value">{{ item.result_qty }} {{ item.result_unit }}</div>
+  {% endif %}
+  <div class="or-info-label">Фактически оказанные услуги</div>
+  {% for fact in other_service_facts %}
+    <div class="or-info-value" style="margin-bottom:6px">
+      {{ fact.name }} · {{ fact.quantity }} {{ fact.unit }}
+      {% if fact.reported_by %}<span class="muted"> · {{ fact.reported_by }}</span>{% endif %}
+    </div>
+  {% empty %}
+    <div class="or-alert or-alert-warning">Услуги не указаны. Закрытие заявки заблокировано.</div>
+  {% endfor %}
+  <div class="or-info-label">Выполнил</div>
+  <div class="or-info-value">{% if item.assignee %}{{ item.assignee.full_name }}{% else %}—{% endif %}</div>
+  {% if item.started_at or item.completed_at %}
+    <div class="or-info-label">Когда</div>
+    <div class="or-info-value">
+      {% if item.started_at %}начало {{ item.started_at|date:"d.m.Y H:i" }}{% endif %}
+      {% if item.completed_at %} · завершение {{ item.completed_at|date:"d.m.Y H:i" }}{% endif %}
+    </div>
+  {% endif %}
+</section>
+{% endif %}

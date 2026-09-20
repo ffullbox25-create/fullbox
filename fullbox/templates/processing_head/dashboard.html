@@ -1,0 +1,1531 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Кабинет руководителя обработки | ФУЛЛБОКС</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f7f8f6;
+      --surface: #ffffff;
+      --surface-soft: #f5f7f4;
+      --text: #303030;
+      --muted: #777c83;
+      --line: rgba(48, 48, 48, 0.1);
+      --accent: #f89000;
+      --accent-strong: #f86800;
+      --accent-soft: rgba(248, 144, 0, 0.13);
+      --success: #21b365;
+      --success-soft: rgba(33, 179, 101, 0.12);
+      --danger: #ef4444;
+      --danger-soft: rgba(239, 68, 68, 0.11);
+      --warning: #f8b800;
+      --warning-soft: rgba(248, 184, 0, 0.14);
+      --info: #2f80ed;
+      --info-soft: rgba(47, 128, 237, 0.11);
+      --shadow: 0 16px 42px rgba(15, 23, 42, 0.06);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body { min-height: 100%; }
+
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      letter-spacing: 0;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    button,
+    input,
+    select { font: inherit; }
+
+    .page {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr) 300px;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      min-height: 100vh;
+      padding: 28px 24px;
+      background: var(--surface);
+      border-right: 1px solid var(--line);
+      box-shadow: 12px 0 38px rgba(15, 23, 42, 0.04);
+    }
+
+    .fullbox-brand-mark { display: inline-flex; align-items: center; }
+    .fullbox-brand-img { display: block; width: auto; height: 36px; max-width: 132px; object-fit: contain; }
+
+    .nav {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .nav-link {
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 44px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      color: #5f646a;
+      transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease;
+    }
+
+    .nav-link:hover {
+      color: var(--text);
+      background: #f3f4f2;
+      transform: translateX(1px);
+    }
+
+    .nav-link.active {
+      color: #8a4a00;
+      background: var(--accent-soft);
+      font-weight: 700;
+    }
+
+    .nav-icon {
+      display: inline-grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      color: currentColor;
+    }
+
+    .nav-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      height: 24px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #8a4a00;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .support {
+      margin-top: auto;
+      display: grid;
+      gap: 8px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfb;
+    }
+
+    .support-title {
+      color: #475569;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .support-phone {
+      color: var(--text);
+      font-size: 21px;
+      font-weight: 800;
+    }
+
+    .support-time {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .logout-link {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      align-items: center;
+      gap: 10px;
+      min-height: 44px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      color: #8a4a00;
+      background: #fff;
+      font-weight: 800;
+      transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+    }
+
+    .logout-link:hover {
+      border-color: rgba(248, 144, 0, 0.35);
+      background: var(--accent-soft);
+      transform: translateX(1px);
+    }
+
+    .workspace {
+      min-width: 0;
+      padding: 28px 28px 32px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 28px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .date-pill,
+    .profile-pill,
+    .icon-button {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
+    }
+
+    .date-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 48px;
+      padding: 0 16px;
+      font-weight: 700;
+    }
+
+    .icon-button {
+      position: relative;
+      display: inline-grid;
+      place-items: center;
+      width: 48px;
+      height: 48px;
+      color: #4b5563;
+    }
+
+    .notify-dot {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: inline-grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--danger);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .profile-pill {
+      display: grid;
+      grid-template-columns: 42px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      min-width: 240px;
+      padding: 8px 12px 8px 8px;
+    }
+
+    .avatar {
+      display: inline-grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .profile-name {
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .profile-role {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .kpi-card,
+    .panel,
+    .side-panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .kpi-card {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 12px;
+      min-height: 112px;
+      padding: 15px;
+      transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+    }
+
+    .kpi-card:hover,
+    .kpi-card:focus-visible {
+      border-color: rgba(248, 144, 0, 0.42);
+      box-shadow: 0 18px 46px rgba(248, 144, 0, 0.12);
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    .kpi-icon {
+      display: inline-grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius);
+      color: var(--success);
+      background: var(--success-soft);
+    }
+
+    .kpi-card.danger .kpi-icon {
+      color: var(--danger);
+      background: var(--danger-soft);
+    }
+
+    .kpi-card.accent .kpi-icon {
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+    }
+
+    .kpi-card.warning .kpi-icon {
+      color: #c47a00;
+      background: var(--warning-soft);
+    }
+
+    .kpi-value {
+      margin-top: 5px;
+      font-size: 34px;
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .kpi-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .kpi-hint {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .filters-panel {
+      padding: 16px 16px 0;
+      margin-bottom: 16px;
+    }
+
+    .filter-row {
+      display: grid;
+      grid-template-columns: minmax(240px, 1.4fr) repeat(5, minmax(130px, 1fr)) 116px 112px;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .field {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--text);
+      padding: 0 12px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--text);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .button:hover {
+      border-color: rgba(248, 144, 0, 0.45);
+      background: var(--accent-soft);
+    }
+
+    .button.primary {
+      border-color: transparent;
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .button.primary:hover {
+      background: var(--accent-strong);
+      color: #fff;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 22px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .tab {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 0 15px;
+      border: 0;
+      background: transparent;
+      color: #515861;
+      font-weight: 800;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      color: var(--text);
+    }
+
+    .tab.active::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -1px;
+      height: 3px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    .tab-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 26px;
+      height: 22px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: var(--surface-soft);
+      color: var(--accent-strong);
+      font-size: 12px;
+    }
+
+    .tab[data-tone="overdue"] .tab-count { color: var(--danger); background: var(--danger-soft); }
+    .tab[data-tone="review"] .tab-count { color: #b98100; background: var(--warning-soft); }
+    .tab[data-tone="in_work"] .tab-count { color: var(--info); background: var(--info-soft); }
+
+    .panel {
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.25;
+      font-weight: 900;
+    }
+
+    .panel-subtitle {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .attention-list { display: grid; gap: 8px; }
+    .attention-panel.is-collapsed .attention-list { display: none; }
+    .attention-toggle { min-width: 112px; }
+    .attention-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 14px;
+      align-items: center;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--warning);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+    .attention-row.danger { border-left-color: var(--danger); }
+    .attention-row.info { border-left-color: var(--info); }
+    .attention-title { font-size: 13px; font-weight: 900; }
+    .attention-meta { margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .attention-reason { color: #8a4a00; font-size: 12px; font-weight: 800; text-align: right; }
+
+    .section-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .section-card {
+      display: grid;
+      gap: 8px;
+      min-height: 118px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .section-card.accent {
+      border-color: rgba(248, 144, 0, 0.28);
+      background: linear-gradient(180deg, #fff, rgba(248, 144, 0, 0.08));
+    }
+
+    .section-card-title {
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .section-card-value {
+      font-size: 30px;
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .section-card-note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .data-table {
+      width: 100%;
+      min-width: 920px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .data-table th {
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .barcode-history-link {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 4px;
+      padding: 5px 9px;
+      border: 1px solid rgba(196, 111, 0, 0.3);
+      border-radius: 9px;
+      background: rgba(248, 144, 0, 0.1);
+      color: var(--accent-strong);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 900;
+      text-decoration: none;
+    }
+
+    .barcode-history-link:hover {
+      border-color: var(--accent);
+      background: rgba(248, 144, 0, 0.18);
+    }
+
+    .settings-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .task-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .task-list.is-scrollable {
+      max-height: 620px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      padding-right: 8px;
+      scrollbar-width: auto;
+      scrollbar-color: rgba(248, 144, 0, 0.72) rgba(48, 48, 48, 0.08);
+    }
+
+    .task-list.is-scrollable::-webkit-scrollbar { width: 12px; }
+    .task-list.is-scrollable::-webkit-scrollbar-track {
+      border-radius: 999px;
+      background: rgba(48, 48, 48, 0.08);
+    }
+    .task-list.is-scrollable::-webkit-scrollbar-thumb {
+      border: 3px solid #fff;
+      border-radius: 999px;
+      background: rgba(248, 144, 0, 0.78);
+    }
+    .task-list.is-scrollable::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-strong);
+    }
+
+    .task-row {
+      display: grid;
+      grid-template-columns: minmax(230px, 1.5fr) minmax(120px, .8fr) minmax(108px, .65fr) minmax(100px, .5fr) minmax(130px, .8fr) minmax(130px, .65fr);
+      align-items: center;
+      gap: 12px;
+      min-height: 66px;
+      border: 1px solid var(--line);
+      border-left-width: 4px;
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 11px 14px;
+      transition: transform 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .task-row:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+    }
+
+    .task-row.danger { border-left-color: var(--danger); }
+    .task-row.warning { border-left-color: var(--warning); }
+    .task-row.info { border-left-color: var(--info); }
+    .task-row.success { border-left-color: var(--success); }
+
+    .task-icon {
+      justify-self: center;
+      display: inline-grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius);
+      color: var(--info);
+      background: var(--info-soft);
+    }
+
+    .queue-head {
+      display: grid;
+      grid-template-columns: minmax(230px, 1.5fr) minmax(120px, .8fr) minmax(108px, .65fr) minmax(100px, .5fr) minmax(130px, .8fr) minmax(130px, .65fr);
+      gap: 12px;
+      padding: 0 14px 9px 18px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+    .task-deadline { font-size: 12px; font-weight: 800; }
+    .task-deadline.danger { color: var(--danger); }
+
+    .task-row.danger .task-icon { color: var(--danger); background: var(--danger-soft); }
+    .task-row.warning .task-icon { color: #b98100; background: var(--warning-soft); }
+    .task-row.success .task-icon { color: var(--success); background: var(--success-soft); }
+
+    .task-title {
+      font-weight: 900;
+      line-height: 1.25;
+    }
+
+    .task-meta {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: fit-content;
+      max-width: 100%;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .status-pill.danger { color: var(--danger); background: var(--danger-soft); }
+    .status-pill.warning { color: #a46f00; background: var(--warning-soft); }
+    .status-pill.info { color: var(--info); background: var(--info-soft); }
+    .status-pill.success { color: var(--success); background: var(--success-soft); }
+
+    .task-side-label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .task-side-value {
+      margin-top: 3px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .more-row {
+      display: flex;
+      justify-content: center;
+      margin-top: 12px;
+    }
+
+    .empty-state {
+      padding: 22px;
+      border: 1px dashed var(--line);
+      border-radius: var(--radius);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .rating-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .rating-row {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .rating-place {
+      display: inline-grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .rating-name {
+      font-weight: 800;
+    }
+
+    .rating-value {
+      font-weight: 900;
+    }
+
+    .rightbar {
+      display: grid;
+      align-content: start;
+      gap: 16px;
+      min-width: 0;
+      padding: 100px 24px 24px 0;
+    }
+
+    .rightbar summary {
+      display: block;
+      cursor: pointer;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      font-weight: 900;
+    }
+
+    .side-panel {
+      padding: 16px;
+    }
+
+    .side-compact-link { display: grid; gap: 4px; padding: 4px 0; }
+    .side-compact-value { font-size: 27px; font-weight: 900; line-height: 1; }
+    .side-compact-text { color: var(--muted); font-size: 12px; }
+
+    .side-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .side-title {
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .side-link {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .notice-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .notice {
+      display: grid;
+      grid-template-columns: 32px 1fr;
+      gap: 10px;
+    }
+
+    .notice-icon {
+      display: inline-grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      color: var(--info);
+      background: var(--info-soft);
+    }
+
+    .notice.danger .notice-icon { color: var(--danger); background: var(--danger-soft); }
+    .notice.warning .notice-icon { color: #b98100; background: var(--warning-soft); }
+    .notice.success .notice-icon { color: var(--success); background: var(--success-soft); }
+
+    .notice-title {
+      font-size: 13px;
+      font-weight: 900;
+      line-height: 1.35;
+    }
+
+    .notice-body {
+      margin-top: 2px;
+      color: #4b5563;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .notice-time {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .load-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .load-row {
+      display: grid;
+      gap: 6px;
+    }
+
+    .load-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: #4b5563;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .load-track {
+      height: 6px;
+      border-radius: 999px;
+      background: #eef0ee;
+      overflow: hidden;
+    }
+
+    .load-bar {
+      height: 100%;
+      border-radius: inherit;
+      background: var(--success);
+    }
+
+    .load-bar.warning { background: var(--warning); }
+    .load-bar.danger { background: var(--danger); }
+
+    .average-load {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: var(--radius);
+      background: var(--success-soft);
+      color: #17804c;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    @media (max-width: 1380px) {
+      .page { grid-template-columns: 240px minmax(0, 1fr); }
+      .rightbar {
+        grid-column: 2;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        padding: 0 28px 28px;
+      }
+      .rightbar summary { grid-column: 1 / -1; }
+      .workspace { padding-bottom: 16px; }
+    }
+
+    @media (max-width: 1120px) {
+      .page { grid-template-columns: 1fr; }
+      .sidebar {
+        min-height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .support { display: none; }
+      .rightbar {
+        grid-column: auto;
+        grid-template-columns: 1fr;
+      }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .filter-row { grid-template-columns: 1fr 1fr; }
+      .queue-head { display: none; }
+      .task-row { grid-template-columns: minmax(0, 1fr) auto; }
+      .task-row > .task-client,
+      .task-row > .task-priority { display: none; }
+      .task-row > .task-executor,
+      .task-row > .task-deadline { grid-column: 1 / -1; }
+      .attention-row { grid-template-columns: minmax(0, 1fr) auto; }
+      .attention-reason { grid-column: 1 / -1; text-align: left; }
+    }
+
+    @media (max-width: 720px) {
+      .workspace,
+      .sidebar,
+      .rightbar { padding: 18px; }
+      .topbar,
+      .top-actions { align-items: stretch; flex-direction: column; }
+      .profile-pill,
+      .date-pill,
+      .icon-button { width: 100%; }
+      .icon-button { min-height: 48px; }
+      .nav { grid-template-columns: 1fr; }
+      .kpi-grid,
+      .filter-row { grid-template-columns: 1fr; }
+      .tabs { gap: 16px; }
+      h1 { font-size: 24px; }
+    }
+  </style>
+  {% include "todo/_unread_nav_styles.html" %}
+</head>
+<body>
+  <div class="page">
+    <aside class="sidebar">
+      <div>{% include "partials/fullbox_brand.html" %}</div>
+
+      <nav class="nav" aria-label="Навигация руководителя обработки">
+        <a class="nav-link{% if active_section == 'dashboard' %} active{% endif %}" href="/processing-head/">
+          <span class="nav-icon">⌂</span>
+          <span>Главная</span>
+        </a>
+        <a class="nav-link{% if active_section == 'tasks' %} active{% endif %}{% if todo_unread_count %} todo-unread-attention{% endif %}" href="/processing-head/?section=tasks&amp;tab=all&amp;period=all">
+          <span class="nav-icon">☷</span>
+          <span>Доска задач</span>
+          {% if todo_unread_count %}<span class="todo-unread-badge">{{ todo_unread_count }}</span>{% endif %}
+        </a>
+        <a class="nav-link{% if active_section == 'requests' %} active{% endif %}" href="/processing-head/requests/?tab=all&amp;period=all">
+          <span class="nav-icon">□</span>
+          <span>Заявки</span>
+        </a>
+        <a class="nav-link{% if active_section == 'planning' %} active{% endif %}" href="/processing-head/?section=planning&amp;tab=planning&amp;period=all">
+          <span class="nav-icon">◴</span>
+          <span>Планирование</span>
+        </a>
+        <a class="nav-link{% if active_section == 'stock' %} active{% endif %}" href="/processing-head/?section=stock&amp;period=all">
+          <span class="nav-icon">⊕</span>
+          <span>Остатки</span>
+        </a>
+        <a class="nav-link" href="/sklad/journal/">
+          <span class="nav-icon">▤</span>
+          <span>Остатки товара</span>
+        </a>
+        <a class="nav-link" href="/head-manager/goods/">
+          <span class="nav-icon">◫</span>
+          <span>Товары</span>
+        </a>
+        <a class="nav-link{% if active_section == 'work' %} active{% endif %}" href="/processing-head/?section=work&amp;tab=in_work&amp;period=all">
+          <span class="nav-icon">◇</span>
+          <span>Обработка</span>
+        </a>
+        <a class="nav-link" href="/marking/return/">
+          <span class="nav-icon">↶</span>
+          <span>Возврат ЧЗ</span>
+        </a>
+        <a class="nav-link" href="/marking/report/">
+          <span class="nav-icon">▥</span>
+          <span>Отчёт ЧЗ</span>
+        </a>
+        <a class="nav-link{% if active_section == 'personnel' %} active{% endif %}" href="/processing-head/?section=personnel&amp;period=all">
+          <span class="nav-icon">◌</span>
+          <span>Персонал</span>
+        </a>
+        <a class="nav-link" href="/processing-head/reports">
+          <span class="nav-icon">▥</span>
+          <span>Отчеты</span>
+        </a>
+        <a class="nav-link{% if active_section == 'kpi' %} active{% endif %}" href="/processing-head/?section=kpi&amp;tab=all&amp;period=all">
+          <span class="nav-icon">◎</span>
+          <span>KPI и показатели</span>
+        </a>
+        <a class="nav-link" href="/team-manager/chats/?kind=processing">
+          <span class="nav-icon">○</span>
+          <span>Сообщения</span>
+          <span class="nav-badge">{{ notifications|length }}</span>
+        </a>
+        <a class="nav-link" href="/sku/?view=table">
+          <span class="nav-icon">◫</span>
+          <span>Номенклатура</span>
+        </a>
+        <a class="nav-link" href="/marking/free-print/">
+          <span class="nav-icon">⌗</span>
+          <span>Свободная печать КИЗ</span>
+        </a>
+        <a class="nav-link{% if active_section == 'settings' %} active{% endif %}" href="/processing-head/?section=settings">
+          <span class="nav-icon">⚙</span>
+          <span>Настройки</span>
+        </a>
+      </nav>
+
+      <div class="support">
+        <div class="support-title">Нужна помощь?</div>
+        <div class="support-time">Служба поддержки</div>
+        <div class="support-phone">8 800 550-10-90</div>
+        <div class="support-time">пн-пт 09:00 до 18:00</div>
+      </div>
+      <a class="logout-link" href="/logout/">
+        <span class="nav-icon">↩</span>
+        <span>Выход</span>
+      </a>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <h1>Кабинет руководителя обработки</h1>
+        <div class="top-actions">
+          <div class="date-pill">
+            <span>{{ today|date:"j E Y" }}</span>
+            <span>▣</span>
+          </div>
+          <a class="icon-button" href="/processing-head/requests/?tab=all&amp;period=all" aria-label="Уведомления">
+            <span>♢</span>
+            {% if notifications %}<span class="notify-dot">{{ notifications|length }}</span>{% endif %}
+          </a>
+          <div class="profile-pill">
+            <span class="avatar">{{ employee_initials }}</span>
+            <span>
+              <span class="profile-name">{{ employee_name }}</span>
+              <span class="profile-role">Руководитель обработки</span>
+            </span>
+            <span>⌄</span>
+          </div>
+        </div>
+      </header>
+
+      {% if active_section == 'stock' %}
+        <section class="section-card-grid" aria-label="Остатки обработки">
+          <div class="section-card accent">
+            <div class="section-card-title">Остатки обработки</div>
+            <div class="section-card-value">{{ processing_stock.qty_total }}</div>
+            <div class="section-card-note">единиц в зоне OBR, обработке или резерве обработки</div>
+          </div>
+          <div class="section-card">
+            <div class="section-card-title">Доступно</div>
+            <div class="section-card-value">{{ processing_stock.available_total }}</div>
+            <div class="section-card-note">единиц доступно по складскому контуру</div>
+          </div>
+          <div class="section-card">
+            <div class="section-card-title">Зарезервировано</div>
+            <div class="section-card-value">{{ processing_stock.reserved_total }}</div>
+            <div class="section-card-note">единиц в резерве под обработку</div>
+          </div>
+          <div class="section-card">
+            <div class="section-card-title">Короба / палеты</div>
+            <div class="section-card-value">{{ processing_stock.boxes_count }} / {{ processing_stock.pallets_count }}</div>
+            <div class="section-card-note">по актуальным складским снимкам</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Остатки участка обработки</h2>
+              <div class="panel-subtitle">Показываем только OBR, товары в обработке и резерв обработки. Остатки не меняются из этого экрана.</div>
+            </div>
+            <a class="button" href="/orders/processing/stock/">Подбор товара</a>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Клиент</th>
+                  <th>Артикул</th>
+                  <th>Товар</th>
+                  <th>Размер / ШК</th>
+                  <th>Кол-во</th>
+                  <th>Доступно</th>
+                  <th>Резерв OBR</th>
+                  <th>Короб / палета</th>
+                  <th>Зона / ячейка</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in processing_stock.rows %}
+                  <tr>
+                    <td>{{ row.client }}</td>
+                    <td><strong>{{ row.article }}</strong></td>
+                    <td>{{ row.name }}</td>
+                    <td>{{ row.size }}<br>{% if row.sku_ref_id and row.barcode and row.barcode != "-" %}<a class="barcode-history-link" href="/warehouse-goods/{{ row.sku_ref_id }}/history/?barcode={{ row.barcode|urlencode }}&amp;next={{ request.get_full_path|urlencode }}" title="Открыть историю движения по ШК {{ row.barcode }}">{{ row.barcode }}</a>{% else %}{{ row.barcode }}{% endif %}</td>
+                    <td>{{ row.qty }}</td>
+                    <td>{{ row.available_qty }}</td>
+                    <td>{{ row.reserved_qty }}</td>
+                    <td>{{ row.box }}<br>{{ row.pallet }}</td>
+                    <td>{{ row.zone }}<br>{{ row.location }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="9"><div class="empty-state">Остатков обработки сейчас нет.</div></td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {% elif active_section == 'reports' %}
+        <section class="section-card-grid" aria-label="Отчеты участка обработки">
+          <div class="section-card accent">
+            <div class="section-card-title">Отчет по обработке</div>
+            <div class="section-card-value">{{ processing_reports.processing.active }}</div>
+            <div class="section-card-note">активных заявок · завершено {{ processing_reports.processing.ready }} · просрочено {{ processing_reports.processing.overdue }}</div>
+          </div>
+          <div class="section-card">
+            <div class="section-card-title">Отчет по товарам</div>
+            <div class="section-card-value">{{ processing_reports.goods.qty_total }}</div>
+            <div class="section-card-note">единиц в OBR, обработке и резерве · {{ processing_reports.goods.rows_count }} строк остатков</div>
+          </div>
+          <div class="section-card">
+            <div class="section-card-title">Отчет по ЧЗ</div>
+            <div class="section-card-value">{{ processing_reports.marking.total }}</div>
+            <div class="section-card-note">кодов · доступно {{ processing_reports.marking.available }} · использовано {{ processing_reports.marking.used }}</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Отчет по обработке</h2>
+              <div class="panel-subtitle">Заявки участка, их этап и ответственный исполнитель.</div>
+            </div>
+            <a class="button" href="/processing-head/requests/?tab=all&amp;period=all">Все заявки</a>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Заявка</th><th>Клиент</th><th>Статус</th><th>Приоритет</th><th>Исполнитель</th><th>Плановая дата</th></tr></thead>
+              <tbody>
+                {% for row in processing_reports.processing.rows %}
+                  <tr><td><a href="{{ row.url }}"><strong>{{ row.title }}</strong></a></td><td>{{ row.client }}</td><td><span class="status-pill {{ row.tone }}">{{ row.status_label }}</span></td><td>{{ row.priority_label }}</td><td>{{ row.executor }}</td><td>{{ row.due_label }}</td></tr>
+                {% empty %}
+                  <tr><td colspan="6"><div class="empty-state">Заявок обработки за выбранный период нет.</div></td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Отчет по товарам</h2>
+              <div class="panel-subtitle">Только актуальные остатки зоны OBR, обработки и резервов обработки.</div>
+            </div>
+            <a class="button" href="/processing-head/?section=stock&amp;period=all">Остатки обработки</a>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Клиент</th><th>Артикул</th><th>Товар</th><th>Размер / ШК</th><th>Кол-во</th><th>Резерв OBR</th><th>Короб / палета</th><th>Зона</th></tr></thead>
+              <tbody>
+                {% for row in processing_reports.goods.rows %}
+                  <tr><td>{{ row.client }}</td><td><strong>{{ row.article }}</strong></td><td>{{ row.name }}</td><td>{{ row.size }}<br>{% if row.sku_ref_id and row.barcode and row.barcode != "-" %}<a class="barcode-history-link" href="/warehouse-goods/{{ row.sku_ref_id }}/history/?barcode={{ row.barcode|urlencode }}&amp;next={{ request.get_full_path|urlencode }}" title="Открыть историю движения по ШК {{ row.barcode }}">{{ row.barcode }}</a>{% else %}{{ row.barcode }}{% endif %}</td><td>{{ row.qty }}</td><td>{{ row.reserved_qty }}</td><td>{{ row.box }}<br>{{ row.pallet }}</td><td>{{ row.zone }}</td></tr>
+                {% empty %}
+                  <tr><td colspan="8"><div class="empty-state">Товаров в обработке сейчас нет.</div></td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Отчет по ЧЗ</h2>
+              <div class="panel-subtitle">Коды маркировки в заявках на обработку. Полные коды не показываются в отчете.</div>
+            </div>
+            <a class="button" href="/processing-head/?section=reports&amp;period=all">Обновить</a>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Клиент</th><th>Заявка</th><th>Артикул</th><th>Размер</th><th>Всего</th><th>Напечатано</th><th>Использовано</th><th>Доступно</th></tr></thead>
+              <tbody>
+                {% for row in processing_reports.marking.rows %}
+                  <tr><td>{{ row.client }}</td><td>{{ row.order_number }}</td><td><strong>{{ row.article }}</strong></td><td>{{ row.size_label }}</td><td>{{ row.total }}</td><td>{{ row.printed }}</td><td>{{ row.used }}</td><td>{{ row.available }}</td></tr>
+                {% empty %}
+                  <tr><td colspan="8"><div class="empty-state">Коды ЧЗ по обработке не найдены.</div></td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {% elif active_section == 'personnel' %}
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Сотрудники обработки</h2>
+              <div class="panel-subtitle">Только руководители и исполнители участка обработки — без общего списка сотрудников.</div>
+            </div>
+            <a class="button" href="/processing-head/?section=work&amp;tab=in_work&amp;period=all">Работы в обработке</a>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Сотрудник</th>
+                  <th>Роль</th>
+                  <th>Активные заявки</th>
+                  <th>На проверке / проблема</th>
+                  <th>Завершено</th>
+                  <th>Состояние</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for person in processing_staff_rows %}
+                  <tr>
+                    <td><strong>{{ person.name }}</strong><br>{{ person.short_name }}</td>
+                    <td>{{ person.role }}</td>
+                    <td>{{ person.active_tasks }}</td>
+                    <td>{{ person.review_tasks }}</td>
+                    <td>{{ person.ready_tasks }}</td>
+                    <td><span class="status-pill {{ person.tone }}">{% if person.review_tasks %}Требует внимания{% elif person.active_tasks %}В работе{% else %}Свободен{% endif %}</span></td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="6"><div class="empty-state">Активных сотрудников обработки нет.</div></td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {% elif active_section == 'settings' %}
+        <section class="section-card-grid" aria-label="Настройки печати">
+          {% for card in printer_settings_cards %}
+            <div class="section-card {{ card.tone }}">
+              <div class="section-card-title">{{ card.title }}</div>
+              <div class="section-card-note">{{ card.description }}</div>
+              <div class="settings-actions">
+                <a class="button" href="{{ card.url }}">{{ card.action }}</a>
+              </div>
+            </div>
+          {% endfor %}
+        </section>
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Печать этикеток обработки</h2>
+              <div class="panel-subtitle">Отсюда руководитель попадает сразу в настройки принтера и шаблонов этикеток.</div>
+            </div>
+            <a class="button" href="/labels/settings/?return=/processing-head/%3Fsection%3Dsettings">Настройки печати этикетки</a>
+          </div>
+          <div class="empty-state">Этот раздел предназначен только для настройки печати.</div>
+        </section>
+      {% else %}
+      {% if active_section == 'dashboard' %}
+        <section class="kpi-grid" aria-label="Показатели задач">
+          {% for metric in metric_cards %}
+            <a class="kpi-card {{ metric.tone }}" href="{{ metric.url }}" aria-label="{{ metric.label }}: {{ metric.value }}">
+              <div class="kpi-icon">
+                {{ metric.icon }}
+              </div>
+              <div>
+                <div class="kpi-label">{{ metric.label }}</div>
+                <div class="kpi-value">{{ metric.value }}</div>
+                <div class="kpi-hint">{{ metric.hint }}</div>
+              </div>
+            </a>
+          {% endfor %}
+        </section>
+
+        <section class="panel attention-panel" id="processing-attention-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Требует внимания</h2>
+              <div class="panel-subtitle">Просроченные, заблокированные, без исполнителя и ожидающие проверки.</div>
+            </div>
+            <div class="panel-actions">
+              <button class="button attention-toggle" id="processing-attention-toggle" type="button" aria-controls="processing-attention-list" aria-expanded="true">Свернуть</button>
+              <a class="button" href="/processing-head/requests/?tab=overdue&amp;period=all">Открыть список</a>
+            </div>
+          </div>
+          <div class="attention-list" id="processing-attention-list">
+            {% for task in attention_tasks %}
+              <a class="attention-row {{ task.tone }}" href="{{ task.url }}">
+                <span><span class="attention-title">{{ task.title }}</span><span class="attention-meta">{{ task.client }} · {{ task.due_label }}</span></span>
+                <span class="attention-reason">{{ task.attention_reason }}</span>
+                <span class="chevron">›</span>
+              </a>
+            {% empty %}
+              <div class="empty-state">✓ Срочных задач нет.</div>
+            {% endfor %}
+          </div>
+        </section>
+      {% elif active_section == 'requests' %}
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Журнал заявок</h2>
+              <div class="panel-subtitle">Приемки, обработка и другие заявки в одном списке: активные, просроченные, на проверке и готовые.</div>
+            </div>
+            <a class="button" href="/processing-head/">На главную</a>
+          </div>
+        </section>
+      {% endif %}
+
+      <section class="panel filters-panel">
+        <form method="get">
+          {% if active_section != 'dashboard' and not is_requests_page %}
+            <input type="hidden" name="section" value="{{ active_section }}">
+          {% endif %}
+          <div class="filter-row">
+            <input class="field" type="search" name="q" value="{{ search_query }}" placeholder="Поиск по задачам, клиентам, товарам...">
+            <select class="field" name="client">
+              <option value="">Все клиенты</option>
+              {% for client in client_options %}
+                <option value="{{ client.value }}"{% if client.selected %} selected{% endif %}>{{ client.label }}</option>
+              {% endfor %}
+            </select>
+            <select class="field" name="document">
+              {% for document in document_filters %}
+                <option value="{{ document.key }}"{% if document.selected %} selected{% endif %}>{{ document.label }}</option>
+              {% endfor %}
+            </select>
+            <select class="field" name="executor">
+              <option value="">Все исполнители</option>
+              <option value="__none__"{% if selected_executor == "__none__" %} selected{% endif %}>Без исполнителя</option>
+              {% for executor in executor_options %}
+                <option value="{{ executor.value }}"{% if executor.selected %} selected{% endif %}>{{ executor.label }}</option>
+              {% endfor %}
+            </select>
+            <select class="field" name="priority">
+              <option value="">Все приоритеты</option>
+              {% for priority in priority_options %}
+                <option value="{{ priority.value }}"{% if priority.selected %} selected{% endif %}>{{ priority.label }}</option>
+              {% endfor %}
+            </select>
+            <select class="field" name="period">
+              {% for period in period_filters %}
+                <option value="{{ period.key }}"{% if period.selected %} selected{% endif %}>{{ period.label }}</option>
+              {% endfor %}
+            </select>
+            <button class="button primary" type="submit">Применить</button>
+            <a class="button" href="{{ filter_reset_url }}">Сбросить</a>
+          </div>
+          <div class="tabs">
+            {% for tab in status_tabs %}
+              <button class="tab{% if active_tab == tab.key %} active{% endif %}" data-tone="{{ tab.key }}" type="submit" name="tab" value="{{ tab.key }}">
+                <span>{{ tab.label }}</span>
+                <span class="tab-count">{{ tab.count }}</span>
+              </button>
+            {% endfor %}
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">{% if active_section == 'dashboard' %}Активные заявки обработки{% else %}{{ queue_title }}{% endif %}</h2>
+            <div class="panel-subtitle">{% if active_section == 'dashboard' %}Ожидают взятия в работу, находятся в работе или просрочены. Завершённые заявки здесь не показываются.{% else %}{{ queue_subtitle }}{% endif %}</div>
+          </div>
+          <a class="button" href="{{ queue_action_url }}">{{ queue_action_label }}</a>
+        </div>
+
+        <div class="queue-head"><span>Заявка</span><span>Клиент</span><span>Статус</span><span>Приоритет</span><span>Исполнитель</span><span>Дедлайн</span></div>
+        <div class="task-list is-scrollable">
+          {% for task in priority_tasks %}
+            <a class="task-row {{ task.tone }}" href="{{ task.url }}">
+              <span class="task-main">
+                <span class="task-title">{{ task.title }}</span>
+                <span class="task-meta">{{ task.document_label }} · SLA: {{ task.sla_label }}</span>
+              </span>
+              <span class="task-client">{{ task.client }}</span>
+              <span class="status-pill {{ task.tone }}">{{ task.status_label }}</span>
+              <span class="task-priority">{{ task.priority_label }}</span>
+              <span class="task-executor">{{ task.executor }}</span>
+              <span class="task-deadline {% if task.sla_label == 'Просрочено' %}danger{% endif %}">{{ task.due_label }}</span>
+            </a>
+          {% empty %}
+            <div class="empty-state">По выбранным фильтрам задач нет.</div>
+          {% endfor %}
+        </div>
+      </section>
+
+      {% if active_section == 'dashboard' %}
+      <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Топ исполнителей</h2>
+              <div class="panel-subtitle">По текущей рабочей нагрузке</div>
+            </div>
+            <a class="side-link" href="/processing-head/?section=personnel&amp;period=all">Весь рейтинг</a>
+          </div>
+          <div class="rating-list">
+            {% for person in team_load_rows %}
+              <div class="rating-row">
+                <span class="rating-place">{{ forloop.counter }}</span>
+                <span class="rating-name">{{ person.name }}</span>
+                <span class="rating-value">{{ person.value }}%</span>
+              </div>
+            {% empty %}
+              <div class="empty-state">Исполнители пока не заведены.</div>
+            {% endfor %}
+          </div>
+      </section>
+      {% endif %}
+      {% endif %}
+    </main>
+
+    <details class="rightbar" open>
+      <summary>Правая панель</summary>
+      <section class="side-panel">
+        <div class="side-panel-header">
+          <div class="side-title">Уведомления</div>
+          <a class="side-link" href="/processing-head/requests/?tab=all&amp;period=all">Все</a>
+        </div>
+        <div class="notice-list">
+          {% for notice in notifications %}
+            <a class="notice {{ notice.tone }}" href="{{ notice.url }}">
+              <span class="notice-icon">
+                {% if notice.tone == "danger" %}!{% elif notice.tone == "warning" %}⌛{% elif notice.tone == "success" %}✓{% else %}□{% endif %}
+              </span>
+              <span>
+                <span class="notice-title">{{ notice.title }}</span>
+                <span class="notice-body">{{ notice.body }}</span>
+                <span class="notice-time">{{ notice.time }}</span>
+              </span>
+            </a>
+          {% empty %}
+            <div class="empty-state">Уведомлений пока нет.</div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="side-panel">
+        <div class="side-panel-header">
+          <div class="side-title">Без исполнителя</div>
+          <a class="side-link" href="/processing-head/requests/?executor=__none__&amp;period=all">Открыть</a>
+        </div>
+        <a class="side-compact-link" href="/processing-head/requests/?executor=__none__&amp;period=all"><span class="side-compact-value">{{ rightbar_counts.unassigned }}</span><span class="side-compact-text">заявок ждут назначения</span></a>
+      </section>
+
+      <section class="side-panel">
+        <div class="side-panel-header">
+          <div class="side-title">На проверке</div>
+          <a class="side-link" href="/processing-head/requests/?tab=review&amp;period=all">Открыть</a>
+        </div>
+        <a class="side-compact-link" href="/processing-head/requests/?tab=review&amp;period=all"><span class="side-compact-value">{{ rightbar_counts.review }}</span><span class="side-compact-text">заявок ожидают проверки</span></a>
+      </section>
+
+      <section class="side-panel">
+        <div class="side-panel-header">
+          <div class="side-title">Критические отклонения</div>
+          <a class="side-link" href="/processing-head/requests/?tab=overdue&amp;period=all">Все</a>
+        </div>
+        <a class="side-compact-link" href="/processing-head/requests/?tab=overdue&amp;period=all"><span class="side-compact-value">{{ rightbar_counts.critical }}</span><span class="side-compact-text">просрочек и блокировок</span></a>
+        <div class="notice-list">
+          {% for task in critical_tasks|slice:":3" %}
+            <a class="notice {{ task.tone }}" href="{{ task.url }}">
+              <span class="notice-icon">!</span>
+              <span>
+                <span class="notice-title">{{ task.title }}</span>
+                <span class="notice-body">{{ task.sla_label }} · {{ task.status_label }}</span>
+              </span>
+            </a>
+          {% empty %}
+            <div class="empty-state">Критичных отклонений нет.</div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="side-panel">
+        <div class="side-panel-header">
+          <div class="side-title">Загрузка персонала</div>
+          <a class="side-link" href="/processing-head/?section=personnel&amp;period=all">Подробно</a>
+        </div>
+        <div class="average-load">
+          <span>Средняя загрузка команды</span>
+          <span>{{ average_load }}%</span>
+        </div>
+      </section>
+    </details>
+  </div>
+  <script>
+    (() => {
+      const panel = document.getElementById('processing-attention-panel');
+      const toggle = document.getElementById('processing-attention-toggle');
+      if (!panel || !toggle) return;
+      const storageKey = 'fullbox.processing-head.attention-collapsed';
+      const setCollapsed = (collapsed) => {
+        panel.classList.toggle('is-collapsed', collapsed);
+        toggle.textContent = collapsed ? 'Развернуть' : 'Свернуть';
+        toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      };
+      setCollapsed(window.localStorage.getItem(storageKey) === '1');
+      toggle.addEventListener('click', () => {
+        const collapsed = !panel.classList.contains('is-collapsed');
+        setCollapsed(collapsed);
+        window.localStorage.setItem(storageKey, collapsed ? '1' : '0');
+      });
+    })();
+  </script>
+  {% include "partials/request_voice_alerts.html" %}
+</body>
+</html>

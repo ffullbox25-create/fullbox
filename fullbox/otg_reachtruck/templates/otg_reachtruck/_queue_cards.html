@@ -1,0 +1,27 @@
+      {% if requests %}
+          {% for item in requests %}
+            <a class="request{% if item.is_overdue %} overdue{% endif %}" href="/otg-reachtruck/?request={{ item.key|urlencode }}">
+              <strong>Отгрузка №{{ item.label }}</strong>
+              {% if item.is_mine %}<b class="badge">Моя заявка</b>{% endif %}
+              {% if item.assignment.employee_name %}<span>Закреплена за: {{ item.assignment.employee_name }}</span>{% endif %}
+              {% if item.assignment.conflict %}<span>Требуется передача одному водителю</span>{% endif %}
+              {% if item.client %}<span>{{ item.client }}</span>{% endif %}
+              {% if item.waiting %}
+                <span>Принята складом · Ожидает отбора</span>
+                <div class="request-comment">{{ item.waiting_message }}</div>
+              {% else %}<span>{{ item.pallet_count }} паллет · {{ item.task_count }} подзадач</span>{% endif %}
+              <div class="request-meta">
+                <b class="badge{% if item.priority == 'urgent' %} urgent{% endif %}">{{ item.priority_label }}</b>
+                <b class="badge">В очереди {{ item.age_label }}</b>
+                {% if item.is_overdue %}<b class="badge overdue">Просрочено</b>{% endif %}
+                {% if item.in_progress %}<b class="badge">В работе</b>{% endif %}
+              </div>
+              {% if item.shipping_order.planned_ship_date %}<span>Отгрузка: {{ item.shipping_order.planned_ship_date|date:"d.m.Y" }}</span>{% endif %}
+              {% if item.shipping_order.slot_date %}<span>Слот: {{ item.shipping_order.slot_date|date:"d.m.Y" }}{% if item.shipping_order.slot_time %} · {{ item.shipping_order.slot_time|time:"H:i" }}{% endif %}</span>{% endif %}
+              {% if item.current_assignee_label %}<span>Водитель: {{ item.current_assignee_label }}{% if item.current_step_label %} · {{ item.current_step_label }}{% endif %}</span>{% endif %}
+              {% if item.comment %}<div class="request-comment">{{ item.comment }}</div>{% endif %}
+            </a>
+          {% endfor %}
+      {% else %}
+        <div class="empty">Нет активных заявок ОТГ.</div>
+      {% endif %}

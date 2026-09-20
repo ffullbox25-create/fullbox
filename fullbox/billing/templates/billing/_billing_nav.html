@@ -1,0 +1,80 @@
+{# Основные действия биллинга + технические реестры. URL не меняем. #}
+<style>
+  .billing-tab-nav {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .billing-tab-more {
+    position: relative;
+    display: inline-flex;
+  }
+  .billing-tab-more > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  .billing-tab-more > summary::-webkit-details-marker { display: none; }
+  .billing-tab-more-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 40;
+    min-width: 220px;
+    padding: 8px;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: #fff;
+    box-shadow: var(--shadow);
+    display: grid;
+    gap: 2px;
+  }
+  .billing-tab-more-menu a {
+    display: block;
+    padding: 10px 12px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .billing-tab-more-menu a:hover { background: var(--surface-2); }
+  .billing-tab-more-menu a.active {
+    background: linear-gradient(120deg, #f2b747, #ffd88a);
+    color: #2a2110;
+  }
+</style>
+{% with sec=billing_section %}
+<div class="tab-nav billing-tab-nav">
+  <a class="tab-btn {% if sec == 'executed-services' %}active{% endif %}" href="/team-manager/billing/services/">Услуги и деньги</a>
+  <a class="tab-btn {% if sec == 'clients' or sec == 'tariffs' %}active{% endif %}" href="/team-manager/billing/clients/">Клиенты</a>
+  <a class="tab-btn {% if sec == 'storage' %}active{% endif %}" href="/team-manager/billing/storage/">Хранение</a>
+  <a class="tab-btn {% if sec == 'acts' or sec == 'upd' or sec == 'invoices' %}active{% endif %}" href="/team-manager/billing/acts/">Документы</a>
+  <details class="billing-tab-more">
+    <summary class="tab-btn {% if sec == 'overview' or sec == 'requests' or sec == 'fbs' or sec == 'charges' or sec == 'receiving-report' or sec == 'processing-report' or sec == 'shipping-pick-report' or sec == 'extra-services' or sec == 'document-drafts' or sec == 'audit' or sec == 'applications' or sec == 'payments' or sec == 'debts' or sec == 'promises' or sec == 'reconciliation' or sec == 'disputes' or sec == 'reports' or sec == 'notifications' %}active{% endif %}">Ещё ▾</summary>
+    <div class="billing-tab-more-menu">
+      <a class="{% if sec == 'overview' %}active{% endif %}" href="/team-manager/billing/">Биллинг и счета</a>
+      <a class="{% if sec == 'applications' %}active{% endif %}" href="/team-manager/billing/applications/">Заявки биллинга</a>
+      <a class="{% if sec == 'requests' %}active{% endif %}" href="/team-manager/billing/requests/">Очередь документов</a>
+      <a class="{% if sec == 'charges' %}active{% endif %}" href="/team-manager/billing/charges/">Реестр начислений</a>
+      <a class="{% if sec == 'invoices' %}active{% endif %}" href="/team-manager/billing/invoices/">Счета</a>
+      <a class="{% if sec == 'receiving-report' %}active{% endif %}" href="/team-manager/billing/receiving-report/">Приёмка</a>
+      <a class="{% if sec == 'processing-report' %}active{% endif %}" href="/team-manager/billing/processing-report/">Обработка</a>
+      <a class="{% if sec == 'shipping-pick-report' %}active{% endif %}" href="/team-manager/billing/shipping-pick-report/">Подбор отгрузок</a>
+      <a class="{% if sec == 'fbs' %}active{% endif %}" href="/team-manager/billing/fbs/">FBS</a>
+      <a class="{% if sec == 'extra-services' %}active{% endif %}" href="/team-manager/billing/extra-services/">Доп. услуги</a>
+      <a class="{% if sec == 'document-drafts' %}active{% endif %}" href="/team-manager/billing/document-drafts/">Черновики документов</a>
+      <a class="{% if sec == 'audit' %}active{% endif %}" href="/team-manager/billing/audit/">История</a>
+      <a class="{% if sec == 'payments' %}active{% endif %}" href="/team-manager/billing/payments/">Оплаты</a>
+      <a class="{% if sec == 'debts' %}active{% endif %}" href="/team-manager/billing/debts/">Задолженность</a>
+      <a class="{% if sec == 'promises' %}active{% endif %}" href="/team-manager/billing/promises/">Обещания</a>
+      <a class="{% if sec == 'reconciliation' %}active{% endif %}" href="/team-manager/billing/reconciliation/">Сверка</a>
+      <a class="{% if sec == 'disputes' %}active{% endif %}" href="/team-manager/billing/disputes/">Расхождения</a>
+      <a class="{% if sec == 'reports' %}active{% endif %}" href="/team-manager/billing/reports/">Отчёты</a>
+      <a class="{% if sec == 'tariffs' %}active{% endif %}" href="/team-manager/billing/tariffs/">Справочник тарифов</a>
+      <a class="{% if sec == 'notifications' %}active{% endif %}" href="/team-manager/billing/notifications/">Уведомления{% if billing_badges.notifications %} ({{ billing_badges.notifications }}){% endif %}</a>
+    </div>
+  </details>
+</div>
+{% endwith %}

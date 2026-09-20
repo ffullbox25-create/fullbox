@@ -1,0 +1,183 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Потребность FBS{% endblock %}
+
+{% block workspace_body %}
+  <section class="demand-totals" aria-label="Итоги потребности">
+    <div><span>Заказы</span><strong>{{ analysis.order_count }}</strong></div>
+    <div><span>Потребность</span><strong>{{ analysis.ordered_qty }} шт.</strong></div>
+    <div><span>К плану</span><strong>{{ analysis.proposed_qty }} шт.</strong></div>
+    <div><span>Блокировки</span><strong>{{ analysis.blocked_qty }} шт.</strong></div>
+  </section>
+
+  <section class="section-band">
+    <div class="section-heading">
+      <div><span class="section-kicker">Подготовка волны</span><h2>Пополнение первого яруса</h2></div>
+      <span class="count">{{ floor_analysis.suggestions|length }}</span>
+    </div>
+    <div class="notice notice-warn">
+      Сборщик получает товар только с первого яруса. Кладовщик подтверждает заявку,
+      водитель сканирует исходный адрес, короб и адрес первого яруса.
+    </div>
+    <section class="demand-totals" aria-label="Итоги пополнения первого яруса">
+      <div><span>Потребность</span><strong>{{ floor_analysis.demanded_qty }} шт.</strong></div>
+      <div><span>Не хватает внизу</span><strong>{{ floor_analysis.first_floor_shortage_qty }} шт.</strong></div>
+      <div><span>Уже в заявках</span><strong>{{ floor_analysis.pending_move_qty }} шт.</strong></div>
+      <div><span>Новых перемещений</span><strong>{{ floor_analysis.suggestions|length }}</strong></div>
+    </section>
+    <div class="demand-list">
+      {% for row in floor_analysis.suggestions %}
+        <article class="demand-card">
+          <header>
+            <div><strong>{{ row.sku_code }}</strong><span>{{ row.sku_name }} · ШК {{ row.barcode }}</span></div>
+            <span>{{ row.agency_name }}</span>
+          </header>
+          <dl>
+            <div><dt>Заказы</dt><dd>{{ row.order_count }}</dd></div>
+            <div><dt>Потребность</dt><dd>{{ row.demand_qty }} шт.</dd></div>
+            <div><dt>На первом ярусе</dt><dd>{{ row.first_floor_available_qty }} шт.</dd></div>
+            <div><dt>Осталось подать</dt><dd>{{ row.needed_qty }} шт.</dd></div>
+            <div><dt>В коробе</dt><dd>{{ row.covered_qty }} шт.</dd></div>
+            <div class="demand-accent"><dt>Маршрут</dt><dd>{{ row.source_location }} → {{ row.target_location }}</dd></div>
+          </dl>
+          <footer>
+            <span>Короб {{ row.source_box_code }} · паллета {{ row.source_pallet_code }} · ярус {{ row.source_tier }}</span>
+            <strong>На паллету {{ row.target_pallet_code }}</strong>
+          </footer>
+          <form method="post" action="{% url 'fbs:tsd_create_floor_movement' %}" data-confirm-submit="Передать эту заявку водителю ричтрака?">
+            {% csrf_token %}
+            <input type="hidden" name="source_box_id" value="{{ row.source_box_id }}">
+            <input type="hidden" name="target_pallet_id" value="{{ row.target_pallet_id }}">
+            <input type="hidden" name="barcode" value="{{ row.barcode }}">
+            <input type="hidden" name="needed_qty" value="{{ row.needed_qty }}">
+            <label><span>Инструкция водителю</span><textarea name="comment" rows="2">Забрать короб {{ row.source_box_code }} с {{ row.source_location }} и переместить на {{ row.target_location }} (паллета {{ row.target_pallet_code }}).</textarea></label>
+            <button class="button button-primary" type="submit">Передать водителю</button>
+          </form>
+        </article>
+      {% empty %}
+        <div class="empty-state">{% if floor_analysis.first_floor_shortage_qty %}Не хватает {{ floor_analysis.first_floor_shortage_qty }} шт. Новые перемещения не подобраны — проверьте причины по товарам ниже.{% else %}Пополнение первого яруса сейчас не требуется.{% endif %}</div>
+      {% endfor %}
+    </div>
+    {% if floor_analysis.blockers %}
+      <div class="replenishment-list">
+        {% for blocker in floor_analysis.blockers %}
+          <div class="notice notice-error">
+            <strong>{{ blocker.agency_name }} · {{ blocker.sku_code }} · ШК {{ blocker.barcode }}</strong><br>
+            Не закрыто {{ blocker.needed_qty }} шт. — {{ blocker.reason }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+
+  {% if mapping_summary.total_lines %}
+    <div class="notice notice-error" role="alert">
+      Ошибки сопоставления: {{ mapping_summary.total_lines }} поз., {{ mapping_summary.total_qty }} шт.
+      Эти строки не попадают в планы подсорта. <a href="?state=mapping">Показать</a>
+    </div>
+  {% endif %}
+
+  <form class="operator-filters" method="get">
+    <label class="filter-search"><span>Артикул, ШК, заказ или клиент</span><input type="search" name="q" value="{{ demand_filters.q }}" autocomplete="off"></label>
+    <label><span>Клиент</span><select name="agency"><option value="">Все клиенты</option>{% for agency in demand_agencies %}<option value="{{ agency.id }}"{% if agency.id|stringformat:"s" == demand_filters.agency %} selected{% endif %}>{{ agency }}</option>{% endfor %}</select></label>
+    <label><span>Состояние</span><select name="state"><option value="">Все</option>{% for value, label in demand_state_choices %}<option value="{{ value }}"{% if value == demand_filters.state %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label><span>Срок заказов</span><select name="deadline"><option value="">Любой</option><option value="overdue"{% if demand_filters.deadline == 'overdue' %} selected{% endif %}>Просрочен</option><option value="urgent"{% if demand_filters.deadline == 'urgent' %} selected{% endif %}>До 2 часов</option><option value="today"{% if demand_filters.deadline == 'today' %} selected{% endif %}>Сегодня</option><option value="none"{% if demand_filters.deadline == 'none' %} selected{% endif %}>Без срока</option></select></label>
+    <div class="filter-actions"><button class="button button-primary" type="submit">Показать</button><a class="button button-secondary" href="{% url 'fbs:tsd_demand' %}">Сбросить</a></div>
+  </form>
+
+  <section class="demand-totals" aria-label="Итоги диспетчерской очереди">
+    <div><span>Строк по фильтру</span><strong>{{ dispatch_summary.rows }}</strong></div>
+    <div><span>Затронуто заказов</span><strong>{{ dispatch_summary.orders }}</strong></div>
+    <div><span>Просрочено</span><strong>{{ dispatch_summary.overdue }}</strong></div>
+    <div><span>До 2 часов</span><strong>{{ dispatch_summary.urgent }}</strong></div>
+  </section>
+
+  {% if mapping_rows %}
+    <section class="operator-table-band">
+      <div class="operator-table-heading">
+        <div><span class="section-kicker">Не попадают в подсорт</span><h2>Ошибки сопоставления заказов</h2></div>
+        <strong>{{ mapping_summary.filtered_lines }}</strong>
+      </div>
+      <div class="operator-table-scroll">
+        <table class="operator-table">
+          <thead><tr><th>Заказ</th><th>Клиент</th><th>Товар</th><th>ШК</th><th>Количество</th><th>Причина</th><th>Срок</th><th></th></tr></thead>
+          <tbody>
+            {% for row in mapping_rows %}
+              <tr class="{% if row.is_overdue %}row-overdue{% elif row.is_urgent %}row-urgent{% endif %}">
+                <td><a class="table-main-link" href="{% url 'fbs:operator_order_detail' order_id=row.order_id %}">{{ row.external_order_id }}</a><small>{{ row.marketplace }}</small></td>
+                <td>{{ row.agency_name }}</td>
+                <td><strong>{{ row.external_sku }}</strong><small>{{ row.product_name }}</small></td>
+                <td><code>{{ row.display_barcode }}</code></td>
+                <td><strong>{{ row.quantity }} шт.</strong></td>
+                <td><span class="text-error">{{ row.reason }}</span></td>
+                <td>{% if row.cutoff_at %}{{ row.cutoff_at|date:"d.m.Y H:i" }}{% else %}<span class="text-muted">Без срока</span>{% endif %}</td>
+                <td class="row-action"><a class="button button-secondary button-compact" href="{% url 'fbs:operator_order_detail' order_id=row.order_id %}">Открыть</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if mapping_summary.hidden_lines %}<div class="notice notice-warn">Еще {{ mapping_summary.hidden_lines }} строк. Уточните клиента, срок или заказ в фильтрах.</div>{% endif %}
+    </section>
+  {% endif %}
+
+  <section class="section-band">
+    <div class="section-heading">
+      <h2>Расчет по артикулам</h2>
+      <span class="count">{{ dispatch_summary.rows }}</span>
+    </div>
+    <div class="demand-list">
+      {% for row in demand_rows %}
+        <article class="demand-card">
+          <header>
+            <div>
+              <strong>{{ row.sku_code }}</strong>
+              <span>{{ row.sku_name }} · ШК {{ row.barcode_label }}</span>
+            </div>
+            <span>{{ row.agency_name }}<br><span class="status status-{{ row.state_css }}">{{ row.state_label }}</span></span>
+          </header>
+          <dl>
+            <div><dt>Потребность, шт.</dt><dd>{{ row.ordered_qty }}</dd></div>
+            <div><dt>В FBS</dt><dd>{{ row.fbs_qty }}</dd></div>
+            <div><dt>В планах</dt><dd>{{ row.open_plan_qty }}</dd></div>
+            <div><dt>Не хватает</dt><dd>{{ row.uncovered_qty }}</dd></div>
+            <div><dt>Для подсорта</dt><dd>{{ row.general_available_qty }}</dd></div>
+            <div class="demand-accent"><dt>К плану</dt><dd>{{ row.proposed_qty }}</dd></div>
+          </dl>
+          <footer>
+            <span>Заказы: {{ row.order_count }}{% if row.nearest_cutoff %} · ближайший срок {{ row.nearest_cutoff|date:"d.m.Y H:i" }}{% else %} · без срока{% endif %}</span>
+            <a href="{{ row.orders_url }}">Открыть все</a>
+          </footer>
+          {% if row.orders %}
+            <div class="replenishment-list">
+              {% for order in row.orders %}
+                <a href="{% url 'fbs:operator_order_detail' order_id=order.id %}">
+                  <span><strong>{{ order.external_order_id }}</strong><small>{{ order.marketplace }} · {{ order.quantity }} шт.{% if order.cutoff_at %} · {{ order.cutoff_at|date:"d.m H:i" }}{% else %} · без срока{% endif %}</small></span>
+                  <em>{% if order.is_overdue %}<span class="text-error">Просрочен</span>{% elif order.is_urgent %}<span class="text-warning">До 2 ч.</span>{% else %}Открыть{% endif %}</em>
+                </a>
+              {% endfor %}
+              {% if row.hidden_order_count %}<a href="{{ row.orders_url }}"><span><strong>Еще {{ row.hidden_order_count }} заказов</strong><small>Открыть полный список по этому ШК</small></span><em>Все</em></a>{% endif %}
+            </div>
+          {% endif %}
+          {% if row.target_box_code %}
+            <footer><span>Короб</span><strong>{{ row.target_box_code }}</strong></footer>
+          {% elif row.destination_blocked_qty %}
+            <footer class="demand-blocked"><span>Блокировка</span><strong>Нет FBS-короба</strong></footer>
+          {% endif %}
+          {% if row.general_shortage_qty %}
+            <footer class="demand-blocked"><span>Нет на общем складе</span><strong>{{ row.general_shortage_qty }} шт.</strong></footer>
+          {% endif %}
+        </article>
+      {% empty %}
+        <div class="empty-state">Открытая потребность отсутствует</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if analysis.proposed_qty %}
+    <form method="post" action="{% url 'fbs:tsd_generate_plans' %}" data-confirm-submit="Создать все предложенные планы подсорта независимо от фильтра экрана?">
+      {% csrf_token %}
+      <button class="button button-primary" type="submit">Создать все предложенные планы</button>
+    </form>
+  {% endif %}
+{% endblock %}

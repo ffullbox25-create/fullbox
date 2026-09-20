@@ -1,0 +1,342 @@
+<section class="page fbs-lk" data-page="/fbs" data-client-id="{{ selected_client.id|default:'' }}">
+  <header class="page-head fbs-head">
+    <div>
+      <p>Маркетплейсы</p>
+      <h1>FBS</h1>
+      <span id="fbs-head-status">Загрузка данных...</span>
+    </div>
+    <div class="page-head-actions">
+      <button type="button" class="ghost" id="fbs-refresh">Обновить</button>
+      <a class="ghost" href="#/fbs?tab=outbound-new">Заявка на вывоз</a>
+      <a class="primary" href="#/fbs?tab=movement-new">Заявка на перемещение</a>
+    </div>
+  </header>
+
+  <nav class="fbs-tabs" aria-label="Разделы FBS">
+    <a href="#/fbs?tab=overview" data-fbs-tab="overview">Обзор</a>
+    <a href="#/fbs?tab=orders" data-fbs-tab="orders">Заказы</a>
+    <a href="#/fbs?tab=stock" data-fbs-tab="stock">Остатки</a>
+    <a href="#/fbs?tab=reports" data-fbs-tab="reports">Отчеты</a>
+    <a href="#/fbs?tab=movements" data-fbs-tab="movements">Перемещения</a>
+    <a href="#/fbs?tab=outbound" data-fbs-tab="outbound">Вывоз из FBS</a>
+  </nav>
+
+  <div class="fbs-alert" id="fbs-alert" hidden></div>
+
+  <section class="fbs-panel" data-fbs-panel="overview">
+    <div class="fbs-kpis" id="fbs-overview-kpis"></div>
+    <div class="fbs-overview-grid">
+      <section class="fbs-surface">
+        <header>
+          <h2>Подключения</h2>
+          <div class="fbs-surface-actions">
+            <span id="fbs-profile-count"></span>
+            <button type="button" class="ghost" id="fbs-ozon-warehouses-open">Склады Ozon</button>
+          </div>
+        </header>
+        <div id="fbs-profiles"></div>
+        <section class="fbs-warehouse-settings" id="fbs-ozon-warehouses-settings" hidden aria-live="polite">
+          <header>
+            <div>
+              <h3>Склады Ozon</h3>
+              <span>Получение заказов</span>
+            </div>
+            <button type="button" class="ghost" id="fbs-ozon-warehouses-close">Закрыть</button>
+          </header>
+          <div class="fbs-warehouse-status" id="fbs-ozon-warehouses-status">Загрузка складов...</div>
+          <div class="fbs-warehouse-list" id="fbs-ozon-warehouses-list"></div>
+          <footer>
+            <span>Выгрузка остатков: без изменений</span>
+            <button type="button" class="primary" id="fbs-ozon-warehouses-save">Сохранить</button>
+          </footer>
+        </section>
+      </section>
+      <section class="fbs-surface">
+        <header><h2>Требует внимания</h2></header>
+        <div id="fbs-attention"></div>
+      </section>
+    </div>
+  </section>
+
+  <section class="fbs-panel" data-fbs-panel="orders" hidden>
+    <div class="fbs-toolbar">
+      <input type="search" id="fbs-order-search" placeholder="Номер заказа, ШК или артикул">
+      <select id="fbs-order-group">
+        <option value="all">Все заказы</option>
+      </select>
+      <select id="fbs-order-marketplace">
+        <option value="">Все маркетплейсы</option>
+        <option value="wb">Wildberries</option>
+        <option value="ozon">Ozon</option>
+      </select>
+      <button type="button" class="primary" id="fbs-order-apply">Показать</button>
+    </div>
+    <div class="fbs-table-wrap">
+      <table class="fbs-table">
+        <thead><tr><th>Заказ</th><th>Маркетплейс</th><th>Статус</th><th>Позиций</th><th>Единиц</th><th>Срок</th><th>Обновлен</th><th></th></tr></thead>
+        <tbody id="fbs-orders-body"><tr><td colspan="8" class="fbs-empty">Загрузка...</td></tr></tbody>
+      </table>
+    </div>
+    <footer class="fbs-table-footer"><span id="fbs-orders-count"></span><div><button type="button" class="ghost" id="fbs-orders-prev">Назад</button><button type="button" class="ghost" id="fbs-orders-next">Вперед</button></div></footer>
+  </section>
+
+  <section class="fbs-panel" data-fbs-panel="order-detail" hidden>
+    <a class="fbs-back" href="#/fbs?tab=orders">Назад к заказам</a>
+    <div id="fbs-order-detail"></div>
+  </section>
+
+  <section class="fbs-panel" data-fbs-panel="stock" hidden>
+    <div class="fbs-toolbar fbs-toolbar-stock">
+      <input type="search" id="fbs-stock-search" placeholder="Штрихкод, артикул или наименование">
+      <button type="button" class="primary" id="fbs-stock-apply">Найти</button>
+      <span id="fbs-stock-count"></span>
+    </div>
+    <div class="fbs-stock-kpis" id="fbs-stock-kpis"></div>
+    <div class="fbs-table-wrap">
+      <table class="fbs-table">
+        <thead><tr><th>Товар</th><th>Штрихкод</th><th>FBS всего</th><th>Доступно</th><th>Резерв по заказам</th><th>Коробов</th><th>Общий склад</th><th></th></tr></thead>
+        <tbody id="fbs-stock-body"><tr><td colspan="8" class="fbs-empty">Загрузка...</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="fbs-panel" data-fbs-panel="stock-detail" hidden>
+    <a class="fbs-back" href="#/fbs?tab=stock">Назад к остаткам</a>
+    <div id="fbs-stock-detail"></div>
+  </section>
+
+  <section class="fbs-panel" data-fbs-panel="reports" hidden>
+    <div class="fbs-kpis" id="fbs-report-kpis"></div>
+    <section class="fbs-surface fbs-trend-section">
+      <header><h2>Заказы за 7 дней</h2><span id="fbs-held-definition"></span></header>
+      <div class="fbs-trend" id="fbs-report-trend"></div>
+    </section>
+    <div class="fbs-report-grid">
+      <section class="fbs-surface"><header><h2>По маркетплейсам</h2></header><div id="fbs-report-marketplaces"></div></section>
+      <section class="fbs-surface"><header><h2>По статусам</h2></header><div id="fbs-report-statuses"></div></section>
+    </div>
+    <section class="fbs-surface">
+      <header>
+        <div>
+          <h2>Отгруженные коды Честного знака</h2>
+          <span>Одна строка Excel — один код из фактически переданного FBS-заказа.</span>
+        </div>
+      </header>
+      <form class="fbs-toolbar" action="/client/api/v1/fbs/reports/marking/export/" method="get">
+        {% if selected_client %}<input type="hidden" name="client" value="{{ selected_client.id }}">{% endif %}
+        <input type="date" name="date_from" value="{% now 'Y-m-d' %}" aria-label="Начало периода" title="Начало периода" required>
+        <input type="date" name="date_to" value="{% now 'Y-m-d' %}" aria-label="Окончание периода" title="Окончание периода" required>
+        <button type="submit" class="primary">Скачать Excel</button>
+      </form>
+    </section>
+  </section>
+
+  <section class="fbs-panel" data-fbs-panel="outbound" hidden>
+    <div class="fbs-section-title">
+      <div><h2>Заявки на вывоз из FBS</h2><span>Отгрузка свободного FBS-остатка на маркетплейс или самовывозом</span></div>
+      <a class="primary" href="#/fbs?tab=outbound-new">Создать заявку</a>
+    </div>
+    <div class="fbs-table-wrap">
+      <table class="fbs-table">
+        <thead><tr><th>Заявка</th><th>Тип</th><th>Маршрут</th><th>Статус</th><th>Запрошено</th><th>Отобрано</th><th>Выдано</th><th>Создана</th></tr></thead>
+        <tbody id="fbs-outbound-body"><tr><td colspan="8" class="fbs-empty">Загрузка...</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="fbs-panel" data-fbs-panel="outbound-new" hidden>
+    <a class="fbs-back" href="#/fbs?tab=outbound">Назад к заявкам</a>
+    <div class="fbs-form-head">
+      <div>
+        <h2>Новая заявка на вывоз из FBS</h2>
+        <span>После отправки выбранное количество резервируется для выдачи и исключается из свободного остатка маркетплейсов.</span>
+      </div>
+    </div>
+    <form id="fbs-outbound-form">
+      <div class="fbs-outbound-form-grid">
+        <label><span>Тип отгрузки</span><select id="fbs-outbound-delivery-type" required><option value="pickup">Самовывоз</option><option value="marketplace">Маркетплейс</option></select></label>
+        <label><span>Дата отгрузки</span><input type="date" id="fbs-outbound-eta-date" required></label>
+        <label><span>Транспорт</span><select id="fbs-outbound-vehicle-type" required><option value="">Выберите транспорт</option><option value="fulfillment">Транспорт ФуллБокс</option><option value="client">Транспорт клиента</option><option value="cdek">СДЭК</option><option value="yandex">Яндекс</option></select></label>
+      </div>
+      <div class="fbs-outbound-form-grid" id="fbs-outbound-marketplace-fields" style="display:none;">
+        <label><span>Маркетплейс</span><select id="fbs-outbound-marketplace"><option value="">Выберите маркетплейс</option></select></label>
+        <label><span>ШК поставки</span><input type="text" id="fbs-outbound-shipping-barcode" maxlength="128" autocomplete="off"></label>
+        <label><span>Номер поставки</span><input type="text" id="fbs-outbound-supply-number" maxlength="128" autocomplete="off"></label>
+        <label><span>Тип поставки</span><select id="fbs-outbound-supply-type"><option value="">Выберите тип</option><option value="box">Короб</option><option value="monopallet">Монопаллет</option><option value="supersafe">Супер сейф</option></select></label>
+        <label><span>Склад назначения</span><input type="text" id="fbs-outbound-destination-warehouse" maxlength="255"></label>
+        <label><span>Дата слота</span><input type="date" id="fbs-outbound-slot-date"></label>
+        <label><span>Время слота</span><input type="time" id="fbs-outbound-slot-time" step="300"></label>
+      </div>
+      <div class="fbs-outbound-form-grid">
+        <label><span>Номер автомобиля</span><input type="text" id="fbs-outbound-vehicle-number" maxlength="32" placeholder="A123BC77"></label>
+        <label><span>Телефон водителя</span><input type="tel" id="fbs-outbound-driver-phone" maxlength="32" placeholder="+7 900 000-00-00"></label>
+      </div>
+      <label class="fbs-comment"><span>Комментарий</span><textarea id="fbs-outbound-basis" rows="3" maxlength="4000" placeholder="Укажите важные детали отгрузки" required></textarea></label>
+      <div class="fbs-import-row">
+        <input type="file" id="fbs-outbound-file" accept=".xlsx" hidden>
+        <button type="button" class="ghost" id="fbs-outbound-file-button">Загрузить Excel</button>
+        <a class="ghost" href="/client/fbs/outbound-template.xlsx{% if selected_client %}?client={{ selected_client.id }}{% endif %}" download>Скачать шаблон</a>
+        <span id="fbs-outbound-file-name">Файл не выбран</span>
+      </div>
+      <section class="fbs-movement-stock">
+        <div class="fbs-section-title">
+          <div><h2>Свободный FBS-остаток</h2><span>Резервы действующих заказов WB/Ozon недоступны и не будут затронуты.</span></div>
+          <span id="fbs-outbound-stock-count"></span>
+        </div>
+        <div class="fbs-toolbar fbs-toolbar-stock">
+          <input type="search" id="fbs-outbound-search" placeholder="Товар, артикул, ШК, Честный знак или короб">
+          <button type="button" class="primary" id="fbs-outbound-search-button">Найти</button>
+          <button type="button" class="ghost" id="fbs-outbound-search-clear">Сбросить</button>
+        </div>
+        <div class="fbs-table-wrap">
+          <table class="fbs-table fbs-outbound-stock-table">
+            <thead><tr><th>Товар</th><th>Штрихкод / ЧЗ</th><th>Место / короб</th><th>Партия / срок</th><th>Свободно</th><th>К вывозу</th></tr></thead>
+            <tbody id="fbs-outbound-stock-body"><tr><td colspan="6" class="fbs-empty">Загрузка...</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+      <div class="fbs-form-errors" id="fbs-outbound-errors" hidden></div>
+      <div class="fbs-form-footer">
+        <span id="fbs-outbound-selection">Выбрано: 0 шт.</span>
+        <button type="submit" class="primary" id="fbs-outbound-submit">Отправить заявку</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="fbs-panel" data-fbs-panel="movements" hidden>
+    <div class="fbs-section-title">
+      <div><h2>Заявки на перемещение</h2><span>Из общего остатка в FBS</span></div>
+      <a class="primary" href="#/fbs?tab=movement-new">Создать заявку</a>
+    </div>
+    <div class="fbs-table-wrap">
+      <table class="fbs-table">
+        <thead><tr><th>Заявка</th><th>Режим</th><th>Статус</th><th>Позиций</th><th>Единиц</th><th>Коробов</th><th>Создана</th><th></th></tr></thead>
+        <tbody id="fbs-movements-body"><tr><td colspan="8" class="fbs-empty">Загрузка...</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="fbs-panel" data-fbs-panel="movement-detail" hidden>
+    <a class="fbs-back" href="#/fbs?tab=movements">Назад к заявкам</a>
+    <div id="fbs-movement-detail"></div>
+  </section>
+
+  <section class="fbs-panel" data-fbs-panel="movement-new" hidden>
+    <a class="fbs-back" href="#/fbs?tab=movements">Назад к заявкам</a>
+    <div class="fbs-form-head"><div><h2>Новая заявка на перемещение</h2><span>Укажите общее количество в штуках — для режима «Коробами» система сама подберёт доступные физические короба разных размеров</span></div></div>
+    <form id="fbs-movement-form">
+      <fieldset class="fbs-mode-control">
+        <legend>Режим</legend>
+        <label><input type="radio" name="fbs_mode" value="item" checked><span>Поштучно</span></label>
+        <label><input type="radio" name="fbs_mode" value="box"><span>Коробами</span></label>
+      </fieldset>
+      <div class="fbs-item-box-plan" id="fbs-item-box-plan">
+        <label>
+          <span>Физических коробов всего</span>
+          <input type="number" id="fbs-movement-request-box-count" min="1" max="50" step="1" value="1" inputmode="numeric" required>
+          <small>Столько QR-коробов подготовит склад для всей заявки.</small>
+        </label>
+        <label>
+          <span>Из них микс-коробов</span>
+          <input type="number" id="fbs-movement-mixed-box-count" min="0" max="50" step="1" value="0" inputmode="numeric" required>
+          <small>Микс-короб содержит товары с разными ШК.</small>
+        </label>
+      </div>
+      <div class="fbs-import-row">
+        <input type="file" id="fbs-movement-file" accept=".xlsx" hidden>
+        <button type="button" class="ghost" id="fbs-movement-file-button">Загрузить Excel</button>
+        <a class="ghost" href="/client/fbs/movement-template.xlsx" download>Скачать шаблон</a>
+        <span id="fbs-movement-file-name">Файл не выбран</span>
+      </div>
+      <div class="fbs-movement-selection" aria-live="polite">
+        <div>
+          <span>Выбрано к перемещению</span>
+          <strong id="fbs-movement-total">К перемещению: 0 шт. · позиций: 0 · физических коробов: 1 · микс: 0</strong>
+        </div>
+        <small id="fbs-movement-draft-status">Товары и короба сохраняются автоматически до отправки заявки.</small>
+      </div>
+      <section class="fbs-mixed-selection" id="fbs-movement-mixed-selection" hidden aria-live="polite">
+        <div class="fbs-mixed-selection-head">
+          <div>
+            <strong>Состав выбранных микс-коробов</strong>
+            <span id="fbs-movement-mixed-selection-count">Микс-короба пока не выбраны.</span>
+          </div>
+          <small>Как в заявке на отгрузку: выбор одной позиции включает весь физический короб.</small>
+        </div>
+        <div class="fbs-mixed-selection-cards" id="fbs-movement-mixed-selection-cards"></div>
+      </section>
+      <div class="fbs-table-wrap fbs-edit-table-wrap">
+        <table class="fbs-table fbs-edit-table">
+          <thead><tr><th>Товар</th><th>Штрихкод</th><th>Тип товара</th><th>Запрошено, шт.</th><th data-box-line-column>План целых коробов</th><th data-box-line-column>Коробов</th><th>Свободно для заявки</th><th></th></tr></thead>
+          <tbody id="fbs-movement-lines"></tbody>
+        </table>
+      </div>
+      <button type="button" class="ghost fbs-add-line" id="fbs-add-movement-line">Добавить строку</button>
+      <label class="fbs-comment"><span>Комментарий</span><textarea id="fbs-movement-comment" rows="3" maxlength="1000"></textarea></label>
+      <section class="fbs-movement-stock">
+        <div class="fbs-section-title">
+          <div>
+            <h2>Свободный остаток для перемещения</h2>
+            <span>Товары, которые можно отправить на FBS прямо сейчас. Справа видно, сколько этого товара уже лежит на FBS.</span>
+          </div>
+          <span id="fbs-movement-stock-count"></span>
+        </div>
+        <div class="fbs-toolbar fbs-toolbar-stock">
+          <label class="fbs-filter-field">
+            <span>Артикул</span>
+            <input type="search" id="fbs-movement-stock-article" placeholder="Например, SKU-1024" autocomplete="off">
+          </label>
+          <label class="fbs-filter-field">
+            <span>Бренд</span>
+            <input type="search" id="fbs-movement-stock-brand" placeholder="Название бренда" autocomplete="off">
+          </label>
+          <label class="fbs-filter-field">
+            <span>Штрихкод</span>
+            <input type="search" id="fbs-movement-stock-barcode" data-scan-input placeholder="Сканируйте или введите ШК" autocomplete="off" inputmode="numeric">
+          </label>
+          <div class="fbs-toolbar-actions">
+            <button type="button" class="primary" id="fbs-movement-stock-apply">Найти</button>
+            <button type="button" class="ghost" id="fbs-movement-stock-clear">Сбросить</button>
+            <button type="button" class="ghost" id="fbs-movement-stock-refresh">Обновить</button>
+            <button type="button" class="ghost" id="fbs-movement-select-all-boxes" hidden>Переместить весь доступный остаток</button>
+          </div>
+        </div>
+        <div class="fbs-stock-kpis" id="fbs-movement-stock-kpis"></div>
+        <section class="fbs-mixed-box-picker" id="fbs-movement-mixed-box-picker" hidden>
+          <div class="fbs-mixed-box-head">
+            <div>
+              <strong>Физические микс-короба</strong>
+              <span>Выберите любую позицию внутри короба — остальные позиции и количества подтянутся автоматически. Короб перемещается целиком с тем же ШК.</span>
+            </div>
+            <span id="fbs-movement-existing-mixed-box-count"></span>
+          </div>
+          <div class="fbs-mixed-box-grid" id="fbs-movement-mixed-box-grid"></div>
+        </section>
+        <div class="fbs-table-wrap">
+          <table class="fbs-table fbs-movement-stock-table">
+            <thead>
+              <tr>
+                <th class="fbs-stock-head">
+                  <button type="button" class="fbs-stock-sort" data-sort-key="sku_code" data-sort-type="text">Товар <span>⇅</span></button>
+                </th>
+                <th class="fbs-stock-head">
+                  <button type="button" class="fbs-stock-sort" data-sort-key="barcode" data-sort-type="text">Штрихкод <span>⇅</span></button>
+                </th>
+                <th>Тип товара</th>
+                <th><button type="button" class="fbs-stock-sort" data-sort-key="client_available_qty" data-sort-type="number">Свободно для заявки <span>⇅</span></button></th>
+                <th><button type="button" class="fbs-stock-sort" data-sort-key="fbs_available_qty" data-sort-type="number">Уже на FBS, шт. <span>⇅</span></button></th>
+                <th><button type="button" class="fbs-stock-sort" data-sort-key="move_qty" data-sort-type="number">К перемещению, шт. <span>⇅</span></button></th>
+                <th data-box-line-column>Доступные целые короба</th>
+                <th data-box-line-column>План / коробов</th>
+                <th><span class="sr-only">Действия</span></th>
+              </tr>
+            </thead>
+            <tbody id="fbs-movement-stock-body"><tr><td colspan="9" class="fbs-empty">Загрузка...</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+      <div class="fbs-form-errors" id="fbs-movement-errors" hidden></div>
+      <div class="fbs-form-footer fbs-form-footer-actions"><button type="submit" class="primary" id="fbs-movement-submit">Отправить заявку</button></div>
+    </form>
+  </section>
+</section>

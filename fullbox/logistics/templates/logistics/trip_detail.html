@@ -1,0 +1,1549 @@
+{% extends use_cabinet_shell|yesno:"teammanager/_base.html,logistics/_standalone_base.html" %}
+{% block title %}{{ trip_display_number }} · рейс{% endblock %}
+{% block extra_css %}
+:root {
+      --bg: #f3efe5;
+      --surface: #fffdf7;
+      --surface-2: #f7f1e7;
+      --ink: #23211d;
+      --muted: #756f65;
+      --stroke: rgba(35, 33, 29, 0.11);
+      --stroke-strong: rgba(35, 33, 29, 0.18);
+      --sun: #f1bf62;
+      --sun-2: #f6d695;
+      --shadow: 0 20px 55px rgba(15, 23, 42, 0.12);
+      --ok: #3b7a57;
+      --ok-bg: #dcefe1;
+      --warn: #9b7a2d;
+      --warn-bg: #f4e2b9;
+      --gray: #837a6d;
+      --gray-bg: #ece5d7;
+      --rose: #af6f73;
+      --rose-bg: #f3d6d7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 560px at -15% -20%, rgba(241, 191, 98, 0.18), transparent 60%),
+        radial-gradient(900px 540px at 115% 8%, rgba(14, 107, 91, 0.12), transparent 52%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    .wrap { padding: 24px; }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      min-height: calc(100vh - 48px);
+    }
+    .side,
+    .shell,
+    .table-shell {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+    .side {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+    .brand {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 24px;
+    }
+    .profile,
+    .nav-link,
+    .info-board {
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      background: var(--surface-2);
+      padding: 12px;
+    }
+    .nav {
+      display: grid;
+      gap: 10px;
+    }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .nav-link.primary {
+      background: linear-gradient(135deg, rgba(241, 191, 98, 0.38), rgba(14, 107, 91, 0.12));
+      border-color: transparent;
+    }
+    .info-board {
+      display: grid;
+      gap: 10px;
+      margin-top: 6px;
+    }
+    .loading-form {
+      display: grid;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .field-stack {
+      display: grid;
+      gap: 6px;
+    }
+    .field-stack label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .field-stack.field-has-error label {
+      color: #a33d42;
+    }
+    .field-stack.field-has-error input,
+    .field-stack.field-has-error select,
+    .field-stack.field-has-error .plate-editor,
+    .field-stack.field-has-error .readonly-field {
+      border-color: #c25b61 !important;
+      background: #fff5f5;
+      box-shadow: 0 0 0 3px rgba(194, 91, 97, 0.18);
+    }
+    .field-stack.field-flash {
+      animation: field-error-flash 0.85s ease;
+    }
+    @keyframes field-error-flash {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-3px); }
+      40% { transform: translateX(3px); }
+      60% { transform: translateX(-2px); }
+      80% { transform: translateX(2px); }
+    }
+    .msg.err,
+    .msg.error {
+      border-color: rgba(175, 111, 115, 0.28);
+      background: rgba(243, 214, 215, 0.7);
+      color: #7e4347;
+    }
+    .msg.warn {
+      border-color: rgba(155, 122, 45, 0.28);
+      background: rgba(244, 226, 185, 0.75);
+      color: #7a5a1a;
+    }
+    .table-shell.field-has-error {
+      border-color: #c25b61;
+      box-shadow: 0 0 0 3px rgba(194, 91, 97, 0.14);
+    }
+    .info-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 15px;
+    }
+    .info-stats {
+      display: grid;
+      gap: 8px;
+    }
+    .info-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.65);
+      border: 1px solid rgba(35, 33, 29, 0.08);
+    }
+    .info-stat strong {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 24px;
+      line-height: 1;
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub,
+    .muted,
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .btn {
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: rgba(35, 33, 29, 0.04);
+      color: var(--ink);
+      padding: 10px 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn.full { width: 100%; }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), var(--sun-2));
+      border-color: transparent;
+      color: #2d2312;
+    }
+    .btn.danger {
+      color: #7e4347;
+      background: rgba(243, 214, 215, 0.65);
+      border-color: rgba(175, 111, 115, 0.28);
+    }
+    .icon-btn {
+      width: 40px;
+      min-width: 40px;
+      min-height: 40px;
+      padding: 0;
+    }
+    .icon-btn svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+    .shell {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 32px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .chip.ok {
+      background: var(--ok-bg);
+      color: var(--ok);
+      border-color: rgba(59, 122, 87, 0.15);
+    }
+    .delivery-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: stretch;
+      min-width: 0;
+      width: 100%;
+    }
+    .delivery-actions .btn {
+      font-size: 11px;
+      padding: 6px 8px;
+      white-space: normal;
+      line-height: 1.2;
+      width: 100%;
+    }
+    .chip.warn {
+      background: var(--warn-bg);
+      color: var(--warn);
+      border-color: rgba(155, 122, 45, 0.15);
+    }
+    .chip.default {
+      background: var(--gray-bg);
+      color: var(--gray);
+      border-color: rgba(131, 122, 109, 0.15);
+    }
+    .messages-strip {
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+    .msg {
+      border-radius: 14px;
+      padding: 11px 12px;
+      font-size: 13px;
+      line-height: 1.45;
+      border: 1px solid var(--stroke);
+      background: rgba(255, 255, 255, 0.75);
+      align-self: start;
+    }
+    .msg.success {
+      border-color: rgba(59, 122, 87, 0.22);
+      background: rgba(220, 239, 225, 0.75);
+      color: #2f6d4b;
+    }
+    input[type="number"],
+    input[type="text"],
+    input[type="date"],
+    select {
+      width: 100%;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 10px 12px;
+      font: inherit;
+    }
+    .readonly-field {
+      width: 100%;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: rgba(35, 33, 29, 0.035);
+      color: var(--ink);
+      line-height: 1.4;
+    }
+    .plate-input-hidden {
+      display: none;
+    }
+    .plate-editor {
+      width: 100%;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 6px 10px;
+      border-radius: 14px;
+      border: 2px solid #101010;
+      background: linear-gradient(180deg, #ffffff, #f7f7f7);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+      color: #111;
+      white-space: nowrap;
+      cursor: text;
+    }
+    .plate-editor:focus {
+      outline: none;
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.72),
+        0 0 0 3px rgba(241, 191, 98, 0.2);
+    }
+    .plate-editor.is-empty::before {
+      content: attr(data-placeholder);
+      color: rgba(17, 17, 17, 0.3);
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+    .plate-token {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 15px;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+    .plate-token.letter {
+      font-weight: 800;
+      letter-spacing: 0.05em;
+    }
+    .plate-token.digit {
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+    .plate-token.space {
+      width: 10px;
+      flex: 0 0 10px;
+    }
+    .phone-input {
+      font-variant-numeric: tabular-nums;
+    }
+    .table-shell {
+      padding: 0;
+      overflow: hidden;
+    }
+    .status-banner {
+      display: grid;
+      gap: 4px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(59, 122, 87, 0.22);
+      background: rgba(220, 239, 225, 0.78);
+      color: #2f6d4b;
+    }
+    .status-banner-title {
+      font-weight: 800;
+    }
+    .table-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(247, 241, 231, 0.9), rgba(255, 253, 247, 0.9));
+    }
+    .table-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 18px;
+    }
+    .table-wrap {
+      overflow-x: auto;
+      max-width: 100%;
+    }
+    .trip-table tbody tr.is-dragging {
+      opacity: 0.55;
+    }
+    .trip-table tbody tr.drag-target {
+      outline: 2px dashed rgba(241, 191, 98, 0.65);
+      outline-offset: -2px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    /* Влезает в среднее окно карточки рейса без обязательного гориз. скролла. */
+    table.trip-table {
+      min-width: 0;
+      table-layout: fixed;
+    }
+    th,
+    td {
+      padding: 8px 8px;
+      border-bottom: 1px solid rgba(35, 33, 29, 0.08);
+      text-align: left;
+      vertical-align: middle;
+      font-size: 13px;
+    }
+    th {
+      background: rgba(247, 241, 231, 0.85);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      white-space: normal;
+      line-height: 1.25;
+    }
+    .trip-table th:nth-child(1),
+    .trip-table td:nth-child(1) { width: 7%; }
+    .trip-table th:nth-child(2),
+    .trip-table td:nth-child(2) { width: 9%; }
+    .trip-table th:nth-child(3),
+    .trip-table td:nth-child(3) { width: 12%; }
+    .trip-table th:nth-child(4),
+    .trip-table td:nth-child(4) { width: 12%; }
+    .trip-table th:nth-child(5),
+    .trip-table td:nth-child(5) { width: 7%; }
+    .trip-table th:nth-child(6),
+    .trip-table td:nth-child(6),
+    .trip-table th:nth-child(7),
+    .trip-table td:nth-child(7) { width: 5%; text-align: center; }
+    .trip-table th:nth-child(8),
+    .trip-table td:nth-child(8) { width: 9%; }
+    .trip-table th:nth-child(9),
+    .trip-table td:nth-child(9) { width: 11%; }
+    .trip-table th:nth-child(10),
+    .trip-table td:nth-child(10) { width: 12%; }
+    .trip-table th:nth-child(11),
+    .trip-table td:nth-child(11),
+    .trip-table th:nth-child(12),
+    .trip-table td:nth-child(12) { width: 5.5%; }
+    .trip-table td {
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+    .trip-table td .chip {
+      white-space: normal;
+      max-width: 100%;
+      justify-content: center;
+      text-align: center;
+      line-height: 1.25;
+    }
+    .trip-table td input[type="text"] {
+      min-width: 0;
+      width: 100%;
+      padding: 7px 8px;
+      font-size: 12px;
+    }
+    tbody tr:hover {
+      background: rgba(247, 241, 231, 0.55);
+    }
+    .order-link {
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .route-cell {
+      min-width: 0;
+    }
+    .route-tools {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .route-pos {
+      min-width: 28px;
+      font-weight: 800;
+      color: var(--muted);
+      text-align: center;
+    }
+    .drag-handle {
+      width: 34px;
+      min-width: 34px;
+      min-height: 34px;
+      border-radius: 10px;
+      border: 1px dashed var(--stroke-strong);
+      background: var(--surface);
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+      font-size: 16px;
+      font-weight: 700;
+      user-select: none;
+    }
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+    .move-buttons {
+      display: grid;
+      gap: 4px;
+    }
+    .move-btn {
+      width: 28px;
+      min-width: 28px;
+      height: 18px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke);
+      background: rgba(35, 33, 29, 0.04);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 11px;
+      line-height: 1;
+      padding: 0;
+    }
+    .subtext {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .mini-input { max-width: 92px; }
+    .table-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px 18px;
+      border-top: 1px solid var(--stroke);
+      background: rgba(247, 241, 231, 0.6);
+    }
+    .empty-note {
+      border-radius: 14px;
+      padding: 12px;
+      background: var(--surface-2);
+      border: 1px dashed var(--stroke);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    @media (max-width: 1280px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 860px) {
+      .wrap { padding: 14px; }
+      .shell { padding: 14px; }
+      .table-head,
+      .table-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+
+/* Одна колонка на всю ширину: параметры сверху, заявки снизу — всё видно в одном окне. */
+.trip-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.trip-detail-layout > .info-board,
+.trip-detail-layout > .trip-detail-main,
+.trip-detail-layout > .shell,
+.trip-detail-layout > section {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+}
+.trip-detail-main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+.trip-detail-layout .info-board {
+  position: static;
+  display: grid;
+  gap: 12px;
+}
+.trip-detail-layout .info-board .loading-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px 14px;
+  align-items: start;
+}
+.trip-detail-layout .info-board .info-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.trip-detail-layout .info-board .field-stack {
+  margin: 0;
+}
+.trip-detail-layout .info-board .hint,
+.trip-detail-layout .info-board .msg,
+.trip-detail-layout .info-board .status-banner,
+.trip-detail-layout .info-board button.btn.full,
+.trip-detail-layout .info-board #trip-finalize-errors {
+  grid-column: 1 / -1;
+}
+.trip-detail-layout .table-shell {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+{% endblock %}
+{% block content %}
+{% if use_cabinet_shell %}{% include "logistics/_trips_subnav.html" with trips_heading_number=trip_display_number %}{% endif %}
+{% if role == "logistician" or role == "manager" or role == "head_manager" or role == "director" or role == "admin" or role == "developer" %}
+  <section class="status-banner" aria-label="Водитель рейса" style="margin-bottom:12px;">
+    <div>
+      <div class="status-banner-title">Водитель: {{ trip.assigned_driver.full_name|default:"не назначен" }}</div>
+      <div class="muted">{{ trip.get_driver_status_display }}{% if trip.driver_assigned_at %} · назначен {{ trip.driver_assigned_at|date:"d.m.Y H:i" }}{% endif %}</div>
+    </div>
+    <a class="btn primary" href="/logistics/trips/{{ trip.pk }}/driver-assignment/">Назначение и результат сдачи</a>
+  </section>
+{% endif %}
+<div class="trip-detail-layout">
+  <section class="info-board">
+          <h2 class="info-title">Параметры загрузки</h2>
+          <div class="info-stats">
+            <div class="info-stat">
+              <span class="muted">Количество паллет</span>
+              <strong>{{ trip_total_pallets }}</strong>
+            </div>
+            <div class="info-stat">
+              <span class="muted">Количество коробов</span>
+              <strong>{{ trip_total_boxes }}</strong>
+            </div>
+          </div>
+          <form method="post" class="loading-form" id="loading-params-form">
+            {% csrf_token %}
+            <input type="hidden" id="loading-form-action" name="action" value="update_loading_params">
+            <input type="hidden" class="trip-edit-version" name="edit_version" value="{{ trip_edit_version|default:trip.edit_version|default:1 }}">
+            <div class="field-stack" data-field="carrier_id">
+              <label for="carrier-id-input">Перевозчик</label>
+              {% if can_edit_trip %}
+                <select id="carrier-id-input" name="carrier_id">
+                  <option value="">Не выбран</option>
+                  {% for carrier in carrier_options %}
+                    <option
+                      value="{{ carrier.id }}"
+                      data-default-vehicle="{{ carrier.default_vehicle_number|default_if_none:'' }}"
+                      data-default-driver="{{ carrier.default_driver_name|default_if_none:'' }}"
+                      data-default-phone="{{ carrier.default_driver_phone|default_if_none:'' }}"
+                      data-default-weight="{{ carrier.default_max_weight_kg|default_if_none:'' }}"
+                      data-default-volume="{{ carrier.default_max_volume_m3|default_if_none:'' }}"
+                      data-default-pallets="{{ carrier.default_max_pallets|default_if_none:'' }}"
+                      {% if trip.carrier_id == carrier.id %}selected{% endif %}
+                    >{{ carrier.short_name|default:carrier.name }}</option>
+                  {% endfor %}
+                </select>
+                <div class="hint" id="carrier-selected-label">
+                  {% if trip.carrier %}{{ trip.carrier.short_name|default:trip.carrier.name }}{% else %}Не выбран{% endif %}
+                </div>
+              {% else %}
+                <div class="readonly-field">{% if trip.carrier %}{{ trip.carrier.short_name|default:trip.carrier.name }}{% else %}-{% endif %}</div>
+              {% endif %}
+            </div>
+            <div class="field-stack" data-field="trip_date">
+              <label for="trip-date-input">Дата рейса</label>
+              {% if can_edit_trip %}
+                <input
+                  id="trip-date-input"
+                  type="date"
+                  name="trip_date"
+                  value="{% if trip.trip_date %}{{ trip.trip_date|date:'Y-m-d' }}{% endif %}"
+                >
+              {% else %}
+                <div class="readonly-field">{% if trip.trip_date %}{{ trip.trip_date|date:"d.m.Y" }}{% else %}-{% endif %}</div>
+              {% endif %}
+            </div>
+            <div class="field-stack">
+              <label>Отправитель</label>
+              <div class="readonly-field">{{ shipper_name }}</div>
+            </div>
+            <div class="field-stack">
+              <label>Заказчик</label>
+              <div class="readonly-field">{{ customer_name }}</div>
+            </div>
+            <div class="field-stack">
+              <label>Получатель</label>
+              <div class="readonly-field">{{ consignee_name }}</div>
+            </div>
+            <div class="field-stack" data-field="vehicle_number">
+              <label for="vehicle-number-input">Номер машины</label>
+              <input
+                id="vehicle-number-input"
+                class="plate-input-hidden"
+                type="hidden"
+                name="vehicle_number"
+                value="{{ trip.vehicle_number }}"
+              >
+              <div
+                id="vehicle-number-editor"
+                class="plate-editor"
+                contenteditable="{% if can_edit_vehicle_number %}true{% else %}false{% endif %}"
+                spellcheck="false"
+                data-placeholder="А 123 АА 777"
+                aria-label="Номер машины"
+                role="textbox"
+              ></div>
+            </div>
+            <div class="field-stack" data-field="driver_name">
+              <label for="driver-name-input">ФИО водителя</label>
+              <input
+                id="driver-name-input"
+                type="text"
+                name="driver_name"
+                value="{{ trip.driver_name }}"
+                placeholder="Иванов Иван Иванович"
+                maxlength="255"
+                {% if not can_edit_driver_name %}readonly{% endif %}
+              >
+            </div>
+            <div class="field-stack">
+              <label for="driver-phone-input">Телефон водителя</label>
+              <input
+                id="driver-phone-input"
+                class="phone-input"
+                type="text"
+                name="driver_phone"
+                value="{{ trip.driver_phone }}"
+                placeholder="+7 900 000-00-00"
+                inputmode="tel"
+                maxlength="18"
+                {% if not can_edit_driver_phone %}readonly{% endif %}
+              >
+            </div>
+            <div class="field-stack" data-field="max_weight_kg">
+              <label for="max-weight-input">Грузоподъёмность, кг</label>
+              <input id="max-weight-input" type="text" name="max_weight_kg" value="{{ trip.max_weight_kg|default_if_none:'' }}" placeholder="например 1500" inputmode="decimal" {% if not can_edit_trip %}readonly{% endif %}>
+            </div>
+            <div class="field-stack" data-field="max_pallets">
+              <label for="max-pallets-input">Макс. паллет</label>
+              <input id="max-pallets-input" type="number" name="max_pallets" value="{{ trip.max_pallets|default_if_none:'' }}" min="0" step="1" {% if not can_edit_trip %}readonly{% endif %}>
+            </div>
+            <div class="field-stack">
+              <label for="max-volume-input">Вместимость, м³</label>
+              <input id="max-volume-input" type="text" name="max_volume_m3" value="{{ trip.max_volume_m3|default_if_none:'' }}" placeholder="необязательно" inputmode="decimal" {% if not can_edit_trip %}readonly{% endif %}>
+            </div>
+            {% if trip_cargo_totals %}
+              <div class="hint">В рейсе: {{ trip_cargo_totals.orders|default:0 }} заявок · {{ trip_cargo_totals.weight_kg|default:0 }} кг · {{ trip_cargo_totals.pallets|default:0 }} палл. · {{ trip_cargo_totals.boxes|default:0 }} кор.</div>
+            {% endif %}
+            <div
+              id="trip-finalize-errors"
+              class="msg error"
+              style="margin-top:8px;{% if not trip_validation_blocking %}display:none;{% endif %}"
+              data-server-blocking="{% if trip_validation_blocking %}1{% else %}0{% endif %}"
+            >
+              {% if trip_validation_blocking %}
+                {% for msg in trip_validation_blocking %}<div>{{ msg }}</div>{% endfor %}
+              {% endif %}
+            </div>
+            {% if trip_validation_warnings %}
+              <div class="msg warn" style="margin-top:8px;">{% for msg in trip_validation_warnings %}<div>{{ msg }}</div>{% endfor %}</div>
+            {% endif %}
+            {{ trip_validation_highlight_fields|json_script:"trip-validation-highlight" }}
+            {% if can_edit_trip %}
+              <div class="hint">
+                {% if can_finalize_trip %}
+                  Параметры сохраняются автоматически после выхода из блока.
+                {% else %}
+                  Рейс уже сформирован: параметры, маршрут и состав можно редактировать, пока машина не ушла.
+                {% endif %}
+              </div>
+              {% if can_finalize_trip %}
+                <button
+                  id="finalize-trip-btn"
+                  class="btn primary full"
+                  type="submit"
+                  data-finalize="1"
+                >Сформировать рейс</button>
+                <div class="hint">После формирования рейс перейдет к кладовщику. При ошибках незаполненные поля подсветятся красным.</div>
+              {% else %}
+                <div class="hint">Изменения сохраняются автоматически; повторно формировать рейс не нужно.</div>
+              {% endif %}
+            {% elif can_fill_missing_transport %}
+              <div class="hint">Можно заполнить только отсутствующие данные машины и водителя. Остальные параметры рейса остаются заблокированы.</div>
+            {% elif can_return_trip %}
+              <div class="hint">Рейс передан кладовщику и заблокирован от редактирования. Если в составе или маршруте нужны изменения, сначала верни его логисту на доработку.</div>
+              <button
+                class="btn full"
+                type="submit"
+                onclick="document.getElementById('loading-form-action').value='return_to_logistic';"
+              >Вернуть логисту на доработку</button>
+              <div class="hint">После возврата складская задача закроется, а логист снова сможет менять состав рейса и параметры загрузки.</div>
+            {% elif can_add_orders_to_trip %}
+              <div class="hint">Рейс передан в складской контур: параметры закрыты, но можно добавить готовые заявки ниже, пока машина не ушла.</div>
+            {% else %}
+              <div class="hint">Рейс передан в складской контур и доступен только для просмотра.</div>
+            {% endif %}
+          </form>
+        </section>
+  <div class="trip-detail-main">
+<h1 class="sr-only">{{ trip_display_number }} · Логистический контур</h1>
+
+        {% if messages %}
+          <div class="messages-strip">
+            {% for message in messages %}
+              <div class="msg {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% if trip_concurrent_editor_label or trip_last_edited_label %}
+          <section class="status-banner" aria-label="Совместное редактирование" style="{% if trip_concurrent_editor_label %}border-color:#f0c36d;background:#fff8e8;{% endif %}">
+            {% if trip_concurrent_editor_label %}
+              <div class="status-banner-title" style="color:#8a5a00;">Сейчас на карточке: {{ trip_concurrent_editor_label }}</div>
+              <div class="muted" style="color:#8a5a00;">Сохраняйте осторожно — при конфликте версий перезапись будет отклонена.</div>
+            {% elif trip_last_edited_label %}
+              <div class="muted">Последнее изменение: {{ trip_last_edited_label }} · версия {{ trip_edit_version|default:1 }}</div>
+            {% endif %}
+          </section>
+        {% endif %}
+
+        {% if trip_is_completed %}
+          <section class="status-banner" aria-label="Статус рейса">
+            <div class="status-banner-title">Рейс завершён</div>
+            <div class="muted" style="color:#2f6d4b;">По всем заявкам отмечена сдача на маркетплейс (сдано / не сдано). Доступны просмотр и печать документов.</div>
+          </section>
+        {% elif trip_is_departed %}
+          <section class="status-banner" aria-label="Статус рейса">
+            <div class="status-banner-title">Погрузка завершена — рейс в пути</div>
+            <div class="muted" style="color:#2f6d4b;">Отметьте по каждой заявке исход: «Сдано на МП» или «Не сдано». Когда отмечены все заявки, рейс станет «Завершен».</div>
+          </section>
+        {% endif %}
+
+        <section class="table-shell" data-field="orders" id="trip-orders-panel">
+          <div class="table-head">
+            <div>
+              <h2 class="table-title">Заявки в рейсе</h2>
+              <div class="muted" style="margin-top:4px;">
+                {% if trip_is_completed %}
+                  Рейс завершён. Состав и итоги сдачи на МП доступны для просмотра.
+                {% elif trip_is_departed %}
+                  Погрузка завершена. Отметьте сдачу каждой заявки на маркетплейс.
+                {% else %}
+                  Здесь логист задает два независимых правила: очередность маршрута и очередность физической погрузки в машину.
+                {% endif %}
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              {% if trip_chat_url %}
+                <a class="btn ghost" href="{{ trip_chat_url }}">Чат рейса</a>
+              {% endif %}
+              {% if show_loading_entrypoint and not can_start_loading %}
+                <form method="post" style="margin:0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="start_loading">
+                  <input type="hidden" class="trip-edit-version" name="edit_version" value="{{ trip_edit_version|default:trip.edit_version|default:1 }}">
+                  <button class="btn primary" type="submit">Приступить к погрузке</button>
+                </form>
+              {% elif can_start_loading %}
+                <a class="btn primary" href="{{ trip_loading_url }}">Приступить к погрузке</a>
+              {% endif %}
+            </div>
+          </div>
+
+          <form method="post" id="trip-sequences-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_sequences">
+            <input type="hidden" class="trip-edit-version" name="edit_version" value="{{ trip_edit_version|default:trip.edit_version|default:1 }}">
+            <div id="trip-order-sequence-inputs">
+              {% for row in trip_orders %}
+                <input type="hidden" name="ordered_trip_item_ids" value="{{ row.item.id }}">
+              {% endfor %}
+            </div>
+            <div class="table-wrap">
+              <table class="trip-table">
+                <thead>
+                  <tr>
+                    <th>Маршрут</th>
+                    <th>№ заявки</th>
+                    <th>Клиент</th>
+                    <th>Склад назначения</th>
+                    <th>Дата слота</th>
+                    <th>Паллет</th>
+                    <th>Коробов</th>
+                    <th>Статус</th>
+                    <th>Сдача на МП</th>
+                    <th>Комментарий логиста</th>
+                    <th>Печать</th>
+                    {% if can_remove_orders_from_trip %}
+                      <th>Убрать</th>
+                    {% endif %}
+                  </tr>
+                </thead>
+                <tbody id="trip-order-body">
+                  {% for row in trip_orders %}
+                    <tr{% if can_edit_trip %} draggable="true"{% endif %} data-trip-item-id="{{ row.item.id }}">
+                      <td class="route-cell">
+                        <div class="route-tools">
+                          <span class="route-pos">{{ forloop.counter }}</span>
+                          {% if can_edit_trip %}
+                            <span class="drag-handle" title="Перетащить строку">::</span>
+                            <div class="move-buttons">
+                              <button class="move-btn" type="button" data-move="up" title="Поднять выше">▲</button>
+                              <button class="move-btn" type="button" data-move="down" title="Опустить ниже">▼</button>
+                            </div>
+                          {% endif %}
+                        </div>
+                      </td>
+                      <td>
+                        <a class="order-link" href="/shipping/{{ row.order.pk }}/">{{ row.display_number }}</a>
+                      </td>
+                      <td>{{ row.agency_name }}</td>
+                      <td>{{ row.order.destination_warehouse|default:row.order.destination_address|default:"-" }}</td>
+                      <td>{% if row.order.slot_date %}{{ row.order.slot_date|date:"d.m.Y" }}{% else %}-{% endif %}</td>
+                      <td>{{ row.pallet_count }}</td>
+                      <td>{{ row.box_count }}</td>
+                      <td><span class="chip ok">{{ row.status_label }}</span></td>
+                      <td>
+                        {% if trip_is_departed or trip_is_completed %}
+                          {% if row.can_mark_delivery %}
+                            <div class="delivery-actions">
+                              <button class="btn primary" type="submit" form="mp-delivery-{{ row.order.pk }}-ok">Сдано на МП</button>
+                              <button class="btn danger" type="submit" form="mp-delivery-{{ row.order.pk }}-fail">Не сдано</button>
+                            </div>
+                          {% else %}
+                            <span class="chip {% if row.delivery_outcome == 'delivered' %}ok{% elif row.delivery_outcome == 'failed' %}warn{% endif %}">{{ row.delivery_label }}</span>
+                          {% endif %}
+                        {% else %}
+                          <span class="muted">—</span>
+                        {% endif %}
+                      </td>
+                      <td><input type="text" name="comment_{{ row.item.id }}" value="{{ row.item.comment }}" placeholder="Особенности по погрузке или маршруту" {% if not can_edit_trip %}readonly{% endif %}></td>
+                      <td>
+                        <a
+                          class="btn icon-btn"
+                          href="/shipping/{{ row.order.pk }}/documents/"
+                          title="Печать документов"
+                          aria-label="Печать документов по заявке {{ row.display_number }}"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M7 9V4h10v5" />
+                            <path d="M6 17H5a2 2 0 0 1-2-2v-4a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v4a2 2 0 0 1-2 2h-1" />
+                            <rect x="7" y="14" width="10" height="6" rx="1" />
+                            <circle cx="17.5" cy="11.5" r=".5" fill="currentColor" stroke="none" />
+                          </svg>
+                        </a>
+                      </td>
+                      {% if can_remove_orders_from_trip %}
+                        <td>
+                          {% if row.can_remove_from_trip %}
+                            <button
+                              class="btn danger"
+                              type="submit"
+                              name="action"
+                              value="remove_order"
+                              formaction="/logistics/trips/{{ trip.pk }}/"
+                              formmethod="post"
+                              onclick="document.getElementById('trip-order-id').value='{{ row.item.id }}';"
+                            >Убрать</button>
+                          {% else %}
+                            <span class="muted">—</span>
+                          {% endif %}
+                        </td>
+                      {% endif %}
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="{% if can_remove_orders_from_trip %}12{% else %}11{% endif %}" class="empty-note">В рейсе пока нет заявок.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <input type="hidden" id="trip-order-id" name="trip_order_id" value="">
+            <div class="table-actions">
+              <div class="muted">
+                {% if can_edit_trip %}
+                  Порядок маршрута задается фактическим порядком строк. Строки можно перетаскивать мышкой или двигать стрелками, изменения сохраняются автоматически.
+                {% elif can_return_trip %}
+                  Во время складской работы маршрут заблокирован. Сначала верни рейс логисту на доработку, если нужно что-то поменять.
+                {% elif can_add_orders_to_trip %}
+                  Порядок и комментарии закрыты для правки, но ниже можно добавить готовые заявки, пока рейс не ушёл.
+                {% else %}
+                  Рейс передан в складской контур и доступен только для просмотра.
+                {% endif %}
+              </div>
+            </div>
+          </form>
+          {% for row in trip_orders %}
+            {% if row.can_mark_delivery %}
+              <form id="mp-delivery-{{ row.order.pk }}-ok" method="post" action="/logistics/trips/{{ trip.pk }}/" hidden>
+                {% csrf_token %}
+                <input type="hidden" name="action" value="mark_delivered">
+                <input type="hidden" name="shipping_order_id" value="{{ row.order.pk }}">
+              </form>
+              <form id="mp-delivery-{{ row.order.pk }}-fail" method="post" action="/logistics/trips/{{ trip.pk }}/" hidden>
+                {% csrf_token %}
+                <input type="hidden" name="action" value="mark_not_delivered">
+                <input type="hidden" name="shipping_order_id" value="{{ row.order.pk }}">
+              </form>
+            {% endif %}
+          {% endfor %}
+        </section>
+
+        {% if can_add_orders_to_trip %}
+          <section class="table-shell">
+            <div class="table-head">
+              <div>
+                <h2 class="table-title">Добавить готовые заявки</h2>
+                <div class="muted" style="margin-top:4px;">
+                  {% if trip.status == "loading" %}
+                    Рейс уже на погрузке, но машина ещё не ушла. Можно добрать готовые заявки, не привязанные к активным рейсам.
+                  {% else %}
+                    Если рейс еще не собран полностью, сюда можно добрать другие готовые заявки, не привязанные к активным рейсам.
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="add_orders">
+              <input type="hidden" class="trip-edit-version" name="edit_version" value="{{ trip_edit_version|default:trip.edit_version|default:1 }}">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>№ заявки</th>
+                      <th>Клиент</th>
+                      <th>Склад назначения</th>
+                      <th>Дата слота</th>
+                      <th>Паллет</th>
+                      <th>Коробов</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in available_ready_orders %}
+                      <tr>
+                        <td><input type="checkbox" name="order_ids" value="{{ row.order.id }}"></td>
+                        <td>
+                          <a class="order-link" href="/shipping/{{ row.order.pk }}/">{{ row.display_number }}</a>
+                        </td>
+                        <td>{{ row.agency_name }}</td>
+                        <td>{{ row.order.destination_warehouse|default:row.order.destination_address|default:"-" }}</td>
+                        <td>{% if row.order.slot_date %}{{ row.order.slot_date|date:"d.m.Y" }}{% else %}-{% endif %}</td>
+                        <td>{{ row.pallet_count }}</td>
+                        <td>{{ row.box_count }}</td>
+                      </tr>
+                    {% empty %}
+                      <tr><td colspan="7" class="empty-note">Нет дополнительных готовых заявок.</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <div class="table-actions">
+                <div class="muted">
+                  {% if trip.status == "loading" %}
+                    Новые заявки добавятся в конец рейса и сразу появятся у кладовщика в погрузке.
+                  {% else %}
+                    Этот блок нужен только если после создания рейса требуется добавить еще готовые заявки в ту же машину.
+                  {% endif %}
+                </div>
+                <button class="btn" type="submit">Добавить выбранные заявки</button>
+              </div>
+            </form>
+          </section>
+        {% endif %}
+  </div>
+</div>
+<script>
+(function () {
+      const canEditTrip = {{ can_edit_trip|yesno:"true,false" }};
+      const canFillMissingTransport = {{ can_fill_missing_transport|yesno:"true,false" }};
+      const canFinalizeTrip = {{ can_finalize_trip|yesno:"true,false" }};
+      const loadingForm = document.getElementById("loading-params-form");
+      const sequenceForm = document.getElementById("trip-sequences-form");
+      const vehicleNumberInput = document.getElementById("vehicle-number-input");
+      const vehicleNumberEditor = document.getElementById("vehicle-number-editor");
+      const carrierSelect = document.getElementById("carrier-id-input");
+      const carrierSelectedLabel = document.getElementById("carrier-selected-label");
+      const driverNameInput = document.getElementById("driver-name-input");
+      const driverPhoneInput = document.getElementById("driver-phone-input");
+      const maxWeightInput = document.getElementById("max-weight-input");
+      const maxVolumeInput = document.getElementById("max-volume-input");
+      const maxPalletsInput = document.getElementById("max-pallets-input");
+      const finalizeBtn = document.getElementById("finalize-trip-btn");
+      const finalizeErrors = document.getElementById("trip-finalize-errors");
+      const actionInput = document.getElementById("loading-form-action");
+      const cyrMap = { A: "А", B: "В", E: "Е", K: "К", M: "М", H: "Н", O: "О", P: "Р", C: "С", T: "Т", Y: "У", X: "Х" };
+      const allowedLetters = new Set(["А", "В", "Е", "К", "М", "Н", "О", "Р", "С", "Т", "У", "Х"]);
+
+      function readHighlightFields() {
+        const el = document.getElementById("trip-validation-highlight");
+        if (!el) return [];
+        try {
+          const data = JSON.parse(el.textContent || "[]");
+          return Array.isArray(data) ? data.map(String) : [];
+        } catch (err) {
+          return [];
+        }
+      }
+
+      function clearFieldErrors() {
+        document.querySelectorAll(".field-has-error").forEach((node) => {
+          node.classList.remove("field-has-error", "field-flash");
+        });
+      }
+
+      function highlightFields(fields, { flash = true } = {}) {
+        clearFieldErrors();
+        const unique = Array.from(new Set((fields || []).filter(Boolean)));
+        unique.forEach((name) => {
+          document.querySelectorAll(`[data-field="${name}"]`).forEach((node) => {
+            node.classList.add("field-has-error");
+            if (flash) {
+              node.classList.remove("field-flash");
+              // force reflow so animation can replay
+              void node.offsetWidth;
+              node.classList.add("field-flash");
+            }
+          });
+        });
+        return unique;
+      }
+
+      function collectClientFinalizeIssues() {
+        const issues = [];
+        const fields = [];
+        const carrierValue = carrierSelect ? String(carrierSelect.value || "").trim() : "";
+        const tripDateInput = document.getElementById("trip-date-input");
+        const tripDateValue = tripDateInput ? String(tripDateInput.value || "").trim() : "";
+        const driverInput = document.getElementById("driver-name-input");
+        const driverValue = driverInput ? String(driverInput.value || "").trim() : "";
+        const plateValue = vehicleNumberInput ? String(vehicleNumberInput.value || "").trim() : "";
+
+        if (!carrierValue) {
+          fields.push("carrier_id");
+          issues.push("Не выбран перевозчик.");
+        }
+        if (!tripDateValue) {
+          fields.push("trip_date");
+          issues.push("Не указана дата рейса.");
+        }
+        if (!plateValue) {
+          fields.push("vehicle_number");
+          issues.push("Не указан номер машины.");
+        }
+        if (!driverValue) {
+          fields.push("driver_name");
+          issues.push("Не указано ФИО водителя.");
+        }
+        return { fields, issues };
+      }
+
+      function showFinalizeErrors(messages) {
+        if (!finalizeErrors) return;
+        const list = (messages || []).filter(Boolean);
+        if (!list.length) {
+          finalizeErrors.style.display = "none";
+          finalizeErrors.innerHTML = "";
+          return;
+        }
+        finalizeErrors.style.display = "";
+        finalizeErrors.innerHTML = list.map((msg) => `<div>${msg}</div>`).join("");
+        finalizeErrors.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+
+      function syncCarrierLabel() {
+        if (!carrierSelect || !carrierSelectedLabel) return;
+        const selectedOption = carrierSelect.options[carrierSelect.selectedIndex];
+        const text = selectedOption ? String(selectedOption.textContent || "").trim() : "";
+        carrierSelectedLabel.textContent = text || "Не выбран";
+      }
+
+      function applyCarrierTransportDefaults({ onlyBlank = false } = {}) {
+        if (!carrierSelect) return;
+        const selectedOption = carrierSelect.options[carrierSelect.selectedIndex];
+        if (!selectedOption) return;
+        const vehicleNumber = String(selectedOption.dataset.defaultVehicle || "").trim();
+        const driverName = String(selectedOption.dataset.defaultDriver || "").trim();
+        const driverPhone = String(selectedOption.dataset.defaultPhone || "").trim();
+        const maxWeight = String(selectedOption.dataset.defaultWeight || "").trim();
+        const maxVolume = String(selectedOption.dataset.defaultVolume || "").trim();
+        const maxPallets = String(selectedOption.dataset.defaultPallets || "").trim();
+        if (!vehicleNumber || !driverName || !driverPhone) return;
+        if (!onlyBlank || !String(vehicleNumberInput ? vehicleNumberInput.value : "").trim()) {
+          renderPlateEditor(splitPlate(vehicleNumber));
+        }
+        if (driverNameInput && (!onlyBlank || !String(driverNameInput.value || "").trim())) {
+          driverNameInput.value = driverName;
+        }
+        if (driverPhoneInput && (!onlyBlank || !String(driverPhoneInput.value || "").trim())) {
+          driverPhoneInput.value = driverPhone;
+        }
+        if (maxWeightInput && (!onlyBlank || !String(maxWeightInput.value || "").trim())) {
+          maxWeightInput.value = maxWeight;
+        }
+        if (maxVolumeInput && (!onlyBlank || !String(maxVolumeInput.value || "").trim())) {
+          maxVolumeInput.value = maxVolume;
+        }
+        if (maxPalletsInput && (!onlyBlank || !String(maxPalletsInput.value || "").trim())) {
+          maxPalletsInput.value = maxPallets;
+        }
+      }
+
+      // Server-side validation highlights (only while finalize is still available).
+      if (canFinalizeTrip) {
+        const serverFields = readHighlightFields();
+        if (serverFields.length) {
+          highlightFields(serverFields, { flash: false });
+        }
+      }
+
+      function normalizePlate(value) {
+        return String(value || "")
+          .toUpperCase()
+          .replace(/[^0-9A-ZА-Я]/g, "")
+          .split("")
+          .map((char) => cyrMap[char] || char)
+          .join("");
+      }
+
+      function splitPlate(value) {
+        const raw = normalizePlate(value);
+        const letters = raw.split("").filter((char) => allowedLetters.has(char));
+        const digits = raw.replace(/\D/g, "");
+        return [
+          letters.slice(0, 1).join(""),
+          digits.slice(0, 3),
+          letters.slice(1, 3).join(""),
+          digits.slice(3, 6),
+        ];
+      }
+
+      function renderPlateEditor(parts) {
+        if (!vehicleNumberEditor || !vehicleNumberInput) return;
+        const [first, second, third, fourth] = parts;
+        vehicleNumberInput.value = [first, second, third, fourth].join("");
+        vehicleNumberEditor.innerHTML = "";
+        const tokens = [];
+        if (first) tokens.push({ type: "letter", value: first });
+        if (second) tokens.push({ type: "digit", value: second });
+        if (third) tokens.push({ type: "letter", value: third });
+        if (fourth) tokens.push({ type: "digit", value: fourth });
+
+        if (!tokens.length) {
+          vehicleNumberEditor.classList.add("is-empty");
+          return;
+        }
+
+        vehicleNumberEditor.classList.remove("is-empty");
+        tokens.forEach((token, index) => {
+          if (index > 0) {
+            const spacer = document.createElement("span");
+            spacer.className = "plate-token space";
+            spacer.textContent = " ";
+            vehicleNumberEditor.appendChild(spacer);
+          }
+          const span = document.createElement("span");
+          span.className = `plate-token ${token.type}`;
+          span.textContent = token.value;
+          vehicleNumberEditor.appendChild(span);
+        });
+      }
+
+      function moveCaretToEnd(element) {
+        if (!element) return;
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+
+      function serializeForm(form) {
+        return new URLSearchParams(new FormData(form)).toString();
+      }
+
+      function submitForm(form) {
+        if (!form || form.dataset.submitting === "1") return;
+        form.dataset.submitting = "1";
+        HTMLFormElement.prototype.submit.call(form);
+      }
+
+      function syncEditVersion(version) {
+        if (!version) return;
+        document.querySelectorAll("input.trip-edit-version").forEach((input) => {
+          input.value = String(version);
+        });
+      }
+
+      function createAutosave(form) {
+        if (!form) {
+          return {
+            saveIfChanged() {},
+            updateSnapshot() {},
+          };
+        }
+        let snapshot = serializeForm(form);
+        let inFlight = false;
+        let queued = false;
+
+        async function saveIfChanged() {
+          const current = serializeForm(form);
+          if (current === snapshot) return;
+          if (inFlight) {
+            queued = true;
+            return;
+          }
+          inFlight = true;
+          form.dataset.autosaving = "1";
+          try {
+            const response = await fetch(form.action || window.location.pathname, {
+              method: form.method || "post",
+              body: new FormData(form),
+              credentials: "same-origin",
+              headers: { "X-Requested-With": "XMLHttpRequest" },
+            });
+            let payload = null;
+            try {
+              payload = await response.json();
+            } catch (_err) {
+              payload = null;
+            }
+            if (response.status === 409 || (payload && payload.conflict)) {
+              window.alert((payload && payload.message) || "Рейс изменён другим сотрудником. Страница будет обновлена.");
+              window.location.reload();
+              return;
+            }
+            if (!response.ok) {
+              throw new Error((payload && payload.message) || `Autosave failed with status ${response.status}`);
+            }
+            if (payload && payload.edit_version) {
+              syncEditVersion(payload.edit_version);
+            }
+            snapshot = serializeForm(form);
+          } catch (error) {
+            console.error(error);
+          } finally {
+            delete form.dataset.autosaving;
+            inFlight = false;
+            if (queued) {
+              queued = false;
+              saveIfChanged();
+            }
+          }
+        }
+
+        return {
+          saveIfChanged,
+          updateSnapshot() {
+            snapshot = serializeForm(form);
+          },
+        };
+      }
+
+      const sequenceAutosave = createAutosave(sequenceForm);
+      let sequenceAutosaveTimer = null;
+
+      function scheduleSequenceAutosave(delay) {
+        clearTimeout(sequenceAutosaveTimer);
+        sequenceAutosaveTimer = window.setTimeout(() => {
+          sequenceAutosave.saveIfChanged();
+        }, delay);
+      }
+
+      if (vehicleNumberInput && vehicleNumberEditor) {
+        renderPlateEditor(splitPlate(vehicleNumberInput.value));
+
+        if (canEditTrip || canFillMissingTransport) {
+          const syncEditorValue = () => {
+            renderPlateEditor(splitPlate(vehicleNumberEditor.textContent || ""));
+            moveCaretToEnd(vehicleNumberEditor);
+          };
+
+          vehicleNumberEditor.addEventListener("focus", () => {
+            if (vehicleNumberEditor.classList.contains("is-empty")) {
+              vehicleNumberEditor.textContent = "";
+            }
+            moveCaretToEnd(vehicleNumberEditor);
+          });
+
+          vehicleNumberEditor.addEventListener("input", syncEditorValue);
+          vehicleNumberEditor.addEventListener("paste", (event) => {
+            event.preventDefault();
+            const text = (event.clipboardData || window.clipboardData).getData("text");
+            vehicleNumberEditor.textContent = text;
+            syncEditorValue();
+          });
+
+          vehicleNumberEditor.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+            }
+          });
+        }
+      }
+
+      if (loadingForm) {
+        loadingForm.addEventListener("submit", (event) => {
+          const action = actionInput ? String(actionInput.value || "") : "";
+          if (action === "finalize_trip" && canFinalizeTrip) {
+            const client = collectClientFinalizeIssues();
+            if (client.issues.length) {
+              event.preventDefault();
+              loadingForm.dataset.submitting = "0";
+              const serverFields = readHighlightFields();
+              highlightFields(Array.from(new Set([].concat(client.fields, serverFields))), { flash: true });
+              showFinalizeErrors(
+                client.issues.map((msg) => `Невозможно утвердить рейс: ${msg}`)
+              );
+              return;
+            }
+          }
+          loadingForm.dataset.submitting = "1";
+        });
+      }
+
+      if (finalizeBtn && actionInput) {
+        finalizeBtn.addEventListener("click", () => {
+          actionInput.value = "finalize_trip";
+        });
+      }
+
+      if (loadingForm && (canEditTrip || canFillMissingTransport)) {
+        let loadingSnapshot = serializeForm(loadingForm);
+
+        syncCarrierLabel();
+        applyCarrierTransportDefaults({ onlyBlank: true });
+
+        loadingForm.addEventListener("change", (event) => {
+          if (event.target && event.target.name === "carrier_id") {
+            syncCarrierLabel();
+            applyCarrierTransportDefaults();
+            const current = serializeForm(loadingForm);
+            if (current === loadingSnapshot) return;
+            loadingSnapshot = current;
+            window.setTimeout(() => submitForm(loadingForm), 0);
+          }
+        });
+
+        loadingForm.addEventListener("focusout", (event) => {
+          const nextTarget = event.relatedTarget;
+          if (nextTarget && loadingForm.contains(nextTarget)) return;
+          const current = serializeForm(loadingForm);
+          if (current === loadingSnapshot) return;
+          loadingSnapshot = current;
+          window.setTimeout(() => submitForm(loadingForm), 0);
+        });
+      }
+
+      const body = document.getElementById("trip-order-body");
+      const inputs = document.getElementById("trip-order-sequence-inputs");
+      if (!body || !inputs || !sequenceForm || !canEditTrip) return;
+
+      let draggingRow = null;
+
+      function rows() {
+        return Array.from(body.querySelectorAll("tr[data-trip-item-id]"));
+      }
+
+      function syncOrder() {
+        const orderedRows = rows();
+        inputs.innerHTML = "";
+        orderedRows.forEach((row, index) => {
+          const hidden = document.createElement("input");
+          hidden.type = "hidden";
+          hidden.name = "ordered_trip_item_ids";
+          hidden.value = row.dataset.tripItemId;
+          inputs.appendChild(hidden);
+          const pos = row.querySelector(".route-pos");
+          if (pos) pos.textContent = String(index + 1);
+        });
+      }
+
+      function moveRow(row, direction) {
+        if (!row) return;
+        const sibling = direction === "up" ? row.previousElementSibling : row.nextElementSibling;
+        if (!sibling || !sibling.dataset.tripItemId) return;
+        if (direction === "up") {
+          body.insertBefore(row, sibling);
+        } else {
+          body.insertBefore(sibling, row);
+        }
+        syncOrder();
+      }
+
+      body.addEventListener("click", (event) => {
+        const button = event.target.closest(".move-btn");
+        if (!button) return;
+        const row = button.closest("tr[data-trip-item-id]");
+        moveRow(row, button.dataset.move);
+        scheduleSequenceAutosave(150);
+      });
+
+      body.addEventListener("dragstart", (event) => {
+        const row = event.target.closest("tr[data-trip-item-id]");
+        if (!row) return;
+        draggingRow = row;
+        row.classList.add("is-dragging");
+        if (event.dataTransfer) {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", row.dataset.tripItemId || "");
+        }
+      });
+
+      body.addEventListener("dragend", () => {
+        rows().forEach((row) => row.classList.remove("is-dragging", "drag-target"));
+        draggingRow = null;
+        syncOrder();
+        scheduleSequenceAutosave(150);
+      });
+
+      body.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        const targetRow = event.target.closest("tr[data-trip-item-id]");
+        rows().forEach((row) => row.classList.toggle("drag-target", row === targetRow && row !== draggingRow));
+      });
+
+      body.addEventListener("drop", (event) => {
+        event.preventDefault();
+        const targetRow = event.target.closest("tr[data-trip-item-id]");
+        if (!draggingRow || !targetRow || draggingRow === targetRow) return;
+        const rect = targetRow.getBoundingClientRect();
+        const insertBefore = event.clientY < rect.top + rect.height / 2;
+        body.insertBefore(draggingRow, insertBefore ? targetRow : targetRow.nextElementSibling);
+        rows().forEach((row) => row.classList.remove("drag-target"));
+        syncOrder();
+        scheduleSequenceAutosave(150);
+      });
+
+      sequenceForm.addEventListener("focusout", (event) => {
+        const commentInput = event.target.closest('input[name^="comment_"]');
+        if (!commentInput) return;
+        scheduleSequenceAutosave(250);
+      });
+
+      syncOrder();
+      sequenceAutosave.updateSnapshot();
+    })();
+</script>
+{% endblock %}

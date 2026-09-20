@@ -1,0 +1,20 @@
+<script>
+  (function () {
+    const form = document.querySelector("[data-scan-sequence]");
+    if (!form) return;
+    const fields = Array.from(form.querySelectorAll("input[data-scan-field]"));
+    if (!fields.length) return;
+    fields.forEach(function (field, index) {
+      field.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        if (!field.value.trim()) return;
+        if (index < fields.length - 1) fields[index + 1].focus();
+        else if (fields.every(function (candidate) { return candidate.value.trim(); })) {
+          form.requestSubmit();
+        }
+      });
+    });
+    (fields.find(function (field) { return !field.value.trim(); }) || fields[fields.length - 1]).focus();
+  }());
+</script>

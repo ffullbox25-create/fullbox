@@ -1,0 +1,187 @@
+<style>
+  .wsf-panel{
+    margin:12px 0 16px;padding:14px 16px;border:1px solid #d9e2dc;border-radius:14px;
+    background:#f7fbf8;font-family:Manrope,system-ui,sans-serif;color:#1c1f1a;
+  }
+  .wsf-panel h3{margin:0 0 4px;font:700 16px/1.3 "Bricolage Grotesque",Manrope,sans-serif;}
+  .wsf-panel .wsf-hint{margin:0 0 12px;color:#6b6f66;font-size:13px;}
+  .wsf-panel .wsf-row{display:grid;grid-template-columns:1fr 110px 36px;gap:8px;margin:0 0 8px;align-items:center;}
+  .wsf-panel select,.wsf-panel input{
+    width:100%;border:1px solid #cfd8d2;border-radius:10px;padding:8px 10px;background:#fffdf8;font:inherit;
+  }
+  .wsf-panel .wsf-unit{color:#6b6f66;font-size:12px;margin-top:2px;}
+  .wsf-panel .wsf-remove{
+    border:0;background:#f3e4df;color:#d4543c;border-radius:10px;height:36px;cursor:pointer;font-weight:700;
+  }
+  .wsf-panel .wsf-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .wsf-panel .wsf-btn{
+    border:0;border-radius:999px;padding:8px 14px;cursor:pointer;font:600 13px/1 Manrope,sans-serif;
+  }
+  .wsf-panel .wsf-btn.add{background:#e7f2ee;color:#0e6b5b;}
+  .wsf-panel .wsf-btn.save{background:linear-gradient(135deg,#f2b747,#e0a03a);color:#1c1f1a;}
+  .wsf-panel .wsf-status{margin-top:8px;font-size:13px;color:#0e6b5b;min-height:18px;}
+  .wsf-panel .wsf-status.error{color:#d4543c;}
+  .wsf-panel.wsf-empty-catalog{opacity:.85;}
+</style>
+<section
+  class="wsf-panel"
+  id="wsf-panel"
+  data-order-type="{{ wsf_order_type }}"
+  data-order-id="{{ wsf_order_id }}"
+  data-client-id="{{ wsf_client_id }}"
+  data-required="{% if wsf_required %}1{% else %}0{% endif %}"
+>
+  <h3>Услуги по заявке</h3>
+  <p class="wsf-hint">Укажите выполненные услуги и фактическое количество.</p>
+  <div id="wsf-rows"></div>
+  <div class="wsf-actions">
+    <button type="button" class="wsf-btn add" id="wsf-add">+ Услуга</button>
+    <button type="button" class="wsf-btn save" id="wsf-save">Сохранить услуги</button>
+  </div>
+  <div class="wsf-status" id="wsf-status" aria-live="polite"></div>
+</section>
+<script>
+(function(){
+  var panel = document.getElementById("wsf-panel");
+  if(!panel) return;
+  var orderType = panel.getAttribute("data-order-type") || "";
+  var orderId = panel.getAttribute("data-order-id") || "";
+  var clientId = panel.getAttribute("data-client-id") || "";
+  var required = panel.getAttribute("data-required") === "1";
+  var rowsEl = document.getElementById("wsf-rows");
+  var statusEl = document.getElementById("wsf-status");
+  var catalog = [];
+  var lines = [];
+
+  function csrfToken(){
+    var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : "";
+  }
+  function setStatus(text, isError){
+    statusEl.textContent = text || "";
+    statusEl.classList.toggle("error", !!isError);
+  }
+  function optionHtml(selectedId){
+    return catalog.map(function(s){
+      return '<option value="'+s.service_id+'"'+(String(s.service_id)===String(selectedId)?' selected':'')+'>'+
+        String(s.name||s.code||"").replace(/</g,"&lt;")+
+        (s.unit ? (" · "+s.unit) : "")+
+      "</option>";
+    }).join("");
+  }
+  function render(){
+    if(!catalog.length){
+      panel.classList.add("wsf-empty-catalog");
+      rowsEl.innerHTML = '<p class="wsf-hint">Для этого раздела нет доступных услуг. Обратитесь к менеджеру.</p>';
+      return;
+    }
+    panel.classList.remove("wsf-empty-catalog");
+    if(!lines.length) lines = [{service_id: catalog[0].service_id, quantity: ""}];
+    rowsEl.innerHTML = lines.map(function(line, idx){
+      var svc = catalog.find(function(s){ return String(s.service_id)===String(line.service_id); }) || catalog[0];
+      return (
+        '<div class="wsf-row" data-idx="'+idx+'">'+
+          '<div><select data-field="service_id">'+optionHtml(line.service_id || svc.service_id)+'</select>'+
+            '<div class="wsf-unit">'+(svc && svc.unit ? ("Ед.: "+svc.unit) : "")+'</div></div>'+
+          '<input data-field="quantity" type="number" min="0" step="0.001" placeholder="Кол-во" value="'+(line.quantity||"")+'">'+
+          '<button type="button" class="wsf-remove" data-remove="'+idx+'" title="Удалить">×</button>'+
+        "</div>"
+      );
+    }).join("");
+  }
+  function readDom(){
+    lines = Array.prototype.map.call(rowsEl.querySelectorAll(".wsf-row"), function(row){
+      var sid = row.querySelector('[data-field="service_id"]');
+      var qty = row.querySelector('[data-field="quantity"]');
+      return { service_id: sid ? sid.value : "", quantity: qty ? qty.value : "" };
+    });
+  }
+  function load(){
+    if(!clientId || !orderId || !orderType){
+      setStatus("Не хватает данных заявки для услуг.", true);
+      return Promise.resolve();
+    }
+    var catUrl = "/api/warehouse-billing/catalog/?client="+encodeURIComponent(clientId)+"&process="+encodeURIComponent(orderType);
+    var factUrl = "/api/warehouse-billing/facts/?client="+encodeURIComponent(clientId)+"&order_type="+encodeURIComponent(orderType)+"&order_id="+encodeURIComponent(orderId);
+    return Promise.all([
+      fetch(catUrl, {credentials:"same-origin"}).then(function(r){ return r.json(); }),
+      fetch(factUrl, {credentials:"same-origin"}).then(function(r){ return r.json(); })
+    ]).then(function(res){
+      var cat = res[0], fact = res[1];
+      if(cat && cat.ok) catalog = (cat.data && cat.data.services) || [];
+      if(fact && fact.ok){
+        lines = ((fact.data && fact.data.facts) || []).map(function(f){
+          return { service_id: f.service_id, quantity: f.quantity };
+        });
+      }
+      render();
+      if(!catalog.length) setStatus("Для этого раздела нет доступных услуг.", true);
+      else setStatus(lines.length ? "Услуги загружены." : "");
+    }).catch(function(){ setStatus("Не удалось загрузить услуги.", true); });
+  }
+  function save(options){
+    options = options || {};
+    readDom();
+    var payloadLines = lines.filter(function(l){ return l.service_id && Number(l.quantity) > 0; }).map(function(l){
+      return { service_id: Number(l.service_id), quantity: l.quantity };
+    });
+    if(required && !payloadLines.length){
+      setStatus("Укажите хотя бы одну услугу с количеством.", true);
+      return Promise.reject(new Error("Укажите хотя бы одну услугу с количеством."));
+    }
+    if(!required && !payloadLines.length && options.skipEmptyOptional){
+      setStatus("");
+      return Promise.resolve({ok:true, skipped:true, data:{saved:0, facts:[]}});
+    }
+    setStatus("Сохранение…");
+    return fetch("/api/warehouse-billing/facts/", {
+      method: "PUT",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrfToken()
+      },
+      body: JSON.stringify({
+        client_id: Number(clientId),
+        order_type: orderType,
+        order_id: orderId,
+        lines: payloadLines
+      })
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if(!d || !d.ok){
+        setStatus((d && d.error) || "Ошибка сохранения.", true);
+        return Promise.reject(new Error("save"));
+      }
+      lines = ((d.data && d.data.facts) || []).map(function(f){
+        return { service_id: f.service_id, quantity: f.quantity };
+      });
+      render();
+      setStatus("Сохранено услуг: "+(d.data.saved||0)+".");
+      return d;
+    });
+  }
+
+  document.getElementById("wsf-add").addEventListener("click", function(){
+    readDom();
+    if(!catalog.length) return;
+    lines.push({ service_id: catalog[0].service_id, quantity: "" });
+    render();
+  });
+  rowsEl.addEventListener("click", function(e){
+    var btn = e.target.closest("[data-remove]");
+    if(!btn) return;
+    readDom();
+    lines.splice(Number(btn.getAttribute("data-remove")), 1);
+    render();
+  });
+  rowsEl.addEventListener("change", function(){ readDom(); render(); });
+  document.getElementById("wsf-save").addEventListener("click", function(){ save({skipEmptyOptional:false}).catch(function(){}); });
+
+  window.__wsfSaveWarehouseServices = function(){ return save({skipEmptyOptional:true}); };
+  window.__wsfHasWarehouseServices = function(){
+    readDom();
+    return lines.some(function(l){ return l.service_id && Number(l.quantity) > 0; });
+  };
+  load();
+})();
+</script>

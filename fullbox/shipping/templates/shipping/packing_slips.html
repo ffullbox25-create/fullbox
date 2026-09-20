@@ -1,0 +1,1108 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Упаковочные листы · заявка {{ order.display_number|default:order.number }}</title>
+  <style>
+    :root{--bg:#f6f4ed;--card:#fff;--soft:#f8f6f1;--gold:#c79a1c;--gold-soft:#f2d48c;--muted:#6b7280;--stroke:rgba(31,35,40,.12);--text:#1f2328;--success:#1f9d55;--danger:#d14343;--offset:88px}
+    *{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--bg);color:var(--text);font-family:"Space Grotesk",system-ui,sans-serif}a{text-decoration:none;color:inherit}
+    .wrap{padding:24px 18px 64px;min-height:100vh}.layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px;align-items:start}.side,.main{display:grid;gap:12px}.card,.side-card{background:var(--card);border:1px solid var(--stroke);border-radius:16px;box-shadow:0 16px 30px rgba(15,23,42,.12)}.card{padding:18px}.side-card{padding:14px}
+    .muted{color:var(--muted)}.side-title,.section-title{font-weight:600}.side-title{margin:0 0 8px}.section-title{margin:0}.side-actions{display:grid;gap:8px}.tab,.btn{padding:10px 14px;border-radius:10px;border:1px solid var(--stroke);background:rgba(15,23,42,.04);color:var(--text);font-weight:600;cursor:pointer}.side-actions .tab{width:100%;display:inline-flex;justify-content:center}.primary{border-color:transparent;background:linear-gradient(120deg,var(--gold),var(--gold-soft))}.btn.small{padding:6px 10px;font-size:12px}
+    .info-list{display:grid;gap:10px}.info-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}.info-value{font-weight:600;word-break:break-word}.agent-panel{display:grid;gap:10px}.agent-field{display:grid;gap:5px}.agent-select{width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--stroke);background:#fff;color:var(--text);font:inherit}.agent-line{display:flex;justify-content:space-between;gap:10px;font-size:12px}.agent-value{font-weight:600;text-align:right;word-break:break-word}.agent-indicator{display:inline-flex;align-items:center;gap:7px;font-weight:700}.agent-indicator::before{content:"";width:8px;height:8px;border-radius:999px;background:var(--muted);box-shadow:0 0 0 2px rgba(31,35,40,.08)}.agent-indicator.ok::before{background:var(--success)}.agent-indicator.warn::before{background:var(--gold)}.agent-indicator.error::before{background:var(--danger)}.agent-actions{display:grid;grid-template-columns:1fr;gap:8px}.agent-actions .btn{display:inline-flex;justify-content:center;text-align:center}
+    .notice,.error{border-radius:12px;padding:10px 12px;margin-bottom:12px}.notice{border:1px solid rgba(31,157,85,.35);background:rgba(31,157,85,.12);color:#166534}.error{border:1px solid rgba(209,67,67,.35);background:rgba(209,67,67,.12);color:#7f1d1d}
+    .toolbar{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px}.toolbar-left,.toolbar-right{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .print-module{display:none;gap:8px;padding:14px;border:1px solid var(--stroke);border-radius:14px;background:var(--soft);margin-bottom:16px}
+    .print-module.is-open{display:grid}
+    .print-meta{font-size:12px;color:var(--muted)}
+    .print-meta.strong{color:var(--text);font-weight:600}
+    .print-queue-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+    .print-queue-card{padding:10px 12px;border-radius:12px;border:1px solid var(--stroke);background:#fff;display:grid;gap:4px}
+    .print-queue-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+    .print-queue-value{font-size:22px;font-weight:700;line-height:1}
+    .print-queue-details{display:grid;gap:6px}
+    .print-queue-detail{padding:9px 12px;border-radius:12px;border:1px solid var(--stroke);background:#fff;font-size:12px;color:var(--muted)}
+    .print-queue-detail strong{color:var(--text)}
+    .printer-groups{display:grid;gap:14px}
+    .printer-group{display:grid;gap:10px}
+    .printer-group-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+    .printer-group-title{margin:0;font-weight:700}
+    .printer-status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+    .printer-status-card{padding:12px;border-radius:14px;border:1px solid var(--stroke);background:#fff;display:grid;gap:8px}
+    .printer-status-card.green{border-color:rgba(22,101,52,.18);background:rgba(22,163,74,.08)}
+    .printer-status-card.gold{border-color:rgba(180,83,9,.18);background:rgba(245,158,11,.10)}
+    .printer-status-card.red{border-color:rgba(153,27,27,.18);background:rgba(239,68,68,.10)}
+    .printer-status-card.gray{border-color:rgba(100,116,139,.18);background:rgba(148,163,184,.10)}
+    .printer-status-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .printer-status-name{font-weight:700;word-break:break-word}
+    .printer-status-badge{padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
+    .printer-status-card.green .printer-status-badge{background:#166534;color:#fff}
+    .printer-status-card.gold .printer-status-badge{background:#b45309;color:#fff}
+    .printer-status-card.red .printer-status-badge{background:#991b1b;color:#fff}
+    .printer-status-card.gray .printer-status-badge{background:#475569;color:#fff}
+    .printer-status-meta{font-size:12px;color:var(--muted)}
+    .printer-status-tags{display:flex;gap:6px;flex-wrap:wrap}
+    .printer-status-tag{padding:3px 7px;border-radius:999px;background:rgba(15,23,42,.06);font-size:11px;color:var(--text)}
+    .print-list{margin:0;padding-left:18px;color:var(--muted);font-size:12px;display:grid;gap:4px}
+    .slip-printer{min-width:260px;padding:10px 12px;border-radius:10px;border:1px solid var(--stroke);background:#fff;color:var(--text)}
+    .slip-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}.slip-card{padding:14px;border-radius:16px;border:1px solid var(--stroke);background:#fff;display:grid;gap:12px}.slip-card-head{display:grid;gap:8px;justify-items:start}.slip-card-title{font-weight:700}.slip-card-meta{font-size:12px;color:var(--muted)}.slip-card-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start}
+    .packing-slip-sheet{aspect-ratio:75/120;background:#fff;color:#111;border:1px solid rgba(17,24,39,.18);border-radius:.9em;padding:1.05em .92em;display:grid;grid-template-rows:auto auto auto 1fr auto;gap:.48em;box-shadow:0 .38em .9em rgba(15,23,42,.08)}
+    .packing-slip-title{font-size:1.18em;font-weight:800;letter-spacing:.04em;text-align:center}.packing-slip-marketplace{font-size:1.02em;font-weight:800;text-align:center;text-transform:uppercase;letter-spacing:.05em}
+    .packing-slip-qr-wrap{display:grid;gap:.28em;justify-items:center;padding:.12em 0 .36em}.packing-slip-qr-main{display:grid;place-items:center}.packing-slip-qr{width:4.8em;height:4.8em}.packing-slip-qr img,.packing-slip-qr canvas{display:block;width:100%!important;height:100%!important}.packing-slip-qr-caption{font-size:.78em;font-weight:900;letter-spacing:.03em;text-align:center;line-height:1.1;word-break:break-word}.packing-slip-footer{text-align:center;font-size:.72em;font-weight:900;letter-spacing:.18em}
+    .packing-slip-rows{display:grid;gap:.2em}.packing-slip-row{display:grid;grid-template-columns:1.18fr .82fr;gap:.4em;align-items:flex-start;padding:.16em 0;border-bottom:1px solid rgba(17,24,39,.12)}.packing-slip-row:last-child{border-bottom:none}.packing-slip-label{font-size:.58em;font-weight:700;text-transform:uppercase;letter-spacing:.03em}.packing-slip-value{font-size:.62em;font-weight:600;text-align:right;line-height:1.18;word-break:break-word}.packing-slip-value.left{text-align:left}
+    .ozon-label-sheet{aspect-ratio:75/120;background:#fff;border:1px solid rgba(17,24,39,.18);border-radius:.9em;display:grid;place-items:center;overflow:hidden;box-shadow:0 .38em .9em rgba(15,23,42,.08)}.ozon-label-sheet img{display:block;width:100%;height:100%;object-fit:contain}
+    .packing-slip-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.52);z-index:30}.packing-slip-modal.is-open{display:flex}.packing-slip-modal-card{width:min(92vw,860px);max-height:92vh;overflow:auto;padding:18px;border-radius:20px;border:1px solid var(--stroke);background:#fff;box-shadow:0 24px 48px rgba(15,23,42,.22);display:grid;gap:14px}.packing-slip-modal-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.packing-slip-modal-actions{display:flex;gap:8px;flex-wrap:wrap}.packing-slip-modal-body{display:grid;place-items:center;background:var(--soft);border:1px solid var(--stroke);border-radius:16px;padding:20px}
+    .packing-slip-capture{position:fixed;left:-99999px;top:0;opacity:0;pointer-events:none}
+    .empty{padding:18px;border-radius:16px;border:1px dashed var(--stroke);background:rgba(15,23,42,.03);color:var(--muted)}
+    @media (max-width:1100px){.layout{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="side-card">
+          <div class="muted">FULLBOX · {% include "partials/current_user.html" %}</div>
+          <h3>Упаковочные листы · заявка {{ order.display_number|default:order.number }}</h3>
+          <div class="muted">Статус: {{ status_label }}</div>
+        </div>
+        <div class="side-card">
+          <h4 class="side-title">Действия</h4>
+          <div class="side-actions">
+            <a class="tab" href="{{ packing_url }}">К паллетизации</a>
+            <a class="tab" href="{{ detail_url }}">К заявке</a>
+            <a class="tab" href="{{ cabinet_url }}">В кабинет</a>
+            <a class="tab" href="/logout/">Выход</a>
+          </div>
+        </div>
+        <div class="side-card">
+          <h4 class="side-title">Оборудование</h4>
+          <div class="agent-panel">
+            <label class="agent-field">
+              <span class="info-label">Агент</span>
+              <select class="agent-select" id="print-agent-select">
+                <option value="">Авто</option>
+              </select>
+            </label>
+            <div class="agent-line">
+              <span class="muted">Статус</span>
+              <span class="agent-value agent-indicator warn" id="print-agent-status">проверяю</span>
+            </div>
+            <div class="agent-line">
+              <span class="muted">Принтер</span>
+              <span class="agent-value" id="print-printer-status">-</span>
+            </div>
+            <div class="agent-actions">
+              <a class="btn" href="/labels/scanners/agent/download/" target="_blank" rel="noopener">Скачать агента</a>
+              <a class="btn" href="/labels/settings/?return={{ request.get_full_path|urlencode }}">Настройки оборудования</a>
+            </div>
+            <div class="muted" id="print-agent-hint">Упаковочные листы печатаются через выбранный агент.</div>
+          </div>
+        </div>
+        <div class="side-card">
+          <h4 class="side-title">Информация</h4>
+          <div class="info-list">
+            <div><div class="info-label">Клиент</div><div class="info-value">{{ client_label }}</div></div>
+            <div><div class="info-label">Паллет</div><div class="info-value">{{ packing_summary.pallet_count|default:"0" }}</div></div>
+            <div><div class="info-label">Коробов</div><div class="info-value">{{ packing_summary.box_count|default:"0" }}</div></div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="card">
+          {% if messages %}
+            {% for message in messages %}
+              <div class="{% if message.tags == 'error' %}error{% else %}notice{% endif %}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+          {% if packing_slips_error %}<div class="error">{{ packing_slips_error }}</div>{% endif %}
+
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <div>
+                <div class="section-title">{% if packing_slip_kind == "ozon_gm" %}Этикетки ШК ГМ Ozon 75x120{% else %}Упаковочные листы 75x120{% endif %}</div>
+                <div class="muted">{% if packing_slip_kind == "ozon_gm" %}Официальные этикетки грузомест Ozon. Каждая страница подготовлена под этикетку 75x120 мм.{% else %}Листы доступны только после завершения паллетизации. На каждом листе есть QR-код паллеты.{% endif %}</div>
+              </div>
+            </div>
+            <div class="toolbar-right">
+              <select class="slip-printer" id="packing-slip-printer" data-label-printer aria-label="Принтер этикеток">
+                <option value="">Выберите аппаратный принтер</option>
+              </select>
+              <button class="btn" type="button" id="print-settings-toggle-btn" aria-expanded="false">Настройки печати</button>
+              <button class="btn" type="button" id="print-all-slips-pdf-btn">Печать в PDF</button>
+              <button class="btn primary" type="button" id="print-all-slips-btn">Печать всех</button>
+            </div>
+          </div>
+
+          <section class="print-module" id="print-module">
+            <div class="section-title">Модуль печати</div>
+            <div class="print-meta strong" data-print-status>Статус печати: {{ print_status_line }}</div>
+            <div class="print-meta" data-print-agent>Агент печати: {{ print_agent_line }}</div>
+            <div class="print-meta" data-printer-updated{% if not printer_details_updated_at %} style="display:none"{% endif %}>
+              Диагностика принтеров: {{ printer_details_updated_at }}
+            </div>
+            <div class="print-meta" data-print-refresh-message style="display:none"></div>
+            <div class="print-queue-grid">
+              <div class="print-queue-card">
+                <div class="print-queue-label">Ожидают</div>
+                <div class="print-queue-value" data-queue-pending>{{ print_queue_pending }}</div>
+              </div>
+              <div class="print-queue-card">
+                <div class="print-queue-label">Печатаются</div>
+                <div class="print-queue-value" data-queue-printing>{{ print_queue_printing }}</div>
+              </div>
+              <div class="print-queue-card">
+                <div class="print-queue-label">Зависло</div>
+                <div class="print-queue-value" data-queue-stuck>{{ print_queue_stuck }}</div>
+              </div>
+              <div class="print-queue-card">
+                <div class="print-queue-label">Ошибки</div>
+                <div class="print-queue-value" data-queue-failed>{{ print_queue_failed }}</div>
+              </div>
+            </div>
+            <div class="print-queue-details">
+              <div class="print-queue-detail" data-queue-pending-jobs><strong>Ждут:</strong> {% if print_queue_pending_jobs %}{{ print_queue_pending_jobs|join:"; " }}{% else %}нет{% endif %}</div>
+              <div class="print-queue-detail" data-queue-printing-jobs><strong>Печатаются:</strong> {% if print_queue_printing_jobs %}{{ print_queue_printing_jobs|join:"; " }}{% else %}нет{% endif %}</div>
+              <div class="print-queue-detail" data-queue-stuck-jobs><strong>Зависли:</strong> {% if print_queue_stuck_jobs %}{{ print_queue_stuck_jobs|join:"; " }}{% else %}нет{% endif %}</div>
+              <div class="print-queue-detail" data-queue-failed-jobs><strong>Ошибки:</strong> {% if print_queue_failed_jobs %}{{ print_queue_failed_jobs|join:"; " }}{% else %}нет{% endif %}</div>
+            </div>
+            <div class="toolbar" style="margin-bottom:0">
+              <div class="toolbar-left">
+                <button class="btn" type="button" id="refresh-printers-btn">Обновить</button>
+              </div>
+              <div class="toolbar-right">
+                <a class="btn" href="/labels/scanners/agent/download/" target="_blank" rel="noopener">Скачать Fullbox Agent</a>
+                <a class="btn" href="/labels/settings/?return={{ request.get_full_path|urlencode }}">Настройки оборудования</a>
+              </div>
+            </div>
+            {% if available_printers_meta.updated_at %}
+              <div class="print-meta">Последнее обновление принтеров: {{ available_printers_meta.updated_at }}{% if available_printers_meta.updated_by %} · {{ available_printers_meta.updated_by }}{% endif %}</div>
+            {% else %}
+              <div class="print-meta">Список принтеров появится после запуска Fullbox Agent на рабочем ПК.</div>
+            {% endif %}
+            <div class="print-meta">Программные принтеры вынесены отдельно. Для них используйте кнопку PDF у упаковочного листа.</div>
+            <div class="printer-groups">
+              <section class="printer-group">
+                <div class="printer-group-head">
+                  <div>
+                    <h4 class="printer-group-title">Аппаратные принтеры</h4>
+                    <div class="print-meta">Физические локальные и сетевые принтеры для прямой печати через Fullbox Agent.</div>
+                  </div>
+                </div>
+                <div class="printer-status-grid" id="hardware-printer-status-grid"></div>
+              </section>
+              <section class="printer-group">
+                <div class="printer-group-head">
+                  <div>
+                    <h4 class="printer-group-title">Программные принтеры</h4>
+                    <div class="print-meta">PDF и виртуальные устройства. Для сохранения упаковочного листа используйте кнопку PDF.</div>
+                  </div>
+                </div>
+                <div class="printer-status-grid" id="software-printer-status-grid"></div>
+              </section>
+            </div>
+          </section>
+
+          <div class="slip-grid" id="packing-slip-grid"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="packing-slip-modal" id="packing-slip-modal">
+    <div class="packing-slip-modal-card">
+      <div class="packing-slip-modal-head">
+        <div>
+          <div class="section-title">{% if packing_slip_kind == "ozon_gm" %}Предпросмотр этикетки ШК ГМ Ozon{% else %}Предпросмотр упаковочного листа{% endif %}</div>
+          <div class="muted" id="packing-slip-modal-caption">-</div>
+        </div>
+        <div class="packing-slip-modal-actions">
+          <button class="btn" type="button" id="packing-slip-modal-close">Закрыть</button>
+          <button class="btn" type="button" id="packing-slip-modal-pdf">PDF</button>
+          <button class="btn primary" type="button" id="packing-slip-modal-print">Печать</button>
+        </div>
+      </div>
+      <div class="packing-slip-modal-body" id="packing-slip-modal-body"></div>
+    </div>
+  </div>
+  <div class="packing-slip-capture" id="packing-slip-capture-host" aria-hidden="true"></div>
+
+  {{ packing_slips_data|json_script:"packing-slips-data" }}
+  {{ packing_slips_error|json_script:"packing-slips-error-data" }}
+  {{ ozon_gm_labels_document|json_script:"ozon-gm-labels-document-data" }}
+  {{ print_status_payload|json_script:"print-status-data" }}
+  {{ scanner_agents|json_script:"scanner-agents-data" }}
+  {{ preferred_agent_id|json_script:"preferred-agent-id-data" }}
+  {{ preferred_agent_locked|json_script:"preferred-agent-locked-data" }}
+  <script src="/static/vendor/qrcode.min.js"></script>
+  <script src="/static/vendor/html2canvas.min.js"></script>
+  <script src="/static/vendor/jspdf.umd.min.js"></script>
+  <script>
+    (() => {
+      const slipsData = JSON.parse(document.getElementById('packing-slips-data').textContent || '[]');
+      const packingSlipsError = String(JSON.parse(document.getElementById('packing-slips-error-data')?.textContent || '""') || '').trim();
+      const ozonLabelsDocument = JSON.parse(document.getElementById('ozon-gm-labels-document-data')?.textContent || '{}');
+      const initialPrintStatus = JSON.parse(document.getElementById('print-status-data').textContent || '{}');
+      const scannerAgentsData = JSON.parse(document.getElementById('scanner-agents-data')?.textContent || '[]');
+      const preferredAgentId = String(JSON.parse(document.getElementById('preferred-agent-id-data')?.textContent || '""') || '').trim();
+      const preferredAgentLocked = Boolean(JSON.parse(document.getElementById('preferred-agent-locked-data')?.textContent || 'false'));
+      const printerInputEl = document.getElementById('packing-slip-printer');
+      const printAgentSelectEl = document.getElementById('print-agent-select');
+      const printAgentStatusEl = document.getElementById('print-agent-status');
+      const printAgentHintEl = document.getElementById('print-agent-hint');
+      const printPrinterStatusEl = document.getElementById('print-printer-status');
+      const printSettingsToggleBtn = document.getElementById('print-settings-toggle-btn');
+      const refreshPrintersBtn = document.getElementById('refresh-printers-btn');
+      const printAllSlipsPdfBtn = document.getElementById('print-all-slips-pdf-btn');
+      const printAllSlipsBtn = document.getElementById('print-all-slips-btn');
+      const printModuleEl = document.getElementById('print-module');
+      const slipGridEl = document.getElementById('packing-slip-grid');
+      const hardwarePrinterStatusGridEl = document.getElementById('hardware-printer-status-grid');
+      const softwarePrinterStatusGridEl = document.getElementById('software-printer-status-grid');
+      const slipModalEl = document.getElementById('packing-slip-modal');
+      const slipModalBodyEl = document.getElementById('packing-slip-modal-body');
+      const slipModalCaptionEl = document.getElementById('packing-slip-modal-caption');
+      const slipModalPdfEl = document.getElementById('packing-slip-modal-pdf');
+      const slipModalPrintEl = document.getElementById('packing-slip-modal-print');
+      const slipModalCloseEl = document.getElementById('packing-slip-modal-close');
+      const slipCaptureHostEl = document.getElementById('packing-slip-capture-host');
+      const csrfToken = '{{ csrf_token }}';
+      const printJobUrl = '/orders/processing/print-jobs/';
+      const printStatusUrl = '{% url "shipping:packing-slips-status" pk=order.pk %}';
+      const shippingPrinterStorageKey = 'shipping_packing_slip_printer';
+      const printAgentStorageKey = 'fullbox_shipping_packing_slips_agent_id_{{ order.number|escapejs }}';
+      const localAgentBridgeState = { detected: null };
+      const localAgentBridgeUrls = [
+        'http://127.0.0.1:17841/whoami',
+        'http://localhost:17841/whoami',
+      ];
+
+      const state = { previewSlipKey: '', printing: false, refreshing: false, printerStatusMap: {}, selectedAgentId: '' };
+      const normalize = (value) => String(value || '').trim();
+      const localAgentHasPrintablePrinters = (payload) => {
+        const virtualPrinterMarkers = ['pdf', 'xps', 'onenote', 'fax', 'microsoft print', 'save to pdf', 'anydesk', 'rustdesk', 'remote desktop', 'redirected'];
+        const seen = new Set();
+        const source = Array.isArray(payload && payload.printers) ? payload.printers : [];
+        for (const item of source) {
+          const value = normalize(item);
+          const key = value.toLowerCase();
+          if (!value || seen.has(key)) {
+            continue;
+          }
+          seen.add(key);
+          if (!virtualPrinterMarkers.some((marker) => key.includes(marker))) {
+            return true;
+          }
+        }
+        return false;
+      };
+      const clearStoredLocalAgentId = (agentId) => {
+        const normalized = normalize(agentId);
+        if (!normalized) {
+          return;
+        }
+        if (normalize(localStorage.getItem(printAgentStorageKey) || '') === normalized) {
+          localStorage.removeItem(printAgentStorageKey);
+        }
+        if (normalize(localStorage.getItem('labels_print_agent_id') || '') === normalized) {
+          localStorage.removeItem('labels_print_agent_id');
+        }
+      };
+      const escapeHtml = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+      const sanitizeFilename = (value) => String(value || '')
+        .trim()
+        .replace(/[\\/:*?"<>|]+/g, '-')
+        .replace(/\s+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_+|_+$/g, '');
+      const isOzonGmSlip = (slip) => normalize(slip?.kind).toLowerCase() === 'ozon_gm';
+      const base64Blob = (value, contentType) => {
+        const binary = window.atob(String(value || ''));
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) {
+          bytes[index] = binary.charCodeAt(index);
+        }
+        return new Blob([bytes], { type: contentType });
+      };
+      const saveBlob = (blob, filename) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      };
+      const setPrintModuleOpen = (open) => {
+        if (!printModuleEl || !printSettingsToggleBtn) return;
+        printModuleEl.classList.toggle('is-open', Boolean(open));
+        printSettingsToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        printSettingsToggleBtn.textContent = open ? 'Скрыть настройки печати' : 'Настройки печати';
+      };
+
+      const setPrintAgentStatus = (text, stateName = 'muted') => {
+        if (!printAgentStatusEl) return;
+        printAgentStatusEl.textContent = text || '-';
+        printAgentStatusEl.classList.remove('ok', 'warn', 'error', 'muted');
+        printAgentStatusEl.classList.add(stateName || 'muted');
+      };
+
+      const setPrintAgentHint = (text, isError = false) => {
+        if (!printAgentHintEl) return;
+        printAgentHintEl.textContent = text || '';
+        printAgentHintEl.style.color = isError ? 'var(--danger)' : '';
+      };
+
+      const renderConfiguredPrinterStatus = () => {
+        if (!printPrinterStatusEl) return;
+        const configured = normalize(localStorage.getItem('processing_label_printer'))
+          || normalize(localStorage.getItem('label_printer'));
+        printPrinterStatusEl.textContent = configured || 'не выбран';
+      };
+
+      const fetchLocalAgentBridgePayload = async (url) => {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), 1200);
+        try {
+          const resp = await fetch(url, {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-store',
+            signal: controller.signal,
+          });
+          if (!resp.ok) return null;
+          const data = await resp.json().catch(() => null);
+          if (!data || data.ok === false || !data.agentId) return null;
+          return {
+            agentId: normalize(data.agentId),
+            name: normalize(data.name),
+            host: normalize(data.host),
+            defaultPrinter: normalize(data.defaultPrinter),
+            printers: Array.isArray(data.printers)
+              ? data.printers.map((value) => normalize(value)).filter(Boolean)
+              : [],
+          };
+        } catch (err) {
+          return null;
+        } finally {
+          window.clearTimeout(timer);
+        }
+      };
+
+      const detectLocalAgentBridge = async () => {
+        for (const url of localAgentBridgeUrls) {
+          const payload = await fetchLocalAgentBridgePayload(url);
+          if (payload && payload.agentId) {
+            if (!localAgentHasPrintablePrinters(payload)) {
+              clearStoredLocalAgentId(payload.agentId);
+            }
+            localAgentBridgeState.detected = payload;
+            return payload;
+          }
+        }
+        return null;
+      };
+
+      const getAgentRecord = (agentId) => (Array.isArray(scannerAgentsData) ? scannerAgentsData : [])
+        .find((agent) => normalize(agent?.agent_id) === normalize(agentId)) || null;
+
+      const populatePrintAgentSelect = () => {
+        if (!printAgentSelectEl) return;
+        const existing = new Set(Array.from(printAgentSelectEl.options || []).map((option) => option.value));
+        (Array.isArray(scannerAgentsData) ? scannerAgentsData : []).forEach((agent) => {
+          const agentId = normalize(agent?.agent_id);
+          if (!agentId || existing.has(agentId)) return;
+          const option = document.createElement('option');
+          option.value = agentId;
+          option.textContent = `${agent.title || agentId} · ${agentId}`;
+          option.dataset.status = String(agent.status || '');
+          option.dataset.online = agent.is_online ? '1' : '0';
+          printAgentSelectEl.appendChild(option);
+          existing.add(agentId);
+        });
+      };
+
+      const upsertPrintAgentOption = (agentInfo) => {
+        if (!agentInfo || !agentInfo.agentId || !printAgentSelectEl) return;
+        const agentId = normalize(agentInfo.agentId);
+        const title = normalize(agentInfo.name || agentInfo.host || agentId) || agentId;
+        let option = Array.from(printAgentSelectEl.options || []).find((entry) => entry.value === agentId);
+        if (!option) {
+          option = document.createElement('option');
+          printAgentSelectEl.appendChild(option);
+        }
+        option.value = agentId;
+        option.textContent = `${title} · ${agentId}`;
+        option.dataset.status = 'онлайн';
+        option.dataset.online = '1';
+        const existing = getAgentRecord(agentId);
+        if (existing) {
+          existing.title = title;
+          existing.status = 'онлайн';
+          existing.is_online = true;
+        } else if (Array.isArray(scannerAgentsData)) {
+          scannerAgentsData.unshift({ agent_id: agentId, title, status: 'онлайн', is_online: true, last_seen: '' });
+        }
+      };
+
+      const chooseDefaultPrintAgentId = () => {
+        if (preferredAgentLocked && preferredAgentId) return preferredAgentId;
+        const pageStored = normalize(localStorage.getItem(printAgentStorageKey) || '');
+        if (pageStored) return pageStored;
+        const globalStored = normalize(localStorage.getItem('labels_print_agent_id') || '');
+        if (globalStored) return globalStored;
+        if (preferredAgentId) return preferredAgentId;
+        const online = (Array.isArray(scannerAgentsData) ? scannerAgentsData : []).find((agent) => agent?.agent_id && agent.is_online);
+        if (online) return normalize(online.agent_id);
+        const first = (Array.isArray(scannerAgentsData) ? scannerAgentsData : []).find((agent) => agent?.agent_id);
+        return first ? normalize(first.agent_id) : '';
+      };
+
+      const applyPrintAgentId = (agentId) => {
+        const value = normalize(agentId);
+        state.selectedAgentId = value;
+        if (value) {
+          localStorage.setItem(printAgentStorageKey, value);
+          localStorage.setItem('labels_print_agent_id', value);
+        } else {
+          localStorage.removeItem(printAgentStorageKey);
+        }
+        if (printAgentSelectEl) {
+          const hasOption = Array.from(printAgentSelectEl.options || []).some((option) => option.value === value);
+          printAgentSelectEl.value = hasOption ? value : '';
+        }
+        const localAgent = localAgentBridgeState.detected;
+        const record = getAgentRecord(value);
+        if (value && localAgent && normalize(localAgent.agentId) === value) {
+          setPrintAgentStatus('свой агент', 'ok');
+          setPrintAgentHint(`Локальный агент: ${localAgent.name || localAgent.host || value}.`);
+        } else if (record) {
+          setPrintAgentStatus(record.is_online ? 'онлайн' : 'нет связи', record.is_online ? 'ok' : 'warn');
+          setPrintAgentHint(value ? `Печать пойдет через ${record.title || value}.` : 'Упаковочные листы печатаются через выбранный агент.');
+        } else if (value) {
+          setPrintAgentStatus('выбран', 'warn');
+          setPrintAgentHint(`Печать пойдет через ${value}.`);
+        } else {
+          setPrintAgentStatus('авто', 'warn');
+          setPrintAgentHint('Агент будет выбран по принтеру.');
+        }
+        renderConfiguredPrinterStatus();
+      };
+
+      const initPrintAgentPanel = () => {
+        populatePrintAgentSelect();
+        applyPrintAgentId(chooseDefaultPrintAgentId());
+        printAgentSelectEl?.addEventListener('change', () => applyPrintAgentId(printAgentSelectEl.value || ''));
+        detectLocalAgentBridge().then((payload) => {
+          if (!payload || !payload.agentId) {
+            renderConfiguredPrinterStatus();
+            return;
+          }
+          if (!localAgentHasPrintablePrinters(payload)) {
+            applyPrintAgentId(chooseDefaultPrintAgentId());
+            renderConfiguredPrinterStatus();
+            return;
+          }
+          upsertPrintAgentOption(payload);
+          applyPrintAgentId(payload.agentId);
+          if (payload.defaultPrinter && printerInputEl && !normalize(printerInputEl.value)) {
+            printerInputEl.value = payload.defaultPrinter;
+            persistPrinter(payload.defaultPrinter);
+            renderConfiguredPrinterStatus();
+          }
+        }).catch(() => {
+          renderConfiguredPrinterStatus();
+        });
+      };
+
+      const selectedAgentId = () => normalize(state.selectedAgentId)
+        || (localAgentHasPrintablePrinters(localAgentBridgeState.detected) ? normalize(localAgentBridgeState.detected?.agentId) : '')
+        || normalize(localStorage.getItem('labels_print_agent_id') || '');
+
+      const buildPrinterStatusMap = (items) => {
+        const next = {};
+        (Array.isArray(items) ? items : []).forEach((printer) => {
+          const key = normalize(printer?.name).toLowerCase();
+          if (key) next[key] = printer;
+        });
+        state.printerStatusMap = next;
+      };
+
+      const getPrinterMeta = (printerName) => state.printerStatusMap[normalize(printerName).toLowerCase()] || null;
+      const isVirtualPrinter = (printerName) => Boolean(getPrinterMeta(printerName)?.is_virtual);
+
+      const baseSlipRows = (slip) => [
+        ['Паллета', slip.pallet_counter],
+        ['Тип поставки', slip.supply_type],
+        ['Номер поставки', slip.supply_number],
+        ['ШК поставки', slip.shipping_barcode],
+        ['Кол-во коробов на паллете', slip.box_count],
+        ['Склад назначения', slip.destination_warehouse],
+        ['Транзитный склад', slip.transit_address],
+        ['Поставщик', slip.supplier_name],
+        ['Дата слота', slip.delivery_date],
+      ];
+
+      const readStoredPrinter = () => {
+        return normalize(localStorage.getItem(shippingPrinterStorageKey));
+      };
+
+      const persistPrinter = (value) => {
+        const normalizedValue = normalize(value);
+        if (normalizedValue) {
+          localStorage.setItem(shippingPrinterStorageKey, normalizedValue);
+        } else {
+          localStorage.removeItem(shippingPrinterStorageKey);
+        }
+      };
+
+      const formatJobList = (items, fallback) => {
+        if (!Array.isArray(items) || !items.length) {
+          return fallback;
+        }
+        return items.map((item) => escapeHtml(item)).join('; ');
+      };
+
+      const appendPrinterOptions = (select, printers) => {
+        printers.forEach((printer) => {
+          const option = document.createElement('option');
+          option.value = printer;
+          option.textContent = printer;
+          select.appendChild(option);
+        });
+      };
+
+      const syncPrinterOptions = (printers, printerStatuses) => {
+        if (!printerInputEl) return;
+        const selected = normalize(printerInputEl.value) || readStoredPrinter();
+        const list = Array.isArray(printers) ? printers.map((item) => normalize(item)).filter(Boolean) : [];
+        const unique = Array.from(new Set(list.map((item) => item.toLowerCase()))).map((lowerName) => (
+          list.find((item) => item.toLowerCase() === lowerName)
+        )).filter(Boolean);
+        const statusMap = {};
+        (Array.isArray(printerStatuses) ? printerStatuses : []).forEach((printer) => {
+          const key = normalize(printer?.name).toLowerCase();
+          if (key) statusMap[key] = printer;
+        });
+        const hardwarePrinters = unique.filter((printer) => !statusMap[printer.toLowerCase()]?.is_virtual);
+        const softwarePrinters = unique.filter((printer) => statusMap[printer.toLowerCase()]?.is_virtual);
+        printerInputEl.innerHTML = '<option value="">Выберите аппаратный принтер на этом компьютере</option>';
+        appendPrinterOptions(printerInputEl, hardwarePrinters);
+        if (selected) {
+          const known = hardwarePrinters.some((item) => normalize(item).toLowerCase() === selected.toLowerCase());
+          if (!known) {
+            printerInputEl.value = '';
+          } else {
+            printerInputEl.value = selected;
+          }
+        }
+        if (softwarePrinters.length) {
+          const noteOption = document.createElement('option');
+          noteOption.value = '';
+          noteOption.textContent = `PDF/виртуальные принтеры: ${softwarePrinters.length} шт.`;
+          noteOption.disabled = true;
+          printerInputEl.appendChild(noteOption);
+        }
+      };
+
+      const renderPrinterStatusCards = (container, printers, emptyText) => {
+        if (!container) return;
+        if (!printers.length) {
+          container.innerHTML = `<div class="empty">${escapeHtml(emptyText)}</div>`;
+          return;
+        }
+        container.innerHTML = printers.map((printer) => {
+          const color = normalize(printer.color) || 'gray';
+          const tags = [];
+          if (printer.is_default) tags.push('по умолчанию');
+          if (printer.is_local) tags.push('локальный');
+          if (printer.is_network) tags.push('сетевой');
+          if (printer.is_virtual) tags.push('PDF/виртуальный');
+          if (Number(printer.jobs || 0) > 0) tags.push(`заданий: ${Number(printer.jobs || 0)}`);
+          return `
+            <div class="printer-status-card ${escapeHtml(color)}">
+              <div class="printer-status-head">
+                <div class="printer-status-name">${escapeHtml(printer.name || 'Без имени')}</div>
+                <div class="printer-status-badge">${escapeHtml(printer.state_label || 'Нет данных')}</div>
+              </div>
+              <div class="printer-status-meta">${escapeHtml(printer.status || 'Статус не сообщён агентом')}</div>
+              <div class="printer-status-tags">${tags.length ? tags.map((tag) => `<span class="printer-status-tag">${escapeHtml(tag)}</span>`).join('') : '<span class="printer-status-tag">без меток</span>'}</div>
+            </div>
+          `;
+        }).join('');
+      };
+
+      const renderPrinterStatuses = (items) => {
+        if (!hardwarePrinterStatusGridEl || !softwarePrinterStatusGridEl) return;
+        const printers = Array.isArray(items) ? items : [];
+        if (!printers.length) {
+          renderPrinterStatusCards(hardwarePrinterStatusGridEl, [], 'После ручного обновления здесь появится состояние аппаратных принтеров.');
+          renderPrinterStatusCards(softwarePrinterStatusGridEl, [], 'После ручного обновления здесь появится состояние PDF и виртуальных принтеров.');
+          return;
+        }
+        const hardwarePrinters = printers.filter((printer) => !printer?.is_virtual);
+        const softwarePrinters = printers.filter((printer) => Boolean(printer?.is_virtual));
+        renderPrinterStatusCards(hardwarePrinterStatusGridEl, hardwarePrinters, 'Аппаратные принтеры не найдены.');
+        renderPrinterStatusCards(softwarePrinterStatusGridEl, softwarePrinters, 'Программные принтеры не найдены.');
+      };
+
+      const applyPrintStatus = (payload, refreshMessage = '') => {
+        const data = payload && typeof payload === 'object' ? payload : {};
+        const statusEl = document.querySelector('[data-print-status]');
+        const agentEl = document.querySelector('[data-print-agent]');
+        const updatedEl = document.querySelector('[data-printer-updated]');
+        const refreshEl = document.querySelector('[data-print-refresh-message]');
+        if (statusEl) {
+          statusEl.textContent = `Статус печати: ${normalize(data.print_status_line) || 'нет данных'}`;
+        }
+        if (agentEl) {
+          agentEl.textContent = `Агент печати: ${normalize(data.print_agent_line) || 'неизвестно'}`;
+        }
+        if (updatedEl) {
+          const updatedAt = normalize(data.printer_details_updated_at);
+          updatedEl.textContent = updatedAt ? `Диагностика принтеров: ${updatedAt}` : 'Диагностика принтеров ещё не обновлялась.';
+          updatedEl.style.display = '';
+        }
+        if (refreshEl) {
+          const message = normalize(refreshMessage);
+          refreshEl.textContent = message;
+          refreshEl.style.display = message ? '' : 'none';
+        }
+
+        const counts = {
+          pending: Number(data.print_queue_pending || 0),
+          printing: Number(data.print_queue_printing || 0),
+          stuck: Number(data.print_queue_stuck || 0),
+          failed: Number(data.print_queue_failed || 0),
+        };
+        Object.entries(counts).forEach(([key, value]) => {
+          const el = document.querySelector(`[data-queue-${key}]`);
+          if (el) {
+            el.textContent = String(value);
+          }
+        });
+        const detailMap = {
+          pending: ['Ждут', data.print_queue_pending_jobs, 'нет'],
+          printing: ['Печатаются', data.print_queue_printing_jobs, 'нет'],
+          stuck: ['Зависли', data.print_queue_stuck_jobs, 'нет'],
+          failed: ['Ошибки', data.print_queue_failed_jobs, 'нет'],
+        };
+        Object.entries(detailMap).forEach(([key, [label, items, fallback]]) => {
+          const el = document.querySelector(`[data-queue-${key}-jobs]`);
+          if (el) {
+            el.innerHTML = `<strong>${escapeHtml(label)}:</strong> ${formatJobList(items, fallback)}`;
+          }
+        });
+
+        buildPrinterStatusMap(data.printer_statuses);
+        syncPrinterOptions(data.available_printers, data.printer_statuses);
+        renderPrinterStatuses(data.printer_statuses);
+      };
+
+      const refreshPrintStatus = async ({ silent = false } = {}) => {
+        if (state.refreshing) return;
+        state.refreshing = true;
+        refreshPrintersBtn?.setAttribute('disabled', 'disabled');
+        try {
+          const response = await fetch(printStatusUrl, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok || !payload.ok) {
+            throw new Error(payload.error || 'Не удалось обновить состояние печати.');
+          }
+          applyPrintStatus(payload, payload.refresh_message || '');
+          if (!silent && payload.refresh_message) {
+            alert(payload.refresh_message);
+          }
+        } catch (error) {
+          if (!silent) {
+            alert(error?.message || 'Не удалось обновить состояние печати.');
+          }
+        } finally {
+          state.refreshing = false;
+          refreshPrintersBtn?.removeAttribute('disabled');
+        }
+      };
+
+      const renderSlipQr = (root, barcodeValue, mode) => {
+        const qr = root.querySelector('[data-slip-qr]');
+        if (!qr || !barcodeValue || barcodeValue === '-' || !window.QRCode) return;
+        qr.innerHTML = '';
+        const size = mode === 'capture' ? 180 : mode === 'modal' ? 104 : 58;
+        new window.QRCode(qr, {
+          text: String(barcodeValue),
+          width: size,
+          height: size,
+          correctLevel: window.QRCode.CorrectLevel.M,
+        });
+      };
+
+      const renderPackingSlipMarkup = (slip, mode = 'card') => {
+        const sizeMap = {
+          card: { width: 200, font: 12.4 },
+          modal: { width: 360, font: 22 },
+          capture: { width: 750, font: 38 },
+        };
+        const size = sizeMap[mode] || sizeMap.card;
+        if (isOzonGmSlip(slip)) {
+          const image = escapeHtml(`data:image/png;base64,${slip.label_png_base64 || ''}`);
+          return `
+            <div class="ozon-label-sheet ozon-label-sheet-${mode}" style="width:${size.width}px">
+              <img src="${image}" alt="ШК ГМ Ozon ${escapeHtml(slip.gm_barcode || '')}">
+            </div>
+          `;
+        }
+        const rowsMarkup = baseSlipRows(slip).map(([label, value]) => (
+          `<div class="packing-slip-row"><div class="packing-slip-label">${escapeHtml(label)}</div><div class="packing-slip-value${String(label).includes('короб') ? ' left' : ''}">${escapeHtml(value || '-')}</div></div>`
+        )).join('');
+        return `
+          <div class="packing-slip-sheet packing-slip-sheet-${mode}" style="width:${size.width}px;font-size:${size.font}px">
+            <div class="packing-slip-title">УПАКОВОЧНЫЙ ЛИСТ</div>
+            <div class="packing-slip-marketplace">${escapeHtml(slip.marketplace_name || '-')}</div>
+            <div class="packing-slip-qr-wrap">
+              <div class="packing-slip-qr-main">
+                <div class="packing-slip-qr" data-slip-qr aria-label="${escapeHtml(slip.shipping_barcode || '')}"></div>
+              </div>
+              <div class="packing-slip-qr-caption">${escapeHtml(slip.shipping_barcode || '-')}</div>
+            </div>
+            <div class="packing-slip-rows">${rowsMarkup}</div>
+            <div class="packing-slip-footer">FULLBOX</div>
+          </div>
+        `;
+      };
+
+      const mountSlip = (container, slip, mode) => {
+        if (!container || !slip) return;
+        container.innerHTML = renderPackingSlipMarkup(slip, mode);
+        const root = container.firstElementChild;
+        if (root && !isOzonGmSlip(slip)) renderSlipQr(root, slip.shipping_barcode, mode);
+      };
+
+      const getSlip = (slipKey) => slipsData.find((item) => normalize(item.slip_key) === normalize(slipKey)) || null;
+
+      const openPreviewModal = (slipKey) => {
+        const slip = getSlip(slipKey);
+        if (!slip) return;
+        state.previewSlipKey = normalize(slipKey);
+        mountSlip(slipModalBodyEl, slip, 'modal');
+        slipModalCaptionEl.textContent = isOzonGmSlip(slip)
+          ? `ШК ГМ ${slip.gm_barcode || '-'} · ${slip.label_counter || ''}`
+          : `Паллета ${slip.pallet_label} · ${slip.box_count} коробов`;
+        slipModalEl.classList.add('is-open');
+      };
+
+      const closePreviewModal = () => {
+        state.previewSlipKey = '';
+        slipModalBodyEl.innerHTML = '';
+        slipModalCaptionEl.textContent = '-';
+        slipModalEl.classList.remove('is-open');
+      };
+
+      const ensurePrinter = () => {
+        const printer = normalize(printerInputEl?.value) || readStoredPrinter();
+        if (!printer) {
+          alert('Укажи аппаратный принтер этикеток для печати упаковочных листов.');
+          printerInputEl?.focus();
+          return '';
+        }
+        if (isVirtualPrinter(printer)) {
+          alert('Для PDF и виртуальных принтеров используй кнопку PDF рядом с упаковочным листом.');
+          printerInputEl.value = '';
+          printerInputEl?.focus();
+          return '';
+        }
+        if (printerInputEl) printerInputEl.value = printer;
+        persistPrinter(printer);
+        return printer;
+      };
+
+      const getSelectedPrinter = () => normalize(printerInputEl?.value) || readStoredPrinter();
+
+      const captureSlipImageDataUrl = async (slip) => {
+        if (isOzonGmSlip(slip) && slip.label_png_base64) {
+          return `data:image/png;base64,${slip.print_png_base64 || slip.label_png_base64}`;
+        }
+        if (!window.html2canvas) {
+          throw new Error('html2canvas недоступен');
+        }
+        if (document.fonts?.ready) {
+          await document.fonts.ready.catch(() => null);
+        }
+        const wrapper = document.createElement('div');
+        mountSlip(wrapper, slip, 'capture');
+        const root = wrapper.firstElementChild;
+        if (!root) {
+          throw new Error('Не удалось подготовить шаблон упаковочного листа');
+        }
+        slipCaptureHostEl.innerHTML = '';
+        slipCaptureHostEl.appendChild(root);
+        await new Promise((resolve) => window.requestAnimationFrame(resolve));
+        const canvas = await window.html2canvas(root, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          useCORS: true,
+          logging: false,
+        });
+        slipCaptureHostEl.innerHTML = '';
+        return canvas.toDataURL('image/png');
+      };
+
+      const captureSlipImage = async (slip) => {
+        const dataUrl = await captureSlipImageDataUrl(slip);
+        return dataUrl.replace(/^data:image\/png;base64,/, '');
+      };
+
+      const downloadSlipPdf = async (slipKey) => withPrintLock(async () => {
+        const slip = getSlip(slipKey);
+        if (!slip) {
+          alert('Паллета для PDF не найдена.');
+          return;
+        }
+        if (isOzonGmSlip(slip) && slip.pdf_base64) {
+          const barcodePart = sanitizeFilename(slip.gm_barcode) || 'ozon_gm';
+          saveBlob(base64Blob(slip.pdf_base64, 'application/pdf'), `ozon_gm_label_${barcodePart}_75x120.pdf`);
+          return;
+        }
+        const jsPdfApi = window.jspdf && window.jspdf.jsPDF ? window.jspdf.jsPDF : null;
+        if (!jsPdfApi) {
+          alert('Не удалось загрузить модуль PDF. Обнови страницу и попробуй снова.');
+          return;
+        }
+        try {
+          const image = await captureSlipImageDataUrl(slip);
+          const doc = new jsPdfApi({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: [75, 120],
+            compress: true,
+          });
+          doc.addImage(image, 'PNG', 0, 0, 75, 120, undefined, 'FAST');
+          const palletPart = sanitizeFilename(slip.pallet_label) || 'pallet';
+          const supplyPart = sanitizeFilename(slip.supply_number) || 'supply';
+          doc.save(`packing_slip_${palletPart}_${supplyPart}.pdf`);
+        } catch (error) {
+          alert(error?.message || 'Не удалось подготовить PDF упаковочного листа.');
+        }
+      });
+
+      const downloadAllSlipsPdf = async () => withPrintLock(async () => {
+        if (!slipsData.length) {
+          alert('Нет паллет с коробами для выгрузки в PDF.');
+          return;
+        }
+        if (ozonLabelsDocument.combined_pdf_base64) {
+          const orderPart = sanitizeFilename('{{ order.display_number|default:order.number }}') || 'shipping_order';
+          saveBlob(
+            base64Blob(ozonLabelsDocument.combined_pdf_base64, 'application/pdf'),
+            `ozon_gm_labels_${orderPart}_${slipsData.length}_75x120.pdf`,
+          );
+          return;
+        }
+        const jsPdfApi = window.jspdf && window.jspdf.jsPDF ? window.jspdf.jsPDF : null;
+        if (!jsPdfApi) {
+          alert('Не удалось загрузить модуль PDF. Обнови страницу и попробуй снова.');
+          return;
+        }
+        try {
+          const doc = new jsPdfApi({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: [75, 120],
+            compress: true,
+          });
+          for (let index = 0; index < slipsData.length; index += 1) {
+            const slip = slipsData[index];
+            const image = await captureSlipImageDataUrl(slip);
+            if (index > 0) {
+              doc.addPage([75, 120], 'portrait');
+            }
+            doc.addImage(image, 'PNG', 0, 0, 75, 120, undefined, 'FAST');
+          }
+          const orderPart = sanitizeFilename('{{ order.display_number|default:order.number }}') || 'shipping_order';
+          doc.save(`packing_slips_${orderPart}_${slipsData.length}.pdf`);
+        } catch (error) {
+          alert(error?.message || 'Не удалось подготовить общий PDF упаковочных листов.');
+        }
+      });
+
+      const queueSlipPrint = async (slip) => {
+        const printer = ensurePrinter();
+        if (!printer) return false;
+        const image = await captureSlipImage(slip);
+        const ozonLabel = isOzonGmSlip(slip);
+        const response = await fetch(printJobUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+          },
+          body: JSON.stringify({
+            order_id: '{{ order.number }}',
+            card_id: String(ozonLabel ? slip.gm_barcode : slip.pallet_label || ''),
+            article: ozonLabel ? 'shipping_ozon_gm_label' : 'shipping_packing_slip',
+            barcode: String(slip.shipping_barcode || ''),
+            size: ozonLabel ? '75x120' : 'pallet',
+            printer_name: printer,
+            agent_id: selectedAgentId(),
+            label_png_base64: image,
+            template_key: ozonLabel ? 'shipping_ozon_gm_label' : 'shipping_packing_slip',
+            processing_param_key: ozonLabel ? 'shipping_ozon_gm_label' : 'shipping_packing_slip',
+            label_width_mm: Number(slip.label_width_mm || 75),
+            label_height_mm: Number(slip.label_height_mm || 120),
+          }),
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || 'Не удалось поставить задание печати в очередь');
+        }
+        return true;
+      };
+
+      const withPrintLock = async (work) => {
+        if (state.printing) return;
+        state.printing = true;
+        printAllSlipsPdfBtn?.setAttribute('disabled', 'disabled');
+        printAllSlipsBtn?.setAttribute('disabled', 'disabled');
+        slipModalPdfEl?.setAttribute('disabled', 'disabled');
+        slipModalPrintEl?.setAttribute('disabled', 'disabled');
+        try {
+          await work();
+        } finally {
+          state.printing = false;
+          printAllSlipsPdfBtn?.removeAttribute('disabled');
+          printAllSlipsBtn?.removeAttribute('disabled');
+          slipModalPdfEl?.removeAttribute('disabled');
+          slipModalPrintEl?.removeAttribute('disabled');
+        }
+      };
+
+      const printSlip = async (slipKey) => withPrintLock(async () => {
+        const slip = getSlip(slipKey);
+        if (!slip) {
+          alert('Этикетка для печати не найдена.');
+          return;
+        }
+        try {
+          await queueSlipPrint(slip);
+          await refreshPrintStatus({ silent: true });
+          alert(isOzonGmSlip(slip)
+            ? `Этикетка ШК ГМ ${slip.gm_barcode} отправлена в печать.`
+            : `Упаковочный лист паллеты ${slip.pallet_label} отправлен в печать.`);
+        } catch (error) {
+          alert(error?.message || 'Не удалось отправить упаковочный лист в печать.');
+        }
+      });
+
+      const printAllSlips = async () => withPrintLock(async () => {
+        if (!slipsData.length) {
+          alert('Нет этикеток для печати.');
+          return;
+        }
+        if (!ensurePrinter()) return;
+        for (const slip of slipsData) {
+          try {
+            await queueSlipPrint(slip);
+          } catch (error) {
+            await refreshPrintStatus({ silent: true });
+            const label = isOzonGmSlip(slip) ? `ШК ГМ ${slip.gm_barcode}` : `паллете ${slip.pallet_label}`;
+            alert(`Печать остановлена на ${label}: ${error?.message || 'ошибка без описания'}`);
+            return;
+          }
+        }
+        await refreshPrintStatus({ silent: true });
+        alert(`В очередь печати отправлено ${slipsData.length} ${isOzonGmSlip(slipsData[0]) ? 'этикеток ШК ГМ Ozon' : 'упаковочных листов'}.`);
+      });
+
+      const renderSlips = () => {
+        if (!slipsData.length) {
+          slipGridEl.innerHTML = `<div class="empty">${escapeHtml(packingSlipsError || 'После паллетизации этикетки не найдены.')}</div>`;
+          return;
+        }
+        slipGridEl.innerHTML = '';
+        slipsData.forEach((slip) => {
+          const ozonLabel = isOzonGmSlip(slip);
+          const card = document.createElement('div');
+          card.className = 'slip-card';
+          card.innerHTML = `
+            <div class="slip-card-head">
+              <div>
+                <div class="slip-card-title">${ozonLabel ? `ШК ГМ ${escapeHtml(slip.gm_barcode)}` : `Паллета ${escapeHtml(slip.pallet_label)}`}</div>
+                <div class="slip-card-meta">${ozonLabel ? `${escapeHtml(slip.label_counter)} · поставка ${escapeHtml(slip.supply_number)}` : `${escapeHtml(slip.box_count)} коробов · поставка ${escapeHtml(slip.supply_number)}`}</div>
+              </div>
+              <div class="slip-card-actions">
+                <button class="btn small" type="button" data-slip-preview="${escapeHtml(slip.slip_key)}">Предпросмотр</button>
+                <button class="btn small" type="button" data-slip-pdf="${escapeHtml(slip.slip_key)}">PDF</button>
+                <button class="btn small" type="button" data-slip-print="${escapeHtml(slip.slip_key)}">Печать</button>
+              </div>
+            </div>
+            <div data-slip-card-root></div>
+          `;
+          slipGridEl.appendChild(card);
+          mountSlip(card.querySelector('[data-slip-card-root]'), slip, 'card');
+        });
+        slipGridEl.querySelectorAll('[data-slip-preview]').forEach((btn) => btn.addEventListener('click', () => openPreviewModal(btn.dataset.slipPreview || '')));
+        slipGridEl.querySelectorAll('[data-slip-pdf]').forEach((btn) => btn.addEventListener('click', () => { void downloadSlipPdf(btn.dataset.slipPdf || ''); }));
+        slipGridEl.querySelectorAll('[data-slip-print]').forEach((btn) => btn.addEventListener('click', () => { void printSlip(btn.dataset.slipPrint || ''); }));
+      };
+
+      const printerInputs = Array.from(document.querySelectorAll('[data-label-printer]'));
+      if (printerInputs.length) {
+        const setPrinterValue = (value) => {
+          printerInputs.forEach((input) => {
+            if (input.value !== value) {
+              input.value = value;
+            }
+          });
+        };
+        const stored = localStorage.getItem(shippingPrinterStorageKey);
+        if (stored) {
+          setPrinterValue(stored);
+        }
+        printerInputs.forEach((input) => {
+          input.addEventListener('change', () => {
+            const value = normalize(input.value);
+            setPrinterValue(value);
+            persistPrinter(value);
+          });
+          input.addEventListener('blur', () => {
+            persistPrinter(input.value);
+          });
+        });
+      }
+
+      printSettingsToggleBtn?.addEventListener('click', () => {
+        setPrintModuleOpen(!printModuleEl?.classList.contains('is-open'));
+      });
+      printAllSlipsPdfBtn?.addEventListener('click', () => { void downloadAllSlipsPdf(); });
+      printAllSlipsBtn?.addEventListener('click', () => { void printAllSlips(); });
+      refreshPrintersBtn?.addEventListener('click', () => { void refreshPrintStatus(); });
+      slipModalCloseEl?.addEventListener('click', closePreviewModal);
+      slipModalEl?.addEventListener('click', (event) => {
+        if (event.target === slipModalEl) closePreviewModal();
+      });
+      slipModalPrintEl?.addEventListener('click', () => {
+        if (!state.previewSlipKey) return;
+        void printSlip(state.previewSlipKey);
+      });
+      slipModalPdfEl?.addEventListener('click', () => {
+        if (!state.previewSlipKey) return;
+        void downloadSlipPdf(state.previewSlipKey);
+      });
+      applyPrintStatus(initialPrintStatus);
+      initPrintAgentPanel();
+      setPrintModuleOpen(false);
+      renderSlips();
+    })();
+  </script>
+</body>
+</html>

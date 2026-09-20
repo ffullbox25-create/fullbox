@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ report.title }} | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/head_manager/cabinet.css?v=20260724-1519" rel="stylesheet">
+  <style>
+    :root {
+      --font-body: "Manrope", system-ui, sans-serif;
+      --font-display: "Bricolage Grotesque", "Manrope", system-ui, sans-serif;
+      --bg: #f6f8f7;
+      --surface: #fff;
+      --soft: #f8faf9;
+      --ink: #303030;
+      --muted: #70665f;
+      --accent: #f89000;
+      --accent-strong: #f86800;
+      --accent-soft: rgba(248, 144, 0, 0.13);
+      --stroke: rgba(23, 33, 29, 0.1);
+      --shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: var(--font-body); color: var(--ink); background: var(--bg); }
+    a { color: inherit; text-decoration: none; }
+    h1, h2, p { margin: 0; }
+    h1 { font-family: var(--font-display); font-size: 30px; line-height: 1.15; letter-spacing: 0; }
+    h2 { font-family: var(--font-display); font-size: 18px; letter-spacing: 0; }
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 250px minmax(0, 1fr); }
+    .shell.nav-collapsed { grid-template-columns: 82px minmax(0, 1fr); }
+    .content { min-width: 0; padding: 0 28px 34px; display: grid; gap: 16px; align-content: start; }
+    .topbar { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin: 0 -28px 4px; padding: 22px 28px 20px; background: rgba(255,255,255,.94); border-bottom: 1px solid var(--stroke); box-shadow: 0 8px 24px rgba(15,23,42,.04); }
+    .subtitle, .muted { color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .crumbs { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 7px; color: var(--muted); font-size: 13px; font-weight: 800; }
+    .crumbs a { color: var(--accent-strong); }
+    .actions, .quick-periods { display: flex; flex-wrap: wrap; gap: 8px; }
+    .actions { justify-content: flex-end; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 9px 13px; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+    .btn.primary { border-color: transparent; background: var(--accent); color: #fff; }
+    .stats { display: grid; grid-template-columns: repeat(6, minmax(130px, 1fr)); gap: 12px; }
+    .stat, .panel { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .stat { padding: 15px; display: grid; gap: 8px; min-height: 92px; }
+    .stat-label { color: var(--muted); font-size: 11px; font-weight: 900; text-transform: uppercase; }
+    .stat-value { font-size: 24px; font-weight: 900; line-height: 1; }
+    .panel { padding: 16px; min-width: 0; }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .filters { display: grid; grid-template-columns: repeat(3, minmax(190px, 1fr)) auto; gap: 10px; align-items: end; }
+    .field { display: grid; gap: 5px; }
+    label { color: var(--muted); font-size: 11px; font-weight: 900; text-transform: uppercase; }
+    input { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--stroke); border-radius: var(--radius); background: #fff; color: var(--ink); font: inherit; font-size: 13px; }
+    .filter-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .table-wrap { overflow: auto; border: 1px solid var(--stroke); border-radius: var(--radius); }
+    table { width: 100%; min-width: 1480px; border-collapse: collapse; background: var(--surface); }
+    table.compact { min-width: 760px; }
+    th, td { padding: 10px 11px; border-bottom: 1px solid var(--stroke); text-align: left; font-size: 12px; vertical-align: middle; white-space: nowrap; }
+    th { position: sticky; top: 0; z-index: 1; background: var(--soft); color: var(--muted); font-weight: 900; }
+    th.group { color: var(--ink); background: var(--accent-soft); text-align: center; }
+    td.employee { min-width: 220px; font-weight: 900; }
+    td.metric { text-align: right; font-variant-numeric: tabular-nums; }
+    .metric-strong { font-weight: 900; }
+    .tag { display: inline-flex; align-items: center; min-height: 24px; padding: 4px 8px; border-radius: var(--radius); color: var(--accent-strong); background: var(--accent-soft); font-size: 12px; font-weight: 900; }
+    .explain { padding: 11px 13px; border: 1px solid rgba(36,98,138,.18); border-radius: var(--radius); color: #315d76; background: #edf5fa; font-size: 12px; line-height: 1.5; }
+    .status-grid { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 10px; }
+    .status-card { padding: 12px 13px; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--soft); }
+    .status-card strong { display: block; margin-top: 5px; font-size: 22px; line-height: 1; }
+    tfoot td { background: var(--soft); font-weight: 900; }
+    .empty { padding: 24px; border: 1px dashed var(--stroke); border-radius: var(--radius); color: var(--muted); text-align: center; }
+    @media (max-width: 1280px) { .stats { grid-template-columns: repeat(3, minmax(140px, 1fr)); } .filters { grid-template-columns: repeat(2, minmax(190px, 1fr)); } .status-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); } }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      .side { position: static; height: auto; grid-template-rows: auto; }
+      .content { padding: 18px; }
+      .topbar { display: grid; margin: -18px -18px 0; padding: 18px; }
+      .actions { justify-content: flex-start; }
+      .stats, .filters, .status-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" id="dashboard-shell">
+    {% include "head_manager/_main_sidebar.html" with active="reports" %}
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <div class="crumbs">
+            <a href="/head-manager/reports/">Отчёты</a><span>/</span>
+            <a href="/head-manager/reports/employees/">Отчёты по сотрудникам</a><span>/</span>
+            <span>{{ report.title }}</span>
+          </div>
+          <h1>{{ report.title }}</h1>
+          <div class="subtitle">{{ report.subtitle }} Данные на {{ today_label }}, обновлены {{ updated_at }}.</div>
+        </div>
+        <div class="actions">
+          <a class="btn" href="/head-manager/fbs/">В раздел FBS</a>
+          <a class="btn" href="/head-manager/reports/employees/">Все отчёты сотрудников</a>
+          <a class="btn primary" href="{{ export_url }}">Скачать Excel</a>
+        </div>
+      </header>
+
+      <section class="stats" aria-label="Сводка FBS за период">
+        <div class="stat"><div class="stat-label">Заказов поступило</div><div class="stat-value">{{ overview.orders_received }}</div><div class="muted">{{ overview.received_units }} ед.</div></div>
+        <div class="stat"><div class="stat-label">Заказов собрано</div><div class="stat-value">{{ overview.orders_picked }}</div><div class="muted">по завершению отбора</div></div>
+        <div class="stat"><div class="stat-label">Единиц собрано</div><div class="stat-value">{{ overview.picked_units }}</div><div class="muted">фактическое количество</div></div>
+        <div class="stat"><div class="stat-label">Сборщиков</div><div class="stat-value">{{ overview.pickers }}</div><div class="muted">с завершённой сборкой</div></div>
+        <div class="stat"><div class="stat-label">Не завершено из новых</div><div class="stat-value">{{ overview.unfinished_orders }}</div><div class="muted">на текущий момент</div></div>
+        <div class="stat"><div class="stat-label">Передано заказов</div><div class="stat-value">{{ overview.handover_orders }}</div><div class="muted">водителю за период</div></div>
+      </section>
+
+      <div class="explain"><strong>Как считаются цифры:</strong> «Поступило» — заказ загружен в FBS в выбранный период. «Собрано» — задание отбора фактически завершено в этот период; сюда может входить очередь прошлых дней. Поэтому эти два показателя не обязаны совпадать.</div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div><h2>Период и сотрудник</h2><div class="muted">По умолчанию показан сегодняшний день. ФИО фильтрует таблицу сотрудников; общая сводка остаётся по всему FBS.</div></div>
+          <div class="quick-periods">
+            <a class="btn" href="?date_from={{ today_iso }}&date_to={{ today_iso }}">Сегодня</a>
+            <a class="btn" href="?date_from={{ week_from_iso }}&date_to={{ today_iso }}">7 дней</a>
+            <a class="btn" href="?date_from={{ month_from_iso }}&date_to={{ today_iso }}">30 дней</a>
+          </div>
+        </div>
+        <form class="filters" method="get">
+          <div class="field"><label for="date_from">Дата с</label><input id="date_from" name="date_from" type="date" value="{{ filters.date_from }}"></div>
+          <div class="field"><label for="date_to">Дата по</label><input id="date_to" name="date_to" type="date" value="{{ filters.date_to }}"></div>
+          <div class="field"><label for="employee">Сотрудник</label><input id="employee" name="employee" value="{{ filters.employee }}" placeholder="ФИО или логин"></div>
+          <div class="filter-actions"><button class="btn primary" type="submit">Применить</button><a class="btn" href="/head-manager/reports/employees/fbs-productivity/">Сбросить</a></div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><div><h2>Отчёт по разделам FBS</h2><div class="muted">Поступление, сборка, проверка и передача считаются по своим фактическим датам.</div></div><span class="tag">{{ filters.date_from }} · {{ filters.date_to }}</span></div>
+        <div class="table-wrap">
+          <table class="compact">
+            <thead><tr><th>Раздел</th><th>Что учтено</th><th>Заказов</th><th>Единиц</th><th>Рабочих операций</th><th>Исполнителей</th></tr></thead>
+            <tbody>
+              {% for row in overview.section_rows %}
+                <tr>
+                  <td class="metric-strong">{{ row.title }}</td><td>{{ row.description }}</td>
+                  <td class="metric metric-strong">{{ row.orders }}</td><td class="metric">{{ row.units }}</td>
+                  <td class="metric">{{ row.operations }} {{ row.operations_label }}</td>
+                  <td class="metric">{% if row.employees == None %}—{% else %}{{ row.employees }}{% endif %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><div><h2>Состояние заказов, поступивших за период</h2><div class="muted">Текущий статус только тех заказов, которые были загружены в FBS в выбранные даты.</div></div></div>
+        <div class="status-grid">
+          {% for row in overview.order_status_rows %}
+            <div class="status-card"><div class="muted">{{ row.title }}</div><strong>{{ row.orders }}</strong></div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><div><h2>Кто и сколько собрал</h2><div class="muted">Сборка, проверка и передача учитываются отдельно по фактическому исполнителю и дате завершения.</div></div><span class="tag">{{ filters.date_from }} · {{ filters.date_to }}</span></div>
+        {% if rows %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th rowspan="2">Дата</th><th rowspan="2">Сотрудник</th><th rowspan="2">Роль</th><th class="group" colspan="4">Сборка</th><th class="group" colspan="3">Проверка</th><th class="group" colspan="4">Отгрузка</th></tr>
+                <tr><th>Волн</th><th>Заказов</th><th>Единиц</th><th>Среднее на заказ, мин</th><th>Волн</th><th>Заказов</th><th>Единиц</th><th>Отгрузок</th><th>Коробов</th><th>Заказов</th><th>Единиц</th></tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                  <tr>
+                    <td>{{ row.date }}</td><td class="employee">{{ row.employee }}</td><td>{{ row.role }}</td>
+                    <td class="metric">{{ row.pick_waves }}</td><td class="metric">{{ row.pick_orders }}</td><td class="metric">{{ row.pick_units }}</td><td class="metric">{{ row.avg_pick_minutes }}</td>
+                    <td class="metric">{{ row.verified_waves }}</td><td class="metric">{{ row.verified_orders }}</td><td class="metric">{{ row.verified_units }}</td>
+                    <td class="metric">{{ row.shipments }}</td><td class="metric">{{ row.shipment_boxes }}</td><td class="metric">{{ row.shipment_orders }}</td><td class="metric">{{ row.shipment_units }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr><td colspan="3">Итого за период</td><td class="metric">{{ summary.pick_waves }}</td><td class="metric">{{ summary.pick_orders }}</td><td class="metric">{{ summary.pick_units }}</td><td></td><td class="metric">{{ summary.verified_waves }}</td><td class="metric">{{ summary.verified_orders }}</td><td class="metric">{{ summary.verified_units }}</td><td class="metric">{{ summary.shipments }}</td><td class="metric">{{ summary.shipment_boxes }}</td><td class="metric">{{ summary.shipment_orders }}</td><td class="metric">{{ summary.shipment_units }}</td></tr>
+              </tfoot>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty">За выбранный период завершённых FBS-сборок, проверок и передач нет.</div>
+        {% endif %}
+      </section>
+    </main>
+  </div>
+  <script>
+    (function () {
+      var shell = document.getElementById("dashboard-shell");
+      var button = document.getElementById("sidebar-collapse");
+      if (!shell || !button) return;
+      var storageKey = "head-manager-sidebar-collapsed";
+      var collapsed = localStorage.getItem(storageKey) === "1";
+      function render() { shell.classList.toggle("nav-collapsed", collapsed); button.setAttribute("aria-expanded", collapsed ? "false" : "true"); }
+      button.addEventListener("click", function () { collapsed = !collapsed; localStorage.setItem(storageKey, collapsed ? "1" : "0"); render(); });
+      render();
+    })();
+  </script>
+</body>
+</html>

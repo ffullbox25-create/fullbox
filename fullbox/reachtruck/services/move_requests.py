@@ -1,0 +1,4317 @@
+from __future__ import annotations
+
+from collections import defaultdict
+from copy import deepcopy
+from itertools import combinations
+import json
+import re
+
+from django.db import connection, transaction
+from django.db.models import Q
+from django.utils import timezone
+
+from audit.models import OrderAuditEntry, log_order_action, log_stock_move
+from processing_app.stages import PROCESSING_STAGE_OBR_MOVE_CREATED, log_processing_stage
+from reachtruck.models import (
+    MoveRequest,
+    MoveRequestItem,
+    MoveTask,
+    resolve_move_request_process,
+)
+from sklad.models import WarehouseEvent, WarehouseReserve, WarehouseStockSnapshot
+from sklad.services.stock_availability import stock_rows_with_availability
+from sklad.services.warehouse_events import WarehouseEventType
+from sklad.services.warehouse_stock_rows import normalize_stock_row_from_snapshot, snapshot_stock_rows
+from shipping.box_splits import extract_partial_box_split
+
+from .claims import active_box_claim_codes, active_pallet_lock_codes, release_claims_for_task
+from .pallet_ops import (
+    BOX_SELECTION_ANY_MATCHING,
+    BOX_SELECTION_PATTERN_MATCHING,
+    MOVE_MODE_BOX_FULL,
+    MOVE_MODE_BOX_PARTIAL,
+    MOVE_MODE_PALLET_FULL,
+    _all_stock_boxes_for_pallet,
+    _matching_full_box_pick_meta,
+    _matching_stock_boxes_for_patterns,
+    _normalize_barcode_qty_map,
+    _normalize_box_code,
+    _normalize_move_mode,
+    _parse_json_list,
+    _planned_stock_box_codes_for_move,
+    _payload_box_codes,
+    _requested_box_count,
+    _requested_box_patterns,
+    _requested_box_selection_mode,
+    _requested_barcode_qty,
+    _requested_partial_rows,
+    _stock_box_matches_requested_pattern,
+    _single_requested_box,
+)
+
+
+FLEXIBLE_PALLET_CHOICE_LABEL = "Подходящая паллета"
+_SHIPPING_DELIVERED_STATE_CODES = {"in_otg", "palletizing", "ready_for_loading"}
+
+
+def _as_int(value) -> int:
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return 0
+
+
+def _normalize_zone_code(raw: str) -> str:
+    text = (raw or "").strip().upper()
+    if not text:
+        return "PR"
+    if text in {"PR", "OTG", "MR", "OS", "OBR"}:
+        return text
+    return text
+
+
+def _normalize_location(raw: dict | None) -> dict:
+    source = raw if isinstance(raw, dict) else {}
+    zone = _normalize_zone_code(source.get("zone") or "")
+    code = str(source.get("code") or source.get("location_code") or "").strip()
+    label = str(source.get("label") or source.get("display_name") or "").strip()
+    row = _as_int(source.get("row"))
+    section = _as_int(source.get("section"))
+    tier = _as_int(source.get("tier"))
+    cell = _as_int(source.get("cell"))
+    if zone not in {"MR", "OS"}:
+        row = 0
+    if zone != "OS":
+        section = 0
+        tier = 0
+        cell = 0
+    result = {
+        "zone": zone,
+        "row": row if row > 0 else "",
+        "section": section if section > 0 else "",
+        "tier": tier if tier > 0 else "",
+        "cell": cell if cell > 0 else "",
+    }
+    if code:
+        result["code"] = code
+    if label:
+        result["label"] = label
+    return result
+
+
+def _build_location(zone: str, row: int, section: int, tier: int, cell: int) -> dict:
+    return _normalize_location(
+        {
+            "zone": zone,
+            "row": row,
+            "section": section,
+            "tier": tier,
+            "cell": cell,
+        }
+    )
+
+
+def _normalize_goods_type(raw: str | None) -> str:
+    from sklad.services.stock_availability import StockAvailabilityService
+
+    return StockAvailabilityService.normalize_goods_type(raw)
+
+
+_OS_LINE_DISPLAY_LABELS = {
+    1: "0",
+    2: "A",
+    3: "B",
+    4: "C",
+    5: "D",
+    6: "E",
+    7: "F",
+    8: "G",
+    9: "I",
+}
+
+_SHIPPING_BOX_COUNT_RE = re.compile(r"коробов:\s*(\d+)", re.IGNORECASE)
+_SHIPPING_BOX_QTY_RE = re.compile(r"кратность:\s*(\d+)", re.IGNORECASE)
+_SHIPPING_BOX_CODES_RE = re.compile(r"короба:\s*([^;]+)", re.IGNORECASE)
+_ACTIVE_SHIPPING_RESERVE_STATUSES = (
+    WarehouseReserve.STATUS_ACTIVE,
+    WarehouseReserve.STATUS_PARTIALLY_ALLOCATED,
+    WarehouseReserve.STATUS_ALLOCATED,
+    WarehouseReserve.STATUS_PARTIALLY_SATISFIED,
+    WarehouseReserve.STATUS_SATISFIED,
+)
+_SHIPPING_RESERVE_PLANNING_STATES = {
+    "stored",
+    "placed_after_processing",
+    "reserved_for_shipping",
+}
+_OTG_WAREHOUSE_FINAL_STATES = {
+    "moving_to_otg",
+    "in_otg",
+    "palletizing",
+    "ready_for_loading",
+    "assigned_to_trip",
+    "loading_in_progress",
+    "loaded_to_vehicle",
+    "shipped",
+    "partially_shipped",
+}
+_FINAL_ACTIVE_OPERATION_STATUSES = {"done", "canceled", "cancelled", "failed"}
+
+
+def _os_line_display_label(section: int) -> str:
+    return _OS_LINE_DISPLAY_LABELS.get(_as_int(section), str(_as_int(section) or ""))
+
+
+def _shipping_task_kind_label(move_mode: str) -> str:
+    if str(move_mode or "").strip() == MoveTask.MODE_PALLET_FULL:
+        return "Паллета целиком"
+    if str(move_mode or "").strip() == MoveTask.MODE_BOX_FULL:
+        return "Короба с палеты для отгрузки"
+    return "Частичный отбор с палеты для отгрузки"
+
+
+def _box_count_label(count: int) -> str:
+    value = max(int(count or 0), 0)
+    tail = value % 100
+    last = value % 10
+    if 11 <= tail <= 14:
+        suffix = "коробов"
+    elif last == 1:
+        suffix = "короб"
+    elif 2 <= last <= 4:
+        suffix = "короба"
+    else:
+        suffix = "коробов"
+    return f"{value} {suffix}"
+
+
+def _parse_shipping_box_count(comment: str | None) -> int:
+    match = _SHIPPING_BOX_COUNT_RE.search(str(comment or ""))
+    if not match:
+        return 0
+    return max(_as_int(match.group(1)), 0)
+
+
+def _parse_shipping_box_qty(comment: str | None) -> int:
+    match = _SHIPPING_BOX_QTY_RE.search(str(comment or ""))
+    if not match:
+        return 0
+    return max(_as_int(match.group(1)), 0)
+
+
+def _parse_shipping_box_codes(comment: str | None) -> list[str]:
+    match = _SHIPPING_BOX_CODES_RE.search(str(comment or ""))
+    if not match:
+        return []
+    codes: list[str] = []
+    seen: set[str] = set()
+    for raw_code in str(match.group(1) or "").split(","):
+        code = str(raw_code or "").strip()
+        key = code.lower()
+        if not code or key in seen:
+            continue
+        seen.add(key)
+        codes.append(code)
+    return codes
+
+
+def _shipping_box_pattern_summary(patterns: list[dict]) -> str:
+    parts: list[str] = []
+    for pattern in patterns or []:
+        box_qty = _as_int(pattern.get("box_qty"))
+        box_count = _as_int(pattern.get("requested_box_count"))
+        if box_qty <= 0 or box_count <= 0:
+            continue
+        parts.append(f"{_box_count_label(box_count)} x {box_qty} шт")
+    return "; ".join(parts)
+
+
+def _stock_box_patterns_for_selected_codes(
+    *,
+    box_codes: list[str],
+    pallet_code: str,
+    agency_id: int | None,
+    requested_article: str = "",
+    requested_goods_type: str = "",
+    requested_barcodes: list[str] | None = None,
+) -> list[dict]:
+    normalized_codes: list[str] = []
+    seen_codes: set[str] = set()
+    for raw_code in box_codes or []:
+        code = str(raw_code or "").strip()
+        key = code.lower()
+        if not code or key in seen_codes:
+            continue
+        seen_codes.add(key)
+        normalized_codes.append(code)
+    if not normalized_codes:
+        return []
+    boxes_by_code = {
+        str(box.get("code") or "").strip().lower(): box
+        for box in _all_stock_boxes_for_pallet(pallet_code, agency_id=agency_id)
+        if str(box.get("code") or "").strip()
+    }
+    requested_barcodes = [
+        str(value).strip()
+        for value in (requested_barcodes or [])
+        if str(value or "").strip()
+    ]
+    requested_article = str(requested_article or "").strip()
+    requested_goods_type = _normalize_goods_type(requested_goods_type)
+    grouped: dict[tuple, dict] = {}
+    for code in normalized_codes:
+        box = boxes_by_code.get(code.lower()) or {}
+        box_qty = _as_int(box.get("qty"))
+        if box_qty <= 0:
+            continue
+        barcode_qty = _normalize_barcode_qty_map(box.get("barcode_qty"))
+        if not barcode_qty and len(requested_barcodes) == 1:
+            barcode_qty = {requested_barcodes[0]: box_qty}
+        signature = (
+            box_qty,
+            tuple(sorted(barcode_qty.items())),
+            requested_article,
+            requested_goods_type,
+            tuple(requested_barcodes),
+        )
+        pattern = grouped.setdefault(
+            signature,
+            {
+                "box_qty": box_qty,
+                "requested_box_count": 0,
+                "barcode_qty": barcode_qty,
+                "requested_article": requested_article,
+                "requested_goods_type": requested_goods_type,
+                "requested_barcodes": list(requested_barcodes),
+            },
+        )
+        pattern["requested_box_count"] = _as_int(pattern.get("requested_box_count")) + 1
+    return _requested_box_patterns({"requested_box_patterns": list(grouped.values())})
+
+
+def _barcode_qty_summary(barcode_qty: dict[str, int], *, limit: int = 6) -> str:
+    rows = [
+        f"{barcode} - {qty} шт"
+        for barcode, qty in sorted(_normalize_barcode_qty_map(barcode_qty).items())[:limit]
+    ]
+    if not rows:
+        return ""
+    tail = "; ..." if len(_normalize_barcode_qty_map(barcode_qty)) > limit else ""
+    return f"{'; '.join(rows)}{tail}"
+
+
+def _append_required_barcode_hint(instruction: str, barcode_qty: dict[str, int]) -> str:
+    text = str(instruction or "").strip()
+    barcode_qty = _normalize_barcode_qty_map(barcode_qty)
+    if not text or not barcode_qty:
+        return text
+    if all(str(barcode) in text for barcode in barcode_qty):
+        return text
+    return f"{text.rstrip()} Отбирать только ШК: {_barcode_qty_summary(barcode_qty)}."
+
+
+def _shipping_full_pallet_instruction(*, pallet_code: str, destination_label: str) -> str:
+    return f"Возьми палету {pallet_code} целиком и доставь в {destination_label}."
+
+
+def _shipping_pick_instruction(
+    *,
+    pallet_code: str,
+    requested_qty: int,
+    barcode_qty: dict[str, int],
+    destination_label: str,
+    source_label: str,
+) -> str:
+    qty_label = f"{max(int(requested_qty or 0), 0)} шт."
+    if barcode_qty:
+        preview_rows = [f"{barcode} - {qty} шт." for barcode, qty in sorted(barcode_qty.items())[:6]]
+        tail = "; ..." if len(barcode_qty) > 6 else ""
+        details = "; ".join(preview_rows)
+        return (
+            f"Частичный отбор для отгрузки: возьми палету {pallet_code}, "
+            f"отбери {qty_label} по списку ШК ({details}{tail}) и доставь отобранный товар в {destination_label}. "
+            f"Остаток товара оставь на этой же палете и верни палету обратно на исходное место ({source_label})."
+        )
+    return (
+        f"Частичный отбор для отгрузки: возьми палету {pallet_code}, "
+        f"отбери {qty_label} по потребности и доставь отобранный товар в {destination_label}. "
+        f"Остаток товара оставь на этой же палете и верни палету обратно на исходное место ({source_label})."
+    )
+
+
+def _shipping_entry_covers_full_pallet(
+    pallet_code: str,
+    *,
+    requested_qty: int,
+    agency_id: int | None,
+) -> bool:
+    total_qty = sum(
+        _as_int(box.get("qty"))
+        for box in _all_stock_boxes_for_pallet(str(pallet_code or "").strip(), agency_id=agency_id)
+    )
+    if requested_qty <= 0 or total_qty <= 0:
+        return False
+    return total_qty == int(requested_qty or 0)
+
+
+def _shipping_task_box_codes_in_use(*, agency_id: int | None, exclude_shipping_order_id: str | None = None) -> set[str]:
+    if not agency_id:
+        return set()
+    exclude_key = str(exclude_shipping_order_id or "").strip()
+    blocked: set[str] = set()
+    active_statuses = (MoveTask.STATUS_CREATED, MoveTask.STATUS_IN_PROGRESS)
+    for payload in (
+        MoveTask.objects.filter(request__agency_id=agency_id, status__in=active_statuses)
+        .exclude(payload__isnull=True)
+        .values_list("payload", flat=True)
+    ):
+        if not isinstance(payload, dict):
+            continue
+        order_key = str(payload.get("shipping_order_id") or "").strip()
+        if not order_key or (exclude_key and order_key == exclude_key):
+            continue
+        for field_name in ("reserved_box_codes", "planned_box_codes", "requested_boxes", "picked_boxes"):
+            for raw_code in payload.get(field_name) or []:
+                code = str(raw_code or "").strip().lower()
+                if code:
+                    blocked.add(code)
+    return blocked
+
+
+def _merge_shipping_plan_entry(plan_by_pallet: dict[str, dict], pallet_code: str, entry: dict) -> None:
+    pallet_key = str(pallet_code or "").strip()
+    if not pallet_key:
+        return
+    existing = plan_by_pallet.get(pallet_key)
+    if existing is None:
+        plan_by_pallet[pallet_key] = entry
+        return
+
+    existing["qty"] = _as_int(existing.get("qty")) + _as_int(entry.get("qty"))
+    existing["pallet_available_qty"] = _as_int(existing.get("pallet_available_qty")) + _as_int(
+        entry.get("pallet_available_qty")
+    )
+
+    for field_name in ("barcodes", "articles", "goods_types"):
+        target = existing.setdefault(field_name, set())
+        target.update(entry.get(field_name) or set())
+
+    target_barcode_qty = existing.setdefault("barcode_qty", defaultdict(int))
+    for barcode, qty in dict(entry.get("barcode_qty") or {}).items():
+        if str(barcode or "").strip():
+            target_barcode_qty[str(barcode)] += _as_int(qty)
+
+    for field_name in ("request_items", "requested_box_patterns", "partial_pick_patterns"):
+        existing.setdefault(field_name, []).extend(entry.get(field_name) or [])
+
+    for field_name in ("reserved_box_codes", "reserved_snapshot_ids"):
+        target = existing.setdefault(field_name, [])
+        for value in entry.get(field_name) or []:
+            if value not in target:
+                target.append(value)
+
+    _append_candidate_pallet_options(
+        existing.setdefault("candidate_pallets", []),
+        entry.get("candidate_pallets") or [],
+    )
+
+    normalized_patterns = _requested_box_patterns(
+        {"requested_box_patterns": existing.get("requested_box_patterns") or []}
+    )
+    existing["requested_box_patterns"] = normalized_patterns
+    existing["requested_box_count"] = sum(
+        _as_int(pattern.get("requested_box_count")) for pattern in normalized_patterns
+    )
+    existing["requested_box_pattern_summary"] = _shipping_box_pattern_summary(normalized_patterns)
+
+    if entry.get("contains_partial_box_splits"):
+        existing["contains_partial_box_splits"] = True
+    if not existing.get("from_location") and entry.get("from_location"):
+        existing["from_location"] = entry.get("from_location")
+    if not existing.get("receiving_order_id") and entry.get("receiving_order_id"):
+        existing["receiving_order_id"] = entry.get("receiving_order_id")
+
+
+def _location_label(location: dict | None) -> str:
+    data = _normalize_location(location if isinstance(location, dict) else {})
+    if data.get("label"):
+        return str(data["label"])
+    if data.get("code") and str(data["code"]).strip().upper() != str(data.get("zone") or "").upper():
+        return str(data["code"])
+    zone = data.get("zone") or "PR"
+    row = _as_int(data.get("row"))
+    section = _as_int(data.get("section"))
+    tier = _as_int(data.get("tier"))
+    cell = _as_int(data.get("cell"))
+    if zone == "PR":
+        return "PR · Зона приемки"
+    if zone == "OBR":
+        return "OBR · Зона обработки"
+    if zone == "OTG":
+        return "OTG · Зона отгрузки"
+    if zone == "MR":
+        return f"MR · Между рядами · Ряд {row}" if row else "MR · Между рядами"
+    if zone == "OS":
+        line_label = _os_line_display_label(section)
+        if line_label and row and tier and cell:
+            return f"OS · Линия {line_label} · Стеллаж {row} · Этаж {tier} · Ячейка {cell}"
+        if line_label and row:
+            return f"OS · Линия {line_label} · Стеллаж {row}"
+        return "OS · Основной склад"
+    return zone
+
+
+def _location_scan_code(location: dict | None) -> str:
+    data = _normalize_location(location if isinstance(location, dict) else {})
+    if data.get("code"):
+        return str(data["code"])
+    zone = data.get("zone") or "PR"
+    row = _as_int(data.get("row"))
+    section = _as_int(data.get("section"))
+    tier = _as_int(data.get("tier"))
+    cell = _as_int(data.get("cell"))
+    if zone == "OS":
+        line_label = _os_line_display_label(section)
+        if line_label and row and tier and cell:
+            return f"{line_label}-{row}/{tier}-{cell}"
+        if line_label and row:
+            return f"{line_label}-{row}"
+        return "OS"
+    if zone == "MR":
+        return f"MR-{row}" if row else "MR"
+    return zone
+
+
+def _location_parts(location_value, pallet=None) -> dict:
+    pallet = pallet or {}
+    zone = ""
+    row = 0
+    section = 0
+    tier = 0
+    cell = 0
+    if isinstance(location_value, dict):
+        zone = _normalize_zone_code(location_value.get("zone") or "")
+        row = _as_int(location_value.get("row") or pallet.get("row"))
+        section = _as_int(location_value.get("section"))
+        tier = _as_int(location_value.get("tier"))
+        cell = _as_int(location_value.get("cell"))
+    elif isinstance(location_value, str):
+        zone = _normalize_zone_code(location_value)
+    if not zone:
+        zone = _normalize_zone_code(pallet.get("zone") or "")
+    if zone == "OS":
+        row = row or _as_int(pallet.get("row"))
+        section = section or _as_int(pallet.get("section"))
+        tier = tier or _as_int(pallet.get("tier"))
+        cell = cell or _as_int(pallet.get("cell"))
+    if zone == "MR" and not row:
+        row = _as_int(pallet.get("row"))
+    return {
+        "zone": zone or "PR",
+        "row": row,
+        "section": section,
+        "tier": tier,
+        "cell": cell,
+    }
+
+
+def _find_pallet_by_code(
+    code: str,
+    agency_id: int | None = None,
+    pallet_lookup: tuple[dict[tuple[int, str], tuple], dict[str, tuple]] | None = None,
+):
+    del pallet_lookup
+    target = (code or "").strip()
+    if not target:
+        return None
+    from sklad.services.stock_operations import OperationalStockService
+
+    stock_tree = OperationalStockService.get_pallet_tree(target, agency_id=agency_id)
+    if stock_tree is None:
+        return None
+    pallet = ((stock_tree.payload.get("act_pallets") or [{}])[0]) or {}
+    location = _location_parts(pallet.get("location"), pallet)
+    return stock_tree.synthetic_entry, 0, pallet, location
+
+
+def _agency_id_for_processing_order(order_id: str | None) -> int | None:
+    order_key = str(order_id or "").strip()
+    if not order_key:
+        return None
+    entry = (
+        OrderAuditEntry.objects.filter(order_type="processing", order_id=order_key)
+        .exclude(agency=None)
+        .order_by("-created_at")
+        .first()
+    )
+    if not entry:
+        return None
+    return int(entry.agency_id)
+
+
+def _move_payload_matches_selectors(
+    payload: dict,
+    barcode_values: set[str] | None = None,
+    sku_values: set[str] | None = None,
+    goods_type_values: set[str] | None = None,
+) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    barcode_values = {str(value).strip() for value in (barcode_values or set()) if str(value or "").strip()}
+    sku_values = {str(value).strip() for value in (sku_values or set()) if str(value or "").strip()}
+    goods_type_values = {
+        _normalize_goods_type(value)
+        for value in (goods_type_values or set())
+        if _normalize_goods_type(value)
+    }
+
+    move_goods_type = _normalize_goods_type(payload.get("requested_goods_type"))
+    if goods_type_values and move_goods_type and move_goods_type not in goods_type_values:
+        return False
+
+    move_sku = str(payload.get("requested_sku") or "").strip()
+    requested_barcodes_raw = payload.get("requested_barcodes")
+    if isinstance(requested_barcodes_raw, list):
+        move_barcodes = {
+            str(value).strip() for value in requested_barcodes_raw if str(value or "").strip()
+        }
+    else:
+        move_barcodes = {
+            str(value).strip() for value in _parse_json_list(requested_barcodes_raw) if str(value or "").strip()
+        }
+
+    if not barcode_values and not sku_values:
+        return True
+    sku_hit = bool(sku_values and move_sku and move_sku in sku_values)
+    barcode_hit = bool(barcode_values and move_barcodes and (move_barcodes & barcode_values))
+    if barcode_values and sku_values:
+        return sku_hit or barcode_hit
+    if barcode_values:
+        return barcode_hit
+    return sku_hit
+
+
+def _move_instruction(payload: dict) -> str:
+    if not isinstance(payload, dict):
+        return ""
+    explicit_instruction = str(payload.get("instruction") or "").strip()
+    pallet_code = str(payload.get("pallet_code") or "").strip() or "палету"
+    mode = _normalize_move_mode(payload.get("move_mode"), payload.get("pick_mode"))
+    destination_label = str(payload.get("to_label") or "").strip() or _location_label(payload.get("to_location"))
+    source_label = str(payload.get("from_label") or "").strip() or _location_label(payload.get("from_location"))
+    requested_qty = _as_int(payload.get("requested_qty"))
+    requested_sku = str(payload.get("requested_sku") or "").strip()
+    requested_goods_type = _normalize_goods_type(payload.get("requested_goods_type"))
+    requested_barcodes_raw = payload.get("requested_barcodes")
+    if isinstance(requested_barcodes_raw, list):
+        requested_barcodes = [
+            str(value).strip() for value in requested_barcodes_raw if str(value or "").strip()
+        ]
+    else:
+        requested_barcodes = _parse_json_list(requested_barcodes_raw)
+    requested_barcode_qty = _requested_barcode_qty(payload)
+    requested_rows = _requested_partial_rows(payload)
+    product_parts = []
+    if requested_sku:
+        product_parts.append(f"артикул {requested_sku}")
+    barcode_qty_label = _barcode_qty_summary(requested_barcode_qty)
+    if barcode_qty_label:
+        product_parts.append(f"ШК {barcode_qty_label}")
+    elif requested_barcodes:
+        preview = requested_barcodes[:2]
+        tail = "…" if len(requested_barcodes) > 2 else ""
+        product_parts.append(f"ШК {', '.join(preview)}{tail}")
+    if requested_goods_type:
+        product_parts.append(f"тип {requested_goods_type}")
+    product_label = "; ".join(product_parts)
+    box_codes = _payload_box_codes(payload)
+    requested_box_selection = _requested_box_selection_mode(payload)
+    requested_box_count = _requested_box_count(payload)
+    requested_box_patterns = _requested_box_patterns(payload)
+    if explicit_instruction and not (
+        requested_box_selection == BOX_SELECTION_PATTERN_MATCHING and requested_box_patterns
+    ):
+        return _append_required_barcode_hint(explicit_instruction, requested_barcode_qty)
+    if mode == MOVE_MODE_PALLET_FULL:
+        return f"Возьми палету {pallet_code} целиком и доставь в {destination_label}."
+    if mode == MOVE_MODE_BOX_FULL:
+        if requested_box_selection == BOX_SELECTION_PATTERN_MATCHING and requested_box_patterns:
+            pattern_summary = _shipping_box_pattern_summary(requested_box_patterns)
+            product_suffix = f" Товар: {product_label}." if product_label else ""
+            return (
+                f"Возьми палету {pallet_code}, сними подходящие короба по схеме: {pattern_summary}.{product_suffix} "
+            f"Палету сразу верни на исходное место ({source_label}). "
+            f"Снятые короба доставь в {destination_label}."
+            )
+        if requested_box_selection == BOX_SELECTION_ANY_MATCHING and requested_box_count > 0:
+            product_suffix = f" Товар: {product_label}." if product_label else ""
+            return (
+                f"Возьми палету {pallet_code}, сними любые {_box_count_label(requested_box_count)} "
+                f"с подходящим товаром.{product_suffix} "
+                f"Палету сразу верни на исходное место ({source_label}). "
+                f"Снятые короба доставь в {destination_label}."
+            )
+        if box_codes:
+            return (
+                f"Возьми палету {pallet_code}, сними короба: {', '.join(box_codes)}. "
+            f"Палету сразу верни на исходное место ({source_label}). "
+            f"Снятые короба доставь в {destination_label}."
+            )
+        return (
+            f"Возьми палету {pallet_code}, сними указанные короба, "
+            f"палету сразу верни на исходное место ({source_label}), затем доставь их в {destination_label}."
+        )
+    if mode == MOVE_MODE_BOX_PARTIAL and requested_box_selection == BOX_SELECTION_PATTERN_MATCHING and requested_box_patterns:
+        pattern_summary = _shipping_box_pattern_summary(requested_box_patterns)
+        qty_label = f"{requested_qty} шт." if requested_qty > 0 else "нужное количество"
+        product_suffix = f" Товар: {product_label}." if product_label else ""
+        pick_sentence = (
+            f"Достань только нужный ШК: {barcode_qty_label}."
+            if barcode_qty_label
+            else f"Достань {qty_label} для отгрузки.{product_suffix}"
+        )
+        return (
+            f"Возьми палету {pallet_code}, выбери подходящие короба по схеме: {pattern_summary}. "
+            f"{pick_sentence} "
+            f"Остаток оставь в коробах. Палету сразу верни на место ({source_label}). "
+            f"Затем снятые короба и отобранный товар доставь в {destination_label}."
+        )
+    if len(requested_rows) > 1:
+        steps = []
+        for row in requested_rows[:5]:
+            row_box = _normalize_box_code(row.get("box_code"))
+            row_qty = _as_int(row.get("qty"))
+            if not row_box or row_qty <= 0:
+                continue
+            steps.append(f"{row_box} - {row_qty} шт.")
+        if steps:
+            tail = "; …" if len(requested_rows) > 5 else ""
+            total_qty = requested_qty if requested_qty > 0 else sum(_as_int(row.get("qty")) for row in requested_rows)
+            total_label = f"{total_qty} шт." if total_qty > 0 else "указанное количество"
+            product_suffix = f" Товар: {product_label}." if product_label else ""
+            return (
+                f"Возьми палету {pallet_code}, выполни отбор из коробов: {'; '.join(steps)}{tail}. "
+                f"Общий отбор: {total_label}.{product_suffix} "
+                f"Остаток оставь в коробах. Палету сразу верни на место ({source_label}). "
+                f"Затем отобранные короба доставь в {destination_label}."
+            )
+    if not _single_requested_box(payload) and not box_codes:
+        qty_label = f"{requested_qty} шт." if requested_qty > 0 else "указанное количество"
+        product_suffix = f" Товар: {product_label}." if product_label else ""
+        return (
+            f"Возьми палету {pallet_code} и отберите {qty_label}."
+            f"{product_suffix} "
+            f"Короб выбери по месту, палету сразу верни на место ({source_label}), "
+            f"затем доставь отобранный товар в {destination_label}."
+        )
+    if box_codes and len(box_codes) > 1:
+        qty_label = f"{requested_qty} шт." if requested_qty > 0 else "указанное количество"
+        product_suffix = f" Товар: {product_label}." if product_label else ""
+        preview = ", ".join(box_codes[:4])
+        tail = ", ..." if len(box_codes) > 4 else ""
+        return (
+            f"Частичный отбор для отгрузки: возьми палету {pallet_code} и отберите {qty_label} "
+            f"из коробов {preview}{tail}.{product_suffix} "
+            f"Остаток оставь в коробах и сразу верни палету обратно на место ({source_label}), "
+            f"затем доставь отобранный товар в {destination_label}."
+        )
+    box_code = _single_requested_box(payload) or "указанный короб"
+    qty_label = f"{requested_qty} шт." if requested_qty > 0 else "указанное количество"
+    product_suffix = f" Товар: {product_label}." if product_label else ""
+    return (
+        f"Возьми палету {pallet_code}, вытащи короб {box_code} и отбери {qty_label}."
+        f"{product_suffix} "
+        f"Остаток оставь в коробе, палету сразу верни на место ({source_label}), "
+        f"затем доставь отобранный товар в {destination_label}."
+    )
+
+
+def _latest_moves_by_pallet(
+    processing_order_id: str | None = None,
+    barcode_values: set[str] | None = None,
+    sku_values: set[str] | None = None,
+    goods_type_values: set[str] | None = None,
+) -> dict[str, dict]:
+    processing_order_id = str(processing_order_id or "").strip()
+    entries = OrderAuditEntry.objects.filter(order_type="stock_move").order_by("-created_at")
+    latest = {}
+    for entry in entries:
+        payload = entry.payload or {}
+        pallet_code = str(payload.get("pallet_code") or "").strip()
+        move_processing_order_id = str(payload.get("processing_order_id") or "").strip()
+        if processing_order_id and move_processing_order_id != processing_order_id:
+            continue
+        if not _move_payload_matches_selectors(
+            payload,
+            barcode_values=barcode_values,
+            sku_values=sku_values,
+            goods_type_values=goods_type_values,
+        ):
+            continue
+        if not pallet_code or pallet_code in latest:
+            continue
+        status = (payload.get("status") or payload.get("submit_action") or "").strip().lower()
+        status_label = (payload.get("status_label") or "").strip()
+        to_location = payload.get("to_location") or {}
+        requested_barcodes_raw = payload.get("requested_barcodes")
+        if isinstance(requested_barcodes_raw, list):
+            requested_barcodes = [
+                str(value).strip()
+                for value in requested_barcodes_raw
+                if str(value or "").strip()
+            ]
+        else:
+            requested_barcodes = _parse_json_list(requested_barcodes_raw)
+        move_mode = _normalize_move_mode(payload.get("move_mode"), payload.get("pick_mode"))
+        requested_boxes = _payload_box_codes(payload)
+        latest[pallet_code] = {
+            "status": status,
+            "status_label": status_label,
+            "to_label": _location_label(to_location),
+            "to_zone": _normalize_zone_code(to_location.get("zone") or ""),
+            "order_id": entry.order_id,
+            "pick_mode": (payload.get("pick_mode") or "full"),
+            "move_mode": move_mode,
+            "requested_qty": _as_int(payload.get("requested_qty")),
+            "picked_qty": _as_int(payload.get("picked_qty")),
+            "requested_sku": str(payload.get("requested_sku") or "").strip(),
+            "requested_barcodes": requested_barcodes,
+            "requested_barcode_qty": _requested_barcode_qty(payload),
+            "requested_boxes": requested_boxes,
+            "requested_box": _single_requested_box(payload),
+            "requested_rows": _requested_partial_rows(payload),
+            "requested_goods_type": _normalize_goods_type(
+                payload.get("requested_goods_type") or payload.get("requested_goods_type_label")
+            ),
+            "processing_order_id": move_processing_order_id,
+            "instruction": _move_instruction(payload),
+        }
+    return latest
+
+
+def _parse_move_request_items(raw_items, fallback_form: dict | None = None) -> list[dict]:
+    items = []
+    data = raw_items
+    if isinstance(raw_items, str):
+        text = raw_items.strip()
+        if not text:
+            data = []
+        else:
+            try:
+                data = json.loads(text)
+            except json.JSONDecodeError:
+                data = []
+    if not isinstance(data, list):
+        data = []
+    for raw in data:
+        if not isinstance(raw, dict):
+            continue
+        sku = str(raw.get("requested_article") or raw.get("sku_code") or "").strip()
+        goods_type = _normalize_goods_type(raw.get("requested_goods_type") or raw.get("goods_type"))
+        qty = _as_int(raw.get("requested_qty") or raw.get("qty"))
+        barcodes_raw = raw.get("requested_barcodes")
+        if isinstance(barcodes_raw, list):
+            barcodes = [str(value).strip() for value in barcodes_raw if str(value or "").strip()]
+        else:
+            barcodes = _parse_json_list(barcodes_raw)
+        if qty <= 0:
+            continue
+        if not sku and not barcodes:
+            continue
+        items.append(
+            {
+                "requested_article": sku,
+                "requested_goods_type": goods_type,
+                "requested_qty": qty,
+                "requested_barcodes": barcodes,
+            }
+        )
+    if items:
+        return items
+    form = fallback_form or {}
+    sku = str(form.get("requested_article") or "").strip()
+    goods_type = _normalize_goods_type(form.get("requested_goods_type"))
+    qty = _as_int(form.get("requested_qty") or form.get("pick_qty"))
+    barcodes = _parse_json_list(form.get("requested_barcodes_json"))
+    if qty > 0 and (sku or barcodes):
+        return [
+            {
+                "requested_article": sku,
+                "requested_goods_type": goods_type,
+                "requested_qty": qty,
+                "requested_barcodes": barcodes,
+            }
+        ]
+    return []
+
+
+def _parse_explicit_requested_rows(raw_rows) -> list[dict]:
+    parsed = raw_rows
+    if isinstance(raw_rows, str):
+        text = raw_rows.strip()
+        if not text:
+            return []
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            return []
+    if not isinstance(parsed, list):
+        return []
+    result: list[dict] = []
+    for row in parsed:
+        if not isinstance(row, dict):
+            continue
+        pallet_code = str(row.get("pallet_code") or "").strip()
+        box_code = _normalize_box_code(row.get("box_code"))
+        qty = _as_int(row.get("qty"))
+        if not pallet_code or not box_code or qty <= 0:
+            continue
+        requested_article = str(row.get("requested_article") or row.get("sku_code") or "").strip()
+        requested_goods_type = _normalize_goods_type(row.get("requested_goods_type") or row.get("goods_type"))
+        barcodes_raw = row.get("requested_barcodes")
+        if isinstance(barcodes_raw, list):
+            requested_barcodes = [str(value).strip() for value in barcodes_raw if str(value or "").strip()]
+        else:
+            requested_barcodes = _parse_json_list(barcodes_raw)
+        result.append(
+            {
+                "pallet_code": pallet_code,
+                "box_code": box_code,
+                "qty": qty,
+                "barcode_qty": _normalize_barcode_qty_map(row.get("barcode_qty")),
+                "requested_article": requested_article,
+                "requested_goods_type": requested_goods_type,
+                "requested_barcodes": requested_barcodes,
+            }
+        )
+    return result
+
+
+def _destination_from_request_data(data: dict) -> dict:
+    zone = _normalize_zone_code(data.get("to_zone") or "")
+    row = _as_int(data.get("to_row"))
+    section = _as_int(data.get("to_section"))
+    tier = _as_int(data.get("to_tier"))
+    cell = _as_int(data.get("to_cell"))
+    return _build_location(zone, row, section, tier, cell)
+
+
+def _request_instruction(pallet_code: str, qty: int, destination: dict, items: list[dict]) -> str:
+    parts = []
+    if items:
+        labels = []
+        for item in items[:3]:
+            sku = str(item.get("requested_article") or "").strip()
+            barcodes = item.get("requested_barcodes") or []
+            if sku:
+                labels.append(f"арт. {sku}")
+            elif barcodes:
+                labels.append(f"ШК {barcodes[0]}")
+        if labels:
+            tail = ", …" if len(items) > 3 else ""
+            parts.append(f"товар: {', '.join(labels)}{tail}")
+    qty_label = f"{qty} шт." if qty > 0 else "нужное количество"
+    return (
+        f"Возьми палету {pallet_code}, отберите {qty_label} по потребности "
+        f"и доставь в {_location_label(destination)}"
+        + (f" ({'; '.join(parts)})." if parts else ".")
+    )
+
+
+def _ordered_unique_codes(raw_codes) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for raw_code in raw_codes or []:
+        code = str(raw_code or "").strip()
+        key = code.lower()
+        if not code or key in seen:
+            continue
+        seen.add(key)
+        result.append(code)
+    return result
+
+
+def _requested_box_qty_by_code(requested_rows: list[dict]) -> dict[str, int]:
+    result: dict[str, int] = {}
+    for row in requested_rows or []:
+        box_code = _normalize_box_code(row.get("box_code"))
+        qty = _as_int(row.get("qty"))
+        key = box_code.lower()
+        if not box_code or qty <= 0:
+            continue
+        result[key] = int(result.get(key, 0)) + qty
+    return result
+
+
+def _resolve_stock_move_mode(
+    payload: dict,
+    pallet_code: str,
+    *,
+    agency_id: int | None = None,
+    pallet_available_qty: int = 0,
+) -> tuple[str, list[str]]:
+    current_mode = _normalize_move_mode(payload.get("move_mode"), payload.get("pick_mode"))
+    boxes = _all_stock_boxes_for_pallet(pallet_code, agency_id=agency_id)
+    if not boxes:
+        requested_qty = _as_int(payload.get("requested_qty"))
+        if pallet_available_qty > 0 and requested_qty >= pallet_available_qty:
+            return MOVE_MODE_PALLET_FULL, []
+        return current_mode, []
+
+    box_by_code = {
+        str(box.get("code") or "").strip().lower(): box
+        for box in boxes
+        if str(box.get("code") or "").strip()
+    }
+    all_box_keys = set(box_by_code.keys())
+    requested_rows = _requested_partial_rows(payload)
+    requested_by_box = _requested_box_qty_by_code(requested_rows)
+    selected_codes = (
+        _ordered_unique_codes(row.get("box_code") for row in requested_rows)
+        if requested_rows
+        else _ordered_unique_codes(
+            _planned_stock_box_codes_for_move(payload, pallet_code, agency_id=agency_id)
+        )
+    )
+    selected_keys = [code.lower() for code in selected_codes if code.lower() in box_by_code]
+    if not selected_keys:
+        return current_mode, []
+
+    if requested_rows:
+        full_boxes = all(
+            int(requested_by_box.get(key, 0)) >= _as_int((box_by_code.get(key) or {}).get("qty"))
+            for key in selected_keys
+        )
+        if full_boxes:
+            if set(selected_keys) == all_box_keys:
+                return MOVE_MODE_PALLET_FULL, selected_codes
+            return MOVE_MODE_BOX_FULL, selected_codes
+        return MOVE_MODE_BOX_PARTIAL, selected_codes
+
+    requested_qty = _as_int(payload.get("requested_qty"))
+    selected_total_qty = sum(_as_int((box_by_code.get(key) or {}).get("qty")) for key in selected_keys)
+    if selected_total_qty > 0 and requested_qty == selected_total_qty:
+        if set(selected_keys) == all_box_keys:
+            return MOVE_MODE_PALLET_FULL, selected_codes
+        return MOVE_MODE_BOX_FULL, selected_codes
+    return current_mode, selected_codes
+
+
+def _next_stock_move_number() -> str:
+    # Serialise allocation across concurrent shipping/processing requests.
+    # Without this lock two transactions can observe the same maximum and
+    # create different MoveTask rows with one legacy_order_id. Mobile OTG
+    # execution addresses tasks by that identifier, so such a collision can
+    # surface another client's pallet.
+    max_number = 0
+    if connection.vendor == "postgresql":
+        table = connection.ops.quote_name(OrderAuditEntry._meta.db_table)
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_xact_lock(%s)", [731_004_627])
+            cursor.execute(
+                f"SELECT MAX(order_id::bigint) FROM {table} "
+                "WHERE order_type = %s AND order_id ~ %s",
+                ["stock_move", r"^[0-9]+$"],
+            )
+            max_number = int(cursor.fetchone()[0] or 0)
+    else:
+        order_ids = (
+            OrderAuditEntry.objects.filter(order_type="stock_move")
+            .values_list("order_id", flat=True)
+            .distinct()
+        )
+        for order_id in order_ids:
+            value = str(order_id or "").strip()
+            if not value.isdigit():
+                continue
+            number = int(value)
+            if number > max_number:
+                max_number = number
+    next_number = max_number + 1
+    while OrderAuditEntry.objects.filter(order_type="stock_move", order_id=str(next_number)).exists():
+        next_number += 1
+    return str(next_number)
+
+
+def _build_request_items(move_request: MoveRequest, payload: dict) -> None:
+    requested_sku = str(payload.get("requested_sku") or "").strip()
+    requested_goods_type = str(payload.get("requested_goods_type") or "").strip()
+    requested_qty = max(_as_int(payload.get("requested_qty")), 0)
+
+    barcode_qty = payload.get("requested_barcode_qty") or {}
+    if isinstance(barcode_qty, dict) and barcode_qty:
+        for barcode, qty in barcode_qty.items():
+            value = str(barcode or "").strip()
+            amount = max(_as_int(qty), 0)
+            if not value or amount <= 0:
+                continue
+            MoveRequestItem.objects.create(
+                request=move_request,
+                sku_code=requested_sku,
+                barcode=value,
+                goods_type=requested_goods_type,
+                qty_requested=amount,
+                qty_planned=amount,
+            )
+        return
+
+    barcodes = payload.get("requested_barcodes") or []
+    if isinstance(barcodes, list):
+        normalized = [str(value or "").strip() for value in barcodes if str(value or "").strip()]
+    else:
+        normalized = []
+    if normalized:
+        if len(normalized) == 1:
+            qty = requested_qty
+            MoveRequestItem.objects.create(
+                request=move_request,
+                sku_code=requested_sku,
+                barcode=normalized[0],
+                goods_type=requested_goods_type,
+                qty_requested=qty,
+                qty_planned=qty,
+            )
+        else:
+            for barcode in normalized:
+                MoveRequestItem.objects.create(
+                    request=move_request,
+                    sku_code=requested_sku,
+                    barcode=barcode,
+                    goods_type=requested_goods_type,
+                    qty_requested=0,
+                    qty_planned=0,
+                )
+        return
+
+    if requested_sku or requested_goods_type or requested_qty:
+        MoveRequestItem.objects.create(
+            request=move_request,
+            sku_code=requested_sku,
+            barcode="",
+            goods_type=requested_goods_type,
+            qty_requested=requested_qty,
+            qty_planned=requested_qty,
+        )
+
+
+def _recompute_request_status(move_request: MoveRequest) -> None:
+    tasks = list(move_request.tasks.values_list("status", flat=True))
+    if not tasks:
+        new_status = MoveRequest.STATUS_CREATED
+    else:
+        total = len(tasks)
+        done = sum(1 for status in tasks if status == MoveTask.STATUS_DONE)
+        in_progress = sum(1 for status in tasks if status == MoveTask.STATUS_IN_PROGRESS)
+        created = sum(1 for status in tasks if status == MoveTask.STATUS_CREATED)
+        canceled = sum(1 for status in tasks if status == MoveTask.STATUS_CANCELED)
+        failed = sum(1 for status in tasks if status == MoveTask.STATUS_FAILED)
+        if done == total:
+            new_status = MoveRequest.STATUS_DONE
+        elif in_progress > 0:
+            new_status = MoveRequest.STATUS_IN_PROGRESS
+        elif done > 0:
+            new_status = MoveRequest.STATUS_PARTIAL
+        elif created > 0:
+            new_status = MoveRequest.STATUS_PLANNED
+        elif canceled == total:
+            new_status = MoveRequest.STATUS_CANCELED
+        elif failed > 0:
+            new_status = MoveRequest.STATUS_BLOCKED
+        else:
+            new_status = move_request.status
+    if move_request.context_type == "processing" and move_request.destination_zone == "OBR":
+        from processing_reachtruck.quantity_queue import waiting_quantity, queue_record
+        if move_request.status == MoveRequest.STATUS_CANCELED and queue_record(move_request):
+            return
+        if move_request.status != MoveRequest.STATUS_CANCELED and waiting_quantity(move_request):
+            new_status = MoveRequest.STATUS_PARTIAL if tasks else MoveRequest.STATUS_BLOCKED
+    if move_request.status != new_status:
+        move_request.status = new_status
+        move_request.save(update_fields=["status", "updated_at"])
+    if (
+        new_status == MoveRequest.STATUS_DONE
+        and str(move_request.destination_zone or "").strip().upper() == "OTG"
+    ):
+        from otg_reachtruck.services import sync_completed_otg_delivery_request
+
+        sync_completed_otg_delivery_request(move_request)
+
+
+_OTG_ARRIVED_STATE_CODES = {
+    "in_otg",
+    "palletizing",
+    "ready_for_loading",
+    "assigned_to_trip",
+    "loading_in_progress",
+    "loaded_to_vehicle",
+    "shipped",
+    "partially_shipped",
+}
+
+
+def _ordered_payload_codes(values) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for raw_value in values or []:
+        code = _normalize_box_code(raw_value)
+        key = code.lower()
+        if not code or key in seen:
+            continue
+        seen.add(key)
+        result.append(code)
+    return result
+
+
+def _otg_task_is_destination_confirmed(task: MoveTask, payload: dict) -> bool:
+    if _normalize_zone_code(str(getattr(task, "to_zone", "") or "")) != "OTG":
+        to_location = payload.get("to_location") or {}
+        if _normalize_zone_code(str(to_location.get("zone") or "")) != "OTG":
+            return False
+    execution = dict(payload.get("mobile_execution") or {})
+    return bool(execution.get("destination_confirmed"))
+
+
+def _otg_task_shipping_order_id(task: MoveTask, payload: dict, order=None) -> str:
+    if order is not None:
+        order_number = str(getattr(order, "number", "") or "").strip()
+        if order_number:
+            return order_number
+    for key in ("shipping_order_id", "shipping_order_number"):
+        value = str(payload.get(key) or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _otg_task_box_codes(task: MoveTask, payload: dict) -> list[str]:
+    execution = dict(payload.get("mobile_execution") or {})
+    for source in (
+        execution.get("boxes_scanned"),
+        payload.get("picked_boxes"),
+        payload.get("requested_boxes"),
+    ):
+        codes = _ordered_payload_codes(source)
+        if codes:
+            return codes
+
+    if _normalize_move_mode(payload.get("move_mode"), payload.get("pick_mode")) != MOVE_MODE_PALLET_FULL:
+        return []
+
+    pallet_code = str(getattr(task, "pallet_code", "") or payload.get("pallet_code") or "").strip()
+    agency_id = int(task.request.agency_id) if task.request and task.request.agency_id else None
+    if not pallet_code or not agency_id:
+        return []
+    return _ordered_payload_codes(
+        WarehouseStockSnapshot.objects.filter(
+            agency_id=agency_id,
+            is_archived=False,
+            parent_container__container_code=pallet_code,
+        )
+        .exclude(container_code="")
+        .values_list("container_code", flat=True)
+    )
+
+
+def _otg_box_payloads_from_task_payload(payload: dict) -> dict[str, dict]:
+    placement_payload = payload.get("mobile_placement_payload") or {}
+    if not isinstance(placement_payload, dict):
+        return {}
+    result: dict[str, dict] = {}
+    for raw_box in placement_payload.get("act_boxes") or []:
+        if not isinstance(raw_box, dict):
+            continue
+        code = _normalize_box_code(raw_box.get("code"))
+        if code:
+            result[code.lower()] = dict(raw_box)
+    return result
+
+
+def _otg_arrived_box_keys(*, agency, box_codes: list[str]) -> set[str]:
+    if not agency or not box_codes:
+        return set()
+    return {
+        str(snapshot.container_code or getattr(snapshot.container, "container_code", "") or "").strip().lower()
+        for snapshot in (
+            WarehouseStockSnapshot.objects.select_related("container")
+            .filter(
+                agency=agency,
+                is_archived=False,
+                warehouse_state_code__in=_OTG_ARRIVED_STATE_CODES,
+            )
+            .filter(Q(container_code__in=box_codes) | Q(container__container_code__in=box_codes))
+        )
+        if str(snapshot.container_code or getattr(snapshot.container, "container_code", "") or "").strip()
+    }
+
+
+def preserve_confirmed_otg_arrival_before_cancel(task: MoveTask, *, order=None, user=None) -> bool:
+    payload = dict(task.payload or {})
+    if not _otg_task_is_destination_confirmed(task, payload):
+        return False
+
+    box_codes = _otg_task_box_codes(task, payload)
+    order_id = _otg_task_shipping_order_id(task, payload, order=order)
+    agency = getattr(getattr(task, "request", None), "agency", None)
+    if not box_codes or not order_id or agency is None:
+        payload["otg_arrival_preserve_blocked"] = {
+            "reason": "missing_box_codes_or_order",
+            "box_count": len(box_codes),
+            "order_id": order_id,
+        }
+        task.payload = payload
+        task.save(update_fields=["payload", "updated_at"])
+        return True
+
+    performed_by = user if getattr(user, "is_authenticated", False) else task.assigned_to
+    if not getattr(performed_by, "is_authenticated", False):
+        performed_by = None
+
+    from sklad.services.warehouse_write_path import WarehouseWritePathService
+
+    marked_qty = WarehouseWritePathService.mark_shipping_boxes_arrived_to_otg(
+        agency=agency,
+        order_id=order_id,
+        box_codes=box_codes,
+        performed_by=performed_by,
+        box_payloads=_otg_box_payloads_from_task_payload(payload),
+        destination_location_code=str(
+            (payload.get("to_location") or {}).get("code") or ""
+        ).strip(),
+        allow_legacy_generic_destination=not bool(
+            payload.get("concrete_location_required")
+        ),
+    )
+    arrived_keys = _otg_arrived_box_keys(agency=agency, box_codes=box_codes)
+    arrived_codes = [code for code in box_codes if code.lower() in arrived_keys]
+    if not arrived_codes:
+        payload["otg_arrival_preserve_blocked"] = {
+            "reason": "warehouse_arrival_not_confirmed",
+            "box_count": len(box_codes),
+            "marked_qty": marked_qty,
+            "order_id": order_id,
+        }
+        task.payload = payload
+        task.save(update_fields=["payload", "updated_at"])
+        return True
+
+    shipping_order = order
+    if shipping_order is None:
+        from shipping.models import ShippingOrder
+
+        shipping_order = ShippingOrder.objects.filter(number=order_id).first()
+    if shipping_order is not None:
+        from shipping.reservation_units import mark_reservation_units_arrived_to_otg
+
+        mark_reservation_units_arrived_to_otg(
+            shipping_order,
+            arrived_codes,
+            user=performed_by,
+        )
+
+    qty_done = max(_as_int(marked_qty), 0)
+    if qty_done <= 0:
+        qty_done = int(task.qty_done or 0) or int(task.qty_planned or 0) or len(arrived_codes)
+    updated = sync_task_status_by_legacy_order_id(
+        str(task.legacy_order_id or "").strip(),
+        status=MoveTask.STATUS_DONE,
+        qty_done=qty_done,
+    )
+    if updated is None:
+        updated = task
+        updated.status = MoveTask.STATUS_DONE
+        updated.completed_at = timezone.localtime()
+        updated.qty_done = qty_done
+        updated.save(update_fields=["status", "completed_at", "qty_done", "updated_at"])
+
+    updated_payload = dict(updated.payload or {})
+    updated_payload["otg_arrival_preserved_on_cancel"] = True
+    updated_payload["shipping_order_canceled_after_otg_arrival"] = True
+    updated_payload["shipping_arrival"] = {
+        "box_codes": arrived_codes,
+        "marked_qty": qty_done,
+    }
+    updated.payload = updated_payload
+    updated.save(update_fields=["payload", "updated_at"])
+    _recompute_request_status(updated.request)
+    return True
+
+
+def _cancel_open_shipping_pick_tasks(order) -> int:
+    order_context_id = str(getattr(order, "pk", "") or "").strip()
+    if not order_context_id:
+        return 0
+    open_tasks = list(
+        MoveTask.objects.select_related("request")
+        .filter(
+            request__agency=order.agency,
+            request__context_type=MoveRequest.CONTEXT_MANUAL,
+            request__context_id=order_context_id,
+            to_zone="OTG",
+            status__in=[MoveTask.STATUS_CREATED, MoveTask.STATUS_IN_PROGRESS],
+            qty_done=0,
+        )
+        .exclude(legacy_order_id="")
+        .exclude(request__status=MoveRequest.STATUS_CANCELED)
+        .order_by("id")
+    )
+    canceled = 0
+    for task in open_tasks:
+        if preserve_confirmed_otg_arrival_before_cancel(task, order=order, user=None):
+            continue
+        updated = sync_task_status_by_legacy_order_id(
+            str(task.legacy_order_id or "").strip(),
+            status=MoveTask.STATUS_CANCELED,
+        )
+        if not updated:
+            continue
+        release_claims_for_task(updated)
+        payload = dict(updated.payload or {})
+        payload["status"] = MoveTask.STATUS_CANCELED
+        payload["status_label"] = "Отменено: заменено новым заданием по отгрузке"
+        updated.payload = payload
+        updated.save(update_fields=["payload", "updated_at"])
+        canceled += 1
+    return canceled
+
+
+def _active_pallet_codes_for_agency(agency_id: int | None) -> set[str]:
+    qs = MoveTask.objects.select_related("request").filter(
+        status=MoveTask.STATUS_IN_PROGRESS
+    ).exclude(pallet_code="")
+    if agency_id:
+        qs = qs.filter(request__agency_id=agency_id)
+    codes = {str(task.pallet_code or "").strip() for task in qs if str(task.pallet_code or "").strip()}
+    codes.update(active_pallet_lock_codes(agency_id=agency_id))
+    return codes
+
+
+def _row_value(row, field: str, default=None):
+    if isinstance(row, dict):
+        return row.get(field, default)
+    return getattr(row, field, default)
+
+
+def _warehouse_base_rows_for_planning(
+    *,
+    agency_id: int | None = None,
+    sku_values: set[str] | None = None,
+    barcode_values: set[str] | None = None,
+    use_reserve_truth: bool = False,
+    exclude_shipping_order_id: str | None = None,
+    allow_receiving: bool = False,
+    allowed_active_operation_ids: set[int] | None = None,
+) -> list[dict]:
+    if use_reserve_truth or exclude_shipping_order_id:
+        rows = stock_rows_with_availability(
+            agency_id=agency_id,
+            sku_values=sku_values,
+            barcode_values=barcode_values,
+            require_pallet=True,
+            exclude_shipping_order_id=exclude_shipping_order_id,
+        )
+    else:
+        rows = snapshot_stock_rows(
+            agency_id=agency_id,
+            sku_values=sku_values,
+            barcode_values=barcode_values,
+            require_pallet=True,
+        )
+    allowed_operation_ids = {
+        _as_int(operation_id)
+        for operation_id in (allowed_active_operation_ids or set())
+        if _as_int(operation_id) > 0
+    }
+    allowed_operation_by_snapshot_id: dict[int, int] = {}
+    if allowed_operation_ids:
+        snapshot_ids = {
+            _as_int(_row_value(row, "id", 0))
+            for row in rows
+            if _as_int(_row_value(row, "id", 0)) > 0
+        }
+        allowed_operation_by_snapshot_id = dict(
+            WarehouseStockSnapshot.objects.filter(
+                id__in=snapshot_ids,
+                active_operation_id__in=allowed_operation_ids,
+            ).values_list("id", "active_operation_id")
+        )
+    planning_rows: list[dict] = []
+    for row in rows:
+        planning_row = dict(row)
+        active_operation_id = allowed_operation_by_snapshot_id.get(
+            _as_int(_row_value(row, "id", 0)),
+            0,
+        )
+        if active_operation_id > 0:
+            planning_row["active_operation_id"] = active_operation_id
+        if not _row_is_available_reachtruck_source(
+            planning_row,
+            allow_receiving=allow_receiving,
+            allowed_active_operation_ids=allowed_active_operation_ids,
+        ):
+            continue
+        available_qty = _as_int(
+            _row_value(planning_row, "available_qty", _row_value(planning_row, "qty", 0))
+        )
+        if available_qty <= 0:
+            continue
+        planning_row["qty"] = available_qty
+        planning_row["available_qty"] = available_qty
+        planning_rows.append(planning_row)
+    return planning_rows
+
+
+def _row_is_available_reachtruck_source(
+    row,
+    *,
+    allow_receiving: bool = False,
+    allowed_active_operation_ids: set[int] | None = None,
+) -> bool:
+    zone = _normalize_zone_code(str(_row_value(row, "zone", "") or _row_value(row, "zone_code", "") or ""))
+    if zone == "PR":
+        return bool(allow_receiving)
+    state = str(
+        _row_value(row, "warehouse_state_code", "")
+        or _row_value(row, "state", "")
+        or ""
+    ).strip().lower()
+    if state in {
+        "placed_in_receiving",
+        "putaway_planned",
+        "putaway_in_progress",
+        "moving_to_storage",
+    }:
+        return False
+    active_context_type = str(_row_value(row, "active_context_type", "") or "").strip().lower()
+    active_context_status = str(_row_value(row, "active_context_status", "") or "").strip().lower()
+    active_operation_id = _as_int(_row_value(row, "active_operation_id", 0))
+    allowed_operation_ids = {
+        _as_int(operation_id)
+        for operation_id in (allowed_active_operation_ids or set())
+        if _as_int(operation_id) > 0
+    }
+    active_operation_allowed = active_operation_id > 0 and active_operation_id in allowed_operation_ids
+    if (
+        not active_operation_allowed
+        and active_context_type
+        and active_context_status
+        and active_context_status not in _FINAL_ACTIVE_OPERATION_STATUSES
+    ):
+        return False
+    if not active_operation_allowed and active_context_type == "reachtruck_free" and active_context_status in {
+        "created",
+        "planned",
+        "in_progress",
+        "partial",
+        "blocked",
+    }:
+        return False
+    if (
+        not active_operation_allowed
+        and active_operation_id > 0
+        and active_context_status not in _FINAL_ACTIVE_OPERATION_STATUSES
+    ):
+        return False
+    return True
+
+
+_SHIPPING_FLEXIBLE_CANDIDATE_EXCLUDED_ZONES = {"PR", "OBR", "OTG", "LOAD", "VEH"}
+
+
+def _shipping_flexible_candidate_source_location(location: dict | None) -> bool:
+    source = location if isinstance(location, dict) else {}
+    zone = _normalize_zone_code(str(source.get("zone") or ""))
+    return bool(zone) and zone not in _SHIPPING_FLEXIBLE_CANDIDATE_EXCLUDED_ZONES
+
+
+def _shipping_flexible_candidate_source_row(row) -> bool:
+    zone = _normalize_zone_code(str(_row_value(row, "zone", "") or _row_value(row, "zone_code", "") or ""))
+    return bool(zone) and zone not in _SHIPPING_FLEXIBLE_CANDIDATE_EXCLUDED_ZONES
+
+
+def _candidate_pallet_option(candidate: dict) -> dict:
+    from_location = _normalize_location(candidate.get("from_location") or {})
+    return {
+        "pallet_code": str(candidate.get("pallet_code") or "").strip(),
+        "from_location": from_location,
+        "from_label": _location_label(from_location),
+        "receiving_order_id": str(candidate.get("receiving_order_id") or "").strip(),
+        "available_qty": _as_int(candidate.get("available_qty")),
+    }
+
+
+def _append_candidate_pallet_options(target: list[dict], candidates: list[dict], *, min_qty: int = 0) -> None:
+    seen = {str(item.get("pallet_code") or "").strip().lower() for item in target}
+    for candidate in candidates or []:
+        option = _candidate_pallet_option(candidate)
+        pallet_code = str(option.get("pallet_code") or "").strip()
+        if not pallet_code or pallet_code.lower() in seen:
+            continue
+        if min_qty > 0 and _as_int(option.get("available_qty")) < min_qty:
+            continue
+        seen.add(pallet_code.lower())
+        target.append(option)
+
+
+def _shipping_source_box_patterns(entry: dict) -> list[dict]:
+    partial_patterns = list(entry.get("partial_pick_patterns") or [])
+    if partial_patterns:
+        result: list[dict] = []
+        for pattern in partial_patterns:
+            if not isinstance(pattern, dict):
+                continue
+            count = _as_int(pattern.get("requested_box_count") or pattern.get("count") or pattern.get("boxes"))
+            if count <= 0:
+                count = 1
+            source_pattern = {
+                "box_qty": _as_int(pattern.get("source_box_qty")),
+                "barcode_qty": _normalize_barcode_qty_map(pattern.get("source_barcode_qty")),
+                "requested_article": str(pattern.get("requested_article") or "").strip(),
+                "requested_goods_type": _normalize_goods_type(pattern.get("requested_goods_type")),
+                "requested_barcodes": list(pattern.get("requested_barcodes") or []),
+            }
+            if _as_int(source_pattern.get("box_qty")) <= 0:
+                continue
+            for _index in range(count):
+                result.append(dict(source_pattern))
+        return result
+
+    result: list[dict] = []
+    for pattern in _requested_box_patterns({"requested_box_patterns": entry.get("requested_box_patterns") or []}):
+        count = _as_int(pattern.get("requested_box_count"))
+        if count <= 0:
+            continue
+        for _index in range(count):
+            result.append(dict(pattern))
+    return result
+
+
+def _assign_stock_boxes_to_source_patterns(
+    *,
+    pallet_code: str,
+    patterns: list[dict],
+    agency_id: int | None,
+    blocked_box_keys: set[str] | None = None,
+    stock_boxes_cache: dict[tuple[int | None, str], list[dict]] | None = None,
+    exclude_shipping_order_id: str | None = None,
+) -> list[dict]:
+    if not pallet_code or not patterns:
+        return []
+    boxes: list[dict] = []
+    seen_boxes: set[str] = set()
+    blocked_box_keys = blocked_box_keys or set()
+    for box in _all_stock_boxes_for_pallet(
+        pallet_code,
+        agency_id=agency_id,
+        stock_boxes_cache=stock_boxes_cache,
+    ):
+        box_code = str(box.get("code") or "").strip()
+        box_key = box_code.lower()
+        if not box_code or box_key in seen_boxes or box_key in blocked_box_keys:
+            continue
+        seen_boxes.add(box_key)
+        boxes.append(
+            {
+                "code": box_code,
+                "qty": _as_int(box.get("qty")),
+                "barcode_qty": _normalize_barcode_qty_map(box.get("barcode_qty")),
+            }
+        )
+    if len(boxes) < len(patterns):
+        return []
+
+    per_pattern: dict[int, list[int]] = {}
+    for pattern_idx, pattern in enumerate(patterns):
+        matches = [
+            box_idx
+            for box_idx, box in enumerate(boxes)
+            if _stock_box_matches_requested_pattern(box, pattern)
+        ]
+        if not matches:
+            return []
+        per_pattern[pattern_idx] = matches
+
+    ordered_patterns = sorted(
+        per_pattern.keys(),
+        key=lambda idx: (
+            len(per_pattern.get(idx) or []),
+            -_as_int((patterns[idx] or {}).get("box_qty")),
+            idx,
+        ),
+    )
+    matched_box_to_pattern: dict[int, int] = {}
+    assignment: dict[int, int] = {}
+
+    def try_assign(pattern_idx: int, seen_boxes: set[int]) -> bool:
+        for box_idx in per_pattern.get(pattern_idx) or []:
+            if box_idx in seen_boxes:
+                continue
+            seen_boxes.add(box_idx)
+            previous_pattern_idx = matched_box_to_pattern.get(box_idx)
+            if previous_pattern_idx is None or try_assign(previous_pattern_idx, seen_boxes):
+                matched_box_to_pattern[box_idx] = pattern_idx
+                assignment[pattern_idx] = box_idx
+                return True
+        return False
+
+    for pattern_idx in ordered_patterns:
+        if not try_assign(pattern_idx, set()):
+            return []
+    return [boxes[assignment[idx]] for idx in range(len(patterns)) if idx in assignment]
+
+
+def _stock_box_candidate_from_reserved_rows(box_code: str, row_refs: list[dict]) -> dict:
+    barcode_qty: dict[str, int] = defaultdict(int)
+    total_qty = 0
+    for row in row_refs or []:
+        qty = _as_int(_row_value(row, "qty", 0))
+        if qty <= 0:
+            continue
+        total_qty += qty
+        row_barcode_qty = _normalize_barcode_qty_map(_row_value(row, "barcode_qty", {}))
+        if row_barcode_qty:
+            for barcode, barcode_row_qty in row_barcode_qty.items():
+                barcode_qty[barcode] += _as_int(barcode_row_qty)
+            continue
+        barcode = str(_row_value(row, "barcode", "") or "").strip()
+        if barcode:
+            barcode_qty[barcode] += qty
+    return {
+        "code": str(box_code or "").strip(),
+        "qty": total_qty,
+        "barcode_qty": dict(barcode_qty),
+    }
+
+
+def _candidate_pallet_options_for_shipping_entry(
+    entry: dict,
+    *,
+    pallet_meta: dict[str, dict],
+    agency_id: int | None,
+    candidate_pallet_meta: dict[str, dict] | None = None,
+    stock_boxes_cache: dict[tuple[int | None, str], list[dict]] | None = None,
+    exclude_shipping_order_id: str | None = None,
+) -> list[dict]:
+    patterns = _shipping_source_box_patterns(entry)
+    if not patterns:
+        return []
+    searchable_pallet_meta = dict(candidate_pallet_meta or {})
+    searchable_pallet_meta.update(pallet_meta or {})
+    claimed_box_keys = {code.lower() for code in active_box_claim_codes(agency_id=agency_id)}
+    blocked_box_keys = claimed_box_keys | _shipping_task_box_codes_in_use(
+        agency_id=agency_id,
+        exclude_shipping_order_id=exclude_shipping_order_id,
+    )
+    result: list[dict] = []
+    for pallet_code in sorted(str(code or "").strip() for code in searchable_pallet_meta.keys()):
+        if not pallet_code:
+            continue
+        meta = searchable_pallet_meta.get(pallet_code) or {}
+        if not _shipping_flexible_candidate_source_location(meta.get("from_location") or {}):
+            continue
+        assigned_boxes = _assign_stock_boxes_to_source_patterns(
+            pallet_code=pallet_code,
+            patterns=patterns,
+            agency_id=agency_id,
+            blocked_box_keys=blocked_box_keys,
+            stock_boxes_cache=stock_boxes_cache,
+            exclude_shipping_order_id=exclude_shipping_order_id,
+        )
+        if not assigned_boxes:
+            continue
+        _append_candidate_pallet_options(
+            result,
+            [
+                {
+                    "pallet_code": pallet_code,
+                    "from_location": meta.get("from_location") or _build_location("PR", 0, 0, 0, 0),
+                    "receiving_order_id": meta.get("receiving_order_id") or "",
+                    "available_qty": sum(_as_int(box.get("qty")) for box in assigned_boxes),
+                }
+            ],
+        )
+    return result
+
+
+def _shipping_candidate_pallet_meta_from_rows(
+    rows: list[dict],
+    *,
+    blocked_pallets: set[str],
+    agency_id: int | None,
+) -> dict[str, dict]:
+    result: dict[str, dict] = {}
+    for row in rows or []:
+        if not _shipping_flexible_candidate_source_row(row):
+            continue
+        pallet_code = str(_row_value(row, "pallet_code", "") or "").strip()
+        if not pallet_code or pallet_code in blocked_pallets:
+            continue
+        entry = result.setdefault(
+            pallet_code,
+            {
+                "from_location": _build_location(
+                    _row_value(row, "zone", ""),
+                    _as_int(_row_value(row, "row", 0)),
+                    _as_int(_row_value(row, "section", 0)),
+                    _as_int(_row_value(row, "tier", 0)),
+                    _as_int(_row_value(row, "cell", 0)),
+                ),
+                "receiving_order_id": str(_row_value(row, "order_id", "") or "").strip(),
+                "box_count": 0,
+            },
+        )
+        entry["from_location"] = _build_location(
+            _row_value(row, "zone", ""),
+            _as_int(_row_value(row, "row", 0)),
+            _as_int(_row_value(row, "section", 0)),
+            _as_int(_row_value(row, "tier", 0)),
+            _as_int(_row_value(row, "cell", 0)),
+        )
+        entry["receiving_order_id"] = str(_row_value(row, "order_id", "") or "").strip()
+    for pallet_code, entry in result.items():
+        entry["box_count"] = len(_all_stock_boxes_for_pallet(pallet_code, agency_id=agency_id))
+    return result
+
+
+def _shipping_reserve_snapshot_id_map(reserves: list[WarehouseReserve]) -> dict[int, int]:
+    reserve_ids = [int(reserve.id or 0) for reserve in reserves if int(reserve.id or 0) > 0]
+    if not reserve_ids:
+        return {}
+    snapshot_by_reserve: dict[int, int] = {}
+    for row in (
+        WarehouseEvent.objects.filter(
+            reserve_id__in=reserve_ids,
+            event_type=WarehouseEventType.SHIPPING_RESERVED.value,
+        )
+        .exclude(payload__isnull=True)
+        .values("reserve_id", "payload")
+        .order_by("id")
+    ):
+        reserve_id = _as_int(row.get("reserve_id"))
+        payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+        snapshot_id = _as_int(payload.get("snapshot_id"))
+        if reserve_id > 0 and snapshot_id > 0:
+            snapshot_by_reserve[reserve_id] = snapshot_id
+    return snapshot_by_reserve
+
+
+def _shipping_reserved_rows_for_order(order) -> list[dict]:
+    reserves = list(
+        WarehouseReserve.objects.filter(
+            agency=order.agency,
+            reserve_type=WarehouseReserve.TYPE_SHIPPING,
+            context_type="shipping",
+            context_id=order.number,
+            status__in=_ACTIVE_SHIPPING_RESERVE_STATUSES,
+        ).order_by("id")
+    )
+    if not reserves:
+        return []
+    snapshot_id_by_reserve = _shipping_reserve_snapshot_id_map(reserves)
+    snapshot_ids = {
+        int(snapshot_id)
+        for snapshot_id in snapshot_id_by_reserve.values()
+        if int(snapshot_id or 0) > 0
+    }
+    snapshots_by_id = {
+        int(snapshot.id): snapshot
+        for snapshot in WarehouseStockSnapshot.objects.select_related(
+            "agency",
+            "sku_ref",
+            "container",
+            "parent_container",
+            "location",
+        ).filter(id__in=snapshot_ids, is_archived=False)
+    }
+    rows_by_snapshot_id: dict[int, dict] = {}
+    for reserve in reserves:
+        reserve_id = int(reserve.id or 0)
+        reserved_qty = max(int(reserve.qty_reserved or 0) - int(reserve.qty_satisfied or 0), 0)
+        if reserve_id <= 0 or reserved_qty <= 0:
+            continue
+        snapshot = snapshots_by_id.get(int(snapshot_id_by_reserve.get(reserve_id) or 0))
+        if snapshot is None:
+            continue
+        row = normalize_stock_row_from_snapshot(snapshot)
+        if not row or not str(row.get("pallet_code") or "").strip():
+            continue
+        if _shipping_reserve_row_already_in_otg(order=order, snapshot=snapshot, row=row):
+            continue
+        snapshot_id = int(snapshot.id or 0)
+        existing = rows_by_snapshot_id.get(snapshot_id)
+        if existing is None:
+            row["qty"] = reserved_qty
+            row["available_qty"] = reserved_qty
+            row["shipping_reserved_qty"] = reserved_qty
+            row["reserve_ids"] = [reserve_id]
+            row["reserved_snapshot_id"] = snapshot_id
+            rows_by_snapshot_id[snapshot_id] = row
+            continue
+        existing["qty"] = _as_int(existing.get("qty")) + reserved_qty
+        existing["available_qty"] = _as_int(existing.get("available_qty")) + reserved_qty
+        existing["shipping_reserved_qty"] = _as_int(existing.get("shipping_reserved_qty")) + reserved_qty
+        reserve_ids = list(existing.get("reserve_ids") or [])
+        if reserve_id not in reserve_ids:
+            reserve_ids.append(reserve_id)
+        existing["reserve_ids"] = reserve_ids
+    return list(rows_by_snapshot_id.values())
+
+
+def _shipping_reserve_row_already_in_otg(*, order, snapshot, row) -> bool:
+    zone_code = str(
+        getattr(snapshot, "zone_code", "")
+        or row.get("zone_code")
+        or row.get("zone")
+        or ""
+    ).strip().upper()
+    state_code = str(
+        getattr(snapshot, "warehouse_state_code", "")
+        or row.get("warehouse_state_code")
+        or row.get("state")
+        or ""
+    ).strip().lower()
+    if zone_code == "OTG" or state_code in _OTG_WAREHOUSE_FINAL_STATES:
+        return True
+
+    box_code = str(
+        getattr(getattr(snapshot, "container", None), "container_code", "")
+        or row.get("box_code")
+        or row.get("container_code")
+        or row.get("code")
+        or ""
+    ).strip()
+    if not box_code:
+        return False
+
+    candidate_qs = (
+        WarehouseStockSnapshot.objects.select_related("container")
+        .filter(
+            agency=order.agency,
+            container__container_code=box_code,
+            is_archived=False,
+        )
+        .order_by("-id")
+    )
+    for candidate in candidate_qs:
+        candidate_zone = str(getattr(candidate, "zone_code", "") or "").strip().upper()
+        candidate_state = str(getattr(candidate, "warehouse_state_code", "") or "").strip().lower()
+        if candidate_zone == "OTG" or candidate_state in _OTG_WAREHOUSE_FINAL_STATES:
+            return True
+    return False
+
+
+def _order_has_shipping_reserves(order) -> bool:
+    return WarehouseReserve.objects.filter(
+        agency=order.agency,
+        reserve_type=WarehouseReserve.TYPE_SHIPPING,
+        context_type="shipping",
+        context_id=order.number,
+        status__in=_ACTIVE_SHIPPING_RESERVE_STATUSES,
+    ).exists()
+
+
+def _order_has_pool_shipping_reserves(order) -> bool:
+    active_reserves = list(
+        WarehouseReserve.objects.filter(
+            agency=order.agency,
+            reserve_type=WarehouseReserve.TYPE_SHIPPING,
+            context_type="shipping",
+            context_id=order.number,
+            status__in=_ACTIVE_SHIPPING_RESERVE_STATUSES,
+        ).order_by("id")
+    )
+    reserve_ids = [
+        int(reserve.id or 0)
+        for reserve in active_reserves
+        if int(reserve.id or 0) > 0
+    ]
+    if not reserve_ids:
+        return False
+    for row in (
+        WarehouseEvent.objects.filter(
+            reserve_id__in=reserve_ids,
+            event_type=WarehouseEventType.SHIPPING_RESERVED.value,
+        )
+        .exclude(payload__isnull=True)
+        .values("reserve_id", "payload")
+        .order_by("id")
+    ):
+        payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+        if str(payload.get("reserve_scope") or "").strip().lower() == "pool":
+            return True
+    return False
+
+
+def _shipping_actual_pallet_context_for_boxes(
+    box_codes: list[str],
+    *,
+    agency_id: int | None,
+) -> dict[str, object]:
+    normalized_codes: list[str] = []
+    seen: set[str] = set()
+    for raw_code in box_codes or []:
+        code = str(raw_code or "").strip()
+        code_key = code.lower()
+        if not code or code_key in seen:
+            continue
+        seen.add(code_key)
+        normalized_codes.append(code)
+    if not normalized_codes:
+        return {}
+
+    latest_by_code: dict[str, WarehouseStockSnapshot] = {}
+    for snapshot in (
+        WarehouseStockSnapshot.objects.select_related(
+            "container",
+            "parent_container",
+            "location",
+        )
+        .filter(
+            agency_id=agency_id,
+            container_code__in=normalized_codes,
+            is_archived=False,
+        )
+        .order_by("container_code", "-id")
+    ):
+        code_key = str(snapshot.container_code or "").strip().lower()
+        if code_key and code_key not in latest_by_code:
+            latest_by_code[code_key] = snapshot
+
+    pallets: dict[str, dict] = {}
+    for code in normalized_codes:
+        snapshot = latest_by_code.get(code.lower())
+        if snapshot is None:
+            return {}
+        row = normalize_stock_row_from_snapshot(snapshot)
+        pallet_code = str((row or {}).get("pallet_code") or "").strip()
+        if not pallet_code:
+            pallet_code = str(getattr(getattr(snapshot, "parent_container", None), "container_code", "") or "").strip()
+        if not pallet_code:
+            return {}
+        if pallet_code not in pallets:
+            pallets[pallet_code] = {"snapshot": snapshot, "row": row or {}}
+    if len(pallets) != 1:
+        return {}
+
+    pallet_code, data = next(iter(pallets.items()))
+    row = dict(data.get("row") or {})
+    return {
+        "pallet_code": pallet_code,
+        "from_location": _build_location(
+            str(row.get("zone") or ""),
+            _as_int(row.get("row")),
+            _as_int(row.get("section")),
+            _as_int(row.get("tier")),
+            _as_int(row.get("cell")),
+        ),
+        "receiving_order_id": str(row.get("order_id") or "").strip(),
+    }
+
+
+def _shipping_reserve_planning_rows(
+    *,
+    agency_id: int | None,
+    exclude_shipping_order_id: str | None = None,
+) -> list[dict]:
+    rows = _warehouse_base_rows_for_planning(
+        agency_id=agency_id,
+        use_reserve_truth=True,
+        exclude_shipping_order_id=exclude_shipping_order_id,
+    )
+    planning_rows: list[dict] = []
+    for row in rows:
+        if str(_row_value(row, "warehouse_state_code", "") or "").strip() not in _SHIPPING_RESERVE_PLANNING_STATES:
+            continue
+        available_qty = _as_int(_row_value(row, "available_qty", 0))
+        if available_qty <= 0:
+            continue
+        planning_row = dict(row)
+        planning_row["qty"] = available_qty
+        planning_row["available_qty"] = available_qty
+        planning_rows.append(planning_row)
+    return planning_rows
+
+
+def _shipping_reserve_box_plan_for_items(
+    *,
+    items: list,
+    agency_id: int | None,
+    exclude_shipping_order_id: str | None = None,
+) -> dict:
+    full_pattern_item_ids = {
+        int(getattr(item, "id", 0) or 0)
+        for item in items
+        if _shipping_item_box_demands(item)
+        and not _parse_shipping_box_codes(getattr(item, "comment", ""))
+    }
+    partial_pattern_item_ids = {
+        int(getattr(item, "id", 0) or 0)
+        for item in items
+        if _shipping_item_partial_split(item)
+    }
+    pattern_item_ids = full_pattern_item_ids | partial_pattern_item_ids
+    if not pattern_item_ids:
+        return {"failed": False, "pattern_item_ids": set(), "selected_box_codes_by_item_id": {}}
+    base_rows = _shipping_reserve_planning_rows(
+        agency_id=agency_id,
+        exclude_shipping_order_id=exclude_shipping_order_id,
+    )
+    blocked_pallets: set[str] = set()
+    remaining_by_row_id = {
+        _as_int(_row_value(row, "id", 0)): _as_int(_row_value(row, "qty", 0))
+        for row in base_rows
+    }
+    selected_box_codes_by_item_id: dict[int, list[str]] = defaultdict(list)
+    partial_plan = None
+    if partial_pattern_item_ids:
+        partial_plan = _plan_shipping_partial_box_demands(
+            items=[item for item in items if int(getattr(item, "id", 0) or 0) in partial_pattern_item_ids],
+            base_rows=base_rows,
+            remaining_by_row_id=remaining_by_row_id,
+            blocked_pallets=blocked_pallets,
+            agency_id=agency_id,
+            exclude_shipping_order_id=exclude_shipping_order_id,
+        )
+        if not partial_plan:
+            return {"failed": True, "pattern_item_ids": pattern_item_ids, "selected_box_codes_by_item_id": {}}
+        for item_id, codes in dict(partial_plan.get("selected_box_codes_by_item_id") or {}).items():
+            selected_box_codes_by_item_id[int(item_id)].extend(list(codes or []))
+
+    full_plan = None
+    if full_pattern_item_ids:
+        full_plan = _plan_shipping_box_demands(
+            items=[item for item in items if int(getattr(item, "id", 0) or 0) in full_pattern_item_ids],
+            base_rows=base_rows,
+            remaining_by_row_id=remaining_by_row_id,
+            blocked_pallets=blocked_pallets,
+            agency_id=agency_id,
+            exclude_shipping_order_id=exclude_shipping_order_id,
+        )
+        if not full_plan:
+            return {"failed": True, "pattern_item_ids": pattern_item_ids, "selected_box_codes_by_item_id": {}}
+        for item_id, codes in dict(full_plan.get("selected_box_codes_by_item_id") or {}).items():
+            selected_box_codes_by_item_id[int(item_id)].extend(list(codes or []))
+
+    normalized_selected: dict[int, list[str]] = {}
+    for item_id, codes in selected_box_codes_by_item_id.items():
+        normalized_selected[int(item_id)] = []
+        seen_codes: set[str] = set()
+        for raw_code in codes or []:
+            code = str(raw_code or "").strip()
+            normalized_code = code.lower()
+            if not code or normalized_code in seen_codes:
+                continue
+            seen_codes.add(normalized_code)
+            normalized_selected[int(item_id)].append(code)
+    return {
+        "failed": False,
+        "pattern_item_ids": pattern_item_ids,
+        "selected_box_codes_by_item_id": normalized_selected,
+    }
+
+
+def _candidate_pallets_for_rows(
+    rows,
+    *,
+    remaining_by_row_id: dict[int, int] | None = None,
+    blocked_pallets: set[str] | None = None,
+    requested_goods_type: str = "",
+) -> list[dict]:
+    grouped: dict[str, dict] = {}
+    blocked_pallets = blocked_pallets or set()
+    for row in rows:
+        pallet_code = str(_row_value(row, "pallet_code", "") or "").strip()
+        if not pallet_code or pallet_code in blocked_pallets:
+            continue
+        row_goods_type = _normalize_goods_type(_row_value(row, "goods_type", ""))
+        if requested_goods_type and row_goods_type and row_goods_type != requested_goods_type:
+            continue
+        if remaining_by_row_id is None:
+            available_qty = int(_row_value(row, "available_qty", _row_value(row, "qty", 0)) or 0)
+        else:
+            available_qty = int(remaining_by_row_id.get(_as_int(_row_value(row, "id", 0)), 0) or 0)
+        if available_qty <= 0:
+            continue
+        entry = grouped.setdefault(
+            pallet_code,
+            {
+                "pallet_code": pallet_code,
+                "available_qty": 0,
+                "rows": [],
+                "from_location": _build_location(
+                    _row_value(row, "zone", ""),
+                    _as_int(_row_value(row, "row", 0)),
+                    _as_int(_row_value(row, "section", 0)),
+                    _as_int(_row_value(row, "tier", 0)),
+                    _as_int(_row_value(row, "cell", 0)),
+                ),
+                "receiving_order_id": str(_row_value(row, "order_id", "") or "").strip(),
+            },
+        )
+        entry["from_location"] = _build_location(
+            _row_value(row, "zone", ""),
+            _as_int(_row_value(row, "row", 0)),
+            _as_int(_row_value(row, "section", 0)),
+            _as_int(_row_value(row, "tier", 0)),
+            _as_int(_row_value(row, "cell", 0)),
+        )
+        entry["receiving_order_id"] = str(_row_value(row, "order_id", "") or "").strip()
+        entry["available_qty"] += available_qty
+        entry["rows"].append((row, available_qty))
+    return list(grouped.values())
+
+
+def _choose_minimal_subset_by_qty(candidates: list[dict], required_qty: int) -> list[dict]:
+    if required_qty <= 0 or not candidates:
+        return []
+    sorted_candidates = sorted(
+        candidates,
+        key=lambda item: (-int(item.get("available_qty") or 0), str(item.get("pallet_code") or "")),
+    )
+    if len(sorted_candidates) <= 18:
+        best_indexes: tuple[int, ...] | None = None
+        best_key: tuple[int, int, tuple[str, ...]] | None = None
+        for size in range(1, len(sorted_candidates) + 1):
+            for indexes in combinations(range(len(sorted_candidates)), size):
+                total_qty = sum(int(sorted_candidates[idx].get("available_qty") or 0) for idx in indexes)
+                if total_qty < required_qty:
+                    continue
+                pallet_codes = tuple(
+                    str(sorted_candidates[idx].get("pallet_code") or "").strip()
+                    for idx in indexes
+                )
+                overshoot = total_qty - required_qty
+                key = (len(indexes), overshoot, pallet_codes)
+                if best_key is None or key < best_key:
+                    best_key = key
+                    best_indexes = indexes
+            if best_indexes is not None:
+                break
+        if best_indexes is not None:
+            return [sorted_candidates[idx] for idx in best_indexes]
+
+    chosen: list[dict] = []
+    covered = 0
+    for candidate in sorted_candidates:
+        chosen.append(candidate)
+        covered += int(candidate.get("available_qty") or 0)
+        if covered >= required_qty:
+            break
+    return chosen
+
+
+def _stock_row_matches_requested_identity(row: dict, *, requested_article: str, requested_barcodes: list[str]) -> bool:
+    normalized_barcodes = {
+        str(value).strip().lower()
+        for value in (requested_barcodes or [])
+        if str(value or "").strip()
+    }
+    row_barcode = str(_row_value(row, "barcode", "") or "").strip().lower()
+    if normalized_barcodes:
+        return row_barcode in normalized_barcodes
+    requested_article = str(requested_article or "").strip().lower()
+    if requested_article:
+        return str(_row_value(row, "sku", "") or "").strip().lower() == requested_article
+    return True
+
+
+def _allocate_qty_from_candidates(
+    candidates: list[dict],
+    required_qty: int,
+    *,
+    remaining_by_row_id: dict[int, int],
+) -> tuple[list[dict], int]:
+    remaining = int(required_qty or 0)
+    allocations: list[dict] = []
+    ordered_candidates = sorted(
+        candidates,
+        key=lambda item: (-int(item.get("available_qty") or 0), str(item.get("pallet_code") or "")),
+    )
+    for candidate in ordered_candidates:
+        if remaining <= 0:
+            break
+        allocated_qty = 0
+        for row, _row_available in candidate.get("rows") or []:
+            row_id = _as_int(_row_value(row, "id", 0))
+            row_available = int(remaining_by_row_id.get(row_id, 0) or 0)
+            if row_available <= 0:
+                continue
+            take_qty = min(remaining, row_available)
+            if take_qty <= 0:
+                continue
+            remaining_by_row_id[row_id] = max(row_available - take_qty, 0)
+            allocated_qty += take_qty
+            remaining -= take_qty
+            if remaining <= 0:
+                break
+        if allocated_qty > 0:
+            allocations.append(
+                {
+                    **candidate,
+                    "allocated_qty": allocated_qty,
+                }
+            )
+    return allocations, remaining
+
+
+def _plan_item_across_minimal_pallets(
+    rows,
+    *,
+    qty_required: int,
+    remaining_by_row_id: dict[int, int],
+    blocked_pallets: set[str] | None = None,
+    requested_goods_type: str = "",
+    preferred_pallets: set[str] | None = None,
+) -> tuple[list[dict], int]:
+    if qty_required <= 0:
+        return [], 0
+    preferred_pallets = preferred_pallets or set()
+    candidates = _candidate_pallets_for_rows(
+        rows,
+        remaining_by_row_id=remaining_by_row_id,
+        blocked_pallets=blocked_pallets,
+        requested_goods_type=requested_goods_type,
+    )
+    if not candidates:
+        return [], qty_required
+
+    preferred_candidates = [candidate for candidate in candidates if candidate["pallet_code"] in preferred_pallets]
+    regular_candidates = [candidate for candidate in candidates if candidate["pallet_code"] not in preferred_pallets]
+
+    selected_candidates: list[dict] = []
+    remaining = qty_required
+    if preferred_candidates:
+        preferred_allocations, remaining = _allocate_qty_from_candidates(
+            preferred_candidates,
+            remaining,
+            remaining_by_row_id=remaining_by_row_id,
+        )
+        selected_candidates.extend(preferred_allocations)
+    if remaining > 0 and regular_candidates:
+        chosen_subset = _choose_minimal_subset_by_qty(regular_candidates, remaining)
+        subset_allocations, remaining = _allocate_qty_from_candidates(
+            chosen_subset,
+            remaining,
+            remaining_by_row_id=remaining_by_row_id,
+        )
+        selected_candidates.extend(subset_allocations)
+    return selected_candidates, remaining
+
+
+def _split_pattern_barcode_qty(pattern_rows: list[dict]) -> dict[str, int]:
+    result: dict[str, int] = {}
+    for row in pattern_rows or []:
+        if not isinstance(row, dict):
+            continue
+        barcode = str(row.get("barcode") or "").strip()
+        qty = _as_int(row.get("qty"))
+        if not barcode or qty <= 0:
+            continue
+        result[barcode] = result.get(barcode, 0) + qty
+    return result
+
+
+def _split_pattern_total_qty(pattern_rows: list[dict]) -> int:
+    return sum(_as_int((row or {}).get("qty")) for row in (pattern_rows or []) if isinstance(row, dict))
+
+
+def _shipping_item_partial_split(item) -> dict:
+    meta = extract_partial_box_split(getattr(item, "comment", ""))
+    if str(meta.get("kind") or "").strip() != "partial_box_split":
+        return {}
+    source_boxes = _as_int(meta.get("source_boxes"))
+    item_pick_qty = _as_int(meta.get("item_pick_qty"))
+    source_pattern = [dict(row) for row in (meta.get("source_box_pattern") or []) if isinstance(row, dict)]
+    pick_pattern = [dict(row) for row in (meta.get("pick_pattern") or []) if isinstance(row, dict)]
+    if source_boxes <= 0 or item_pick_qty <= 0 or not source_pattern or not pick_pattern:
+        return {}
+    return {
+        **meta,
+        "source_boxes": source_boxes,
+        "item_pick_qty": item_pick_qty,
+        "source_box_pattern": source_pattern,
+        "pick_pattern": pick_pattern,
+    }
+
+
+def _shipping_partial_box_group_demands(items: list) -> list[dict]:
+    groups: dict[str, dict] = {}
+    for item in items:
+        meta = _shipping_item_partial_split(item)
+        if not meta:
+            continue
+        group_key = str(meta.get("group_key") or meta.get("row_key") or f"item:{getattr(item, 'id', 0)}").strip()
+        if not group_key:
+            continue
+        entry = groups.setdefault(
+            group_key,
+            {
+                "group_key": group_key,
+                "source_boxes": _as_int(meta.get("source_boxes")),
+                "source_box_pattern": list(meta.get("source_box_pattern") or []),
+                "pick_pattern": list(meta.get("pick_pattern") or []),
+                "items": [],
+            },
+        )
+        entry["source_boxes"] = max(_as_int(entry.get("source_boxes")), _as_int(meta.get("source_boxes")))
+        if not entry.get("source_box_pattern"):
+            entry["source_box_pattern"] = list(meta.get("source_box_pattern") or [])
+        if not entry.get("pick_pattern"):
+            entry["pick_pattern"] = list(meta.get("pick_pattern") or [])
+        entry["items"].append(
+            {
+                "item_id": int(getattr(item, "id", 0) or 0),
+                "requested_article": str(getattr(item, "sku_code", "") or "").strip(),
+                "requested_goods_type": _normalize_goods_type(getattr(item, "goods_type", "")),
+                "requested_barcodes": [str(getattr(item, "barcode", "") or "").strip()]
+                if str(getattr(item, "barcode", "") or "").strip()
+                else [],
+                "pick_qty_per_box": _as_int(meta.get("item_pick_qty")),
+            }
+        )
+
+    demands: list[dict] = []
+    for entry in groups.values():
+        source_count = _as_int(entry.get("source_boxes"))
+        source_pattern = list(entry.get("source_box_pattern") or [])
+        pick_pattern = list(entry.get("pick_pattern") or [])
+        source_total = _split_pattern_total_qty(source_pattern)
+        pick_total = _split_pattern_total_qty(pick_pattern)
+        if source_count <= 0 or source_total <= 0 or pick_total <= 0:
+            continue
+        source_barcode_qty = _split_pattern_barcode_qty(source_pattern)
+        pick_barcode_qty = _split_pattern_barcode_qty(pick_pattern)
+        requested_barcodes = sorted(source_barcode_qty.keys())
+        source_goods_types = {
+            _normalize_goods_type(row.get("goods_type"))
+            for row in source_pattern
+            if _normalize_goods_type(row.get("goods_type"))
+        }
+        source_articles = {
+            str(row.get("sku_code") or "").strip()
+            for row in source_pattern
+            if str(row.get("sku_code") or "").strip()
+        }
+        for _index in range(source_count):
+            demands.append(
+                {
+                    "kind": "partial_box_split",
+                    "group_key": str(entry.get("group_key") or "").strip(),
+                    "box_qty": source_total,
+                    "pick_qty": pick_total,
+                    "barcode_qty": source_barcode_qty,
+                    "pick_barcode_qty": pick_barcode_qty,
+                    "requested_article": next(iter(source_articles)) if len(source_articles) == 1 else "",
+                    "requested_goods_type": next(iter(source_goods_types)) if len(source_goods_types) == 1 else "",
+                    "requested_barcodes": requested_barcodes,
+                    "pick_pattern": pick_pattern,
+                    "source_box_pattern": source_pattern,
+                    "items": list(entry.get("items") or []),
+                }
+            )
+    return demands
+
+
+def _shipping_item_box_demands(item, *, qty_required: int | None = None) -> list[dict]:
+    comment = str(getattr(item, "comment", "") or "")
+    if "микс-короб" in comment.lower():
+        return []
+    box_count = _parse_shipping_box_count(comment)
+    box_qty = _parse_shipping_box_qty(comment)
+    if qty_required is None:
+        qty_required = max(int(getattr(item, "qty_reserved", 0) or getattr(item, "qty_requested", 0) or 0), 0)
+    else:
+        qty_required = max(_as_int(qty_required), 0)
+    if box_count <= 0 or box_qty <= 0 or qty_required <= 0:
+        return []
+    if qty_required % box_qty != 0:
+        return []
+    box_count = min(box_count, qty_required // box_qty)
+    requested_article = str(getattr(item, "sku_code", "") or "").strip()
+    requested_goods_type = _normalize_goods_type(getattr(item, "goods_type", ""))
+    requested_barcodes = [str(getattr(item, "barcode", "") or "").strip()] if str(getattr(item, "barcode", "") or "").strip() else []
+    barcode_qty = {requested_barcodes[0]: box_qty} if requested_barcodes else {}
+    result: list[dict] = []
+    for _index in range(box_count):
+        result.append(
+            {
+                "item_id": int(getattr(item, "id", 0) or 0),
+                "box_qty": box_qty,
+                "requested_article": requested_article,
+                "requested_goods_type": requested_goods_type,
+                "requested_barcodes": list(requested_barcodes),
+                "barcode_qty": dict(barcode_qty),
+            }
+        )
+    return result
+
+
+def _build_shipping_box_demand_candidates(
+    *,
+    demands: list[dict],
+    base_rows: list[dict],
+    blocked_pallets: set[str],
+    agency_id: int | None,
+    remaining_by_row_id: dict[int, int] | None = None,
+    stock_boxes_cache: dict[tuple[int | None, str], list[dict]] | None = None,
+    exclude_shipping_order_id: str | None = None,
+) -> tuple[dict[int, list[dict]], dict[str, dict]]:
+    box_rows_by_code: dict[str, list[dict]] = defaultdict(list)
+    pallet_meta: dict[str, dict] = {}
+    blocked_box_keys = {code.lower() for code in active_box_claim_codes(agency_id=agency_id)}
+    if stock_boxes_cache is None:
+        stock_boxes_cache = {}
+    for row in base_rows:
+        box_code = str(_row_value(row, "box_code", "") or "").strip()
+        pallet_code = str(_row_value(row, "pallet_code", "") or "").strip()
+        if box_code and box_code.lower() in blocked_box_keys:
+            continue
+        if box_code:
+            box_rows_by_code[box_code.lower()].append(row)
+        if not pallet_code or pallet_code in blocked_pallets:
+            continue
+        entry = pallet_meta.setdefault(
+            pallet_code,
+            {
+                "from_location": _build_location(
+                    _row_value(row, "zone", ""),
+                    _as_int(_row_value(row, "row", 0)),
+                    _as_int(_row_value(row, "section", 0)),
+                    _as_int(_row_value(row, "tier", 0)),
+                    _as_int(_row_value(row, "cell", 0)),
+                ),
+                "receiving_order_id": str(_row_value(row, "order_id", "") or "").strip(),
+                "box_count": 0,
+            },
+        )
+        entry["from_location"] = _build_location(
+            _row_value(row, "zone", ""),
+            _as_int(_row_value(row, "row", 0)),
+            _as_int(_row_value(row, "section", 0)),
+            _as_int(_row_value(row, "tier", 0)),
+            _as_int(_row_value(row, "cell", 0)),
+        )
+        entry["receiving_order_id"] = str(_row_value(row, "order_id", "") or "").strip()
+    for pallet_code, entry in pallet_meta.items():
+        entry["box_count"] = len(
+            _all_stock_boxes_for_pallet(
+                pallet_code,
+                agency_id=agency_id,
+                stock_boxes_cache=stock_boxes_cache,
+            )
+        )
+
+    candidates_by_demand: dict[int, list[dict]] = {}
+    for demand_idx, demand in enumerate(demands):
+        demand_candidates: list[dict] = []
+        pattern = {
+            "box_qty": _as_int(demand.get("box_qty")),
+            "requested_box_count": 1,
+            "barcode_qty": dict(demand.get("barcode_qty") or {}),
+            "requested_article": str(demand.get("requested_article") or "").strip(),
+            "requested_goods_type": str(demand.get("requested_goods_type") or "").strip(),
+            "requested_barcodes": list(demand.get("requested_barcodes") or []),
+        }
+        for box_key, raw_row_refs in sorted(box_rows_by_code.items()):
+            row_refs = []
+            for ref in raw_row_refs or []:
+                row_id = _as_int(_row_value(ref, "id", 0))
+                if row_id <= 0:
+                    continue
+                if remaining_by_row_id is not None and _as_int(remaining_by_row_id.get(row_id, 0)) <= 0:
+                    continue
+                row_refs.append(ref)
+            if not row_refs:
+                continue
+            box_code = str(_row_value(row_refs[0], "box_code", "") or "").strip()
+            if not box_code or box_key in blocked_box_keys:
+                continue
+            pallet_code = str(_row_value(row_refs[0], "pallet_code", "") or "").strip()
+            if not pallet_code or pallet_code in blocked_pallets:
+                continue
+            pallet_entry = pallet_meta.get(pallet_code) or {}
+            candidate_box = _stock_box_candidate_from_reserved_rows(box_code, row_refs)
+            if not _stock_box_matches_requested_pattern(candidate_box, pattern):
+                continue
+            row_ids = [
+                _as_int(_row_value(ref, "id", 0))
+                for ref in row_refs
+                if _as_int(_row_value(ref, "id", 0)) > 0
+            ]
+            if not row_ids:
+                continue
+            demand_candidates.append(
+                {
+                    "box_code": box_code,
+                    "box_key": box_key,
+                    "pallet_code": pallet_code,
+                    "box_qty": _as_int(candidate_box.get("qty")),
+                    "barcode_qty": _normalize_barcode_qty_map(candidate_box.get("barcode_qty")),
+                    "row_ids": row_ids,
+                    "from_location": pallet_entry.get("from_location") or _build_location("PR", 0, 0, 0, 0),
+                    "receiving_order_id": pallet_entry.get("receiving_order_id") or "",
+                }
+            )
+        if demand_candidates:
+            candidates_by_demand[demand_idx] = demand_candidates
+            continue
+        for pallet_code in sorted(pallet_meta.keys()):
+            pallet_entry = pallet_meta.get(pallet_code) or {}
+            for row in _matching_stock_boxes_for_patterns(
+                pallet_code,
+                [pattern],
+                agency_id=agency_id,
+                stock_boxes_cache=stock_boxes_cache,
+            ):
+                box_code = str(row.get("code") or "").strip()
+                box_key = box_code.lower()
+                if box_key in blocked_box_keys:
+                    continue
+                row_refs = []
+                for ref in box_rows_by_code.get(box_key) or []:
+                    row_id = _as_int(_row_value(ref, "id", 0))
+                    if row_id <= 0:
+                        continue
+                    if remaining_by_row_id is not None and _as_int(remaining_by_row_id.get(row_id, 0)) <= 0:
+                        continue
+                    row_refs.append(ref)
+                if not box_code or not row_refs:
+                    continue
+                row_ids = [
+                    _as_int(_row_value(ref, "id", 0))
+                    for ref in row_refs
+                    if _as_int(_row_value(ref, "id", 0)) > 0
+                ]
+                if not row_ids:
+                    continue
+                demand_candidates.append(
+                    {
+                        "box_code": box_code,
+                        "box_key": box_key,
+                        "pallet_code": pallet_code,
+                        "box_qty": _as_int(row.get("qty")),
+                        "barcode_qty": _normalize_barcode_qty_map(row.get("barcode_qty")),
+                        "row_ids": row_ids,
+                        "from_location": pallet_entry.get("from_location") or _build_location("PR", 0, 0, 0, 0),
+                        "receiving_order_id": pallet_entry.get("receiving_order_id") or "",
+                    }
+                )
+        candidates_by_demand[demand_idx] = demand_candidates
+    return candidates_by_demand, pallet_meta
+
+
+def _assign_shipping_box_demands(
+    *,
+    demands: list[dict],
+    candidates_by_demand: dict[int, list[dict]],
+    pallet_meta: dict[str, dict],
+    subset: tuple[str, ...] | None = None,
+) -> dict[int, dict] | None:
+    allowed_pallets = set(subset or ())
+    per_demand: dict[int, list[dict]] = {}
+    for demand_idx, demand in enumerate(demands):
+        candidates = [
+            candidate
+            for candidate in list(candidates_by_demand.get(demand_idx) or [])
+            if not allowed_pallets or candidate.get("pallet_code") in allowed_pallets
+        ]
+        if not candidates:
+            return None
+        candidates.sort(
+            key=lambda candidate: (
+                int((pallet_meta.get(str(candidate.get("pallet_code") or "")) or {}).get("box_count") or 0),
+                str(candidate.get("pallet_code") or ""),
+                str(candidate.get("box_code") or ""),
+            )
+        )
+        per_demand[demand_idx] = candidates
+    ordered_demands = sorted(
+        per_demand.keys(),
+        key=lambda idx: (
+            len(per_demand.get(idx) or []),
+            -_as_int((demands[idx] or {}).get("box_qty")),
+            idx,
+        ),
+    )
+    matched_box_to_demand: dict[str, int] = {}
+    assignment: dict[int, dict] = {}
+
+    def try_assign(demand_idx: int, seen_boxes: set[str]) -> bool:
+        for candidate in per_demand.get(demand_idx) or []:
+            box_key = str(candidate.get("box_key") or "").strip()
+            if not box_key or box_key in seen_boxes:
+                continue
+            seen_boxes.add(box_key)
+            previous_demand_idx = matched_box_to_demand.get(box_key)
+            if previous_demand_idx is None or try_assign(previous_demand_idx, seen_boxes):
+                matched_box_to_demand[box_key] = demand_idx
+                assignment[demand_idx] = candidate
+                return True
+        return False
+
+    for demand_idx in ordered_demands:
+        if not try_assign(demand_idx, set()):
+            return None
+    return assignment
+
+
+def _plan_shipping_box_demands(
+    *,
+    items: list,
+    base_rows: list[dict],
+    remaining_by_row_id: dict[int, int],
+    blocked_pallets: set[str],
+    agency_id: int | None,
+    candidate_pallet_meta: dict[str, dict] | None = None,
+    remaining_qty_by_item_id: dict[int, int] | None = None,
+    exclude_shipping_order_id: str | None = None,
+) -> dict | None:
+    demands: list[dict] = []
+    planned_item_ids: set[int] = set()
+    for item in items:
+        item_id = _as_int(getattr(item, "id", 0))
+        qty_required = None
+        if remaining_qty_by_item_id is not None:
+            qty_required = _as_int(remaining_qty_by_item_id.get(item_id, 0))
+        item_demands = _shipping_item_box_demands(item, qty_required=qty_required)
+        if not item_demands:
+            continue
+        demands.extend(item_demands)
+        planned_item_ids.add(item_id)
+    if not demands:
+        return None
+
+    stock_boxes_cache: dict[tuple[int | None, str], list[dict]] = {}
+    candidates_by_demand, pallet_meta = _build_shipping_box_demand_candidates(
+        demands=demands,
+        base_rows=base_rows,
+        blocked_pallets=blocked_pallets,
+        agency_id=agency_id,
+        remaining_by_row_id=remaining_by_row_id,
+        stock_boxes_cache=stock_boxes_cache,
+        exclude_shipping_order_id=exclude_shipping_order_id,
+    )
+    if any(not (candidates_by_demand.get(idx) or []) for idx in range(len(demands))):
+        return None
+
+    candidate_pallets = sorted(
+        {
+            str(candidate.get("pallet_code") or "").strip()
+            for candidates in candidates_by_demand.values()
+            for candidate in candidates
+            if str(candidate.get("pallet_code") or "").strip()
+        }
+    )
+    if not candidate_pallets:
+        return None
+
+    best_assignment: dict[int, dict] | None = None
+    best_key: tuple[int, int, tuple[str, ...]] | None = None
+    if len(candidate_pallets) <= 10:
+        for size in range(1, len(candidate_pallets) + 1):
+            for subset in combinations(candidate_pallets, size):
+                assignment = _assign_shipping_box_demands(
+                    demands=demands,
+                    candidates_by_demand=candidates_by_demand,
+                    pallet_meta=pallet_meta,
+                    subset=subset,
+                )
+                if not assignment:
+                    continue
+                total_boxes = sum(int((pallet_meta.get(code) or {}).get("box_count") or 0) for code in subset)
+                key = (len(subset), total_boxes, tuple(subset))
+                if best_key is None or key < best_key:
+                    best_key = key
+                    best_assignment = assignment
+            if best_assignment is not None:
+                break
+    if best_assignment is None:
+        best_assignment = _assign_shipping_box_demands(
+            demands=demands,
+            candidates_by_demand=candidates_by_demand,
+            pallet_meta=pallet_meta,
+        )
+    if best_assignment is None or len(best_assignment) != len(demands):
+        return None
+
+    plan_by_pallet: dict[str, dict] = {}
+    planned_by_item_id: dict[int, int] = {}
+    selected_box_codes_by_item_id: dict[int, list[str]] = defaultdict(list)
+    for demand_idx, candidate in best_assignment.items():
+        demand = demands[demand_idx]
+        pallet_code = str(candidate.get("pallet_code") or "").strip()
+        pallet_info = pallet_meta.get(pallet_code) or {}
+        entry = plan_by_pallet.setdefault(
+            pallet_code,
+            {
+                "qty": 0,
+                "barcodes": set(),
+                "barcode_qty": defaultdict(int),
+                "articles": set(),
+                "goods_types": set(),
+                "from_location": pallet_info.get("from_location") or _build_location("PR", 0, 0, 0, 0),
+                "receiving_order_id": pallet_info.get("receiving_order_id") or "",
+                "request_items": [],
+                "pallet_available_qty": 0,
+                "requested_box_patterns": [],
+                "reserved_box_codes": [],
+                "reserved_snapshot_ids": [],
+                "candidate_pallets": [],
+            },
+        )
+        box_qty = _as_int(demand.get("box_qty"))
+        if box_qty <= 0:
+            continue
+        entry["qty"] += box_qty
+        requested_article = str(demand.get("requested_article") or "").strip()
+        requested_goods_type = _normalize_goods_type(demand.get("requested_goods_type"))
+        requested_barcodes = [
+            str(value).strip()
+            for value in (demand.get("requested_barcodes") or [])
+            if str(value or "").strip()
+        ]
+        if requested_article:
+            entry["articles"].add(requested_article)
+        if requested_goods_type:
+            entry["goods_types"].add(requested_goods_type)
+        if requested_barcodes:
+            entry["barcodes"].update(requested_barcodes)
+        barcode_qty = _normalize_barcode_qty_map(demand.get("barcode_qty"))
+        for barcode, qty in barcode_qty.items():
+            entry["barcode_qty"][barcode] += int(qty or 0)
+        entry["request_items"].append(
+            {
+                "requested_article": requested_article,
+                "requested_goods_type": requested_goods_type,
+                "requested_qty": box_qty,
+                "requested_barcodes": requested_barcodes,
+                "shipping_item_id": _as_int(demand.get("item_id")),
+            }
+        )
+        entry["requested_box_patterns"].append(
+            {
+                "box_qty": box_qty,
+                "requested_box_count": 1,
+                "barcode_qty": barcode_qty,
+                "requested_article": requested_article,
+                "requested_goods_type": requested_goods_type,
+                "requested_barcodes": requested_barcodes,
+            }
+        )
+        box_code = str(candidate.get("box_code") or "").strip()
+        if box_code and box_code not in entry["reserved_box_codes"]:
+            entry["reserved_box_codes"].append(box_code)
+        row_ids = [row_id for row_id in (candidate.get("row_ids") or []) if row_id]
+        if row_ids:
+            for row_id in row_ids:
+                if row_id not in entry["reserved_snapshot_ids"]:
+                    entry["reserved_snapshot_ids"].append(row_id)
+            entry["pallet_available_qty"] += sum(int(remaining_by_row_id.get(row_id, 0) or 0) for row_id in row_ids)
+            for row_id in row_ids:
+                remaining_by_row_id[row_id] = 0
+        item_id = _as_int(demand.get("item_id"))
+        planned_by_item_id[item_id] = planned_by_item_id.get(item_id, 0) + box_qty
+        if box_code:
+            selected_box_codes_by_item_id[item_id].append(box_code)
+
+    for entry in plan_by_pallet.values():
+        entry["requested_box_patterns"] = _requested_box_patterns(
+            {"requested_box_patterns": entry.get("requested_box_patterns") or []}
+        )
+        entry["requested_box_count"] = sum(
+            _as_int(pattern.get("requested_box_count"))
+            for pattern in entry.get("requested_box_patterns") or []
+        )
+        entry["requested_box_pattern_summary"] = _shipping_box_pattern_summary(
+            entry.get("requested_box_patterns") or []
+        )
+        entry["candidate_pallets"] = _candidate_pallet_options_for_shipping_entry(
+            entry,
+            pallet_meta=pallet_meta,
+            agency_id=agency_id,
+            candidate_pallet_meta=candidate_pallet_meta,
+            stock_boxes_cache=stock_boxes_cache,
+            exclude_shipping_order_id=exclude_shipping_order_id,
+        )
+
+    return {
+        "plan_by_pallet": plan_by_pallet,
+        "planned_by_item_id": planned_by_item_id,
+        "planned_item_ids": planned_item_ids,
+        "selected_box_codes_by_item_id": dict(selected_box_codes_by_item_id),
+    }
+
+
+def _plan_shipping_partial_box_demands(
+    *,
+    items: list,
+    base_rows: list[dict],
+    remaining_by_row_id: dict[int, int],
+    blocked_pallets: set[str],
+    agency_id: int | None,
+    candidate_pallet_meta: dict[str, dict] | None = None,
+    exclude_shipping_order_id: str | None = None,
+) -> dict | None:
+    demands = _shipping_partial_box_group_demands(items)
+    if not demands:
+        return None
+    planned_item_ids: set[int] = {
+        _as_int(item.get("item_id"))
+        for demand in demands
+        for item in (demand.get("items") or [])
+        if _as_int(item.get("item_id")) > 0
+    }
+
+    stock_boxes_cache: dict[tuple[int | None, str], list[dict]] = {}
+    candidates_by_demand, pallet_meta = _build_shipping_box_demand_candidates(
+        demands=demands,
+        base_rows=base_rows,
+        blocked_pallets=blocked_pallets,
+        agency_id=agency_id,
+        remaining_by_row_id=remaining_by_row_id,
+        stock_boxes_cache=stock_boxes_cache,
+        exclude_shipping_order_id=exclude_shipping_order_id,
+    )
+    if any(not (candidates_by_demand.get(idx) or []) for idx in range(len(demands))):
+        return None
+
+    candidate_pallets = sorted(
+        {
+            str(candidate.get("pallet_code") or "").strip()
+            for candidates in candidates_by_demand.values()
+            for candidate in candidates
+            if str(candidate.get("pallet_code") or "").strip()
+        }
+    )
+    if not candidate_pallets:
+        return None
+
+    best_assignment: dict[int, dict] | None = None
+    best_key: tuple[int, int, tuple[str, ...]] | None = None
+    if len(candidate_pallets) <= 10:
+        for size in range(1, len(candidate_pallets) + 1):
+            for subset in combinations(candidate_pallets, size):
+                assignment = _assign_shipping_box_demands(
+                    demands=demands,
+                    candidates_by_demand=candidates_by_demand,
+                    pallet_meta=pallet_meta,
+                    subset=subset,
+                )
+                if not assignment:
+                    continue
+                total_boxes = sum(int((pallet_meta.get(code) or {}).get("box_count") or 0) for code in subset)
+                key = (len(subset), total_boxes, tuple(subset))
+                if best_key is None or key < best_key:
+                    best_key = key
+                    best_assignment = assignment
+            if best_assignment is not None:
+                break
+    if best_assignment is None:
+        best_assignment = _assign_shipping_box_demands(
+            demands=demands,
+            candidates_by_demand=candidates_by_demand,
+            pallet_meta=pallet_meta,
+        )
+    if best_assignment is None or len(best_assignment) != len(demands):
+        return None
+
+    plan_by_pallet: dict[str, dict] = {}
+    planned_by_item_id: dict[int, int] = {}
+    selected_box_codes_by_item_id: dict[int, list[str]] = defaultdict(list)
+    for demand_idx, candidate in best_assignment.items():
+        demand = demands[demand_idx]
+        pallet_code = str(candidate.get("pallet_code") or "").strip()
+        pallet_info = pallet_meta.get(pallet_code) or {}
+        entry = plan_by_pallet.setdefault(
+            pallet_code,
+            {
+                "qty": 0,
+                "barcodes": set(),
+                "barcode_qty": defaultdict(int),
+                "articles": set(),
+                "goods_types": set(),
+                "from_location": pallet_info.get("from_location") or _build_location("PR", 0, 0, 0, 0),
+                "receiving_order_id": pallet_info.get("receiving_order_id") or "",
+                "request_items": [],
+                "pallet_available_qty": 0,
+                "requested_box_patterns": [],
+                "partial_pick_patterns": [],
+                "reserved_box_codes": [],
+                "reserved_snapshot_ids": [],
+                "contains_partial_box_splits": True,
+                "candidate_pallets": [],
+            },
+        )
+        pick_qty = _as_int(demand.get("pick_qty"))
+        source_qty = _as_int(demand.get("box_qty"))
+        if pick_qty <= 0 or source_qty <= 0:
+            continue
+        entry["qty"] += pick_qty
+        source_barcode_qty = _normalize_barcode_qty_map(demand.get("barcode_qty"))
+        pick_barcode_qty = _normalize_barcode_qty_map(demand.get("pick_barcode_qty"))
+        requested_article = str(demand.get("requested_article") or "").strip()
+        requested_goods_type = _normalize_goods_type(demand.get("requested_goods_type"))
+        requested_barcodes = [
+            str(value).strip()
+            for value in (demand.get("requested_barcodes") or [])
+            if str(value or "").strip()
+        ]
+        if requested_article:
+            entry["articles"].add(requested_article)
+        if requested_goods_type:
+            entry["goods_types"].add(requested_goods_type)
+        if requested_barcodes:
+            entry["barcodes"].update(requested_barcodes)
+        for barcode, qty in pick_barcode_qty.items():
+            entry["barcode_qty"][barcode] += int(qty or 0)
+        for demand_item in demand.get("items") or []:
+            item_id = _as_int(demand_item.get("item_id"))
+            item_qty = _as_int(demand_item.get("pick_qty_per_box"))
+            if item_id <= 0 or item_qty <= 0:
+                continue
+            planned_by_item_id[item_id] = planned_by_item_id.get(item_id, 0) + item_qty
+            entry["request_items"].append(
+                {
+                    "requested_article": str(demand_item.get("requested_article") or "").strip(),
+                    "requested_goods_type": _normalize_goods_type(demand_item.get("requested_goods_type")),
+                    "requested_qty": item_qty,
+                    "requested_barcodes": list(demand_item.get("requested_barcodes") or []),
+                    "shipping_item_id": item_id,
+                    "partial_box_split": True,
+                }
+            )
+        entry["requested_box_patterns"].append(
+            {
+                "box_qty": source_qty,
+                "requested_box_count": 1,
+                "barcode_qty": source_barcode_qty,
+                "requested_article": requested_article,
+                "requested_goods_type": requested_goods_type,
+                "requested_barcodes": requested_barcodes,
+            }
+        )
+        entry["partial_pick_patterns"].append(
+            {
+                "source_box_qty": source_qty,
+                "requested_box_count": 1,
+                "source_barcode_qty": source_barcode_qty,
+                "pick_qty": pick_qty,
+                "barcode_qty": pick_barcode_qty,
+                "requested_article": requested_article,
+                "requested_goods_type": requested_goods_type,
+                "requested_barcodes": requested_barcodes,
+            }
+        )
+        box_code = str(candidate.get("box_code") or "").strip()
+        if box_code and box_code not in entry["reserved_box_codes"]:
+            entry["reserved_box_codes"].append(box_code)
+        if box_code:
+            for demand_item in demand.get("items") or []:
+                item_id = _as_int(demand_item.get("item_id"))
+                if item_id > 0 and box_code not in selected_box_codes_by_item_id[item_id]:
+                    selected_box_codes_by_item_id[item_id].append(box_code)
+        row_ids = [row_id for row_id in (candidate.get("row_ids") or []) if row_id]
+        if row_ids:
+            for row_id in row_ids:
+                if row_id not in entry["reserved_snapshot_ids"]:
+                    entry["reserved_snapshot_ids"].append(row_id)
+            entry["pallet_available_qty"] += sum(int(remaining_by_row_id.get(row_id, 0) or 0) for row_id in row_ids)
+            for row_id in row_ids:
+                remaining_by_row_id[row_id] = 0
+
+    for entry in plan_by_pallet.values():
+        entry["requested_box_patterns"] = _requested_box_patterns(
+            {"requested_box_patterns": entry.get("requested_box_patterns") or []}
+        )
+        entry["requested_box_count"] = sum(
+            _as_int(pattern.get("requested_box_count"))
+            for pattern in entry.get("requested_box_patterns") or []
+        )
+        entry["requested_box_pattern_summary"] = _shipping_box_pattern_summary(
+            entry.get("requested_box_patterns") or []
+        )
+        entry["candidate_pallets"] = _candidate_pallet_options_for_shipping_entry(
+            entry,
+            pallet_meta=pallet_meta,
+            agency_id=agency_id,
+            candidate_pallet_meta=candidate_pallet_meta,
+            stock_boxes_cache=stock_boxes_cache,
+        )
+
+    return {
+        "plan_by_pallet": plan_by_pallet,
+        "planned_by_item_id": planned_by_item_id,
+        "planned_item_ids": planned_item_ids,
+        "selected_box_codes_by_item_id": dict(selected_box_codes_by_item_id),
+    }
+
+
+@transaction.atomic
+def create_stock_move_task(
+    *,
+    user,
+    agency,
+    description: str,
+    payload: dict,
+    requested_by_name: str = "",
+    requested_by_role: str = "",
+    move_request: MoveRequest | None = None,
+) -> str:
+    move_payload = deepcopy(payload or {})
+    from_location = _normalize_location(move_payload.get("from_location"))
+    to_location = _normalize_location(move_payload.get("to_location"))
+    move_payload["from_location"] = from_location
+    move_payload["to_location"] = to_location
+    move_payload.setdefault("status", MoveTask.STATUS_CREATED)
+    move_payload.setdefault("status_label", "Ожидает перевозки")
+    move_payload.setdefault("pick_mode", "full")
+    move_payload.setdefault("move_mode", MoveTask.MODE_PALLET_FULL)
+    move_payload.setdefault("from_label", _location_label(from_location))
+    move_payload.setdefault("to_label", _location_label(to_location))
+    move_payload.setdefault("from_code", _location_scan_code(from_location))
+    move_payload.setdefault("to_code", _location_scan_code(to_location))
+    move_payload.setdefault("source_code", move_payload.get("from_code"))
+    move_payload.setdefault("destination_code", move_payload.get("to_code"))
+    if requested_by_name:
+        move_payload["requested_by_name"] = requested_by_name
+    if requested_by_role:
+        move_payload["requested_by_role"] = requested_by_role
+
+    processing_order_id = str(move_payload.get("processing_order_id") or "").strip()
+    receiving_order_id = str(move_payload.get("receiving_order_id") or "").strip()
+    if processing_order_id:
+        context_type = MoveRequest.CONTEXT_PROCESSING
+        context_id = processing_order_id
+    elif receiving_order_id:
+        context_type = MoveRequest.CONTEXT_RECEIVING
+        context_id = receiving_order_id
+    else:
+        context_type = MoveRequest.CONTEXT_MANUAL
+        context_id = ""
+
+    authenticated_user = user if getattr(user, "is_authenticated", False) else None
+    request_obj = move_request
+    if request_obj is None:
+        request_obj = MoveRequest.objects.create(
+            context_type=context_type,
+            context_id=context_id,
+            process=resolve_move_request_process(
+                context_type=context_type,
+                context_id=context_id,
+                destination_zone=to_location.get("zone") or "PR",
+                payload=move_payload,
+            ),
+            agency=agency,
+            requested_by=authenticated_user,
+            requested_by_role=str(move_payload.get("requested_by_role") or requested_by_role or ""),
+            requested_by_name=str(move_payload.get("requested_by_name") or requested_by_name or ""),
+            destination_zone=to_location.get("zone") or "PR",
+            destination_row=_as_int(to_location.get("row")) or None,
+            destination_section=_as_int(to_location.get("section")) or None,
+            destination_tier=_as_int(to_location.get("tier")) or None,
+            destination_cell=_as_int(to_location.get("cell")) or None,
+            status=MoveRequest.STATUS_PLANNED,
+            comment=str(move_payload.get("instruction") or ""),
+        )
+        _build_request_items(request_obj, move_payload)
+
+    move_id = _next_stock_move_number()
+    qty_planned = max(_as_int(move_payload.get("requested_qty")), 0)
+    pallet_code_value = str(move_payload.get("pallet_code") or "").strip()
+    if bool(move_payload.get("flexible_pallet_choice")) and not pallet_code_value:
+        task_pallet_code = ""
+    else:
+        task_pallet_code = pallet_code_value or "-"
+    move_task = MoveTask.objects.create(
+        request=request_obj,
+        pallet_code=task_pallet_code,
+        from_zone=str(from_location.get("zone") or ""),
+        from_row=_as_int(from_location.get("row")) or None,
+        from_section=_as_int(from_location.get("section")) or None,
+        from_tier=_as_int(from_location.get("tier")) or None,
+        from_cell=_as_int(from_location.get("cell")) or None,
+        to_zone=str(to_location.get("zone") or ""),
+        to_row=_as_int(to_location.get("row")) or None,
+        to_section=_as_int(to_location.get("section")) or None,
+        to_tier=_as_int(to_location.get("tier")) or None,
+        to_cell=_as_int(to_location.get("cell")) or None,
+        move_mode=str(move_payload.get("move_mode") or MoveTask.MODE_PALLET_FULL),
+        qty_planned=qty_planned,
+        payload=move_payload,
+        status=MoveTask.STATUS_CREATED,
+        legacy_order_id=move_id,
+    )
+    move_payload["move_request_id"] = request_obj.id
+    move_payload["move_task_id"] = move_task.id
+    move_task.payload = move_payload
+    move_task.save(update_fields=["payload", "updated_at"])
+
+    log_order_action(
+        "create",
+        order_id=move_id,
+        order_type="stock_move",
+        user=authenticated_user,
+        agency=agency,
+        description=description,
+        payload=move_payload,
+    )
+    log_stock_move(
+        "create",
+        user=authenticated_user,
+        agency=agency,
+        description=description,
+        snapshot={
+            "move_id": move_id,
+            "move_request_id": request_obj.id,
+            "move_task_id": move_task.id,
+            "pallet_code": move_payload.get("pallet_code"),
+            "from_location": from_location,
+            "to_location": to_location,
+            "from_label": move_payload.get("from_label"),
+            "to_label": move_payload.get("to_label"),
+            "from_code": move_payload.get("from_code") or move_payload.get("source_code"),
+            "to_code": move_payload.get("to_code") or move_payload.get("destination_code"),
+            "receiving_order_id": move_payload.get("receiving_order_id") or "",
+            "processing_order_id": move_payload.get("processing_order_id") or "",
+            "status": "created",
+            "pick_mode": move_payload.get("pick_mode") or "full",
+            "move_mode": move_payload.get("move_mode") or MoveTask.MODE_PALLET_FULL,
+            "requested_qty": qty_planned if qty_planned > 0 else "",
+            "requested_barcode_qty": move_payload.get("requested_barcode_qty") or {},
+            "requested_boxes": move_payload.get("requested_boxes") or [],
+            "requested_box": move_payload.get("requested_box") or "",
+            "requested_rows": move_payload.get("requested_rows") or [],
+            "instruction": move_payload.get("instruction") or "",
+        },
+    )
+    _recompute_request_status(request_obj)
+    return move_id
+
+
+def _plan_move_request_to_tasks(
+    *,
+    move_request: MoveRequest,
+    move_request_items: list[MoveRequestItem],
+    request_items: list[dict],
+    explicit_requested_rows: list[dict] | None,
+    destination: dict,
+    processing_order_id: str,
+    requested_by_name: str,
+    requested_by_role: str,
+    user,
+) -> dict:
+    agency_id = move_request.agency_id
+    base_rows = _warehouse_base_rows_for_planning(agency_id=agency_id)
+
+    blocked_pallets = _active_pallet_codes_for_agency(agency_id)
+
+    remaining_by_row_id: dict[int, int] = {
+        _as_int(_row_value(row, "id", 0)): _as_int(_row_value(row, "qty", 0))
+        for row in base_rows
+    }
+    plan_by_pallet: dict[str, dict] = {}
+    planned_by_item_idx: dict[int, int] = {}
+    shortage_qty = 0
+    explicit_requested_rows = explicit_requested_rows or []
+    if explicit_requested_rows:
+        pallet_info_by_code: dict[str, dict] = {}
+        explicit_pallet_codes = {
+            str(row.get("pallet_code") or "").strip()
+            for row in explicit_requested_rows
+            if str(row.get("pallet_code") or "").strip()
+        }
+        for pallet_code in sorted(explicit_pallet_codes):
+            found = _find_pallet_by_code(pallet_code, agency_id=agency_id)
+            if not found:
+                continue
+            synthetic_entry, _, _, location = found
+            pallet_info_by_code[pallet_code] = {
+                "from_location": location or _build_location("PR", 0, 0, 0, 0),
+                "receiving_order_id": str(getattr(synthetic_entry, "order_id", "") or "").strip(),
+            }
+        for row in base_rows:
+            pallet_code = str(_row_value(row, "pallet_code", "") or "").strip()
+            if not pallet_code:
+                continue
+            pallet_info_by_code[pallet_code] = {
+                "from_location": _build_location(
+                    _row_value(row, "zone", ""),
+                    _as_int(_row_value(row, "row", 0)),
+                    _as_int(_row_value(row, "section", 0)),
+                    _as_int(_row_value(row, "tier", 0)),
+                    _as_int(_row_value(row, "cell", 0)),
+                ),
+                "receiving_order_id": str(_row_value(row, "order_id", "") or "").strip(),
+            }
+        blocked_requested_pallets = {
+            code for code in {str(row.get("pallet_code") or "").strip() for row in explicit_requested_rows}
+            if code and code in blocked_pallets
+        }
+        if blocked_requested_pallets:
+            move_request.status = MoveRequest.STATUS_BLOCKED
+            move_request.planning_error = (
+                "Паллета уже занята активным заданием: "
+                + ", ".join(sorted(blocked_requested_pallets))
+            )
+            move_request.save(update_fields=["status", "planning_error", "updated_at"])
+            return {"created": 0, "move_ids": [], "shortage_qty": 0}
+        for row in explicit_requested_rows:
+            pallet_code = str(row.get("pallet_code") or "").strip()
+            box_code = _normalize_box_code(row.get("box_code"))
+            requested_qty = _as_int(row.get("qty"))
+            if not pallet_code or not box_code or requested_qty <= 0:
+                continue
+            pallet_info = pallet_info_by_code.get(pallet_code) or {}
+            entry = plan_by_pallet.setdefault(
+                pallet_code,
+                {
+                    "qty": 0,
+                    "barcodes": set(),
+                    "barcode_qty": {},
+                    "articles": set(),
+                    "goods_types": set(),
+                    "from_location": pallet_info.get("from_location") or _build_location("PR", 0, 0, 0, 0),
+                    "receiving_order_id": pallet_info.get("receiving_order_id") or "",
+                    "item_chunks": [],
+                    "requested_rows": [],
+                    "requested_boxes": [],
+                    "pallet_available_qty": 0,
+                },
+            )
+            entry["qty"] += requested_qty
+            requested_article = str(row.get("requested_article") or "").strip()
+            requested_goods_type = _normalize_goods_type(row.get("requested_goods_type"))
+            requested_barcodes = [
+                str(value).strip()
+                for value in (row.get("requested_barcodes") or [])
+                if str(value or "").strip()
+            ]
+            if requested_article:
+                entry["articles"].add(requested_article)
+            if requested_goods_type:
+                entry["goods_types"].add(requested_goods_type)
+            if requested_barcodes:
+                entry["barcodes"].update(requested_barcodes)
+            barcode_qty = _normalize_barcode_qty_map(row.get("barcode_qty"))
+            for barcode, qty in barcode_qty.items():
+                entry["barcode_qty"][barcode] = int(entry["barcode_qty"].get(barcode, 0)) + int(qty)
+            if box_code not in entry["requested_boxes"]:
+                entry["requested_boxes"].append(box_code)
+            entry["requested_rows"].append(
+                {
+                    "box_code": box_code,
+                    "qty": requested_qty,
+                    "barcode_qty": barcode_qty,
+                }
+            )
+            item_chunk = {
+                "requested_article": requested_article,
+                "requested_goods_type": requested_goods_type,
+                "requested_qty": requested_qty,
+                "requested_barcodes": requested_barcodes,
+            }
+            entry["item_chunks"].append(item_chunk)
+            for idx, request_item in enumerate(request_items):
+                item_article = str(request_item.get("requested_article") or "").strip()
+                item_goods_type = _normalize_goods_type(request_item.get("requested_goods_type"))
+                item_barcodes = {
+                    str(value).strip()
+                    for value in (request_item.get("requested_barcodes") or [])
+                    if str(value or "").strip()
+                }
+                goods_type_match = not item_goods_type or not requested_goods_type or item_goods_type == requested_goods_type
+                article_match = bool(item_article and requested_article and item_article == requested_article)
+                barcode_match = bool(item_barcodes and requested_barcodes and item_barcodes.intersection(requested_barcodes))
+                identity_match = barcode_match if item_barcodes else article_match
+                if goods_type_match and identity_match:
+                    planned_by_item_idx[idx] = planned_by_item_idx.get(idx, 0) + requested_qty
+                    break
+
+    for idx, item in enumerate(request_items):
+        if explicit_requested_rows:
+            requested_total = _as_int(item.get("requested_qty"))
+            planned_total = planned_by_item_idx.get(idx, 0)
+            if requested_total > planned_total:
+                shortage_qty += requested_total - planned_total
+            continue
+        qty_required = _as_int(item.get("requested_qty"))
+        if qty_required <= 0:
+            continue
+        requested_article = str(item.get("requested_article") or "").strip()
+        requested_goods_type = _normalize_goods_type(item.get("requested_goods_type"))
+        requested_barcodes = [
+            str(value).strip() for value in (item.get("requested_barcodes") or []) if str(value or "").strip()
+        ]
+        if not requested_article and not requested_barcodes:
+            continue
+        rows = []
+        for row in base_rows:
+            if not _stock_row_matches_requested_identity(
+                row,
+                requested_article=requested_article,
+                requested_barcodes=requested_barcodes,
+            ):
+                continue
+            rows.append(row)
+        candidate_pallets_for_item = _candidate_pallets_for_rows(
+            rows,
+            remaining_by_row_id=dict(remaining_by_row_id),
+            blocked_pallets=blocked_pallets,
+            requested_goods_type=requested_goods_type,
+        )
+        allocations, remaining = _plan_item_across_minimal_pallets(
+            rows,
+            qty_required=qty_required,
+            remaining_by_row_id=remaining_by_row_id,
+            blocked_pallets=blocked_pallets,
+            requested_goods_type=requested_goods_type,
+            preferred_pallets=set(plan_by_pallet.keys()),
+        )
+        for allocation in allocations:
+            pallet_code = str(allocation.get("pallet_code") or "").strip()
+            alloc_qty = _as_int(allocation.get("allocated_qty"))
+            if not pallet_code or alloc_qty <= 0:
+                continue
+            entry = plan_by_pallet.setdefault(
+                pallet_code,
+                {
+                    "qty": 0,
+                    "barcodes": set(),
+                    "articles": set(),
+                    "goods_types": set(),
+                    "from_location": allocation.get("from_location") or _build_location("PR", 0, 0, 0, 0),
+                    "receiving_order_id": allocation.get("receiving_order_id") or "",
+                    "item_chunks": [],
+                    "pallet_available_qty": int(allocation.get("available_qty") or 0),
+                    "candidate_pallets": [],
+                },
+            )
+            entry["pallet_available_qty"] = max(
+                int(entry.get("pallet_available_qty") or 0),
+                int(allocation.get("available_qty") or 0),
+            )
+            entry["qty"] += alloc_qty
+            if requested_article:
+                entry["articles"].add(requested_article)
+            if requested_goods_type:
+                entry["goods_types"].add(requested_goods_type)
+            if requested_barcodes:
+                entry["barcodes"].update(requested_barcodes)
+            entry["item_chunks"].append(
+                {
+                    "requested_article": requested_article,
+                    "requested_goods_type": requested_goods_type,
+                    "requested_qty": alloc_qty,
+                    "requested_barcodes": requested_barcodes,
+                }
+            )
+            _append_candidate_pallet_options(
+                entry["candidate_pallets"],
+                candidate_pallets_for_item,
+                min_qty=alloc_qty,
+            )
+            planned_by_item_idx[idx] = planned_by_item_idx.get(idx, 0) + alloc_qty
+        if remaining > 0:
+            shortage_qty += remaining
+
+    created = 0
+    move_ids: list[str] = []
+    already_at_destination = 0
+    destination_zone = _normalize_zone_code((destination or {}).get("zone") or "")
+    for pallet_code, entry in plan_by_pallet.items():
+        from_location = entry.get("from_location") or {"zone": "PR", "row": "", "section": "", "tier": "", "cell": ""}
+        requested_qty = _as_int(entry.get("qty"))
+        if requested_qty <= 0:
+            continue
+        from_zone = _normalize_zone_code((from_location or {}).get("zone") or "")
+        if processing_order_id and destination_zone == "OBR" and from_zone == "OBR":
+            already_at_destination += 1
+            continue
+        flexible_pallet_choice = bool(
+            processing_order_id
+            and destination_zone == "OBR"
+            and not explicit_requested_rows
+            and entry.get("candidate_pallets")
+        )
+        articles = sorted(list(entry.get("articles") or []))
+        goods_types = sorted(list(entry.get("goods_types") or []))
+        barcodes = sorted(list(entry.get("barcodes") or []))
+        requested_boxes = list(entry.get("requested_boxes") or [])
+        payload = {
+            "status": "created",
+            "status_label": "Ожидает отбора по потребности",
+            "pallet_code": "" if flexible_pallet_choice else pallet_code,
+            "planned_pallet_code": pallet_code if flexible_pallet_choice else "",
+            "flexible_pallet_choice": flexible_pallet_choice,
+            "pallet_choice_pending": flexible_pallet_choice,
+            "candidate_pallets": entry.get("candidate_pallets") or [],
+            "from_location": from_location,
+            "to_location": destination,
+            "from_label": _location_label(from_location),
+            "to_label": _location_label(destination),
+            "receiving_order_id": entry.get("receiving_order_id") or processing_order_id,
+            "requested_by_name": requested_by_name,
+            "requested_by_role": requested_by_role,
+            "pick_mode": "partial",
+            "move_mode": MOVE_MODE_BOX_PARTIAL,
+            "requested_qty": requested_qty,
+            "requested_sku": articles[0] if len(articles) == 1 else "",
+            "requested_barcodes": barcodes,
+            "requested_barcode_qty": dict(entry.get("barcode_qty") or {}),
+            "requested_boxes": requested_boxes,
+            "requested_box": requested_boxes[0] if len(requested_boxes) == 1 else "",
+            "requested_rows": list(entry.get("requested_rows") or []),
+            "requested_goods_type": goods_types[0] if len(goods_types) == 1 else "",
+            "available_qty": requested_qty,
+            "processing_order_id": processing_order_id,
+            "request_items": entry.get("item_chunks") or [],
+        }
+        if flexible_pallet_choice:
+            payload["status_label"] = "Ожидает выбора паллеты"
+        move_mode, selected_box_codes = _resolve_stock_move_mode(
+            payload,
+            pallet_code,
+            agency_id=agency_id,
+            pallet_available_qty=int(entry.get("pallet_available_qty") or 0),
+        )
+        flexible_box_pick = (
+            _matching_full_box_pick_meta(payload, pallet_code, agency_id=agency_id)
+            if move_mode == MOVE_MODE_BOX_FULL
+            else {}
+        )
+        payload["move_mode"] = move_mode
+        payload["pick_mode"] = "full" if move_mode == MOVE_MODE_PALLET_FULL else "partial"
+        if move_mode == MOVE_MODE_PALLET_FULL and not flexible_pallet_choice:
+            payload["status_label"] = "Ожидает перевозки"
+            payload["requested_qty"] = ""
+            payload["requested_boxes"] = []
+            payload["requested_box"] = ""
+            payload["requested_rows"] = []
+            payload["requested_barcode_qty"] = {}
+            payload["available_qty"] = ""
+            payload.pop("requested_box_selection", None)
+            payload.pop("requested_box_count", None)
+        else:
+            payload["requested_boxes"] = selected_box_codes or requested_boxes
+            payload["requested_box"] = payload["requested_boxes"][0] if len(payload["requested_boxes"]) == 1 else ""
+            if flexible_box_pick:
+                payload["requested_box_selection"] = BOX_SELECTION_ANY_MATCHING
+                payload["requested_box_count"] = int(flexible_box_pick.get("requested_box_count") or 0)
+                payload["requested_boxes"] = []
+                payload["requested_box"] = ""
+            else:
+                payload.pop("requested_box_selection", None)
+                payload.pop("requested_box_count", None)
+        payload["instruction"] = _move_instruction(payload)
+        move_id = create_stock_move_task(
+            user=user if getattr(user, "is_authenticated", False) else None,
+            agency=move_request.agency,
+            description=f"Задание по потребности #{move_request.id}: палета {pallet_code}",
+            payload=payload,
+            requested_by_name=requested_by_name,
+            requested_by_role=requested_by_role,
+            move_request=move_request,
+        )
+        if processing_order_id and not flexible_pallet_choice and move_mode == MOVE_MODE_PALLET_FULL:
+            from sklad.services.warehouse_write_path import WarehouseWritePathService
+
+            warehouse_container_codes: list[str] = []
+            if move_mode == MOVE_MODE_PALLET_FULL:
+                warehouse_container_codes = [pallet_code]
+            elif move_mode == MOVE_MODE_BOX_FULL:
+                if payload["requested_boxes"]:
+                    warehouse_container_codes = list(payload["requested_boxes"])
+                elif (
+                    _requested_box_selection_mode(payload) == BOX_SELECTION_ANY_MATCHING
+                    and int(payload.get("requested_box_count") or 0) > 0
+                ):
+                    # "Any matching boxes" is resolved only during mobile completion, so
+                    # we bind the warehouse move to the source pallet up front.
+                    warehouse_container_codes = [pallet_code]
+            elif (
+                move_mode == MOVE_MODE_BOX_PARTIAL
+                and not payload["requested_rows"]
+                and not payload["requested_boxes"]
+            ):
+                warehouse_container_codes = [pallet_code]
+            try:
+                warehouse_operation = (
+                    WarehouseWritePathService.request_move_to_processing(
+                        agency=move_request.agency,
+                        order_id=processing_order_id,
+                        container_codes=warehouse_container_codes,
+                        requested_by=user if getattr(user, "is_authenticated", False) else None,
+                        requested_by_role=requested_by_role or "processing_head",
+                        source_document_type="stock_move",
+                        source_document_id=move_id,
+                    )
+                    if warehouse_container_codes
+                    else None
+                )
+            except ValueError:
+                warehouse_operation = None
+            if warehouse_operation is not None:
+                warehouse_task = warehouse_operation.tasks.order_by("id").first()
+                if warehouse_task:
+                    warehouse_task.payload = {
+                        **dict(warehouse_task.payload or {}),
+                        "legacy_move_id": move_id,
+                        "pallet_code": pallet_code,
+                    }
+                    warehouse_task.save(update_fields=["payload", "updated_at"])
+                move_task = MoveTask.objects.filter(legacy_order_id=move_id).first()
+                if move_task:
+                    move_task.payload = {
+                        **dict(move_task.payload or {}),
+                        "warehouse_operation_id": warehouse_operation.id,
+                        "warehouse_operation_task_id": warehouse_task.id if warehouse_task else "",
+                    }
+                    move_task.save(update_fields=["payload", "updated_at"])
+        move_ids.append(move_id)
+        created += 1
+
+    for idx, move_item in enumerate(move_request_items):
+        planned_qty = planned_by_item_idx.get(idx, 0)
+        if move_item.qty_planned != planned_qty:
+            move_item.qty_planned = planned_qty
+            move_item.save(update_fields=["qty_planned", "updated_at"])
+
+    if created <= 0 and already_at_destination > 0 and shortage_qty <= 0:
+        move_request.status = MoveRequest.STATUS_DONE
+        move_request.planning_error = ""
+        move_request.save(update_fields=["status", "planning_error", "updated_at"])
+    elif created <= 0:
+        move_request.status = MoveRequest.STATUS_BLOCKED
+        move_request.planning_error = "Не найден доступный товар для формирования заданий."
+        move_request.save(update_fields=["status", "planning_error", "updated_at"])
+    elif shortage_qty > 0:
+        move_request.status = MoveRequest.STATUS_PARTIAL
+        move_request.planning_error = f"Сформировано частично: не удалось покрыть {shortage_qty} шт."
+        move_request.save(update_fields=["status", "planning_error", "updated_at"])
+    elif move_request.planning_error:
+        move_request.planning_error = ""
+        move_request.save(update_fields=["planning_error", "updated_at"])
+    if processing_order_id and created > 0:
+        latest_processing_entry = (
+            OrderAuditEntry.objects.filter(order_id=processing_order_id, order_type="processing")
+            .select_related("agency")
+            .order_by("-created_at", "-id")
+            .first()
+        )
+        log_processing_stage(
+            order_id=processing_order_id,
+            payload=latest_processing_entry.payload or {} if latest_processing_entry else {},
+            stage=PROCESSING_STAGE_OBR_MOVE_CREATED,
+            user=user if getattr(user, "is_authenticated", False) else None,
+            agency=move_request.agency,
+            description="Создано перемещение в OBR",
+        )
+
+    return {
+        "created": created,
+        "shortage_qty": shortage_qty,
+        "move_ids": move_ids,
+        "already_at_destination": already_at_destination,
+    }
+
+
+@transaction.atomic
+def create_batch_move_tasks(
+    *,
+    context_type: str,
+    context_id: str,
+    agency,
+    user=None,
+    requested_by_name: str = "",
+    requested_by_role: str = "",
+    destination: dict | None = None,
+    comment: str = "",
+    task_specs: list[dict] | None = None,
+    process: str = "",
+) -> tuple[MoveRequest | None, list[str]]:
+    specs = [spec for spec in (task_specs or []) if isinstance(spec, dict) and isinstance(spec.get("payload"), dict)]
+    if not specs:
+        return None, []
+
+    normalized_destination = _normalize_location(destination or specs[0]["payload"].get("to_location"))
+    authenticated_user = user if getattr(user, "is_authenticated", False) else None
+    # ``process`` stays optional so the four callers outside this module keep working untouched.
+    resolved_process = str(process or "").strip() or resolve_move_request_process(
+        context_type=context_type,
+        context_id=context_id,
+        destination_zone=normalized_destination.get("zone") or "PR",
+        payload=specs[0]["payload"],
+    )
+    move_request = MoveRequest.objects.create(
+        context_type=context_type,
+        context_id=str(context_id or "").strip(),
+        process=resolved_process,
+        agency=agency,
+        requested_by=authenticated_user,
+        requested_by_role=str(requested_by_role or ""),
+        requested_by_name=str(requested_by_name or ""),
+        destination_zone=normalized_destination.get("zone") or "PR",
+        destination_row=_as_int(normalized_destination.get("row")) or None,
+        destination_section=_as_int(normalized_destination.get("section")) or None,
+        destination_tier=_as_int(normalized_destination.get("tier")) or None,
+        destination_cell=_as_int(normalized_destination.get("cell")) or None,
+        status=MoveRequest.STATUS_CREATED,
+        comment=str(comment or "").strip(),
+    )
+
+    move_ids: list[str] = []
+    for spec in specs:
+        move_id = create_stock_move_task(
+            user=authenticated_user,
+            agency=agency,
+            description=str(spec.get("description") or "").strip() or "Задание ричтрака",
+            payload=dict(spec.get("payload") or {}),
+            requested_by_name=requested_by_name,
+            requested_by_role=requested_by_role,
+            move_request=move_request,
+        )
+        move_ids.append(move_id)
+    return move_request, move_ids
+
+
+def _shipping_item_identity_key_from_values(
+    *,
+    sku_code: str | None = "",
+    barcode: str | None = "",
+    size: str | None = "",
+    goods_type: str | None = "",
+) -> tuple[str, str, str, str]:
+    return (
+        str(sku_code or "").strip().lower(),
+        str(barcode or "").strip().lower(),
+        str(size or "").strip().lower(),
+        _normalize_goods_type(goods_type),
+    )
+
+
+def _shipping_item_identity_key(item) -> tuple[str, str, str, str]:
+    return _shipping_item_identity_key_from_values(
+        sku_code=getattr(item, "sku_code", ""),
+        barcode=getattr(item, "barcode", ""),
+        size=getattr(item, "size", ""),
+        goods_type=getattr(item, "goods_type", ""),
+    )
+
+
+def _shipping_remaining_qty_by_item_id(order, items: list) -> dict[int, int]:
+    item_by_id = {
+        _as_int(getattr(item, "id", 0)): item
+        for item in items
+        if _as_int(getattr(item, "id", 0)) > 0
+    }
+    remaining_by_item_id = {
+        item_id: max(int(getattr(item, "qty_reserved", 0) or getattr(item, "qty_requested", 0) or 0), 0)
+        for item_id, item in item_by_id.items()
+    }
+    order_number = str(getattr(order, "number", "") or "").strip()
+    if not order_number or not remaining_by_item_id:
+        return remaining_by_item_id
+
+    delivered_by_key: dict[tuple[str, str, str, str], int] = defaultdict(int)
+    for snapshot in WarehouseStockSnapshot.objects.filter(
+        agency=getattr(order, "agency", None),
+        is_archived=False,
+        last_event__stock_context_type="shipping",
+        last_event__stock_context_id=order_number,
+        warehouse_state_code__in=sorted(_SHIPPING_DELIVERED_STATE_CODES),
+    ).values("sku_code", "barcode", "size", "goods_type", "qty"):
+        key = _shipping_item_identity_key_from_values(
+            sku_code=snapshot.get("sku_code"),
+            barcode=snapshot.get("barcode"),
+            size=snapshot.get("size"),
+            goods_type=snapshot.get("goods_type"),
+        )
+        delivered_by_key[key] += _as_int(snapshot.get("qty"))
+
+    for item_id, item in item_by_id.items():
+        key = _shipping_item_identity_key(item)
+        delivered_qty = min(remaining_by_item_id.get(item_id, 0), delivered_by_key.get(key, 0))
+        if delivered_qty <= 0:
+            continue
+        remaining_by_item_id[item_id] = max(remaining_by_item_id.get(item_id, 0) - delivered_qty, 0)
+        delivered_by_key[key] = max(delivered_by_key.get(key, 0) - delivered_qty, 0)
+    return remaining_by_item_id
+
+
+@transaction.atomic
+def create_shipping_pick_request(
+    *,
+    order,
+    user=None,
+    requested_by_name: str = "",
+    requested_by_role: str = "",
+) -> tuple[MoveRequest, list[str], int]:
+    from sklad.services.warehouse_write_path import WarehouseWritePathService
+
+    from sklad.services.operational_locations import select_operational_location
+
+    destination_location = select_operational_location(zone_code="OTG")
+    if destination_location is None:
+        raise ValueError(
+            "В зоне OTG не настроено конкретное место с QR. "
+            "Начальник склада должен создать его до передачи заявки водителю."
+        )
+    destination = {
+        "zone": "OTG",
+        "code": str(destination_location.location_code or "").strip(),
+        "label": str(
+            destination_location.display_name
+            or destination_location.location_code
+            or ""
+        ).strip(),
+        "row": "",
+        "section": "",
+        "tier": "",
+        "cell": "",
+    }
+    authenticated_user = user if getattr(user, "is_authenticated", False) else None
+    has_pool_shipping_reserves = _order_has_pool_shipping_reserves(order)
+    if not has_pool_shipping_reserves:
+        WarehouseWritePathService.refresh_shipping_reserve_box_bindings(
+            agency=order.agency,
+            order_id=order.number,
+            performed_by=authenticated_user,
+            source_document_id=order.number,
+        )
+    _cancel_open_shipping_pick_tasks(order)
+    move_request = MoveRequest.objects.create(
+        context_type=MoveRequest.CONTEXT_MANUAL,
+        context_id=str(getattr(order, "pk", "") or ""),
+        process=MoveRequest.PROCESS_SHIPPING,
+        agency=order.agency,
+        requested_by=authenticated_user,
+        requested_by_role=str(requested_by_role or ""),
+        requested_by_name=str(requested_by_name or ""),
+        destination_zone="OTG",
+        status=MoveRequest.STATUS_CREATED,
+        comment=f"Отгрузка {order.number}",
+    )
+
+    items = list(order.items.order_by("id"))
+    remaining_qty_by_item_id = _shipping_remaining_qty_by_item_id(order, items)
+    request_item_map: dict[int, MoveRequestItem] = {}
+    for item in items:
+        qty_requested = max(_as_int(remaining_qty_by_item_id.get(_as_int(item.id), 0)), 0)
+        request_item_map[item.id] = MoveRequestItem.objects.create(
+            request=move_request,
+            sku_code=item.sku_code,
+            barcode=item.barcode,
+            goods_type=item.goods_type,
+            qty_requested=qty_requested,
+            qty_planned=0,
+        )
+
+    shipping_candidate_skus = {
+        str(getattr(item, "sku_code", "") or "").strip()
+        for item in items
+        if str(getattr(item, "sku_code", "") or "").strip()
+    }
+    shipping_candidate_barcodes = {
+        str(getattr(item, "barcode", "") or "").strip()
+        for item in items
+        if str(getattr(item, "barcode", "") or "").strip()
+    }
+    if has_pool_shipping_reserves:
+        base_rows = _warehouse_base_rows_for_planning(
+            agency_id=order.agency_id,
+            sku_values=shipping_candidate_skus or None,
+            barcode_values=shipping_candidate_barcodes or None,
+            use_reserve_truth=True,
+            exclude_shipping_order_id=order.number,
+        )
+    else:
+        base_rows = _shipping_reserved_rows_for_order(order)
+        if not base_rows and not _order_has_shipping_reserves(order):
+            base_rows = _warehouse_base_rows_for_planning(
+                agency_id=order.agency_id,
+                sku_values=shipping_candidate_skus or None,
+                barcode_values=shipping_candidate_barcodes or None,
+                use_reserve_truth=True,
+            )
+    blocked_pallets = _active_pallet_codes_for_agency(order.agency_id)
+    shipping_candidate_rows = [
+        row
+        for row in _warehouse_base_rows_for_planning(
+            agency_id=order.agency_id,
+            sku_values=shipping_candidate_skus or None,
+            barcode_values=shipping_candidate_barcodes or None,
+            use_reserve_truth=True,
+            exclude_shipping_order_id=order.number,
+        )
+        if _shipping_flexible_candidate_source_row(row)
+    ]
+    shipping_candidate_pallet_meta = _shipping_candidate_pallet_meta_from_rows(
+        shipping_candidate_rows,
+        blocked_pallets=blocked_pallets,
+        agency_id=order.agency_id,
+    )
+    remaining_by_row_id: dict[int, int] = {
+        _as_int(_row_value(row, "id", 0)): _as_int(_row_value(row, "qty", 0))
+        for row in base_rows
+    }
+    plan_by_pallet: dict[str, dict] = {}
+    planned_by_item_id: dict[int, int] = {}
+    shortage_qty = 0
+    shipping_box_plan = _plan_shipping_box_demands(
+        items=items,
+        base_rows=base_rows,
+        remaining_by_row_id=remaining_by_row_id,
+        blocked_pallets=blocked_pallets,
+        agency_id=order.agency_id,
+        candidate_pallet_meta=shipping_candidate_pallet_meta,
+        remaining_qty_by_item_id=remaining_qty_by_item_id,
+        exclude_shipping_order_id=order.number,
+    )
+    box_planned_item_ids: set[int] = set()
+    box_plan_pallets: set[str] = set()
+    if shipping_box_plan:
+        box_planned_item_ids.update({
+            _as_int(item_id)
+            for item_id in (shipping_box_plan.get("planned_item_ids") or set())
+            if _as_int(item_id) > 0
+        })
+        box_plan_pallets = {
+            str(code).strip()
+            for code in (shipping_box_plan.get("plan_by_pallet") or {}).keys()
+            if str(code or "").strip()
+        }
+        for pallet_code, entry in dict(shipping_box_plan.get("plan_by_pallet") or {}).items():
+            _merge_shipping_plan_entry(plan_by_pallet, pallet_code, entry)
+        for item_id, planned_qty in dict(shipping_box_plan.get("planned_by_item_id") or {}).items():
+            planned_by_item_id[_as_int(item_id)] = _as_int(planned_qty)
+
+    partial_box_plan = _plan_shipping_partial_box_demands(
+        items=items,
+        base_rows=base_rows,
+        remaining_by_row_id=remaining_by_row_id,
+        blocked_pallets=blocked_pallets,
+        agency_id=order.agency_id,
+        candidate_pallet_meta=shipping_candidate_pallet_meta,
+        exclude_shipping_order_id=order.number,
+    )
+    partial_planned_item_ids: set[int] = set()
+    partial_plan_pallets: set[str] = set()
+    if partial_box_plan:
+        partial_planned_item_ids = {
+            _as_int(item_id)
+            for item_id in (partial_box_plan.get("planned_item_ids") or set())
+            if _as_int(item_id) > 0
+        }
+        partial_plan_pallets = {
+            str(code).strip()
+            for code in (partial_box_plan.get("plan_by_pallet") or {}).keys()
+            if str(code or "").strip()
+        }
+        for pallet_code, entry in dict(partial_box_plan.get("plan_by_pallet") or {}).items():
+            _merge_shipping_plan_entry(plan_by_pallet, pallet_code, entry)
+        for item_id, planned_qty in dict(partial_box_plan.get("planned_by_item_id") or {}).items():
+            planned_by_item_id[_as_int(item_id)] = _as_int(planned_qty)
+
+    box_planned_item_ids.update(partial_planned_item_ids)
+
+    for item in items:
+        if int(item.id or 0) in box_planned_item_ids:
+            continue
+        qty_required = max(_as_int(remaining_qty_by_item_id.get(_as_int(item.id), 0)), 0)
+        if qty_required <= 0:
+            continue
+        size_value = str(item.size or "").strip()
+        barcode_value = str(item.barcode or "").strip()
+        requested_barcodes = [barcode_value] if barcode_value else []
+        rows = []
+        for row in base_rows:
+            if not _stock_row_matches_requested_identity(
+                row,
+                requested_article=str(item.sku_code or "").strip(),
+                requested_barcodes=requested_barcodes,
+            ):
+                continue
+            if not barcode_value:
+                row_size = str(_row_value(row, "size", "") or "").strip()
+                if size_value:
+                    if row_size.lower() != size_value.lower():
+                        continue
+                elif row_size:
+                    continue
+            rows.append(row)
+        requested_goods_type = _normalize_goods_type(item.goods_type)
+        candidate_rows_for_item = []
+        for candidate_row in shipping_candidate_rows:
+            if not _stock_row_matches_requested_identity(
+                candidate_row,
+                requested_article=str(item.sku_code or "").strip(),
+                requested_barcodes=requested_barcodes,
+            ):
+                continue
+            if not barcode_value:
+                row_size = str(_row_value(candidate_row, "size", "") or "").strip()
+                if size_value:
+                    if row_size.lower() != size_value.lower():
+                        continue
+                elif row_size:
+                    continue
+            candidate_rows_for_item.append(candidate_row)
+        candidate_pallets_for_item = _candidate_pallets_for_rows(
+            candidate_rows_for_item or rows,
+            remaining_by_row_id=None if candidate_rows_for_item else dict(remaining_by_row_id),
+            blocked_pallets=blocked_pallets,
+            requested_goods_type=requested_goods_type,
+        )
+        preferred_pallets = set(plan_by_pallet.keys())
+        allocations, remaining = _plan_item_across_minimal_pallets(
+            rows,
+            qty_required=qty_required,
+            remaining_by_row_id=remaining_by_row_id,
+            blocked_pallets=blocked_pallets,
+            requested_goods_type=requested_goods_type,
+            preferred_pallets=preferred_pallets,
+        )
+        for allocation in allocations:
+            pallet_code = str(allocation.get("pallet_code") or "").strip()
+            alloc_qty = int(allocation.get("allocated_qty") or 0)
+            if not pallet_code or alloc_qty <= 0:
+                continue
+            entry = plan_by_pallet.setdefault(
+                pallet_code,
+                {
+                    "qty": 0,
+                    "barcodes": set(),
+                    "barcode_qty": defaultdict(int),
+                    "articles": set(),
+                    "goods_types": set(),
+                    "from_location": allocation.get("from_location") or _build_location("PR", 0, 0, 0, 0),
+                    "receiving_order_id": allocation.get("receiving_order_id") or "",
+                    "request_items": [],
+                    "pallet_available_qty": int(allocation.get("available_qty") or 0),
+                    "candidate_pallets": [],
+                },
+            )
+            entry["pallet_available_qty"] = max(
+                int(entry.get("pallet_available_qty") or 0),
+                int(allocation.get("available_qty") or 0),
+            )
+            entry["qty"] += alloc_qty
+            if str(item.sku_code or "").strip():
+                entry["articles"].add(str(item.sku_code or "").strip())
+            if requested_goods_type:
+                entry["goods_types"].add(requested_goods_type)
+            if barcode_value:
+                entry["barcodes"].add(barcode_value)
+                entry["barcode_qty"][barcode_value] += alloc_qty
+            entry["request_items"].append(
+                {
+                    "requested_article": str(item.sku_code or "").strip(),
+                    "requested_goods_type": requested_goods_type,
+                    "requested_qty": alloc_qty,
+                    "requested_barcodes": [barcode_value] if barcode_value else [],
+                    "shipping_item_id": item.id,
+                }
+            )
+            _append_candidate_pallet_options(
+                entry["candidate_pallets"],
+                candidate_pallets_for_item,
+                min_qty=alloc_qty,
+            )
+            planned_by_item_id[item.id] = planned_by_item_id.get(item.id, 0) + alloc_qty
+            remaining -= alloc_qty
+        if remaining > 0:
+            shortage_qty += remaining
+
+    move_ids: list[str] = []
+    for pallet_code, entry in plan_by_pallet.items():
+        requested_qty = int(entry.get("qty") or 0)
+        if requested_qty <= 0:
+            continue
+        articles = sorted(entry.get("articles") or [])
+        goods_types = sorted(entry.get("goods_types") or [])
+        barcodes = sorted(entry.get("barcodes") or [])
+        requested_box_patterns = list(entry.get("requested_box_patterns") or [])
+        partial_pick_patterns = list(entry.get("partial_pick_patterns") or [])
+        reserved_box_codes = [
+            str(code).strip()
+            for code in (entry.get("reserved_box_codes") or [])
+            if str(code or "").strip()
+        ]
+        planned_box_codes = list(reserved_box_codes)
+        reserved_snapshot_ids = [
+            _as_int(snapshot_id)
+            for snapshot_id in (entry.get("reserved_snapshot_ids") or [])
+            if _as_int(snapshot_id) > 0
+        ]
+        if has_pool_shipping_reserves:
+            reserved_box_codes = []
+            planned_box_codes = []
+            reserved_snapshot_ids = []
+        barcode_qty = {
+            str(barcode): int(qty or 0)
+            for barcode, qty in dict(entry.get("barcode_qty") or {}).items()
+            if str(barcode or "").strip() and int(qty or 0) > 0
+        }
+        source_label = _location_label(entry.get("from_location"))
+        destination_label = _location_label(destination)
+        candidate_pallets = list(entry.get("candidate_pallets") or [])
+        flexible_pallet_choice = bool(candidate_pallets)
+        payload = {
+            "status": MoveTask.STATUS_CREATED,
+            "status_label": "Ожидает отбора по потребности",
+            "concrete_location_required": True,
+            "concrete_location_version": 1,
+            "shipping_order_id": order.number,
+            "shipping_order_pk": order.pk,
+            "pallet_code": "" if flexible_pallet_choice else pallet_code,
+            "planned_pallet_code": pallet_code if flexible_pallet_choice else "",
+            "flexible_pallet_choice": flexible_pallet_choice,
+            "pallet_choice_pending": flexible_pallet_choice,
+            "candidate_pallets": candidate_pallets,
+            "from_location": entry.get("from_location") or _build_location("PR", 0, 0, 0, 0),
+            "to_location": destination,
+            "from_label": _location_label(entry.get("from_location")),
+            "to_label": destination_label,
+            "receiving_order_id": entry.get("receiving_order_id") or "",
+            "requested_by_name": requested_by_name,
+            "requested_by_role": requested_by_role,
+            "pick_mode": "partial",
+            "move_mode": MOVE_MODE_BOX_PARTIAL,
+            "requested_qty": requested_qty,
+            "requested_sku": articles[0] if len(articles) == 1 else "",
+            "requested_barcodes": barcodes,
+            "requested_barcode_qty": barcode_qty,
+            "requested_boxes": [],
+            "requested_box": "",
+            "requested_rows": [],
+            "requested_goods_type": goods_types[0] if len(goods_types) == 1 else "",
+            "available_qty": requested_qty,
+            "request_items": entry.get("request_items") or [],
+            "reserved_box_codes": reserved_box_codes,
+            "planned_box_codes": planned_box_codes,
+            "reserved_snapshot_ids": reserved_snapshot_ids,
+        }
+        if flexible_pallet_choice:
+            payload["status_label"] = "Ожидает выбора паллеты"
+        if partial_pick_patterns:
+            payload["pick_mode"] = "partial"
+            payload["move_mode"] = MOVE_MODE_BOX_PARTIAL
+            payload["requested_box_selection"] = BOX_SELECTION_PATTERN_MATCHING
+            payload["requested_box_count"] = int(entry.get("requested_box_count") or 0)
+            payload["requested_box_patterns"] = requested_box_patterns
+            payload["requested_box_pattern_summary"] = str(entry.get("requested_box_pattern_summary") or "").strip()
+            payload["partial_pick_patterns"] = partial_pick_patterns
+            payload["ship_as_loose_units"] = True
+        elif requested_box_patterns:
+            payload["pick_mode"] = "full"
+            payload["move_mode"] = MOVE_MODE_BOX_FULL
+            payload["requested_box_selection"] = BOX_SELECTION_PATTERN_MATCHING
+            payload["requested_box_count"] = int(entry.get("requested_box_count") or 0)
+            payload["requested_box_patterns"] = requested_box_patterns
+            payload["requested_box_pattern_summary"] = str(entry.get("requested_box_pattern_summary") or "").strip()
+        move_mode, selected_box_codes = _resolve_stock_move_mode(
+            payload,
+            pallet_code,
+            agency_id=order.agency_id,
+            pallet_available_qty=int(entry.get("pallet_available_qty") or 0),
+        )
+        if (
+            has_pool_shipping_reserves
+            and not requested_box_patterns
+            and not partial_pick_patterns
+            and selected_box_codes
+        ):
+            pool_box_patterns = _stock_box_patterns_for_selected_codes(
+                box_codes=selected_box_codes,
+                pallet_code=pallet_code,
+                agency_id=order.agency_id,
+                requested_article=articles[0] if len(articles) == 1 else "",
+                requested_goods_type=goods_types[0] if len(goods_types) == 1 else "",
+                requested_barcodes=barcodes,
+            )
+            if pool_box_patterns:
+                requested_box_patterns = pool_box_patterns
+                payload["requested_box_selection"] = BOX_SELECTION_PATTERN_MATCHING
+                payload["requested_box_count"] = sum(
+                    _as_int(pattern.get("requested_box_count"))
+                    for pattern in requested_box_patterns
+                )
+                payload["requested_box_patterns"] = requested_box_patterns
+                payload["requested_box_pattern_summary"] = _shipping_box_pattern_summary(requested_box_patterns)
+                move_mode = MOVE_MODE_BOX_FULL
+            elif move_mode == MOVE_MODE_BOX_FULL:
+                payload["requested_box_selection"] = BOX_SELECTION_ANY_MATCHING
+                payload["requested_box_count"] = len(selected_box_codes)
+        if not flexible_pallet_choice and _shipping_entry_covers_full_pallet(
+            pallet_code,
+            requested_qty=requested_qty,
+            agency_id=order.agency_id,
+        ):
+            move_mode = MoveTask.MODE_PALLET_FULL
+            selected_box_codes = []
+        payload["move_mode"] = move_mode
+        payload["pick_mode"] = "full" if move_mode == MoveTask.MODE_PALLET_FULL else "partial"
+        payload["task_kind_label"] = _shipping_task_kind_label(move_mode)
+        if move_mode == MoveTask.MODE_PALLET_FULL:
+            payload["status_label"] = "Ожидает перевозки"
+            payload["requested_qty"] = ""
+            payload["requested_barcode_qty"] = {}
+            payload["requested_boxes"] = []
+            payload["requested_box"] = ""
+            payload["available_qty"] = ""
+            payload.pop("requested_box_selection", None)
+            payload.pop("requested_box_count", None)
+            payload.pop("requested_box_patterns", None)
+            payload.pop("requested_box_pattern_summary", None)
+            payload.pop("partial_pick_patterns", None)
+            payload.pop("ship_as_loose_units", None)
+            payload["instruction"] = _shipping_full_pallet_instruction(
+                pallet_code=pallet_code,
+                destination_label=destination_label,
+            )
+        else:
+            requested_box_selection = _requested_box_selection_mode(payload)
+            if requested_box_patterns or requested_box_selection in {
+                BOX_SELECTION_ANY_MATCHING,
+                BOX_SELECTION_PATTERN_MATCHING,
+            }:
+                payload["requested_boxes"] = []
+                payload["requested_box"] = ""
+            else:
+                payload["requested_boxes"] = selected_box_codes
+                payload["requested_box"] = selected_box_codes[0] if len(selected_box_codes) == 1 else ""
+            if not flexible_pallet_choice and move_mode == MOVE_MODE_BOX_FULL and payload["requested_boxes"]:
+                actual_pallet_context = _shipping_actual_pallet_context_for_boxes(
+                    list(payload["requested_boxes"]),
+                    agency_id=order.agency_id,
+                )
+                actual_pallet_code = str(actual_pallet_context.get("pallet_code") or "").strip()
+                if actual_pallet_code and actual_pallet_code != pallet_code:
+                    original_pallet_code = pallet_code
+                    pallet_code = actual_pallet_code
+                    payload["pallet_code"] = actual_pallet_code
+                    payload["planned_pallet_code"] = str(
+                        payload.get("planned_pallet_code") or original_pallet_code or ""
+                    ).strip()
+                    payload["from_location"] = (
+                        actual_pallet_context.get("from_location")
+                        or payload.get("from_location")
+                        or {}
+                    )
+                    payload["from_label"] = _location_label(payload.get("from_location"))
+                    receiving_order_id = str(actual_pallet_context.get("receiving_order_id") or "").strip()
+                    if receiving_order_id:
+                        payload["receiving_order_id"] = receiving_order_id
+            payload["instruction"] = _move_instruction(payload)
+        move_id = create_stock_move_task(
+            user=authenticated_user,
+            agency=order.agency,
+            description=f"Задание по отгрузке {order.number}: палета {pallet_code}",
+            payload=payload,
+            requested_by_name=requested_by_name,
+            requested_by_role=requested_by_role,
+            move_request=move_request,
+        )
+        move_ids.append(move_id)
+
+    for item_id, request_item in request_item_map.items():
+        planned_qty = int(planned_by_item_id.get(item_id, 0) or 0)
+        if request_item.qty_planned != planned_qty:
+            request_item.qty_planned = planned_qty
+            request_item.save(update_fields=["qty_planned", "updated_at"])
+
+    if not move_ids:
+        move_request.status = MoveRequest.STATUS_BLOCKED
+        move_request.planning_error = "Не найден доступный товар для формирования заданий ричтраку."
+        move_request.save(update_fields=["status", "planning_error", "updated_at"])
+    elif shortage_qty > 0:
+        move_request.status = MoveRequest.STATUS_PARTIAL
+        move_request.planning_error = f"Сформировано частично: не удалось покрыть {shortage_qty} шт."
+        move_request.save(update_fields=["status", "planning_error", "updated_at"])
+    elif move_request.planning_error:
+        move_request.planning_error = ""
+        move_request.save(update_fields=["planning_error", "updated_at"])
+
+    return move_request, move_ids, shortage_qty
+
+
+@transaction.atomic
+def sync_task_status_by_legacy_order_id(
+    legacy_order_id: str,
+    *,
+    status: str,
+    assigned_to=None,
+    assigned_to_name: str = "",
+    qty_done: int | None = None,
+    error: str = "",
+) -> MoveTask | None:
+    target_id = str(legacy_order_id or "").strip()
+    if not target_id:
+        return None
+    task = (
+        MoveTask.objects.select_related("request")
+        .filter(legacy_order_id=target_id)
+        .order_by("-updated_at")
+        .first()
+    )
+    if not task:
+        return None
+    normalized_status = str(status or "").strip().lower()
+    if normalized_status not in {
+        MoveTask.STATUS_CREATED,
+        MoveTask.STATUS_IN_PROGRESS,
+        MoveTask.STATUS_DONE,
+        MoveTask.STATUS_CANCELED,
+        MoveTask.STATUS_FAILED,
+    }:
+        normalized_status = task.status
+    update_fields = ["status", "updated_at"]
+    task.status = normalized_status
+    if normalized_status == MoveTask.STATUS_IN_PROGRESS:
+        task.started_at = timezone.localtime()
+        if "started_at" not in update_fields:
+            update_fields.append("started_at")
+        if assigned_to is not None and getattr(assigned_to, "is_authenticated", False):
+            task.assigned_to = assigned_to
+            update_fields.append("assigned_to")
+        if assigned_to_name:
+            task.assigned_to_name = assigned_to_name
+            update_fields.append("assigned_to_name")
+    if normalized_status == MoveTask.STATUS_DONE:
+        task.completed_at = timezone.localtime()
+        if "completed_at" not in update_fields:
+            update_fields.append("completed_at")
+        done_value = qty_done if qty_done is not None else task.qty_planned
+        task.qty_done = max(_as_int(done_value), 0)
+        update_fields.append("qty_done")
+    if normalized_status == MoveTask.STATUS_CANCELED:
+        task.canceled_at = timezone.localtime()
+        if "canceled_at" not in update_fields:
+            update_fields.append("canceled_at")
+    if error:
+        task.error = str(error)
+        update_fields.append("error")
+
+    payload = dict(task.payload or {})
+    payload["status"] = normalized_status
+    if normalized_status == MoveTask.STATUS_IN_PROGRESS:
+        payload["status_label"] = "В работе"
+        if assigned_to is not None and getattr(assigned_to, "id", None):
+            payload["assigned_to_id"] = int(assigned_to.id)
+        if assigned_to_name:
+            payload["assigned_to_name"] = assigned_to_name
+    elif normalized_status == MoveTask.STATUS_DONE:
+        if qty_done is not None:
+            payload["picked_qty"] = max(_as_int(qty_done), 0)
+    elif normalized_status == MoveTask.STATUS_CANCELED:
+        payload["status_label"] = payload.get("status_label") or "Отменено"
+    elif normalized_status == MoveTask.STATUS_FAILED and error:
+        payload["status_label"] = payload.get("status_label") or "Ошибка"
+        payload["error"] = str(error)
+    task.payload = payload
+    update_fields.append("payload")
+
+    task.save(update_fields=sorted(set(update_fields)))
+    if normalized_status in {MoveTask.STATUS_DONE, MoveTask.STATUS_CANCELED, MoveTask.STATUS_FAILED}:
+        release_claims_for_task(task, delivered=normalized_status == MoveTask.STATUS_DONE)
+    _recompute_request_status(task.request)
+    return task

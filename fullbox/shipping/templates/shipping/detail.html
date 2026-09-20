@@ -1,0 +1,2640 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ order.display_number|default:order.number }} | Отгрузка</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #0e6b5b;
+      --sun: #f2b747;
+      --stroke: rgba(28,31,26,0.12);
+      --danger: #d4543c;
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      overflow: hidden;
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image:
+        linear-gradient(rgba(28,31,26,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(28,31,26,0.06) 1px, transparent 1px);
+      background-size: 36px 36px;
+      opacity: 0.08;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { position: relative; z-index: 1; padding: 24px; }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      min-height: calc(100vh - 96px);
+    }
+    .layout.with-history {
+      grid-template-columns: 260px minmax(0, 1fr) 300px;
+    }
+    .side {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 16px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+    }
+    .history-side {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+      display: grid;
+      align-content: start;
+      gap: 12px;
+    }
+    .brand-title { font-family: "Bricolage Grotesque", "Manrope", sans-serif; font-size: 22px; letter-spacing: 0.6px; }
+    .profile {
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+    }
+    .profile-value { font-weight: 600; }
+    .nav { display: grid; gap: 10px; }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    .nav-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 12px 24px rgba(14,107,91,0.12);
+    }
+    .nav-link.primary {
+      background: linear-gradient(135deg, rgba(242,183,71,0.45), rgba(14,107,91,0.15));
+      border-color: transparent;
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub { font-size: 12px; color: var(--muted); }
+    .btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.14);
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .btn.ghost { background: transparent; }
+    .btn.warn { border-color: rgba(212,84,60,0.35); color: #7f1d1d; }
+    .content { display: grid; gap: 16px; max-height: calc(100vh - 96px); overflow: auto; padding-right: 4px; }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .panel-title { margin: 0; font-family: "Bricolage Grotesque", "Manrope", sans-serif; font-size: 24px; }
+    .subtitle { color: var(--muted); font-size: 13px; }
+    .meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+    .order-summary {
+      margin-top: 16px;
+      overflow: auto;
+      border-radius: 18px;
+      border: 1px solid var(--stroke);
+      background:
+        linear-gradient(135deg, rgba(242,183,71,0.12), rgba(14,107,91,0.08)),
+        rgba(255,255,255,0.7);
+    }
+    .summary-table {
+      width: 100%;
+      min-width: 880px;
+      border-collapse: collapse;
+    }
+    .summary-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(28,31,26,0.08);
+      vertical-align: top;
+      font-size: 14px;
+    }
+    .summary-table tr:last-child td {
+      border-bottom: none;
+    }
+    .summary-table td.summary-head {
+      width: 13%;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .summary-table td.summary-data {
+      width: 20.333%;
+      font-weight: 700;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .summary-table td:nth-child(1),
+    .summary-table td:nth-child(2) {
+      background: rgba(242,183,71,0.08);
+    }
+    .summary-table td:nth-child(3),
+    .summary-table td:nth-child(4) {
+      background: rgba(14,107,91,0.07);
+    }
+    .summary-table td:nth-child(5),
+    .summary-table td:nth-child(6) {
+      background: rgba(15,23,42,0.04);
+    }
+    .messages { display: grid; gap: 8px; margin-bottom: 12px; }
+    .msg {
+      border-radius: 12px;
+      border: 1px solid transparent;
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+    .msg.ok { border-color: rgba(14,107,91,0.35); background: rgba(14,107,91,0.12); color: #0b5246; }
+    .msg.err { border-color: rgba(212,84,60,0.35); background: rgba(212,84,60,0.14); color: #7f1d1d; }
+    .binding-alert {
+      display: grid;
+      gap: 10px;
+      margin: 0 0 14px;
+      padding: 14px;
+      border: 1px solid rgba(212,84,60,0.42);
+      border-left: 5px solid #d4543c;
+      border-radius: 12px;
+      background: rgba(212,84,60,0.1);
+      color: #651d16;
+    }
+    .binding-alert h3 { margin: 0; font-size: 17px; }
+    .binding-alert-row {
+      display: grid;
+      grid-template-columns: minmax(190px,1.4fr) repeat(4,minmax(110px,.7fr));
+      gap: 8px;
+      align-items: stretch;
+    }
+    .binding-alert-cell {
+      min-width: 0;
+      padding: 8px 10px;
+      border: 1px solid rgba(212,84,60,0.2);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.72);
+    }
+    .binding-alert-label {
+      display: block;
+      margin-bottom: 3px;
+      color: #7f1d1d;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .binding-alert-value { font-weight: 800; word-break: break-word; }
+    .binding-alert-result { color: #b42318; }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .actions form { margin: 0; }
+    .section {
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      background: var(--surface-2);
+      padding: 14px;
+      margin-top: 12px;
+    }
+    .section h3 {
+      margin: 0 0 10px;
+      font-size: 17px;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    }
+    .table-wrap {
+      overflow: auto;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(15,23,42,0.03);
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 860px; }
+    th, td {
+      padding: 9px;
+      border-bottom: 1px solid var(--stroke);
+      text-align: left;
+      vertical-align: middle;
+      font-size: 14px;
+    }
+    th {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      background: rgba(15,23,42,0.04);
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .field { display: grid; gap: 6px; }
+    label { font-weight: 600; color: var(--muted); }
+    input, select, textarea {
+      width: 100%;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 14px;
+    }
+    textarea { min-height: 78px; resize: vertical; }
+    .inline-form { display: inline; }
+    .hint { color: var(--muted); font-size: 12px; }
+    .empty {
+      padding: 12px;
+      text-align: center;
+      color: var(--muted);
+      border-radius: 12px;
+      border: 1px dashed var(--stroke);
+    }
+    .attachment-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .attachment-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.68);
+    }
+    .attachment-item a { font-weight: 700; }
+    .attachment-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+    .document-workspace {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.7fr) minmax(0, 1.8fr);
+      gap: 14px;
+      margin-top: 12px;
+      min-height: 620px;
+    }
+    .document-file-panel,
+    .document-preview-panel {
+      min-width: 0;
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.72);
+    }
+    .document-file-panel { padding: 10px; max-height: 700px; overflow: auto; align-self: start; }
+    .document-file-list { display: grid; gap: 8px; }
+    .document-file-card { position: relative; }
+    .document-file-button {
+      width: 100%;
+      padding: 11px 44px 11px 11px;
+      border: 1px solid var(--stroke);
+      border-radius: 9px;
+      background: var(--surface);
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+    }
+    .document-file-button:hover,
+    .document-file-button.is-active {
+      border-color: var(--accent);
+      box-shadow: 0 5px 14px rgba(248,144,0,0.12);
+    }
+    .document-file-button.is-active { background: var(--accent-soft); }
+    .document-file-button.is-printed { border-left: 5px solid #22a06b; }
+    .document-file-menu-trigger {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .document-file-menu-trigger:hover,
+    .document-file-menu-trigger:focus-visible {
+      border-color: var(--stroke);
+      background: rgba(255,255,255,0.88);
+      color: var(--ink);
+    }
+    .document-context-menu {
+      position: fixed;
+      z-index: 10000;
+      min-width: 190px;
+      padding: 6px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: 0 14px 34px rgba(0,0,0,0.2);
+    }
+    .document-context-menu[hidden] { display: none; }
+    .document-context-menu a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 11px;
+      border-radius: 7px;
+      color: var(--ink);
+      font-weight: 750;
+      text-decoration: none;
+    }
+    .document-context-menu a:hover,
+    .document-context-menu a:focus-visible { background: var(--accent-soft); }
+    .document-file-name { display: block; font-weight: 800; word-break: break-word; }
+    .document-file-meta { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.35; }
+    .document-file-print-mark {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      margin-top: 6px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: rgba(34,160,107,0.13);
+      color: #187744;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .document-file-print-mark.pending { background: rgba(248,144,0,0.13); color: #a15c00; }
+    .document-file-print-mark[hidden] { display: none; }
+    .document-preview-panel { display: flex; flex-direction: column; overflow: hidden; align-self: start; }
+    .document-preview-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--stroke);
+    }
+    .document-preview-heading { min-width: 180px; flex: 1; }
+    .document-preview-title { font-weight: 800; word-break: break-word; }
+    .document-preview-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .document-print-settings {
+      display: none;
+      grid-template-columns: minmax(220px, 1fr) auto;
+      align-items: end;
+      gap: 10px;
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--stroke);
+      background: var(--surface-2);
+    }
+    .document-print-settings.is-open { display: grid; }
+    .document-print-settings label { display: grid; gap: 5px; font-size: 12px; font-weight: 800; }
+    .document-print-status { padding: 0 12px 9px; color: var(--muted); font-size: 12px; background: var(--surface-2); }
+    .document-print-status.ok { color: #187744; }
+    .document-print-status.error { color: #b42318; }
+    .document-preview-stage { position: relative; flex: 1; min-height: 420px; background: #e9e9e7; }
+    .document-preview-frame { width: 100%; height: 100%; min-height: 620px; border: 0; background: #fff; }
+    .document-preview-empty {
+      position: absolute;
+      inset: 16px;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: var(--muted);
+      text-align: center;
+      border: 1px dashed var(--stroke);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.72);
+    }
+    .document-preview-empty[hidden] { display: none; }
+    @media (max-width: 960px) {
+      .document-workspace { grid-template-columns: 1fr; min-height: 0; }
+      .document-preview-panel { min-height: 560px; }
+      .document-preview-frame { min-height: 520px; }
+    }
+    .comment-box {
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.68);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .history-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 20px;
+    }
+    .history-list {
+      display: grid;
+      gap: 10px;
+    }
+    .history-item {
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: var(--surface-2);
+      padding: 10px;
+      display: grid;
+      gap: 6px;
+      border-left: 5px solid var(--history-accent, var(--stroke));
+    }
+    .history-item.actor-storekeeper { --history-accent: #0e6b5b; background: rgba(14,107,91,0.10); }
+    .history-item.actor-manager { --history-accent: #d8a015; background: rgba(242,183,71,0.16); }
+    .history-item.actor-client { --history-accent: #3867b7; background: rgba(56,103,183,0.11); }
+    .history-item.actor-logistician { --history-accent: #188b8b; background: rgba(24,139,139,0.11); }
+    .history-item.actor-reachtruck { --history-accent: #b7791f; background: rgba(183,121,31,0.12); }
+    .history-item.actor-admin { --history-accent: #c4566f; background: rgba(196,86,111,0.11); }
+    .history-item.actor-system { --history-accent: rgba(28,31,26,0.32); }
+    .history-item-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .history-action {
+      font-weight: 800;
+      color: var(--history-accent, var(--ink));
+    }
+    .history-role {
+      justify-self: start;
+      display: inline-flex;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.62);
+      border: 1px solid rgba(28,31,26,0.08);
+      color: var(--history-accent, var(--ink));
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .history-text {
+      font-size: 13px;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    body.storekeeper-shipping-detail {
+      --bg: #f5f5f3;
+      --surface: #ffffff;
+      --surface-2: #f8f8f6;
+      --ink: #303030;
+      --muted: #707070;
+      --accent: #f89000;
+      --accent-strong: #f86800;
+      --accent-soft: rgba(248,144,0,0.13);
+      --sun: #f8b800;
+      --stroke: rgba(48,48,48,0.13);
+      --shadow: 0 8px 24px rgba(48,48,48,0.08);
+      background: var(--bg);
+    }
+    body.storekeeper-shipping-detail::before { display: none; }
+    .storekeeper-shipping-detail .wrap { padding: 16px; }
+    .storekeeper-shipping-detail .layout,
+    .storekeeper-shipping-detail .layout.with-history {
+      grid-template-columns: 230px minmax(0, 1fr);
+      gap: 16px;
+      min-height: calc(100vh - 32px);
+    }
+    .storekeeper-shipping-detail .side {
+      border-radius: 8px;
+      padding: 16px;
+      max-height: calc(100vh - 32px);
+      box-shadow: var(--shadow);
+      grid-template-rows: auto auto auto 1fr;
+    }
+    .storekeeper-shipping-detail .side > .btn { align-self: end; }
+    .storekeeper-shipping-detail .fullbox-brand-img {
+      display: block;
+      width: 164px;
+      max-width: 100%;
+      height: auto;
+    }
+    .storekeeper-shipping-detail .profile,
+    .storekeeper-shipping-detail .nav-link,
+    .storekeeper-shipping-detail .panel,
+    .storekeeper-shipping-detail .section,
+    .storekeeper-shipping-detail .table-wrap,
+    .storekeeper-shipping-detail .attachment-item,
+    .storekeeper-shipping-detail .comment-box,
+    .storekeeper-shipping-detail .empty,
+    .storekeeper-shipping-detail .binding-alert,
+    .storekeeper-shipping-detail .binding-alert-cell,
+    .storekeeper-shipping-detail input,
+    .storekeeper-shipping-detail select,
+    .storekeeper-shipping-detail textarea {
+      border-radius: 8px;
+    }
+    .storekeeper-shipping-detail .nav { gap: 8px; }
+    .storekeeper-shipping-detail .nav-link { padding: 11px 12px; }
+    .storekeeper-shipping-detail .nav-link:hover {
+      border-color: rgba(248,144,0,0.4);
+      box-shadow: 0 8px 18px rgba(248,144,0,0.12);
+    }
+    .storekeeper-shipping-detail .nav-link.primary {
+      border-color: rgba(248,144,0,0.28);
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+    }
+    .storekeeper-shipping-detail .content {
+      max-height: calc(100vh - 32px);
+      overflow: auto;
+      padding-right: 2px;
+    }
+    .storekeeper-shipping-detail .panel {
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+    .storekeeper-shipping-detail .btn { border-radius: 8px; }
+    .storekeeper-shipping-detail .btn:hover {
+      border-color: rgba(248,144,0,0.42);
+      box-shadow: 0 8px 18px rgba(248,144,0,0.12);
+    }
+    .storekeeper-shipping-detail .btn.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+    .storekeeper-shipping-detail .panel-header { display: block; margin-bottom: 14px; }
+    .storekeeper-order-header { display: grid; gap: 12px; }
+    .storekeeper-order-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .storekeeper-order-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .storekeeper-order-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .storekeeper-order-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 26px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+    .storekeeper-order-client { margin-top: 4px; color: var(--muted); font-size: 13px; }
+    .storekeeper-order-status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 9px;
+      border-radius: 8px;
+      background: rgba(34,197,94,0.12);
+      color: #187744;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .storekeeper-order-status.canceled { background: rgba(220,38,38,0.12); color: #b42318; }
+    .storekeeper-order-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .storekeeper-order-actions form { margin: 0; }
+    .storekeeper-summary {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(120px, 1fr));
+      gap: 8px;
+    }
+    .storekeeper-summary-card {
+      min-width: 0;
+      min-height: 70px;
+      padding: 11px 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    .storekeeper-summary-label { display: block; color: var(--muted); font-size: 11px; font-weight: 700; }
+    .storekeeper-summary-value {
+      display: block;
+      margin-top: 5px;
+      overflow: hidden;
+      color: var(--ink);
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+    }
+    .storekeeper-progress {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(110px, 1fr));
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    .storekeeper-progress-step { position: relative; display: grid; justify-items: center; gap: 6px; text-align: center; }
+    .storekeeper-progress-step::before {
+      content: "";
+      position: absolute;
+      top: 12px;
+      right: 50%;
+      width: 100%;
+      height: 2px;
+      background: #d8d8d5;
+      z-index: 0;
+    }
+    .storekeeper-progress-step:first-child::before { display: none; }
+    .storekeeper-progress-step.complete::before,
+    .storekeeper-progress-step.current::before { background: var(--accent); }
+    .storekeeper-progress-dot {
+      position: relative;
+      z-index: 1;
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+      border: 2px solid #c8c8c5;
+      border-radius: 50%;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .storekeeper-progress-step.complete .storekeeper-progress-dot,
+    .storekeeper-progress-step.current .storekeeper-progress-dot {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+    .storekeeper-progress-step.current .storekeeper-progress-dot { box-shadow: 0 0 0 4px var(--accent-soft); }
+    .storekeeper-progress-step.error .storekeeper-progress-dot { border-color: var(--danger); color: var(--danger); }
+    .storekeeper-progress-label { font-size: 11px; font-weight: 700; }
+    .storekeeper-tabs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin: 14px 0 2px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--stroke);
+    }
+    .storekeeper-tab {
+      flex: 0 0 auto;
+      min-height: 40px;
+      padding: 9px 12px;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font: 700 13px/1.2 "Manrope", sans-serif;
+      cursor: pointer;
+    }
+    .storekeeper-tab.is-active { border-bottom-color: var(--accent); color: var(--accent-strong); }
+    .storekeeper-tab-count {
+      display: inline-grid;
+      min-width: 20px;
+      height: 20px;
+      margin-left: 4px;
+      place-items: center;
+      border-radius: 8px;
+      background: rgba(48,48,48,0.08);
+      font-size: 10px;
+    }
+    .storekeeper-shipping-detail [data-detail-tab] { display: none; }
+    .storekeeper-shipping-detail [data-detail-tab].is-active { display: block; }
+    .storekeeper-shipping-detail .actions[data-detail-tab].is-active { display: flex; }
+    .storekeeper-shipping-detail .overview-grid.is-active {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr);
+      gap: 10px;
+    }
+    .overview-card {
+      min-width: 0;
+      padding: 14px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    .overview-card h2 { margin: 0 0 10px; font: 700 17px/1.25 "Bricolage Grotesque", "Manrope", sans-serif; }
+    .overview-card .table-wrap { background: var(--surface); }
+    .overview-card table { min-width: 600px; }
+    .overview-card th,
+    .overview-card td { padding: 7px 8px; font-size: 12px; }
+    .overview-card-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .overview-pallet { display: grid; gap: 10px; }
+    .overview-pallet-code { font-size: 15px; font-weight: 800; word-break: break-word; }
+    .overview-metrics { display: grid; grid-template-columns: repeat(3, minmax(80px, 1fr)); gap: 8px; }
+    .overview-metric { padding: 10px; border: 1px solid var(--stroke); border-radius: 8px; text-align: center; }
+    .overview-metric strong { display: block; font-size: 18px; }
+    .overview-metric span { color: var(--muted); font-size: 10px; }
+    .overview-logistics { display: grid; gap: 10px; }
+    .overview-warning { padding: 10px 12px; border: 1px solid rgba(217,119,6,.28); border-radius: 8px; background: rgba(248,184,0,.09); color: #8b5a00; font-size: 12px; font-weight: 700; }
+    .overview-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 12px; }
+    .overview-search { margin-bottom: 10px; }
+    .position-quantity-header { min-width: 96px; }
+    .position-quantity-total {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1;
+      text-transform: none;
+    }
+    .position-quantity-label { display: block; }
+    .legacy-storekeeper-summary { display: none; }
+    .storekeeper-tab-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .storekeeper-tab-heading h2 { margin: 0; font: 700 20px/1.25 "Bricolage Grotesque", "Manrope", sans-serif; }
+    .storekeeper-history-panel { margin-top: 12px; }
+    .storekeeper-history-panel .history-list {
+      display: block;
+      overflow-x: auto;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    .storekeeper-history-head,
+    .storekeeper-history-row {
+      min-width: 860px;
+      display: grid;
+      grid-template-columns: 110px minmax(130px, .8fr) 110px minmax(260px, 2fr) minmax(120px, .8fr);
+      align-items: center;
+      gap: 10px;
+    }
+    .storekeeper-history-head {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--stroke);
+      background: rgba(15,23,42,.04);
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .storekeeper-history-panel .storekeeper-history-row {
+      margin: 0;
+      padding: 7px 10px;
+      border: 0;
+      border-bottom: 1px solid var(--stroke);
+      border-left: 4px solid var(--history-accent, var(--stroke));
+      border-radius: 0;
+      gap: 10px;
+    }
+    .storekeeper-history-panel .storekeeper-history-row:last-child { border-bottom: 0; }
+    .storekeeper-history-panel .storekeeper-history-row .history-action { font-size: 12px; }
+    .storekeeper-history-panel .storekeeper-history-row .history-role {
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 10px;
+    }
+    .storekeeper-history-panel .storekeeper-history-row .history-text {
+      font-size: 12px;
+      line-height: 1.3;
+    }
+    .storekeeper-history-date,
+    .storekeeper-history-actor {
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .storekeeper-shipping-detail form.is-submitting button[type="submit"],
+    .storekeeper-shipping-detail form.is-submitting button:not([type]) { opacity: .6; pointer-events: none; }
+    @media (max-width: 1350px) {
+      .storekeeper-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .storekeeper-shipping-detail .overview-grid.is-active { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 1200px) {
+      .storekeeper-shipping-detail .layout,
+      .storekeeper-shipping-detail .layout.with-history { grid-template-columns: 1fr; }
+      .storekeeper-shipping-detail .side {
+        max-height: none;
+        grid-template-columns: 120px minmax(0, 1fr) auto;
+        grid-template-rows: auto;
+        align-items: center;
+      }
+      .storekeeper-shipping-detail .side .nav {
+        grid-column: 1 / -1;
+        display: flex;
+        overflow-x: auto;
+      }
+      .storekeeper-shipping-detail .side .nav-link { flex: 0 0 180px; }
+      .storekeeper-shipping-detail .content { max-height: none; overflow: visible; }
+    }
+    @media (max-width: 720px) {
+      .storekeeper-shipping-detail .wrap { padding: 10px; }
+      .storekeeper-shipping-detail .side { grid-template-columns: 88px minmax(0, 1fr); padding: 10px; }
+      .storekeeper-shipping-detail .fullbox-brand-img { width: 88px; }
+      .storekeeper-shipping-detail .side .nav {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        overflow: visible;
+      }
+      .storekeeper-shipping-detail .side .nav-link { min-width: 0; flex: none; }
+      .storekeeper-shipping-detail .side .nav-link:last-child { grid-column: 1 / -1; }
+      .storekeeper-shipping-detail .side > .btn { grid-column: 1 / -1; }
+      .storekeeper-shipping-detail .panel { padding: 12px; }
+      .storekeeper-order-title { font-size: 22px; }
+      .storekeeper-order-heading { display: grid; }
+      .storekeeper-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .storekeeper-progress { min-width: 610px; }
+      .storekeeper-progress-scroll { overflow-x: auto; }
+      .overview-metrics { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 1500px) {
+      .wrap { padding: 16px; }
+      .layout.with-history {
+        grid-template-columns: 220px minmax(0, 1fr) 280px;
+        gap: 14px;
+      }
+      .content,
+      .panel,
+      .order-summary {
+        min-width: 0;
+      }
+      .summary-table {
+        min-width: 0;
+      }
+      .summary-table tr {
+        display: grid;
+        grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1.2fr);
+      }
+      .summary-table td.summary-head,
+      .summary-table td.summary-data {
+        width: auto;
+      }
+      .summary-table td:nth-last-child(-n + 2) {
+        border-bottom: none;
+      }
+    }
+    @media (max-width: 1200px) {
+      body { overflow: auto; }
+      .layout,
+      .layout.with-history { grid-template-columns: 1fr; }
+      .side, .content, .history-side { max-height: none; overflow: visible; padding-right: 0; }
+      .binding-alert-row { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    }
+    @media (max-width: 640px) {
+      .binding-alert-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body{% if scope == "staff" and role == "storekeeper" %} class="storekeeper-shipping-detail"{% endif %}>
+  <div class="wrap">
+    <div class="layout {% if shipping_history_visible and role != "storekeeper" %}with-history{% endif %}">
+      <aside class="side">
+        {% if scope == "staff" and role == "storekeeper" %}
+          {% include "partials/fullbox_brand.html" %}
+        {% else %}
+          <div class="brand-title">FULLBOX</div>
+        {% endif %}
+        <div class="profile">
+          <div class="profile-value">
+            {% if scope == "client" and selected_client %}
+              Кабинет клиента<br>
+              {{ selected_client.agn_name|default:selected_client.fio_agn|default:"клиента" }}
+            {% else %}
+              {% include "partials/current_user.html" %}
+            {% endif %}
+          </div>
+        </div>
+        <nav class="nav">
+          {% if scope == "client" and selected_client %}
+            <a class="nav-link" href="/client/dashboard/?client={{ selected_client.id }}">
+              <span class="nav-title">В кабинет</span>
+              <span class="nav-sub">Главная клиента</span>
+            </a>
+            <a class="nav-link" href="{% url 'shipping:list' %}?client={{ selected_client.id }}">
+              <span class="nav-title">Список отгрузок</span>
+              <span class="nav-sub">Журнал заявок</span>
+            </a>
+            <a class="nav-link" href="{% url 'shipping:create' %}?client={{ selected_client.id }}">
+              <span class="nav-title">Новая отгрузка</span>
+              <span class="nav-sub">Создать заявку</span>
+            </a>
+            <a class="nav-link" href="/sklad/journal/?client={{ selected_client.id }}">
+              <span class="nav-title">Складские остатки</span>
+              <span class="nav-sub">Доступный товар</span>
+            </a>
+          {% else %}
+            <a class="nav-link" href="{{ cabinet_url }}">
+              <span class="nav-title">{% if role == "storekeeper" %}Главная{% else %}В кабинет{% endif %}</span>
+              <span class="nav-sub">{% if role == "storekeeper" %}Кабинет кладовщика{% else %}Главная роли{% endif %}</span>
+            </a>
+            <a class="nav-link primary" href="{% url 'shipping:list' %}">
+              <span class="nav-title">Список отгрузок</span>
+              <span class="nav-sub">Журнал заявок</span>
+            </a>
+            <a class="nav-link" href="{% url 'shipping:create' %}">
+              <span class="nav-title">Новая отгрузка</span>
+              <span class="nav-sub">Создать заявку</span>
+            </a>
+          {% endif %}
+        </nav>
+        <a class="btn ghost" href="/logout/">Выход</a>
+      </aside>
+
+      <main class="content">
+        <section class="panel">
+          <div class="panel-header">
+            {% if scope == "staff" and role == "storekeeper" %}
+              <div class="storekeeper-order-header">
+                <a class="storekeeper-order-back" href="{% url 'shipping:list' %}">← К списку отгрузок</a>
+                <div class="storekeeper-order-heading">
+                  <div>
+                    <div class="storekeeper-order-title-row">
+                      <h1 class="storekeeper-order-title">Заявка {{ order.display_number|default:order.number }}</h1>
+                      <span class="storekeeper-order-status{% if order.status == 'canceled' %} canceled{% endif %}">{{ order.ui_status_label|default:order.get_status_display }}</span>
+                      {% if shipping_order_is_priority %}<span class="storekeeper-order-status">Срочная</span>{% endif %}
+                    </div>
+                    <div class="storekeeper-order-client">{{ order.agency.agn_name|default:"Клиент не указан" }}</div>
+                  </div>
+                  <div class="storekeeper-order-actions">
+                    {% if shipping_history_visible %}<button class="btn" type="button" data-detail-tab-target="history">История</button>{% endif %}
+                    {% if can_set_shipping_priority %}
+                      <form method="post" onsubmit="return confirm('{% if shipping_order_is_priority %}Снять ручной приоритет с этой отгрузки?{% else %}Поставить эту отгрузку первой среди ещё не запущенных заявок?{% endif %}');">
+                        {% csrf_token %}
+                        <button class="btn{% if not shipping_order_is_priority %} primary{% endif %}" name="action" value="{% if shipping_order_is_priority %}clear_shipping_priority{% else %}set_shipping_priority{% endif %}">{% if shipping_order_is_priority %}Снять приоритет{% else %}Поставить в приоритет{% endif %}</button>
+                      </form>
+                    {% endif %}
+                    {% if can_view_dispatch_act %}
+                      <a class="btn primary" href="{{ dispatch_act_url }}">Открыть акт отгрузки</a>
+                    {% elif can_storekeeper_manage_packing %}
+                      <a class="btn primary" href="{{ packing_url }}{% if packing_summary %}?edit=1{% endif %}">{% if packing_summary %}Изменить раскладку{% elif ozon_gm_repack.required %}Сформировать грузоместа Ozon{% else %}Перейти к паллетизации{% endif %}</a>
+                    {% elif can_storekeeper_pick and pick_readiness.can_pick %}
+                      <form method="post">{% csrf_token %}<button class="btn primary" name="action" value="create_pick_tasks">Дать задание ричтраку</button></form>
+                    {% elif can_storekeeper_accept %}
+                      <form method="post">{% csrf_token %}<button class="btn primary" name="action" value="accept_storekeeper">Принять в работу</button></form>
+                    {% elif can_manager_approve %}
+                      <form method="post">{% csrf_token %}<button class="btn primary" name="action" value="reserve">Согласовать заявку</button></form>
+                    {% elif can_submit_for_approval %}
+                      <form method="post">{% csrf_token %}<button class="btn primary" name="action" value="submit">Отправить на согласование</button></form>
+                    {% elif can_edit_order_form %}
+                      <a class="btn primary" href="{{ edit_order_url }}">Редактировать заявку</a>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="storekeeper-summary">
+                  <div class="storekeeper-summary-card"><span class="storekeeper-summary-label">Маркетплейс</span><span class="storekeeper-summary-value">{% if order.marketplace %}{{ order.marketplace.name }}{% else %}Не указано{% endif %}</span></div>
+                  <div class="storekeeper-summary-card"><span class="storekeeper-summary-label">Плановая дата</span><span class="storekeeper-summary-value">{% if order.eta_at %}{{ order.eta_at|date:"d.m.Y" }}{% elif order.planned_ship_date %}{{ order.planned_ship_date|date:"d.m.Y" }}{% else %}Не указано{% endif %}</span></div>
+                  <div class="storekeeper-summary-card"><span class="storekeeper-summary-label">Склад назначения</span><span class="storekeeper-summary-value" title="{% if ozon_detail_is_ozon %}{{ ozon_detail_destination_warehouse }}{% else %}{{ order.destination_warehouse }}{% endif %}">{% if ozon_detail_is_ozon %}{{ ozon_detail_destination_warehouse|default:"Не указано" }}{% else %}{{ order.destination_warehouse|default:"Не указано" }}{% endif %}</span></div>
+                  <div class="storekeeper-summary-card" data-testid="storekeeper-transit-warehouse"><span class="storekeeper-summary-label">Транзитный склад</span><span class="storekeeper-summary-value" data-testid="storekeeper-transit-warehouse-value" title="{{ order.transit_address }}">{% if order.transit_address %}{{ order.transit_address }}{% elif order.wb_transit_warehouse %}Да{% else %}Нет{% endif %}</span></div>
+                  <div class="storekeeper-summary-card"><span class="storekeeper-summary-label">Коробов</span><span class="storekeeper-summary-value">{{ shipping_metrics.box_count|default:"0" }}</span></div>
+                  <div class="storekeeper-summary-card"><span class="storekeeper-summary-label">Паллет</span><span class="storekeeper-summary-value">{{ shipping_metrics.pallet_count|default:"0" }}</span></div>
+                  <div class="storekeeper-summary-card"><span class="storekeeper-summary-label">Транспорт</span><span class="storekeeper-summary-value">{{ order.get_vehicle_type_display|default:"Не указано" }}</span></div>
+                </div>
+
+                <div class="storekeeper-progress-scroll">
+                  <div class="storekeeper-progress" aria-label="Этапы заявки">
+                    <div class="storekeeper-progress-step {% if order.status == 'canceled' %}error{% elif order.status == 'draft' or order.status == 'submitted' %}current{% else %}complete{% endif %}"><span class="storekeeper-progress-dot">1</span><span class="storekeeper-progress-label">Заявка принята</span></div>
+                    <div class="storekeeper-progress-step {% if order.status == 'canceled' %}error{% elif order.status == 'packed' or order.status == 'shipped' or order.status == 'partial_shipped' %}complete{% elif order.status == 'reserved' or order.status == 'storekeeper_accepted' or order.status == 'picking' %}current{% endif %}"><span class="storekeeper-progress-dot">2</span><span class="storekeeper-progress-label">Упаковка</span></div>
+                    <div class="storekeeper-progress-step {% if order.status == 'canceled' %}error{% elif packing_summary %}complete{% elif order.status == 'packed' %}current{% endif %}"><span class="storekeeper-progress-dot">3</span><span class="storekeeper-progress-label">Паллетизация</span></div>
+                    <div class="storekeeper-progress-step {% if order.status == 'canceled' %}error{% elif order.status == 'shipped' or order.status == 'partial_shipped' or dispatch_stage.act_sent %}complete{% elif order.status == 'packed' %}current{% endif %}"><span class="storekeeper-progress-dot">4</span><span class="storekeeper-progress-label">Логистика</span></div>
+                    <div class="storekeeper-progress-step {% if order.status == 'canceled' %}error{% elif order.status == 'shipped' or order.status == 'partial_shipped' %}complete{% elif dispatch_stage.act_sent %}current{% endif %}"><span class="storekeeper-progress-dot">5</span><span class="storekeeper-progress-label">Отгрузка</span></div>
+                  </div>
+                </div>
+                {% if distribution_receiving_order_id %}<div class="subtitle">Создано из приёмки <a href="/orders/receiving/{{ distribution_receiving_order_id }}/?client={{ order.agency_id }}"><b>№{{ distribution_receiving_order_id }}</b></a></div>{% endif %}
+                {% if shipping_discrepancy.has_history %}<div class="subtitle" style="color:#92400e; font-weight:700;">Складской факт: {{ shipping_discrepancy.client_summary_title|default:shipping_discrepancy.summary_title }}</div>{% endif %}
+              </div>
+            {% else %}
+              <div>
+                <h1 class="panel-title">Заявка {{ order.display_number|default:order.number }}{% if shipping_order_is_priority %} · Срочная{% endif %}</h1>
+                <div class="subtitle">Клиент: <b>{{ order.agency.agn_name }}</b></div>
+                {% if distribution_receiving_order_id %}<div class="subtitle" style="margin-top:6px">Создано из приёмки <a href="/orders/receiving/{{ distribution_receiving_order_id }}/?client={{ order.agency_id }}"><b>№{{ distribution_receiving_order_id }}</b></a></div>{% endif %}
+                {% if shipping_discrepancy.has_history %}<div class="subtitle" style="margin-top:4px; color:#92400e; font-weight:700;">Складской факт: {{ shipping_discrepancy.client_summary_title|default:shipping_discrepancy.summary_title }}</div>{% endif %}
+                <div class="order-summary">
+                  <table class="summary-table">
+                    <tbody>
+                      <tr><td class="summary-head">Статус</td><td class="summary-data">{{ order.ui_status_label|default:order.get_status_display }}</td><td class="summary-head">Слот</td><td class="summary-data">{% if order.slot_date %}{{ order.slot_date|date:"d.m.Y" }}{% else %}-{% endif %}</td><td class="summary-head">Тип поставки</td><td class="summary-data">{{ order.get_supply_type_display|default:"-" }}</td></tr>
+                      <tr><td class="summary-head">Создана</td><td class="summary-data">{{ order.created_at|date:"d.m.Y H:i" }}</td><td class="summary-head">Плановая дата отгрузки</td><td class="summary-data">{% if order.eta_at %}{{ order.eta_at|date:"d.m.Y" }}{% else %}-{% endif %}</td><td class="summary-head">Транспорт</td><td class="summary-data">{{ order.get_vehicle_type_display|default:"-" }}</td></tr>
+                      <tr><td class="summary-head">ШК поставки</td><td class="summary-data">{% if scope != "client" and ozon_detail_is_ozon %}{{ ozon_detail_shipping_barcode|default:"-" }}{% else %}{{ order.shipping_barcode|default:"-" }}{% endif %}</td><td class="summary-head">Склад назначения</td><td class="summary-data">{% if scope != "client" and ozon_detail_is_ozon %}{{ ozon_detail_destination_warehouse|default:"-" }}{% else %}{{ order.destination_warehouse|default:"-" }}{% endif %}</td><td class="summary-head">{% if scope != "client" %}Отгружено паллет{% else %}Паллет, кол-во{% endif %}</td><td class="summary-data"{% if scope != "client" %} id="shipped-pallet-count"{% endif %}>{% if scope != "client" %}{{ shipping_metrics.shipped_pallet_count|default:"0" }}{% else %}{{ shipping_metrics.pallet_count|default:"0" }}{% endif %}</td></tr>
+                      <tr><td class="summary-head">Номер поставки</td><td class="summary-data">{% if scope != "client" and ozon_detail_is_ozon %}{{ ozon_detail_supply_number|default:"-" }}{% else %}{{ order.wb_supply_barcode|default:"-" }}{% endif %}</td><td class="summary-head">Транзитный склад</td><td class="summary-data">{% if order.wb_transit_warehouse %}Да{% else %}Нет{% endif %}</td><td class="summary-head">Коробов, кол-во</td><td class="summary-data">{{ shipping_metrics.box_count|default:"0" }}</td></tr>
+                      <tr><td class="summary-head">Маркетплейс</td><td class="summary-data">{% if order.marketplace %}{{ order.marketplace.name }}{% else %}-{% endif %}</td><td class="summary-head">Транзитный адрес</td><td class="summary-data">{{ order.transit_address|default:"-" }}</td><td class="summary-head">Номер авто</td><td class="summary-data">{{ order.resolved_vehicle_number|default:"-" }}</td></tr>
+                      <tr><td class="summary-head"></td><td class="summary-data"></td><td class="summary-head"></td><td class="summary-data"></td><td class="summary-head">Водитель / телефон</td><td class="summary-data">{% if order.resolved_driver_name or order.resolved_driver_phone %}{{ order.resolved_driver_name|default:"-" }} / {{ order.resolved_driver_phone|default:"-" }}{% else %}-{% endif %}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+
+          {% if scope != "client" and storekeeper_binding_alert.show %}
+            <div class="binding-alert" role="alert">
+              <h3>Расхождение по ШК и количеству товара</h3>
+              {% for row in storekeeper_binding_alert.rows %}
+                <div class="binding-alert-row">
+                  <div class="binding-alert-cell">
+                    <span class="binding-alert-label">ШК товара</span>
+                    <span class="binding-alert-value">{{ row.barcode }}</span>
+                  </div>
+                  <div class="binding-alert-cell">
+                    <span class="binding-alert-label">Заявлено {{ storekeeper_binding_alert.marketplace_label }}</span>
+                    <span class="binding-alert-value">{{ row.marketplace_qty }} шт.</span>
+                  </div>
+                  <div class="binding-alert-cell">
+                    <span class="binding-alert-label">В заявке</span>
+                    <span class="binding-alert-value">{{ row.requested_qty }} шт.</span>
+                  </div>
+                  <div class="binding-alert-cell">
+                    <span class="binding-alert-label">Факт в OTG</span>
+                    <span class="binding-alert-value">{{ row.fact_qty }} шт.</span>
+                  </div>
+                  <div class="binding-alert-cell">
+                    <span class="binding-alert-label">Расхождение</span>
+                    <span class="binding-alert-value binding-alert-result">{{ row.mismatch_label }}</span>
+                  </div>
+                </div>
+              {% endfor %}
+              {% if storekeeper_binding_alert.blocking %}
+                <b>Завершение отгрузки заблокировано до устранения расхождения.</b>
+              {% else %}
+                <b>Проверьте расхождение до паллетизации и отгрузки.</b>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if scope == "staff" and role == "storekeeper" %}
+            <nav class="storekeeper-tabs" aria-label="Разделы заявки">
+              <button class="storekeeper-tab is-active" type="button" data-detail-tab-target="overview">Обзор</button>
+              <button class="storekeeper-tab" type="button" data-detail-tab-target="positions">Позиции <span class="storekeeper-tab-count">{{ items|length }}</span></button>
+              <button class="storekeeper-tab" type="button" data-detail-tab-target="boxes">Короба <span class="storekeeper-tab-count">{{ detail_otg_box_rows|length }}</span></button>
+              <button class="storekeeper-tab" type="button" data-detail-tab-target="pallets">Паллеты <span class="storekeeper-tab-count">{{ shipping_metrics.pallet_count|default:"0" }}</span></button>
+              <button class="storekeeper-tab" type="button" data-detail-tab-target="services">Услуги</button>
+              <button class="storekeeper-tab" type="button" data-detail-tab-target="documents">Документы <span class="storekeeper-tab-count">{{ attachments|length }}</span></button>
+              {% if shipping_history_visible %}<button class="storekeeper-tab" type="button" data-detail-tab-target="history">История <span class="storekeeper-tab-count">{{ shipping_history|length }}</span></button>{% endif %}
+            </nav>
+
+            <div class="overview-grid is-active" data-detail-tab="overview">
+              <section class="overview-card">
+                <div class="storekeeper-tab-heading">
+                  <h2>Позиции заявки</h2>
+                  <button class="btn" type="button" data-detail-tab-target="positions">Все позиции</button>
+                </div>
+                <input class="overview-search" type="search" placeholder="Поиск по артикулу или наименованию" aria-label="Поиск в обзоре позиций" data-position-search="overview">
+                {% if items %}
+                  <div class="table-wrap">
+                    <table data-position-table="overview">
+                      <thead><tr><th>Артикул</th><th>Наименование</th><th>Запрошено</th><th>Резерв</th><th>Отгружено</th></tr></thead>
+                      <tbody>
+                        {% for item in items|slice:":5" %}
+                          <tr data-position-row><td>{{ item.sku_code }}</td><td>{{ item.name }}</td><td>{{ item.qty_requested }}</td><td>{{ item.qty_reserved }}</td><td>{{ item.qty_shipped }}</td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                {% else %}
+                  <div class="empty">Позиции отсутствуют.</div>
+                {% endif %}
+              </section>
+
+              <section class="overview-card overview-pallet">
+                <div class="storekeeper-tab-heading">
+                  <h2>Паллеты и короба</h2>
+                  <button class="btn" type="button" data-detail-tab-target="pallets">Открыть состав</button>
+                </div>
+                {% if packing_summary and packing_summary.pallets %}
+                  {% for pallet in packing_summary.pallets|slice:":1" %}
+                    <div class="overview-pallet-code">{{ pallet.code|default:pallet.label|default:"Код не указан" }}</div>
+                    <div class="overview-metrics">
+                      <div class="overview-metric"><strong>{{ pallet.box_count|default:"0" }}</strong><span>коробов</span></div>
+                      <div class="overview-metric"><strong>{{ pallet.qty|default:"0" }}</strong><span>единиц</span></div>
+                      <div class="overview-metric"><strong>{{ shipping_metrics.pallet_count|default:"0" }}</strong><span>паллет всего</span></div>
+                    </div>
+                    <div class="hint">Паллетизация завершена для зафиксированного состава.</div>
+                  {% endfor %}
+                {% else %}
+                  <div class="empty">Новые паллеты пока не сформированы.</div>
+                {% endif %}
+              </section>
+
+              <section class="overview-card">
+                <div class="storekeeper-tab-heading"><h2>Услуги по заявке</h2><button class="btn" type="button" data-detail-tab-target="services">Открыть услуги</button></div>
+                <div class="hint">Складские услуги отображаются и изменяются через действующий модуль услуг.</div>
+              </section>
+
+              <section class="overview-card overview-logistics">
+                <div class="storekeeper-tab-heading"><h2>Логистика</h2>{% if dispatch_trip_url %}<a class="btn" href="{{ dispatch_trip_url }}">Открыть рейс</a>{% endif %}</div>
+                <div>Статус: <b>{{ routing.status_label|default:order.ui_status_label|default:order.get_status_display }}</b></div>
+                {% if routing.needs_clarification %}
+                  <div class="overview-warning">Требуется уточнение: {{ routing.reason_label|default:"причина не указана" }}</div>
+                {% elif dispatch_stage.requires_trip and not dispatch_stage.has_trip and order.status == "packed" %}
+                  <div class="overview-warning">Включите заявку в рейс и задайте порядок погрузки.</div>
+                {% endif %}
+                {% if can_view_dispatch_act %}<div class="overview-card-actions"><a class="btn primary" href="{{ dispatch_act_url }}">Открыть акт отгрузки</a></div>{% endif %}
+              </section>
+
+              <section class="overview-card">
+                <div class="storekeeper-tab-heading"><h2>Дополнительная информация</h2><button class="btn" type="button" data-detail-tab-target="documents">К документам</button></div>
+                <div class="overview-meta"><span>Вложений: <b>{{ attachments|length }}</b></span><span>{% if order.comment %}Комментарий указан{% else %}Комментарий не указан{% endif %}</span></div>
+              </section>
+
+              <details class="overview-card">
+                <summary><b>Дополнительные параметры заявки</b></summary>
+                <div class="overview-metrics" style="margin-top:12px; grid-template-columns:repeat(2,minmax(0,1fr)); text-align:left;">
+                  <div><span class="storekeeper-summary-label">Слот</span><b>{% if order.slot_date %}{{ order.slot_date|date:"d.m.Y" }}{% if order.slot_time %}, {{ order.slot_time|time:"H:i" }}{% endif %}{% else %}Не указано{% endif %}</b></div>
+                  <div><span class="storekeeper-summary-label">Тип поставки</span><b>{{ order.get_supply_type_display|default:"Не указано" }}</b></div>
+                  <div><span class="storekeeper-summary-label">ШК поставки</span><b>{% if ozon_detail_is_ozon %}{{ ozon_detail_shipping_barcode|default:"Не указано" }}{% else %}{{ order.shipping_barcode|default:"Не указано" }}{% endif %}</b></div>
+                  <div><span class="storekeeper-summary-label">Номер поставки</span><b>{% if ozon_detail_is_ozon %}{{ ozon_detail_supply_number|default:"Не указано" }}{% else %}{{ order.wb_supply_barcode|default:"Не указано" }}{% endif %}</b></div>
+                  <div><span class="storekeeper-summary-label">Транзитный адрес</span><b>{{ order.transit_address|default:"Не указано" }}</b></div>
+                  <div><span class="storekeeper-summary-label">Авто</span><b>{{ order.resolved_vehicle_number|default:"Не указано" }}</b></div>
+                  <div><span class="storekeeper-summary-label">Водитель</span><b>{{ order.resolved_driver_name|default:"Не указано" }}</b></div>
+                  <div><span class="storekeeper-summary-label">Телефон водителя</span><b>{{ order.resolved_driver_phone|default:"Не указано" }}</b></div>
+                </div>
+              </details>
+            </div>
+          {% endif %}
+
+          <div class="section" data-detail-tab="documents">
+            <h3>Вложения</h3>
+            <div class="hint">Выберите документ: PDF откроется справа и его можно сразу отправить на принтер без скачивания. Срок хранения: {{ attachment_retention_days }} дней.</div>
+            {% if can_append_shipping_documents %}
+              <form id="shipping-attachment-append" method="post" enctype="multipart/form-data"
+                    action="{% url 'shipping:attachment-upload' order.pk %}">
+                {% csrf_token %}
+                <label for="shipping-attachment-files">Добавить документы к заявке</label>
+                <input id="shipping-attachment-files" name="documents" type="file" multiple required
+                       accept=".pdf,.xls,.xlsx,.jpg,.jpeg,.png">
+                <button class="btn primary" type="submit">Прикрепить файлы</button>
+                <div class="hint" role="status" data-upload-status>До 10 файлов, не более 25 МБ каждый. Статус, состав и резервы заявки не изменятся.</div>
+              </form>
+              <script>
+                (() => {
+                  const form = document.getElementById('shipping-attachment-append');
+                  const input = form.querySelector('[name="documents"]');
+                  const button = form.querySelector('button');
+                  const status = form.querySelector('[data-upload-status]');
+                  let busy = false;
+                  let uploadId = '';
+                  input.addEventListener('change', () => { uploadId = ''; });
+                  form.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    if (busy || !input.files.length) return;
+                    if (!uploadId) uploadId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                    const data = new FormData(form);
+                    data.set('upload_id', uploadId);
+                    busy = true; button.disabled = true; input.disabled = true;
+                    status.textContent = 'Загружаем файлы…';
+                    try {
+                      const response = await fetch(form.action, {method: 'POST', body: data, credentials: 'same-origin'});
+                      const result = await response.json().catch(() => null);
+                      if (!response.ok || !result?.ok) throw new Error(result?.error || 'Не удалось подтвердить загрузку. Повторите попытку.');
+                      status.textContent = 'Файлы прикреплены. Обновляем список…';
+                      window.location.reload();
+                    } catch (error) {
+                      status.textContent = error.message || 'Не удалось загрузить файлы. Повторите попытку.';
+                      busy = false; button.disabled = false; input.disabled = false;
+                    }
+                  });
+                })();
+              </script>
+            {% endif %}
+            {% if attachments %}
+              <div
+                class="document-workspace"
+                data-document-workspace
+                data-order-number="{{ order.number|escape }}"
+              >
+                <aside class="document-file-panel" aria-label="Документы заявки">
+                  <div class="document-file-list">
+                    {% for attachment in attachments %}
+                      <div class="document-file-card">
+                        <button
+                          class="document-file-button"
+                          type="button"
+                          data-document-file
+                          data-filename="{{ attachment.filename|escape }}"
+                          data-preview-url="{% url 'shipping:attachment-download' order.pk attachment.pk %}?inline=1"
+                          data-download-url="{% url 'shipping:attachment-download' order.pk attachment.pk %}"
+                          data-print-url="{% url 'shipping:attachment-download' order.pk attachment.pk %}"
+                          data-print-status-url="{% url 'shipping:attachment-download' order.pk attachment.pk %}?print_status=1"
+                        >
+                          <span class="document-file-name">{{ attachment.filename }}</span>
+                          <span class="document-file-print-mark" data-document-print-mark hidden></span>
+                          <span class="document-file-meta">
+                            {{ attachment.uploaded_at|date:"d.m.Y H:i" }} · {{ attachment.uploaded_by|default:"-" }}<br>
+                            Доступен до {{ attachment.expires_at|date:"d.m.Y H:i" }}
+                          </span>
+                        </button>
+                        <button
+                          class="document-file-menu-trigger"
+                          type="button"
+                          data-document-menu-trigger
+                          aria-label="Меню файла {{ attachment.filename|escape }}"
+                          title="Действия с файлом"
+                        >⋮</button>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </aside>
+                <div class="document-context-menu" data-document-context-menu role="menu" hidden>
+                  <a href="#" data-document-download role="menuitem" download>Скачать файл</a>
+                </div>
+                <section class="document-preview-panel" aria-label="Просмотр и печать документа">
+                  <div class="document-preview-toolbar">
+                    <div class="document-preview-heading">
+                      <div class="hint">Выбранный документ</div>
+                      <div class="document-preview-title" data-document-title>—</div>
+                      {% if scope == "staff" %}<div class="hint">Принтер ШК ГМ: <b data-document-printer-label>не найден</b></div>{% endif %}
+                    </div>
+                    <div class="document-preview-actions">
+                      <a class="btn" data-document-open target="_blank" rel="noopener">Открыть</a>
+                      {% if scope == "staff" %}
+                        <button class="btn" type="button" data-document-settings>Настройки принтера</button>
+                        <button class="btn primary" type="button" data-document-print disabled>Печатать PDF</button>
+                      {% endif %}
+                    </div>
+                  </div>
+                  {% if scope == "staff" %}
+                    <div class="document-print-settings" data-document-print-settings>
+                      <label>
+                        Принтер ШК ГМ (по умолчанию)
+                        <select data-document-printer><option value="">Поиск принтеров…</option></select>
+                      </label>
+                      <button class="btn" type="button" data-document-printers-refresh>Обновить список</button>
+                    </div>
+                    <div class="document-print-status" data-document-print-status>Подключаем локальный агент печати…</div>
+                  {% endif %}
+                  <div class="document-preview-stage">
+                    <iframe class="document-preview-frame" data-document-frame title="Предпросмотр PDF" hidden></iframe>
+                    <div class="document-preview-empty" data-document-empty>Выберите PDF слева.</div>
+                  </div>
+                </section>
+              </div>
+            {% else %}
+              <div class="empty" style="margin-top:10px;">Файлы не прикреплены.</div>
+            {% endif %}
+          </div>
+
+          <div class="section" data-detail-tab="documents">
+            <h3>Комментарий к заявке</h3>
+            {% if order.comment %}
+              <div class="comment-box">{{ order.comment }}</div>
+            {% else %}
+              <div class="empty">Комментарий не указан.</div>
+            {% endif %}
+          </div>
+
+          {% if scope != "client" and ozon_detail_summary.show %}
+            <div class="section" data-detail-tab="positions" style="border-color:#0e6b5b; background:#f0faf7;">
+              <h3>Данные Ozon для менеджера</h3>
+              <div class="hint">Сводка только для проверки заявки менеджером: данные читаются из заявки, комментария и истории изменений; складские остатки и статусы не меняются.</div>
+              <div class="order-summary" style="margin-top:10px;">
+                <table class="summary-table">
+                  <tbody>
+                    <tr>
+                      <td class="summary-head">Номер поставки Ozon</td>
+                      <td class="summary-data">{{ ozon_detail_summary.supply_number|default:"—" }}</td>
+                      <td class="summary-head">ШК поставки</td>
+                      <td class="summary-data">{{ ozon_detail_summary.shipping_barcode|default:"—" }}</td>
+                      <td class="summary-head">Коробов Ozon</td>
+                      <td class="summary-data">{{ ozon_detail_summary.boxes_total|default:"0" }}</td>
+                    </tr>
+                    <tr>
+                      <td class="summary-head">Склад Ozon</td>
+                      <td class="summary-data">{{ ozon_detail_summary.destination_warehouse|default:"—" }}</td>
+                      <td class="summary-head">Транзитный адрес</td>
+                      <td class="summary-data">{{ ozon_detail_summary.transit_address|default:"—" }}</td>
+                      <td class="summary-head">ШК ГМ</td>
+                      <td class="summary-data">{{ ozon_detail_summary.gm_barcodes_label|default:"—" }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              {% if can_download_ozon_gm_labels %}
+                <form method="post" action="{% url 'shipping:ozon-gm-labels' order.pk %}" style="margin-top:10px;">
+                  {% csrf_token %}
+                  <button class="btn" type="submit">Скачать этикетки ШК ГМ Ozon</button>
+                </form>
+              {% endif %}
+              {% if ozon_detail_summary.item_rows %}
+                <div class="table-wrap" style="margin-top:10px;">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Артикул</th>
+                        <th>ШК товара</th>
+                        <th>К отгрузке</th>
+                        <th>Коробов</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in ozon_detail_summary.item_rows %}
+                        <tr>
+                          <td><b>{{ row.sku_code }}</b><br><span class="hint">{{ row.name }}</span></td>
+                          <td>{{ row.barcode }}</td>
+                          <td>{{ row.qty_requested }}</td>
+                          <td>{{ row.boxes|default:"—" }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% endif %}
+              {% if ozon_detail_summary.gm_cargoes %}
+                <div class="hint" style="margin-top:12px;font-weight:800;">Поставка Ozon → ШК ГМ → состав Ozon → короб Fullbox</div>
+                <div class="table-wrap" style="margin-top:6px;">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>ШК ГМ Ozon</th>
+                        <th>Состав Ozon</th>
+                        <th>Короб Fullbox</th>
+                        <th>Проверка связи</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for cargo in ozon_detail_summary.gm_cargoes %}
+                        <tr>
+                          <td><b>{{ cargo.gm_barcode }}</b></td>
+                          <td>
+                            {% for item in cargo.items %}
+                              <div>
+                                {% if item.offer_id %}{{ item.offer_id }} · {% endif %}
+                                ШК товара: <b>{{ item.barcode|default:"—" }}</b> · {{ item.quantity }} шт.
+                              </div>
+                            {% empty %}
+                              —
+                            {% endfor %}
+                          </td>
+                          <td>{{ cargo.fullbox_box_code|default:"ШК ГМ пока не назначен коробу Fullbox" }}</td>
+                          <td>{{ cargo.assignment_label }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% elif ozon_detail_summary.gm_barcodes %}
+                <div class="hint" style="margin-top:12px;">Состав коробов Ozon пока не получен, поэтому ШК ГМ не назначены коробам Fullbox.</div>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if messages %}
+            <div class="messages">
+              {% for message in messages %}
+                <div class="msg {% if message.tags == 'error' %}err{% else %}ok{% endif %}">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+          {% if shipping_integrity_warnings %}
+            <div class="messages">
+              {% for warning in shipping_integrity_warnings %}
+                <div class="msg err">{{ warning }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+          {% if shipping_discrepancy.has_history %}
+            <div class="section is-active" data-detail-tab="overview" style="border-color:#f59e0b; background:rgba(245,158,11,0.08); padding:10px 12px;">
+              <div style="display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center;">
+                <b style="color:#92400e;">{{ shipping_discrepancy.client_summary_title|default:shipping_discrepancy.summary_title }}</b>
+                {% if shipping_discrepancy.approved_by %}
+                  <span class="hint"><b>Согласовал:</b> {{ shipping_discrepancy.approved_by }}</span>
+                {% endif %}
+                {% if shipping_discrepancy.additional_pick_move_ids %}
+                  <span class="hint"><b>Задание ричтраку:</b> {{ shipping_discrepancy.additional_pick_move_ids|join:", " }}</span>
+                {% endif %}
+                {% if shipping_discrepancy.pickup_status_label %}
+                  <span class="hint"><b>Добор:</b> {{ shipping_discrepancy.pickup_status_label }}</span>
+                {% endif %}
+                {% if shipping_discrepancy.ready_for_palletization %}
+                  <span class="hint"><b>Итог:</b> заявка готова к паллетизации</span>
+                {% endif %}
+              </div>
+              {% if shipping_discrepancy.client_status_text %}
+                <div class="hint" style="margin-top:5px;"><b>Статус по складу:</b> {{ shipping_discrepancy.client_status_text }}</div>
+              {% endif %}
+              {% if shipping_discrepancy.missing_text %}
+                <div class="hint" style="margin-top:5px;"><b>Справочно, что не хватало:</b> {{ shipping_discrepancy.missing_text }}</div>
+              {% endif %}
+              <div class="hint" style="margin-top:3px;"><b>Что согласовали:</b> {{ shipping_discrepancy.agreed_text }}</div>
+              {% if shipping_discrepancy.added_box_codes %}
+                <div class="hint" style="margin-top:3px;"><b>Какой короб добавили:</b> {{ shipping_discrepancy.added_box_codes|join:", " }}</div>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          <div class="actions" data-detail-tab="documents">
+            <a class="btn" href="{% url 'shipping:report' order.pk %}">Отчет об отгрузке</a>
+            <a class="btn" href="{% url 'shipping:box-composition-xlsx' order.pk %}">Состав коробов XLSX</a>
+            <a class="btn" href="{% url 'shipping:packing-list-xlsx' order.pk %}">Упаковочный лист XLSX</a>
+          </div>
+
+          {% if can_write %}
+            {% if can_request_shipping_discrepancy %}
+              <div class="section is-active" data-detail-tab="overview" style="border-color:#ef4444; background:rgba(239,68,68,0.05);">
+                <h3>Расхождение</h3>
+                <div class="hint">Запрос только фиксирует текущие ШК и количество и отправляет решение менеджеру и начальнику склада. Заявка, резервы и остатки не меняются.</div>
+                <form method="post" style="display:grid; gap:10px; margin-top:10px;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="request_shipping_discrepancy">
+                  <textarea name="storekeeper_comment" rows="3" placeholder="Комментарий кладовщика (необязательно)"></textarea>
+                  <div><button class="btn warn" type="submit">Отправить расхождение на согласование</button></div>
+                </form>
+              </div>
+            {% endif %}
+            {% if can_approve_shipping_discrepancy %}
+              <div class="section is-active" data-detail-tab="overview" style="border-color:#dc2626; background:rgba(220,38,38,0.08); box-shadow:0 0 0 2px rgba(220,38,38,0.12);">
+                <h3 style="color:#991b1b;">Согласование расхождения — действие менеджера</h3>
+                {% if shipping_discrepancy.is_v2 %}
+                  <div class="hint">Решение не меняет исходную заявку, позиции, резервы и остатки. Первое решение менеджера или начальника склада фиксируется окончательно.</div>
+                  <div style="margin-top:14px; font-weight:700;">Вариант 1 — принять фактически собранное без добора</div>
+                  <div class="actions" style="margin-top:12px;">
+                    <form method="post">
+                      {% csrf_token %}
+                      <button class="btn primary" name="action" value="approve_shipping_discrepancy" style="font-size:15px; padding:12px 16px;">
+                        Согласовать БЕЗ добора — отгрузить фактически собранное
+                      </button>
+                    </form>
+                  </div>
+                  {% if shipping_discrepancy.can_offer_correction %}
+                    <div style="margin-top:14px; font-weight:700;">Вариант 2 — назначить добор</div>
+                    <div class="actions" style="margin-top:8px;">
+                      <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="reject_shipping_discrepancy">
+                        <input type="hidden" name="correction_mode" value="whole_box">
+                        <button class="btn warn" type="submit">Добор целыми коробами</button>
+                      </form>
+                      <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="reject_shipping_discrepancy">
+                        <input type="hidden" name="correction_mode" value="piece">
+                        <button class="btn warn" type="submit">Поштучный добор</button>
+                      </form>
+                    </div>
+                  {% endif %}
+                {% else %}
+                  <div class="hint">Если согласовать без добора, система уменьшит план до факта в OTG. Уже привезённый товар из заявки не убирается. После согласования кладовщик сможет завершить паллетизацию.</div>
+                  {% if can_add_discrepancy_item %}
+                    <div class="actions" style="margin-top:10px;">
+                      <a class="btn warn" href="#shipping-discrepancy-add">Добавить товар на добор</a>
+                    </div>
+                  {% endif %}
+                  <form method="post" style="margin-top:12px;">
+                    {% csrf_token %}
+                    <button class="btn primary" name="action" value="approve_shipping_discrepancy" style="font-size:15px; padding:12px 16px;">
+                      Согласовать без добора, отгрузить факт
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            {% endif %}
+            {% if shipping_discrepancy.is_awaiting_supplement_packing %}
+              <div class="section is-active" data-detail-tab="overview" role="alert" style="border-color:#dc2626; background:rgba(220,38,38,0.08); box-shadow:0 0 0 2px rgba(220,38,38,0.12);">
+                <h3 style="color:#991b1b;">Обязательный этап: упаковать добор в короба</h3>
+                <div class="hint">
+                  Ричтрак доставил добранный товар в OTG{% if shipping_discrepancy.supplement_packing_qty %} — {{ shipping_discrepancy.supplement_packing_qty }} шт.{% endif %}
+                  Пока товар не распределён по новым коробам, расхождение останется открытым и отгрузку нельзя считать готовой.
+                </div>
+                {% if can_storekeeper_manage_packing %}
+                  <div class="actions" style="margin-top:12px;">
+                    <a class="btn warn" href="{% url 'shipping:packing-loose' order.pk %}">Упаковать добор в короба</a>
+                  </div>
+                {% else %}
+                  <div class="hint" style="margin-top:8px; color:#991b1b;">Упаковку должен выполнить кладовщик с доступом к складской паллетизации.</div>
+                {% endif %}
+              </div>
+            {% endif %}
+            {% if has_loose_packing_items and not shipping_discrepancy.is_awaiting_supplement_packing %}
+              <div class="section is-active" data-detail-tab="overview" role="alert" style="border-color:#dc2626; background:rgba(220,38,38,0.08); box-shadow:0 0 0 2px rgba(220,38,38,0.12);">
+                <h3 style="color:#991b1b;">Товар без короба в OTG — {{ loose_packing_qty }} шт.</h3>
+                <div class="hint">
+                  Эти единицы уже доставлены в OTG и учтены при расчёте добора. Их нужно распределить по отгрузочным коробам перед завершением упаковки.
+                  {% if can_create_otg_supplemental_pick %}
+                    Сначала создайте добор недостающего товара: {{ supplemental_pick_preview.requested_boxes }} короб. / {{ supplemental_pick_preview.requested_qty }} шт. После доставки завершите упаковку.
+                  {% else %}
+                    Если упаковка ожидает недостающую позицию, сначала завершите её отбор и доставку в OTG.
+                  {% endif %}
+                </div>
+                <div style="overflow:auto; margin-top:10px;">
+                  <table style="width:100%; border-collapse:collapse; min-width:560px;">
+                    <thead><tr><th style="padding:8px;">ШК</th><th style="padding:8px;">Товар</th><th style="padding:8px;">Без короба</th></tr></thead>
+                    <tbody>
+                      {% for item in loose_packing_items %}
+                        <tr>
+                          <td style="padding:8px;"><b>{{ item.barcode|default:"-" }}</b></td>
+                          <td style="padding:8px;">{% if item.name %}{{ item.name }}{% elif item.sku_code %}{{ item.sku_code }}{% else %}-{% endif %}</td>
+                          <td style="padding:8px;"><b>{{ item.qty }} шт.</b></td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                {% if can_storekeeper_manage_packing %}
+                  <div class="actions" style="margin-top:12px;">
+                    <a class="btn warn" href="{% url 'shipping:packing-loose' order.pk %}">Упаковать товар в короба</a>
+                  </div>
+                {% else %}
+                  <div class="hint" style="margin-top:8px; color:#991b1b;">Упаковку выполняет кладовщик. Уже доставленный товар повторно отбирать не требуется.</div>
+                {% endif %}
+              </div>
+            {% endif %}
+            {% if shipping_discrepancy.is_pick_confirmation %}
+              <div class="section is-active" data-detail-tab="overview" style="border-color:#f59e0b; background:rgba(245,158,11,0.08);">
+                <h3>Добор назначен: {{ shipping_discrepancy.correction_mode_label }}</h3>
+                <div class="hint">План пока ничего не зарезервировал и не изменил на складе. Кладовщику создана отдельная срочная задача. Задание появится у ричтрака только после подтверждения кладовщиком.</div>
+                {% if shipping_discrepancy.payload.correction_plan_refreshed_at %}
+                  <div role="alert" style="margin-top:12px; padding:12px 14px; border:1px solid rgba(212,84,60,0.38); border-radius:14px; background:rgba(212,84,60,0.09); color:#7f1d1d;">
+                    <div style="font-weight:800;">План добора изменился</div>
+                    <div style="margin-top:4px;">
+                      Первый клик обновил состав по текущему складу. Задание ричтраку ещё не создано.
+                      Проверьте обновлённые короб, адрес и количество ниже, затем подтвердите план повторно.
+                    </div>
+                    {% if shipping_discrepancy.correction_plan.requested_qty %}
+                      <div style="margin-top:6px; font-weight:700;">Итого к добору: {{ shipping_discrepancy.correction_plan.requested_qty }} шт.</div>
+                    {% endif %}
+                  </div>
+                {% endif %}
+                {% if shipping_discrepancy.correction_plan.plan_rows %}
+                  <div style="overflow:auto; margin-top:10px;">
+                    <table style="width:100%; border-collapse:collapse; min-width:760px;">
+                      <thead>
+                        <tr>
+                          <th style="padding:8px;">ШК</th>
+                          <th style="padding:8px;">Короб</th>
+                          <th style="padding:8px;">Паллета</th>
+                          <th style="padding:8px;">Адрес</th>
+                          <th style="padding:8px;">Взять</th>
+                          <th style="padding:8px;">Короб открыт</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row in shipping_discrepancy.correction_plan.plan_rows %}
+                          <tr>
+                            <td style="padding:8px;">{{ row.barcode }}</td>
+                            <td style="padding:8px;"><b>{{ row.box_code }}</b></td>
+                            <td style="padding:8px;">{{ row.pallet_code }}</td>
+                            <td style="padding:8px;">{{ row.location|default:"-" }}</td>
+                            <td style="padding:8px;">{{ row.pick_qty }} шт.</td>
+                            <td style="padding:8px;">{% if row.is_open %}Да{% else %}Нет{% endif %}</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                {% endif %}
+                {% if can_confirm_shipping_discrepancy_pick %}
+                  <form method="post" style="margin-top:12px;">
+                    {% csrf_token %}
+                    <button class="btn primary" type="submit" name="action" value="confirm_shipping_discrepancy_pick" data-submitting-label="Создаём задание ричтраку…">
+                      {% if shipping_discrepancy.payload.correction_plan_refreshed_at %}
+                        Подтвердить обновлённый план и создать задание ричтраку
+                      {% else %}
+                        Подтвердить план и создать задание ричтраку
+                      {% endif %}
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            {% endif %}
+            <div class="actions is-active" data-detail-tab="overview">
+              {% if can_edit_order_form %}
+                <a class="btn" href="{{ edit_order_url }}">Отредактировать заявку</a>
+              {% endif %}
+              {% if can_submit_for_approval %}
+                <form method="post">{% csrf_token %}<button class="btn" name="action" value="submit">Отправить менеджеру на согласование</button></form>
+              {% endif %}
+              {% if can_manager_approve %}
+                <form method="post">{% csrf_token %}<button class="btn" name="action" value="reserve">Согласовать заявку (менеджер)</button></form>
+              {% endif %}
+              {% if can_manager_reopen %}
+                <form method="post">{% csrf_token %}<button class="btn" name="action" value="release_reserve">Вернуть на доработку</button></form>
+              {% endif %}
+              {% if can_set_shipping_priority and role != "storekeeper" %}
+                <form method="post" onsubmit="return confirm('{% if shipping_order_is_priority %}Снять ручной приоритет с этой отгрузки?{% else %}Поставить эту отгрузку первой среди ещё не запущенных заявок?{% endif %}');">
+                  {% csrf_token %}
+                  <button class="btn{% if not shipping_order_is_priority %} primary{% endif %}" name="action" value="{% if shipping_order_is_priority %}clear_shipping_priority{% else %}set_shipping_priority{% endif %}">{% if shipping_order_is_priority %}Снять приоритет{% else %}Поставить в приоритет{% endif %}</button>
+                </form>
+              {% endif %}
+              {% if can_storekeeper_accept %}
+                <form method="post">{% csrf_token %}<button class="btn primary" name="action" value="accept_storekeeper">Принять в работу</button></form>
+              {% endif %}
+              {% if storekeeper_pick_unavailable_reason %}
+                <div class="hint" style="flex-basis:100%; color:#a35722;">{{ storekeeper_pick_unavailable_reason }}</div>
+              {% endif %}
+              {% if can_storekeeper_pick and pick_readiness.can_pick %}
+                <form method="post">{% csrf_token %}<button class="btn primary" name="action" value="create_pick_tasks">Дать ричтраку доставку в OTG</button></form>
+              {% endif %}
+              {% if can_create_otg_supplemental_pick %}
+                <form method="post">{% csrf_token %}<button class="btn primary" name="action" value="create_otg_supplemental_pick">Создать добор: {{ supplemental_pick_preview.requested_boxes }} короб. / {{ supplemental_pick_preview.requested_qty }} шт.</button></form>
+              {% endif %}
+              {% if can_storekeeper_manage_packing %}
+                <a class="btn" href="{{ packing_url }}{% if packing_summary %}?edit=1{% endif %}">
+                  {% if packing_summary %}
+                    Изменить раскладку по новым паллетам
+                  {% elif ozon_gm_repack.required %}
+                    Переупаковать {{ ozon_gm_repack.source_box_count }} короб. в {{ ozon_gm_repack.target_box_count }} грузомест Ozon
+                  {% elif has_loose_packing_items %}
+                    Упаковать товар в короба
+                  {% else %}
+                    Разложить короба по новым паллетам
+                  {% endif %}
+                </a>
+              {% endif %}
+            </div>
+            <div class="section" data-detail-tab="services" data-storekeeper-services>
+              {% if can_storekeeper_manage_packing or can_storekeeper_accept or can_storekeeper_pick %}
+                {% include "billing/_warehouse_services_panel.html" with wsf_order_type="shipping" wsf_order_id=order.number wsf_client_id=order.agency_id wsf_required=False %}
+              {% else %}
+                <div class="empty">Изменение услуг недоступно в текущем статусе.</div>
+              {% endif %}
+            </div>
+            <div class="actions" data-detail-tab="documents">
+              {% if can_view_packing_slips %}
+                <a class="btn" href="{{ packing_slips_url }}">Упаковочные листы</a>
+              {% endif %}
+              {% if can_manage_transport_note %}
+                <a class="btn" href="{{ transport_note_url }}">Сопроводительные документы</a>
+              {% endif %}
+            </div>
+            <div class="actions is-active" data-detail-tab="overview">
+              {% if can_create_pickup_trip %}
+                <form method="post">{% csrf_token %}<button class="btn primary" name="action" value="create_pickup_trip">Сформировать рейс</button></form>
+              {% endif %}
+              {% if can_complete_transfer %}
+                <form method="post" onsubmit="return confirm('Завершить перемещение и списать подтверждённый товар со склада? Рейс создан не будет.');">
+                  {% csrf_token %}
+                  <button class="btn primary" name="action" value="complete_transfer">Завершить перемещение</button>
+                </form>
+              {% endif %}
+              {% if warehouse_cancel_request_pending %}
+                <div class="section" style="flex-basis:100%; border-color:#f59e0b; background:rgba(245,158,11,0.08);">
+                  <h3 style="margin-top:0;">Отмена ожидает подтверждения склада</h3>
+                  {% if warehouse_cancel_reason %}
+                    <div class="hint">Причина: {{ warehouse_cancel_reason }}</div>
+                  {% endif %}
+                  {% if can_review_warehouse_cancel %}
+                    <div class="actions" style="margin-top:10px;">
+                      <form method="post" onsubmit="return confirm('Подтвердить отмену заявки и снять резерв?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="cancel_reason" value="{{ warehouse_cancel_reason }}">
+                        <button class="btn warn" name="action" value="approve_warehouse_cancel">Подтвердить отмену</button>
+                      </form>
+                      <form method="post" onsubmit="return confirm('Отклонить запрос на отмену?');">
+                        {% csrf_token %}
+                        <button class="btn" name="action" value="reject_warehouse_cancel">Отклонить отмену</button>
+                      </form>
+                    </div>
+                  {% endif %}
+                </div>
+              {% else %}
+                {% if client_cancel_request_pending %}
+                  <div class="section" style="flex-basis:100%; border-color:#f59e0b; background:rgba(245,158,11,0.08);">
+                    <h3 style="margin-top:0;">Клиент запросил отмену</h3>
+                    {% if client_cancel_reason %}
+                      <div class="hint">Причина: {{ client_cancel_reason }}</div>
+                    {% endif %}
+                    {% if can_request_warehouse_cancel %}
+                      <form method="post" style="display:grid;gap:8px;max-width:360px;margin-top:10px;" onsubmit="return confirm('Отправить складу запрос на отмену?');">
+                        {% csrf_token %}
+                        <textarea name="cancel_reason" rows="2" required placeholder="Причина отмены для склада" style="width:100%;padding:8px 10px;border:1px solid var(--stroke);border-radius:10px;font:inherit;">{{ client_cancel_reason }}</textarea>
+                        <button class="btn warn" name="action" value="request_warehouse_cancel">Запросить подтверждение склада</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                {% elif can_request_warehouse_cancel %}
+                <form method="post" style="display:grid;gap:8px;max-width:360px;" onsubmit="return confirm('Отправить складу запрос на отмену?');">
+                  {% csrf_token %}
+                  <textarea name="cancel_reason" rows="2" required placeholder="Причина отмены для склада" style="width:100%;padding:8px 10px;border:1px solid var(--stroke);border-radius:10px;font:inherit;"></textarea>
+                  <button class="btn warn" name="action" value="request_warehouse_cancel">Запросить подтверждение склада</button>
+                </form>
+                {% endif %}
+              {% endif %}
+              {% if can_cancel %}
+                <form method="post" style="display:grid;gap:8px;max-width:360px;" onsubmit="return confirm('Отменить заявку?');">
+                  {% csrf_token %}
+                  <textarea name="cancel_reason" rows="2" required placeholder="Причина отмены для клиента" style="width:100%;padding:8px 10px;border:1px solid var(--stroke);border-radius:10px;font:inherit;">{{ client_cancel_reason }}</textarea>
+                  <button class="btn warn" name="action" value="cancel">Отменить</button>
+                </form>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if scope != "client" %}
+            <div class="section" data-detail-tab="boxes">
+              <h3>Короба, привезенные в OTG</h3>
+              {% if detail_otg_box_rows %}
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Короб</th>
+                        <th>Кол-во</th>
+                        <th>Состав</th>
+                        <th>Исходная паллета</th>
+                        <th>Исходное место</th>
+                        <th>Итоговая паллета</th>
+                        <th>Кто / когда привез</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    {% for box in detail_otg_box_rows %}
+                      <tr{% if box.linked_box_rows %} style="background:#fff8e6;"{% endif %}>
+                        <td{% if box.linked_box_rows %} style="border-left:4px solid #d79a00;"{% endif %}>
+                          <b>{{ box.box_code }}</b>
+                          {% if box.linked_box_rows %}
+                            <div class="hint" style="margin-top:4px;color:#8a5a00;">донор -> после упаковки</div>
+                            {% for linked_box in box.linked_box_rows %}
+                              <div style="margin-top:2px;color:#8a5a00;"><b>{{ linked_box.box_code }}</b></div>
+                            {% endfor %}
+                          {% endif %}
+                        </td>
+                          <td>{{ box.qty|default:"-" }}</td>
+                          <td>{{ box.composition|default:"-" }}</td>
+                          <td>{{ box.source_pallet|default:"-" }}</td>
+                          <td>{{ box.source_place|default:"-" }}</td>
+                          <td>{{ box.final_pallet|default:"-" }}</td>
+                          <td>
+                            {{ box.driver|default:"-" }}
+                            {% if box.completed_at %}
+                              <br><span class="hint">{{ box.completed_at|date:"d.m.Y H:i" }}</span>
+                            {% endif %}
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <div class="empty">Короба, привезенные в OTG, пока не зафиксированы.</div>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          <div class="section" data-detail-tab="positions">
+            <div class="storekeeper-tab-heading"><h3>Позиции заявки</h3></div>
+            {% if scope == "staff" and role == "storekeeper" %}<input class="overview-search" type="search" placeholder="Поиск по артикулу, наименованию, размеру или ШК" aria-label="Поиск по позициям" data-position-search="full">{% endif %}
+            {% if items %}
+              <div class="table-wrap">
+                <table data-position-table="full">
+                  <thead>
+                    <tr>
+                      <th>Артикул</th>
+                      <th>Наименование</th>
+                      <th>Размер</th>
+                      <th>ШК</th>
+                      <th>Тип</th>
+                      <th class="position-quantity-header"><strong class="position-quantity-total" data-position-total="requested">0</strong><span class="position-quantity-label">Запрошено</span></th>
+                      <th class="position-quantity-header"><strong class="position-quantity-total" data-position-total="collected">0</strong><span class="position-quantity-label">Собрано</span></th>
+                      <th class="position-quantity-header"><strong class="position-quantity-total" data-position-total="shipped">0</strong><span class="position-quantity-label">Отгружено</span></th>
+                      {% if can_edit_items %}<th></th>{% endif %}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for item in items %}
+                      <tr data-position-row>
+                        <td>{{ item.sku_code }}</td>
+                        <td>{{ item.name }}</td>
+                        <td>{{ item.size|default:'-' }}</td>
+                        <td>{{ item.barcode|default:'-' }}</td>
+                        <td>{{ item.goods_type|default:'-' }}</td>
+                        <td data-position-quantity="requested">{{ item.qty_requested }}</td>
+                        <td data-position-quantity="collected">{{ item.qty_otg_delivered|default:0 }}</td>
+                        <td data-position-quantity="shipped">{{ item.qty_shipped }}</td>
+                        {% if can_edit_items %}
+                          <td>
+                            <form method="post" onsubmit="return confirm('Удалить позицию?');">
+                              {% csrf_token %}
+                              <input type="hidden" name="action" value="remove_item">
+                              <input type="hidden" name="item_id" value="{{ item.id }}">
+                              <button class="btn" type="submit">Удалить</button>
+                            </form>
+                          </td>
+                        {% endif %}
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="empty">Позиции отсутствуют.</div>
+            {% endif %}
+          </div>
+
+          {% if packing_summary and scope != "client" %}
+            <div class="section" data-detail-tab="pallets">
+              <h3>Новые паллеты отгрузки</h3>
+              <div class="hint">Состав новых паллет зафиксирован отдельным актом паллетизации отгрузки.</div>
+              <div class="table-wrap" style="margin-top:10px;">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Паллета</th>
+                      <th>Код паллеты</th>
+                      <th>Коробов</th>
+                      <th>Количество</th>
+                      <th>Короба</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for pallet in packing_summary.pallets %}
+                      <tr>
+                        <td>{{ pallet.label }}</td>
+                        <td>{{ pallet.code|default:"-" }}</td>
+                        <td>{{ pallet.box_count }}</td>
+                        <td>{{ pallet.qty }}</td>
+                        <td>
+                          {% for box in pallet.boxes %}
+                            <div><b>{{ box.box_code }}</b> · {{ box.qty }} шт. · {{ box.barcode_preview|default:"-" }}</div>
+                          {% empty %}
+                            -
+                          {% endfor %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {% elif scope == "staff" and role == "storekeeper" %}
+            <div class="section" data-detail-tab="pallets"><div class="empty">Новые паллеты пока не сформированы.</div></div>
+          {% endif %}
+
+          {% if can_view_dispatch_act or routing.status %}
+            <div class="section is-active" data-detail-tab="overview">
+              <h3>Логистика</h3>
+              {% if routing.status_label %}
+                <div class="hint" style="margin-top:8px;">
+                  Статус логистики: <b>{{ routing.status_label }}</b>
+                  {% if routing.trip_number %} · рейс {{ routing.trip_number }}{% endif %}
+                  {% if routing.driver_name %} · {{ routing.driver_name }}{% endif %}
+                  {% if routing.vehicle_number %} · {{ routing.vehicle_number }}{% endif %}
+                </div>
+              {% endif %}
+              {% if routing.needs_clarification %}
+                <div class="msg err" style="margin-top:10px;">
+                  Требуется уточнение:
+                  <b>{{ routing.reason_label|default:"—" }}</b>
+                  {% if routing.reason_text %} — {{ routing.reason_text }}{% endif %}
+                </div>
+              {% endif %}
+              {% if routing.can_return %}
+                <form method="post" action="{% url 'logistics:shipping-return-clarify' order.id %}" style="margin-top:12px; display:grid; gap:8px; max-width:520px;">
+                  {% csrf_token %}
+                  <label style="display:grid; gap:4px; font-size:12px; font-weight:700;">
+                    Вернуть менеджеру на уточнение
+                    <select name="reason_code" required>
+                      <option value="">— причина —</option>
+                      {% for code, label in routing.reason_choices %}
+                        <option value="{{ code }}">{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <textarea name="reason_text" rows="2" placeholder="Комментарий (обязателен для «Другое»)" style="width:100%; padding:10px; border-radius:12px; border:1px solid var(--stroke);"></textarea>
+                  <button class="btn" type="submit">Вернуть менеджеру</button>
+                </form>
+              {% endif %}
+              {% if routing.can_resolve %}
+                <form method="post" action="{% url 'logistics:shipping-resolve-clarify' order.id %}" style="margin-top:12px; display:grid; gap:8px; max-width:520px;">
+                  {% csrf_token %}
+                  <textarea name="comment" rows="2" placeholder="Что исправлено" style="width:100%; padding:10px; border-radius:12px; border:1px solid var(--stroke);"></textarea>
+                  <button class="btn primary" type="submit">Данные уточнены — вернуть логисту</button>
+                </form>
+              {% endif %}
+              {% if can_view_dispatch_act %}
+              <div class="hint" style="margin-top:12px;">После подготовки складом заявку закрывает логист и менеджер через акт отгрузки.</div>
+              {% if dispatch_stage.requires_trip and not dispatch_stage.has_trip and order.status == "packed" and not routing.needs_clarification %}
+                <div class="msg err" style="margin-top:10px;">Для транспорта ФуллБокс сначала включите заявку в рейс и задайте порядок погрузки.</div>
+              {% endif %}
+              <div class="actions" style="margin-top:10px;">
+                {% if dispatch_trip_url and scope != "client" %}
+                  <a class="btn" href="{{ dispatch_trip_url }}">Открыть рейс {{ dispatch_stage.payload.trip_number|default:"логистики" }}</a>
+                {% endif %}
+                <a class="btn primary" href="{{ dispatch_act_url }}">Открыть акт отгрузки</a>
+              </div>
+              <div class="table-wrap" style="margin-top:12px;">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Этап</th>
+                      <th>Статус</th>
+                      <th>Детали</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Рейс / машина</td>
+                      <td>
+                        {% if dispatch_stage.has_trip %}
+                          Готов
+                        {% elif dispatch_stage.requires_trip %}
+                          Нужен рейс логиста
+                        {% else %}
+                          Транспорт клиента
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if dispatch_stage.has_trip %}
+                          {{ dispatch_stage.payload.trip_number|default:"-" }}
+                          · погрузка {{ dispatch_stage.payload.loading_sequence|default:"0" }}
+                          · доставка {{ dispatch_stage.payload.delivery_sequence|default:"0" }}
+                        {% else %}
+                          {{ dispatch_stage.payload.vehicle_type_label|default:"-" }}
+                        {% endif %}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Подпись логиста</td>
+                      <td>{% if dispatch_stage.logistician_signed %}Подписан{% else %}Ожидается{% endif %}</td>
+                      <td>{{ dispatch_stage.logistician_signed_at_label|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                      <td>Подпись менеджера</td>
+                      <td>{% if dispatch_stage.manager_signed %}Подписан{% else %}Ожидается{% endif %}</td>
+                      <td>{{ dispatch_stage.manager_signed_at_label|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                      <td>Отправка клиенту</td>
+                      <td>{% if dispatch_stage.act_sent %}Отправлен{% else %}Ожидается{% endif %}</td>
+                      <td>{{ dispatch_stage.act_sent_at_label|default:"-" }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if can_edit_items %}
+            <div class="section" data-detail-tab="positions">
+              <h3>Добавить позицию</h3>
+              <div class="hint">Добавление только из складского остатка и только кратно коробам.</div>
+              {% if stock_rows %}
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="add_item">
+                  <div style="overflow:auto; border-radius:14px; border:1px solid var(--stroke); background:rgba(15,23,42,0.03); margin-top:8px;">
+                    <table style="width:100%; border-collapse:collapse; min-width:920px;">
+                      <thead>
+                        <tr>
+                          <th style="padding:8px;">Выбор</th>
+                          <th style="padding:8px;">Артикул</th>
+                          <th style="padding:8px;">Наименование</th>
+                          <th style="padding:8px;">Размер</th>
+                          <th style="padding:8px;">ШК</th>
+                          <th style="padding:8px;">Тип</th>
+                          <th style="padding:8px;">Ед. в коробе</th>
+                          <th style="padding:8px;">Доступно коробов</th>
+                          <th style="padding:8px;">К отгрузке (короба)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row in stock_rows %}
+                          <tr>
+                            <td style="padding:8px;">
+                              <input type="radio" name="stock_key" value="{{ row.key }}">
+                              <input type="hidden" name="stock_key_all[]" value="{{ row.key }}">
+                            </td>
+                            <td style="padding:8px;"><b>{{ row.sku_code }}</b></td>
+                            <td style="padding:8px;">{{ row.name|default:"-" }}</td>
+                            <td style="padding:8px;">{{ row.size|default:"-" }}</td>
+                            <td style="padding:8px;">{{ row.barcode|default:"-" }}</td>
+                            <td style="padding:8px;">{{ row.goods_type|default:"-" }}</td>
+                            <td style="padding:8px;">{{ row.box_qty }}</td>
+                            <td style="padding:8px;">{{ row.available_boxes }} ({{ row.available_qty }} шт)</td>
+                            <td style="padding:8px;">
+                              <input
+                                type="number"
+                                min="0"
+                                max="{{ row.available_boxes }}"
+                                value="0"
+                                name="stock_boxes"
+                                style="max-width:110px;"
+                              >
+                            </td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style="margin-top:10px;"><button class="btn" type="submit">Добавить выбранную позицию</button></div>
+                </form>
+              {% else %}
+                <div class="empty" style="margin-top:8px;">Нет доступных коробов для добавления позиции.</div>
+              {% endif %}
+            </div>
+          {% endif %}
+          {% if can_add_discrepancy_item %}
+            <div id="shipping-discrepancy-add" class="section" data-detail-tab="positions" style="border-color:#ef4444; background:rgba(239,68,68,0.05);">
+              <h3>Добор при расхождении</h3>
+              <div class="hint">Добавление только целыми коробами из доступного склада. Если количество не указано, система возьмет расчетную недостачу. После выбора система создаст отдельное задание ричтраку OTG на доставку добора.</div>
+              {% if stock_rows %}
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="add_discrepancy_item">
+                  <input type="hidden" name="discrepancy_default_boxes" value="{{ shipping_discrepancy.default_pick_box_count|default:0 }}">
+                  <div style="overflow:auto; border-radius:14px; border:1px solid var(--stroke); background:rgba(15,23,42,0.03); margin-top:8px;">
+                    <table style="width:100%; border-collapse:collapse; min-width:920px;">
+                      <thead>
+                        <tr>
+                          <th style="padding:8px;">Выбор</th>
+                          <th style="padding:8px;">Артикул</th>
+                          <th style="padding:8px;">Наименование</th>
+                          <th style="padding:8px;">Размер</th>
+                          <th style="padding:8px;">ШК</th>
+                          <th style="padding:8px;">Тип</th>
+                          <th style="padding:8px;">Ед. в коробе</th>
+                          <th style="padding:8px;">Доступно коробов</th>
+                          <th style="padding:8px;">К добору (короба)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row in stock_rows %}
+                          <tr>
+                            <td style="padding:8px;">
+                              <input type="radio" name="stock_key" value="{{ row.key }}">
+                              <input type="hidden" name="stock_key_all[]" value="{{ row.key }}">
+                            </td>
+                            <td style="padding:8px;"><b>{{ row.sku_code }}</b></td>
+                            <td style="padding:8px;">{{ row.name|default:"-" }}</td>
+                            <td style="padding:8px;">{{ row.size|default:"-" }}</td>
+                            <td style="padding:8px;">{{ row.barcode|default:"-" }}</td>
+                            <td style="padding:8px;">{{ row.goods_type|default:"-" }}</td>
+                            <td style="padding:8px;">{{ row.box_qty }}</td>
+                            <td style="padding:8px;">{{ row.available_boxes }} ({{ row.available_qty }} шт)</td>
+                            <td style="padding:8px;">
+                              <input
+                                type="number"
+                                min="0"
+                                max="{{ row.available_boxes }}"
+                                value="0"
+                                name="stock_boxes"
+                                style="max-width:110px;"
+                              >
+                            </td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style="margin-top:10px;"><button class="btn warn" type="submit">Добавить замену и дать задание ричтраку OTG</button></div>
+                </form>
+              {% else %}
+                <div class="empty" style="margin-top:8px;">Нет доступных коробов для добора.</div>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if shipping_history_visible and role == "storekeeper" %}
+            <section class="section storekeeper-history-panel" data-detail-tab="history">
+              <div class="storekeeper-tab-heading">
+                <div><h2>История</h2><div class="subtitle">Последние изменения по заявке</div></div>
+              </div>
+              {% if shipping_history %}
+                <div class="history-list storekeeper-history-list" style="margin-top:12px;">
+                  <div class="storekeeper-history-head" aria-hidden="true">
+                    <span>Дата</span>
+                    <span>Действие</span>
+                    <span>Роль</span>
+                    <span>Комментарий</span>
+                    <span>Пользователь</span>
+                  </div>
+                  {% for entry in shipping_history %}
+                    <div class="history-item storekeeper-history-row actor-{{ entry.actor_color }}">
+                      <time class="storekeeper-history-date">{{ entry.created_at|date:"d.m.Y H:i" }}</time>
+                      <div class="history-action">{{ entry.action_label }}</div>
+                      <div class="history-role">{{ entry.actor_role_label }}</div>
+                      <div class="history-text">{{ entry.text|default:"-" }}</div>
+                      <div class="storekeeper-history-actor">{{ entry.actor_label }}</div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="empty" style="margin-top:12px;">История пока пустая.</div>
+              {% endif %}
+            </section>
+          {% endif %}
+
+        </section>
+      </main>
+      {% if shipping_history_visible and role != "storekeeper" %}
+        <aside class="history-side">
+          <div>
+            <h2 class="history-title">История</h2>
+            <div class="subtitle">Последние изменения по заявке</div>
+          </div>
+          {% if shipping_history %}
+            <div class="history-list">
+              {% for entry in shipping_history %}
+                <div class="history-item actor-{{ entry.actor_color }}">
+                  <div class="history-item-head">
+                    <span>{{ entry.created_at|date:"d.m.Y H:i" }}</span>
+                    <span>{{ entry.actor_label }}</span>
+                  </div>
+                  <div class="history-action">{{ entry.action_label }}</div>
+                  <div class="history-role">{{ entry.actor_role_label }}</div>
+                  {% if entry.text %}
+                    <div class="history-text">{{ entry.text }}</div>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="empty">История пока пустая.</div>
+          {% endif %}
+        </aside>
+      {% endif %}
+    </div>
+  </div>
+  {% if scope == "staff" and role == "storekeeper" %}
+    <script>
+      (() => {
+        const tabs = Array.from(document.querySelectorAll('.storekeeper-tab[data-detail-tab-target]'));
+        const triggers = Array.from(document.querySelectorAll('[data-detail-tab-target]'));
+        const panels = Array.from(document.querySelectorAll('[data-detail-tab]'));
+        const allowed = new Set(tabs.map((tab) => tab.dataset.detailTabTarget));
+
+        document.querySelectorAll('[data-storekeeper-services]').forEach((panel) => {
+          Array.from(panel.childNodes).forEach((node) => {
+            if (node.nodeType === Node.TEXT_NODE && node.textContent.trim().startsWith('{#')) node.remove();
+          });
+        });
+
+        const activateTab = (name, updateHash = true) => {
+          const target = allowed.has(name) ? name : 'overview';
+          tabs.forEach((tab) => {
+            const active = tab.dataset.detailTabTarget === target;
+            tab.classList.toggle('is-active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+          });
+          panels.forEach((panel) => panel.classList.toggle('is-active', panel.dataset.detailTab === target));
+          if (updateHash) history.replaceState(null, '', `${location.pathname}${location.search}#tab=${target}`);
+          const content = document.querySelector('.content');
+          if (content) content.scrollTop = 0;
+        };
+
+        triggers.forEach((trigger) => trigger.addEventListener('click', () => activateTab(trigger.dataset.detailTabTarget)));
+        document.querySelectorAll('a[href="#shipping-discrepancy-add"]').forEach((link) => {
+          link.addEventListener('click', () => activateTab('positions', false));
+        });
+        const initialHash = location.hash.replace(/^#/, '');
+        activateTab(initialHash.startsWith('tab=') ? initialHash.slice(4) : (initialHash === 'shipping-discrepancy-add' ? 'positions' : 'overview'), false);
+        window.addEventListener('hashchange', () => {
+          const value = location.hash.replace(/^#tab=/, '');
+          if (allowed.has(value)) activateTab(value, false);
+        });
+
+        document.querySelectorAll('[data-position-search]').forEach((input) => {
+          const tableKey = input.dataset.positionSearch;
+          const table = document.querySelector(`[data-position-table="${tableKey}"]`);
+          if (!table) return;
+          const rows = Array.from(table.querySelectorAll('[data-position-row]'));
+          input.addEventListener('input', () => {
+            const query = input.value.trim().toLocaleLowerCase('ru');
+            rows.forEach((row) => { row.hidden = Boolean(query) && !row.textContent.toLocaleLowerCase('ru').includes(query); });
+          });
+        });
+
+        document.querySelectorAll('main form').forEach((form) => {
+          form.addEventListener('submit', (event) => {
+            if (event.defaultPrevented) return;
+            if (form.classList.contains('is-submitting')) {
+              event.preventDefault();
+              return;
+            }
+            const submitter = event.submitter;
+            if (submitter && submitter.name) {
+              const actionCopy = document.createElement('input');
+              actionCopy.type = 'hidden';
+              actionCopy.name = submitter.name;
+              actionCopy.value = submitter.value;
+              actionCopy.dataset.submitActionCopy = '1';
+              form.appendChild(actionCopy);
+            }
+            if (submitter && submitter.dataset.submittingLabel) {
+              submitter.textContent = submitter.dataset.submittingLabel;
+              submitter.setAttribute('aria-busy', 'true');
+            }
+            form.classList.add('is-submitting');
+            form.querySelectorAll('button[type="submit"], button:not([type])').forEach((button) => { button.disabled = true; });
+          });
+        });
+      })();
+    </script>
+  {% endif %}
+  <script>
+    (() => {
+      const workspace = document.querySelector('[data-document-workspace]');
+      if (!workspace) return;
+
+      const fileButtons = Array.from(workspace.querySelectorAll('[data-document-file]'));
+      const fileMenuTriggers = Array.from(workspace.querySelectorAll('[data-document-menu-trigger]'));
+      const contextMenu = workspace.querySelector('[data-document-context-menu]');
+      const downloadLink = workspace.querySelector('[data-document-download]');
+      const frame = workspace.querySelector('[data-document-frame]');
+      const empty = workspace.querySelector('[data-document-empty]');
+      const title = workspace.querySelector('[data-document-title]');
+      const openLink = workspace.querySelector('[data-document-open]');
+      const printButton = workspace.querySelector('[data-document-print]');
+      const settingsButton = workspace.querySelector('[data-document-settings]');
+      const settingsPanel = workspace.querySelector('[data-document-print-settings]');
+      const printerSelect = workspace.querySelector('[data-document-printer]');
+      const printerLabel = workspace.querySelector('[data-document-printer-label]');
+      const printerStatus = workspace.querySelector('[data-document-print-status]');
+      const refreshButton = workspace.querySelector('[data-document-printers-refresh]');
+      const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '{{ csrf_token }}';
+      const printerStorageKey = 'shipping_documents_gm_printer_v2';
+      const bridgeUrls = ['http://127.0.0.1:17841/whoami', 'http://localhost:17841/whoami'];
+      const isFullboxDesktopApp = /FullboxDesktop\//i.test(window.navigator.userAgent || '');
+      const state = { selected: null, agentId: '', printing: false, applicationPrint: isFullboxDesktopApp };
+
+      const normalize = (value) => String(value || '').trim();
+      const isPdf = (filename) => /\.pdf$/i.test(normalize(filename));
+      const isVirtualPrinter = (name) => {
+        const value = normalize(name).toLowerCase();
+        return ['pdf', 'xps', 'onenote', 'fax', 'microsoft print', 'save to pdf', 'anydesk', 'rustdesk', 'remote desktop', 'redirected']
+          .some((marker) => value.includes(marker));
+      };
+      const setStatus = (message, kind = '') => {
+        if (!printerStatus) return;
+        printerStatus.textContent = message;
+        printerStatus.classList.remove('ok', 'error');
+        if (kind) printerStatus.classList.add(kind);
+      };
+      const currentPrinter = () => normalize(printerSelect?.value);
+      const updatePrintAvailability = () => {
+        const printable = Boolean(state.selected && isPdf(state.selected.dataset.filename));
+        const printer = currentPrinter();
+        if (printerLabel) printerLabel.textContent = state.applicationPrint ? 'через приложение' : (printer || 'не выбран');
+        if (printButton) {
+          printButton.disabled = state.printing || !printable || (!state.applicationPrint && (!printer || !state.agentId));
+        }
+      };
+      const renderFilePrintStatus = (button, result) => {
+        const mark = button?.querySelector('[data-document-print-mark]');
+        if (!mark) return;
+        const status = normalize(result?.status).toLowerCase();
+        const printed = Boolean(result?.printed || status === 'printed');
+        button.classList.toggle('is-printed', printed);
+        mark.classList.toggle('pending', !printed && ['pending', 'printing'].includes(status));
+        if (printed) {
+          mark.textContent = '✓ Распечатан';
+          mark.hidden = false;
+        } else if (status === 'printing') {
+          mark.textContent = 'Печатается…';
+          mark.hidden = false;
+        } else if (status === 'pending') {
+          mark.textContent = 'В очереди печати';
+          mark.hidden = false;
+        } else {
+          mark.textContent = '';
+          mark.hidden = true;
+        }
+      };
+      const refreshFilePrintStatus = async (button) => {
+        if (!button || !isPdf(button.dataset.filename)) return null;
+        try {
+          const response = await fetch(normalize(button.dataset.printStatusUrl), { cache: 'no-store' });
+          if (!response.ok) return null;
+          const result = await response.json().catch(() => null);
+          if (result) renderFilePrintStatus(button, result);
+          return result;
+        } catch (error) {
+          return null;
+        }
+      };
+      const pollUntilPrinted = async (button, attemptsLeft = 30) => {
+        if (!button || attemptsLeft < 1) return;
+        await new Promise((resolve) => window.setTimeout(resolve, 2000));
+        const result = await refreshFilePrintStatus(button);
+        if (!result?.printed && ['pending', 'printing'].includes(normalize(result?.status).toLowerCase())) {
+          void pollUntilPrinted(button, attemptsLeft - 1);
+        }
+      };
+
+      const closeContextMenu = () => {
+        if (contextMenu) contextMenu.hidden = true;
+      };
+      const openContextMenu = (button, x, y) => {
+        if (!contextMenu || !downloadLink || !button) return;
+        const filename = normalize(button.dataset.filename) || 'document';
+        downloadLink.href = normalize(button.dataset.downloadUrl);
+        downloadLink.setAttribute('download', filename);
+        contextMenu.hidden = false;
+        const width = contextMenu.offsetWidth || 190;
+        const height = contextMenu.offsetHeight || 46;
+        contextMenu.style.left = `${Math.max(8, Math.min(x, window.innerWidth - width - 8))}px`;
+        contextMenu.style.top = `${Math.max(8, Math.min(y, window.innerHeight - height - 8))}px`;
+        downloadLink.focus({ preventScroll: true });
+      };
+
+      fileButtons.forEach((button) => {
+        button.addEventListener('contextmenu', (event) => {
+          event.preventDefault();
+          openContextMenu(button, event.clientX, event.clientY);
+        });
+        button.addEventListener('keydown', (event) => {
+          if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+          event.preventDefault();
+          const rect = button.getBoundingClientRect();
+          openContextMenu(button, rect.right - 8, rect.top + 36);
+        });
+      });
+      fileMenuTriggers.forEach((trigger) => {
+        trigger.addEventListener('click', (event) => {
+          event.stopPropagation();
+          const button = trigger.closest('.document-file-card')?.querySelector('[data-document-file]');
+          const rect = trigger.getBoundingClientRect();
+          openContextMenu(button, rect.right, rect.bottom + 4);
+        });
+      });
+      downloadLink?.addEventListener('click', () => closeContextMenu());
+      document.addEventListener('click', (event) => {
+        if (!contextMenu?.contains(event.target)) closeContextMenu();
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeContextMenu();
+      });
+      window.addEventListener('resize', closeContextMenu);
+      workspace.querySelector('.document-file-panel')?.addEventListener('scroll', closeContextMenu);
+
+      const selectDocument = (button) => {
+        state.selected = button;
+        fileButtons.forEach((item) => item.classList.toggle('is-active', item === button));
+        const filename = normalize(button.dataset.filename);
+        const previewUrl = normalize(button.dataset.previewUrl);
+        if (title) title.textContent = filename || 'Документ';
+        if (openLink) openLink.href = previewUrl;
+        if (isPdf(filename)) {
+          if (frame) {
+            frame.src = previewUrl;
+            frame.hidden = false;
+          }
+          if (empty) empty.hidden = true;
+        } else {
+          if (frame) {
+            frame.src = 'about:blank';
+            frame.hidden = true;
+          }
+          if (empty) {
+            empty.textContent = 'Предпросмотр и прямая печать доступны для PDF. Этот файл можно открыть в новой вкладке.';
+            empty.hidden = false;
+          }
+        }
+        updatePrintAvailability();
+      };
+
+      fileButtons.forEach((button) => button.addEventListener('click', () => selectDocument(button)));
+      const firstDocument = fileButtons.find((button) => isPdf(button.dataset.filename)) || fileButtons[0];
+      if (firstDocument) selectDocument(firstDocument);
+      fileButtons.filter((button) => isPdf(button.dataset.filename)).forEach((button) => {
+        void refreshFilePrintStatus(button);
+      });
+
+      if (!printerSelect) return;
+
+      const enableApplicationPrint = () => {
+        state.applicationPrint = true;
+        state.agentId = '';
+        printerSelect.innerHTML = '<option value="__application__">Печать через приложение</option>';
+        printerSelect.value = '__application__';
+        printerSelect.disabled = true;
+        settingsPanel?.classList.remove('is-open');
+        settingsButton?.setAttribute('aria-expanded', 'false');
+        if (settingsButton) settingsButton.hidden = true;
+        if (refreshButton) refreshButton.hidden = true;
+        setStatus('Агент не требуется: PDF будет открыт в системном окне печати приложения.', 'ok');
+        updatePrintAvailability();
+      };
+
+      const fetchBridge = async (url) => {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), 1400);
+        try {
+          const response = await fetch(url, { method: 'GET', mode: 'cors', cache: 'no-store', signal: controller.signal });
+          if (!response.ok) return null;
+          const data = await response.json().catch(() => null);
+          if (!data || data.ok === false || !data.agentId) return null;
+          return data;
+        } catch (error) {
+          return null;
+        } finally {
+          window.clearTimeout(timer);
+        }
+      };
+
+      const preferredStoredPrinter = () => normalize(localStorage.getItem(printerStorageKey));
+      const printerRank = (name) => {
+        const value = normalize(name).toLowerCase();
+        if (value.includes('шк гм') || value.includes('shk gm')) return 0;
+        if (value.includes('xprinter xp-365b')) return 1;
+        if (value.includes('xprinter')) return 2;
+        if (value.includes('tsc')) return 3;
+        if (value.includes('zebra')) return 4;
+        if (value.includes('hprt') || value.includes('godex')) return 5;
+        return 10;
+      };
+
+      const loadPrinters = async () => {
+        refreshButton?.setAttribute('disabled', 'disabled');
+        setStatus('Ищем локальный агент и принтер ШК ГМ…');
+        let bridge = null;
+        for (const url of bridgeUrls) {
+          bridge = await fetchBridge(url);
+          if (bridge) break;
+        }
+        if (!bridge) {
+          state.agentId = '';
+          printerSelect.innerHTML = '<option value="">Агент печати не найден</option>';
+          setStatus('Агент печати не в сети. Запустите агент на этом компьютере и нажмите «Обновить список».', 'error');
+          settingsPanel?.classList.add('is-open');
+          settingsButton?.setAttribute('aria-expanded', 'true');
+          updatePrintAvailability();
+          refreshButton?.removeAttribute('disabled');
+          return;
+        }
+        state.agentId = normalize(bridge.agentId);
+        const printers = Array.from(new Set((Array.isArray(bridge.printers) ? bridge.printers : [])
+          .map(normalize)
+          .filter((name) => name && !isVirtualPrinter(name))));
+        printerSelect.innerHTML = '';
+        printers.forEach((name) => {
+          const option = document.createElement('option');
+          option.value = name;
+          option.textContent = name;
+          printerSelect.appendChild(option);
+        });
+        if (!printers.length) {
+          printerSelect.innerHTML = '<option value="">Физические принтеры не найдены</option>';
+          setStatus('Агент найден, но физические принтеры недоступны.', 'error');
+          updatePrintAvailability();
+          refreshButton?.removeAttribute('disabled');
+          return;
+        }
+        const stored = preferredStoredPrinter();
+        const defaultPrinter = normalize(bridge.defaultPrinter);
+        const labelPrinter = [...printers]
+          .filter((name) => printerRank(name) < 10)
+          .sort((left, right) => printerRank(left) - printerRank(right))[0];
+        const selected = printers.find((name) => name === stored)
+          || labelPrinter
+          || printers.find((name) => name === defaultPrinter && !isVirtualPrinter(name))
+          || printers[0];
+        printerSelect.value = selected;
+        localStorage.setItem(printerStorageKey, selected);
+        setStatus(`Принтер ШК ГМ готов: ${selected}`, 'ok');
+        updatePrintAvailability();
+        refreshButton?.removeAttribute('disabled');
+      };
+
+      printerSelect.addEventListener('change', () => {
+        const printer = currentPrinter();
+        if (printer) {
+          localStorage.setItem(printerStorageKey, printer);
+          setStatus(`Принтер ШК ГМ выбран: ${printer}`, 'ok');
+        }
+        updatePrintAvailability();
+      });
+      settingsButton?.addEventListener('click', () => {
+        const open = !settingsPanel?.classList.contains('is-open');
+        settingsPanel?.classList.toggle('is-open', open);
+        settingsButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+      refreshButton?.addEventListener('click', () => { void loadPrinters(); });
+      printButton?.addEventListener('click', async () => {
+        if (!state.selected || state.printing || !isPdf(state.selected.dataset.filename)) return;
+        if (state.applicationPrint) {
+          state.printing = true;
+          const previousLabel = printButton.textContent;
+          printButton.textContent = 'Открываем печать…';
+          updatePrintAvailability();
+          setStatus(`Открываем ${normalize(state.selected.dataset.filename)} для печати…`);
+          try {
+            const printWindow = frame?.contentWindow;
+            if (!printWindow) throw new Error('Не удалось открыть системное окно печати.');
+            printWindow.focus();
+            printWindow.print();
+            const printed = window.confirm('Документ успешно распечатан?');
+            if (!printed) {
+              setStatus('Печать не подтверждена — документ не отмечен распечатанным.');
+              return;
+            }
+            const response = await fetch(normalize(state.selected.dataset.printUrl), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+              body: JSON.stringify({ browser_printed: true }),
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || result.ok === false) {
+              throw new Error(result.error || 'Не удалось сохранить отметку о печати.');
+            }
+            renderFilePrintStatus(state.selected, { status: 'printed', printed: true });
+            setStatus(`${result.filename || 'PDF'} распечатан через приложение.`, 'ok');
+          } catch (error) {
+            setStatus(error?.message || 'Не удалось открыть PDF для печати.', 'error');
+          } finally {
+            state.printing = false;
+            printButton.textContent = previousLabel;
+            updatePrintAvailability();
+          }
+          return;
+        }
+        const printer = currentPrinter();
+        if (!printer || !state.agentId) {
+          settingsPanel?.classList.add('is-open');
+          setStatus('Выберите доступный принтер ШК ГМ.', 'error');
+          return;
+        }
+        state.printing = true;
+        const previousLabel = printButton.textContent;
+        printButton.textContent = 'Отправляем…';
+        updatePrintAvailability();
+        setStatus(`Подготавливаем ${normalize(state.selected.dataset.filename)} к печати…`);
+        try {
+          const response = await fetch(normalize(state.selected.dataset.printUrl), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ printer_name: printer, agent_id: state.agentId }),
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok || result.ok === false) {
+            throw new Error(result.error || 'Не удалось отправить PDF на печать.');
+          }
+          renderFilePrintStatus(state.selected, { status: 'pending', printed: false });
+          void pollUntilPrinted(state.selected);
+          setStatus(`${result.filename || 'PDF'}: ${result.page_count || 1} стр. отправлено на ${printer}.`, 'ok');
+        } catch (error) {
+          setStatus(error?.message || 'Не удалось отправить PDF на печать.', 'error');
+          settingsPanel?.classList.add('is-open');
+        } finally {
+          state.printing = false;
+          printButton.textContent = previousLabel;
+          updatePrintAvailability();
+        }
+      });
+
+      if (isFullboxDesktopApp) enableApplicationPrint();
+      else void loadPrinters();
+    })();
+  </script>
+  <script>
+    (() => {
+      const table = document.querySelector('[data-position-table="full"]');
+      if (!table) return;
+      ['requested', 'collected', 'shipped'].forEach((key) => {
+        const total = Array.from(table.querySelectorAll(`[data-position-quantity="${key}"]`))
+          .reduce((sum, cell) => sum + (Number.parseInt(cell.textContent.trim(), 10) || 0), 0);
+        const target = table.querySelector(`[data-position-total="${key}"]`);
+        if (target) target.textContent = total.toLocaleString('ru-RU');
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{% extends "hr/base.html" %}
+
+{% block title %}Журнал расчёта{% endblock %}
+
+{% block content %}
+  <header class="page-head">
+    <div>
+      <div class="breadcrumbs"><a href="{% url 'hr:monthly-payroll-report' %}">Месячный отчёт</a><span>›</span><span>Журнал</span></div>
+      <h1>Журнал расчёта</h1>
+      <div class="muted">Создание, изменение, подтверждение и экспорт зарплатных данных.</div>
+    </div>
+  </header>
+  <section class="panel">
+    <form class="filter-bar" method="get">
+      <div class="field"><label for="audit-month">Месяц</label><input id="audit-month" type="month" name="month" value="{{ month_value }}"></div>
+      <button class="btn primary" type="submit">Показать</button>
+    </form>
+  </section>
+  <section class="panel">
+    <table>
+      <thead><tr><th>Время</th><th>Действие</th><th>Объект</th><th>Сотрудник</th><th>Инициатор</th><th>Изменения</th></tr></thead>
+      <tbody>
+        {% for event in events %}
+          <tr>
+            <td>{{ event.created_at|date:"d.m.Y H:i:s" }}</td>
+            <td>{{ event.get_action_display }}</td>
+            <td>{{ event.object_type }}{% if event.object_id %} #{{ event.object_id }}{% endif %}</td>
+            <td>{{ event.employee.full_name|default:"—" }}</td>
+            <td>{{ event.actor.get_full_name|default:event.actor.username|default:"Система" }}</td>
+            <td class="audit-change">{{ event.changes }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">За выбранный месяц событий нет.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

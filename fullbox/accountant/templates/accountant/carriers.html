@@ -1,0 +1,54 @@
+{% extends "accountant/_base.html" %}
+{% block title %}Перевозчики{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+  <div>
+    <h1 class="page-title">Перевозчики</h1>
+    <div class="page-sub">Справочник транспортных компаний для рейсов логистики. В рейсе видны только активные.</div>
+  </div>
+  <a class="btn primary" href="/accountant/carriers/new/">Добавить перевозчика</a>
+</div>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="{% if message.tags == 'error' %}err-box{% else %}warn-box{% endif %}" style="{% if 'success' in message.tags %}background:var(--green-soft);border-color:transparent;color:var(--green-strong){% endif %}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="card" style="padding:0;overflow:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Перевозчик</th>
+        <th>ИНН</th>
+        <th>Контакт</th>
+        <th>Статус</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in carriers %}
+      <tr>
+        <td>
+          <div style="font-weight:800">{{ c.short_name|default:c.name }}</div>
+          <div class="muted" style="font-size:12px;margin-top:2px">{{ c.name }}</div>
+        </td>
+        <td>{{ c.inn|default:"—" }}</td>
+        <td>
+          <div>{{ c.contact_person|default:"—" }}</div>
+          {% if c.phone %}<div class="muted" style="font-size:12px;margin-top:2px">{{ c.phone }}</div>{% endif %}
+        </td>
+        <td>
+          {% if c.is_active %}<span class="badge green">Активен</span>{% else %}<span class="badge">Неактивен</span>{% endif %}
+        </td>
+        <td style="text-align:right">
+          <a class="btn" href="/accountant/carriers/{{ c.id }}/">Изменить</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="muted">Перевозчиков пока нет. Добавьте компанию или ИП — они появятся в выборе рейса.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

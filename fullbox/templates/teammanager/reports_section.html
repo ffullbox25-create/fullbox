@@ -1,0 +1,110 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}{{ section.title }}{% endblock %}
+
+{% block extra_css %}
+  .breadcrumbs { display:flex; gap:8px; flex-wrap:wrap; color:var(--muted); font-size:12px; font-weight:800; }
+  .breadcrumbs a { color:var(--accent-strong); }
+  .section-head { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+  .title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:32px; letter-spacing:-.03em; line-height:1.1; }
+  .sub { margin-top:6px; color:var(--muted); font-size:14px; line-height:1.45; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; }
+  .search-card, .panel { display:grid; gap:12px; padding:16px; border:1px solid var(--stroke); border-radius:20px; background:var(--surface); box-shadow:var(--shadow); }
+  .search-line { display:grid; grid-template-columns:minmax(260px,1fr) auto auto; gap:10px; align-items:end; }
+  .field-wrap { display:grid; gap:5px; min-width:0; }
+  .field-wrap span { color:var(--muted); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+  .field { width:100%; min-height:40px; border:1px solid var(--stroke); border-radius:12px; background:#fff; padding:9px 12px; font:inherit; font-size:13px; color:var(--ink); box-sizing:border-box; }
+  .report-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  .report-card { display:grid; gap:10px; padding:15px; border:1px solid var(--stroke); border-radius:18px; background:#fff; color:var(--ink); text-decoration:none; }
+  .report-card:hover { border-color:rgba(14,107,91,.35); }
+  .report-card-head { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+  .report-title { font-size:17px; font-weight:900; }
+  .report-desc { color:var(--muted); font-size:13px; line-height:1.4; }
+  .report-meta { display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; color:var(--muted); font-size:12px; }
+  .formats { display:flex; gap:5px; flex-wrap:wrap; }
+  .format { border-radius:999px; background:var(--surface-2); border:1px solid var(--stroke); padding:3px 7px; font-size:10px; font-weight:900; color:var(--muted); }
+  .favorite { color:#8a5a00; font-weight:900; }
+  .favorite-btn { min-width:34px; min-height:34px; border:1px solid var(--stroke); border-radius:12px; background:var(--surface-2); color:#8a5a00; cursor:pointer; font-weight:900; }
+  .favorite-btn:hover { border-color:rgba(138,90,0,.35); background:#fff5d8; }
+  .empty { padding:18px; border:1px dashed var(--stroke); border-radius:16px; background:var(--surface-2); color:var(--muted); font-size:13px; text-align:center; }
+  .layout { display:grid; grid-template-columns:minmax(0,1fr); gap:14px; align-items:start; }
+  @media (max-width:1200px){ .report-grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  @media (max-width:860px){ .report-grid,.search-line{grid-template-columns:1fr;} }
+{% endblock %}
+
+{% block content %}
+  <div class="breadcrumbs">
+    <a href="/team-manager/reports/">Все отчёты</a>
+    <span>→</span>
+    <span>{{ section.title }}</span>
+  </div>
+
+  <div class="section-head">
+    <div>
+      <h1 class="title">{{ section.title }}</h1>
+      <div class="sub">{{ section.description }}</div>
+    </div>
+    <div class="actions">
+      <a class="btn" href="/team-manager/reports/">Все отчёты</a>
+      <a class="btn" href="/team-manager/reports/history/">История выгрузок</a>
+      <a class="btn" href="/team-manager/reports/saved/">Сохранённые</a>
+    </div>
+  </div>
+
+  <form class="search-card" method="get">
+    <div class="search-line">
+      <label class="field-wrap">
+        <span>Поиск внутри направления</span>
+        <input class="field" type="search" name="q" value="{{ page_query }}" placeholder="остатки, ячейки, срок годности, задолженность">
+      </label>
+      {% if global_filter_query %}
+        <input type="hidden" name="period" value="{{ global_filters.period }}">
+        <input type="hidden" name="date_from" value="{{ global_filters.date_from }}">
+        <input type="hidden" name="date_to" value="{{ global_filters.date_to }}">
+        <input type="hidden" name="client_id" value="{{ global_filters.client_id }}">
+        <input type="hidden" name="warehouse_id" value="{{ global_filters.warehouse_id }}">
+        <input type="hidden" name="operation_type" value="{{ global_filters.operation_type }}">
+        <input type="hidden" name="legal_entity" value="{{ global_filters.legal_entity }}">
+      {% endif %}
+      <button class="btn primary" type="submit">Найти</button>
+      <a class="btn" href="/team-manager/reports/{{ section.key }}/">Сбросить</a>
+    </div>
+  </form>
+
+  <div class="layout">
+    <section class="panel">
+      <div>
+        <h2 class="title" style="font-size:22px;">Отчёты направления</h2>
+        <div class="sub">Найдено: {{ section_search_results_count }} из {{ section.report_count }}</div>
+      </div>
+      {% if section_reports %}
+        <div class="report-grid">
+          {% for report in section_reports %}
+            <div class="report-card">
+              <div class="report-card-head">
+                <a class="report-title" href="{{ report.url_with_filters }}">{% if report.is_favorite %}<span class="favorite">★</span> {% endif %}{{ report.title }}</a>
+                <form method="post" action="/team-manager/reports/{{ section.key }}/{{ report.code }}/favorite/">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button class="favorite-btn" type="submit" title="{% if report.is_favorite %}Убрать из избранного{% else %}Добавить в избранное{% endif %}">★</button>
+                </form>
+              </div>
+              <div class="report-desc">{{ report.description }}</div>
+              <div class="report-meta">
+                <span class="formats">
+                  <span class="format">ДАННЫЕ ОНЛАЙН</span>
+                  {% for format in report.export_formats %}
+                    <span class="format">{{ format }}</span>
+                  {% endfor %}
+                </span>
+                <a href="{{ report.url_with_filters }}">Открыть →</a>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">По вашему запросу отчёты не найдены. Попробуйте изменить запрос.</div>
+      {% endif %}
+    </section>
+  </div>
+{% endblock %}

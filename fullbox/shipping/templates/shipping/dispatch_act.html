@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Акт отгрузки {{ order.number }} | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --stroke: rgba(28,31,26,0.12);
+      --sun: #f2b747;
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+      --ok: #166534;
+      --warn: #92400e;
+      --danger: #7f1d1d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    .wrap { padding: 24px; }
+    .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 20px; min-height: calc(100vh - 48px); }
+    .side, .panel, .section { background: var(--surface); border: 1px solid var(--stroke); border-radius: 22px; box-shadow: var(--shadow); }
+    .side { padding: 18px; display: grid; gap: 14px; align-content: start; }
+    .brand { font-family: "Bricolage Grotesque", "Manrope", sans-serif; font-size: 24px; }
+    .profile, .nav-link { border: 1px solid var(--stroke); border-radius: 16px; background: var(--surface-2); padding: 12px; }
+    .nav { display: grid; gap: 10px; }
+    .nav-link { display: grid; gap: 4px; text-decoration: none; color: inherit; }
+    .nav-link.primary { background: linear-gradient(135deg, rgba(242,183,71,0.45), rgba(14,107,91,0.15)); border-color: transparent; }
+    .nav-title { font-weight: 700; }
+    .nav-sub, .muted, .hint { color: var(--muted); font-size: 12px; }
+    .content { display: grid; gap: 18px; }
+    .panel, .section { padding: 18px; }
+    .panel-title, h2 { margin: 0 0 8px; font-family: "Bricolage Grotesque", "Manrope", sans-serif; }
+    .panel-title { font-size: 28px; }
+    .meta, .chips, .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; border: 1px solid var(--stroke); padding: 5px 10px; font-size: 12px; font-weight: 700; background: rgba(28,31,26,0.04); }
+    .chip.ok { color: var(--ok); background: rgba(22,101,52,0.12); }
+    .chip.warn { color: var(--warn); background: rgba(146,64,14,0.12); }
+    .btn {
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      padding: 10px 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn.primary { background: linear-gradient(120deg, var(--sun), #ffd88a); border-color: transparent; color: #2a2110; }
+    .msg { border-radius: 12px; padding: 10px 12px; font-size: 14px; border: 1px solid var(--stroke); background: rgba(255,255,255,0.65); }
+    .msg.ok { border-color: rgba(14,107,91,0.35); background: rgba(14,107,91,0.12); color: #0b5246; }
+    .msg.err { border-color: rgba(212,84,60,0.35); background: rgba(212,84,60,0.14); color: var(--danger); }
+    .grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px; }
+    .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .fact { border: 1px solid var(--stroke); border-radius: 14px; background: var(--surface-2); padding: 12px; }
+    .fact-label { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .fact-value { font-weight: 700; }
+    .table-wrap { overflow: auto; border: 1px solid var(--stroke); border-radius: 14px; background: rgba(255,255,255,0.65); }
+    table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    th, td { padding: 10px; border-bottom: 1px solid var(--stroke); text-align: left; vertical-align: top; }
+    th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    tbody tr:last-child td { border-bottom: none; }
+    @media (max-width: 1180px) {
+      .layout, .grid, .facts { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand">FULLBOX</div>
+        <div class="profile">
+          <div style="font-weight:700;">{% include "partials/current_user.html" %}</div>
+          <div class="muted">Акт отгрузки</div>
+        </div>
+        <nav class="nav">
+          <a class="nav-link primary" href="{{ detail_url }}">
+            <span class="nav-title">Заявка {{ order.number }}</span>
+            <span class="nav-sub">Вернуться в карточку отгрузки</span>
+          </a>
+          {% if trip %}
+            <a class="nav-link" href="/logistics/trips/{{ trip.pk }}/">
+              <span class="nav-title">{{ trip.number }}</span>
+              <span class="nav-sub">Карточка рейса</span>
+            </a>
+          {% endif %}
+          <a class="nav-link" href="{{ cabinet_url }}">
+            <span class="nav-title">Кабинет</span>
+            <span class="nav-sub">Личный кабинет</span>
+          </a>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <section class="panel">
+          <h1 class="panel-title">Акт отгрузки {{ order.number }}</h1>
+          <div class="muted">Факт отгрузки зафиксирован складом по подтвержденным сканам ШК. Заявка клиента и складской факт показываются отдельно.</div>
+          <div class="chips" style="margin-top:12px;">
+            <span class="chip warn">{{ order.get_status_display }}</span>
+            <span class="chip">Клиент: {{ order.agency.agn_name|default:"-" }}</span>
+            <span class="chip">Транспорт: {{ payload.vehicle_type_label|default:"-" }}</span>
+            <span class="chip">Паллет: {{ payload.pallet_count|default:"0" }}</span>
+            <span class="chip">Коробов: {{ payload.box_count|default:"0" }}</span>
+            {% if dispatch_stage.warehouse_confirmed %}
+              <span class="chip ok">Погрузка подтверждена складом</span>
+            {% else %}
+              <span class="chip warn">Ожидаются сканы погрузки</span>
+            {% endif %}
+          </div>
+          {% if sign_status == "logistician" %}
+            <div class="msg ok" style="margin-top:12px;">Акт подписан логистом и передан менеджеру.</div>
+          {% elif sign_status == "manager" %}
+            <div class="msg ok" style="margin-top:12px;">Акт подписан менеджером, отправлен клиенту, заявка закрыта.</div>
+          {% endif %}
+          {% if sign_error == "trip_required" %}
+            <div class="msg err" style="margin-top:12px;">Для транспорта ФуллБокс сначала включите заявку в рейс и задайте порядок погрузки.</div>
+          {% elif sign_error == "ship_failed" %}
+            <div class="msg err" style="margin-top:12px;">Не удалось закрыть заявку при подписи менеджера. Проверьте остатки и повторите попытку.</div>
+          {% elif sign_error == "forbidden" %}
+            <div class="msg err" style="margin-top:12px;">Подписание недоступно в текущем статусе или роли.</div>
+          {% endif %}
+        </section>
+
+        <div class="grid">
+          <section class="section">
+            <h2>Параметры отгрузки</h2>
+            <div class="facts">
+              <div class="fact"><div class="fact-label">Склад назначения</div><div class="fact-value">{{ order.destination_warehouse|default:"-" }}</div></div>
+              <div class="fact"><div class="fact-label">Адрес</div><div class="fact-value">{{ order.destination_address|default:"-" }}</div></div>
+              <div class="fact"><div class="fact-label">Слот</div><div class="fact-value">{% if order.slot_date %}{{ order.slot_date|date:"d.m.Y" }}{% else %}-{% endif %}</div></div>
+              <div class="fact"><div class="fact-label">Плановая дата</div><div class="fact-value">{% if order.eta_at %}{{ order.eta_at|date:"d.m.Y" }}{% else %}-{% endif %}</div></div>
+              <div class="fact"><div class="fact-label">Номер машины</div><div class="fact-value">{{ payload.trip_vehicle_number|default:payload.vehicle_number|default:"-" }}</div></div>
+              <div class="fact"><div class="fact-label">Телефон водителя</div><div class="fact-value">{{ payload.trip_driver_phone|default:payload.driver_phone|default:"-" }}</div></div>
+            </div>
+            {% if trip %}
+              <div class="table-wrap" style="margin-top:14px;">
+                <table>
+                  <tbody>
+                    <tr><th>Рейс</th><td>{{ trip.number }}</td></tr>
+                    <tr><th>Дата рейса</th><td>{% if trip.trip_date %}{{ trip.trip_date|date:"d.m.Y" }}{% else %}-{% endif %}</td></tr>
+                    <tr><th>Очередь погрузки</th><td>{{ payload.loading_sequence|default:"0" }}</td></tr>
+                    <tr><th>Очередь доставки</th><td>{{ payload.delivery_sequence|default:"0" }}</td></tr>
+                    <tr><th>Комментарий логиста</th><td>{{ payload.trip_order_comment|default:"-" }}</td></tr>
+                    <tr><th>Комментарий по маршруту</th><td>{{ payload.trip_route_comment|default:"-" }}</td></tr>
+                    <tr><th>Комментарий по погрузке</th><td>{{ payload.trip_loading_comment|default:"-" }}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            {% elif requires_trip and not has_trip %}
+              <div class="msg err" style="margin-top:14px;">Эта заявка идет нашим транспортом, поэтому без рейса логист не может подписать акт и закрыть отгрузку.</div>
+            {% else %}
+              <div class="msg" style="margin-top:14px;">Заявка идет транспортом клиента. Логист подписывает акт после фактической погрузки машины клиента.</div>
+            {% endif %}
+          </section>
+
+          <section class="section">
+            <h2>Подписи и закрытие</h2>
+            <div class="table-wrap">
+              <table>
+                <tbody>
+                  <tr>
+                    <th>Факт склада по ШК</th>
+                    <td>{% if dispatch_stage.warehouse_confirmed %}Подтвержден{% else %}Ожидается{% endif %}</td>
+                    <td colspan="2">{{ warehouse_confirmed_at|default:"-" }}</td>
+                  </tr>
+                  <tr>
+                    <th>Подпись логиста</th>
+                    <td>{% if dispatch_stage.logistician_signed %}Подписано{% else %}Ожидается{% endif %}</td>
+                    <td>{{ logistician_employee.full_name|default:"-" }}</td>
+                    <td>{{ logistician_signed_at|default:"-" }}</td>
+                  </tr>
+                  <tr>
+                    <th>Подпись менеджера</th>
+                    <td>{% if dispatch_stage.manager_signed %}Подписано{% else %}Ожидается{% endif %}</td>
+                    <td>{{ manager_employee.full_name|default:"-" }}</td>
+                    <td>{{ manager_signed_at|default:"-" }}</td>
+                  </tr>
+                  <tr>
+                    <th>Отправка клиенту</th>
+                    <td>{% if dispatch_stage.act_sent %}Отправлен{% else %}Ожидается{% endif %}</td>
+                    <td colspan="2">{{ act_sent_at|default:"-" }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="actions" style="margin-top:14px;">
+              {% if can_logistician_sign %}
+                <form method="post" action="{% url 'shipping:dispatch-act-sign-logistician' order.pk %}">
+                  {% csrf_token %}
+                  <button class="btn primary" type="submit">Логист подписывает акт</button>
+                </form>
+              {% endif %}
+              {% if can_manager_sign %}
+                <div class="msg" style="font-weight:700; color:#8a5b00; margin-bottom:8px;">Менеджер должен подписать акт отгрузки</div>
+                <form method="post" action="{% url 'shipping:dispatch-act-sign-manager' order.pk %}" onsubmit="return confirm('Подписать акт, отправить клиенту и закрыть заявку?');">
+                  {% csrf_token %}
+                  <button class="btn primary" type="submit">Подписать акт отгрузки и закрыть</button>
+                </form>
+              {% endif %}
+              {% if not dispatch_stage.warehouse_confirmed %}
+                <div class="msg">Акт станет доступен после сканирования всех паллет и завершения погрузки рейса.</div>
+              {% elif not can_logistician_sign and not can_manager_sign and order.status == "packed" %}
+                <div class="msg">Подписи будут доступны по роли и по порядку процесса.</div>
+              {% endif %}
+              {% if dispatch_stage.logistician_signed and not dispatch_stage.manager_signed and not can_manager_sign %}
+                <div class="msg" style="font-weight:700; color:#8a5b00;">Менеджер должен подписать акт отгрузки</div>
+              {% endif %}
+            </div>
+          </section>
+        </div>
+
+        <section class="section">
+          <h2>Состав отгрузки</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Артикул</th>
+                  <th>Наименование</th>
+                  <th>ШК</th>
+                  <th>Запрошено</th>
+                  <th>Резерв</th>
+                  <th>Отгружено</th>
+                  <th>Недостача</th>
+                  <th>Излишек</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in items %}
+                  <tr>
+                    <td>{{ item.sku_code }}</td>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.barcode }}</td>
+                    <td>{{ item.qty_requested }}</td>
+                    <td>{{ item.qty_reserved }}</td>
+                    <td>{{ item.qty_shipped }}</td>
+                    <td>{{ item.shortage_qty }}</td>
+                    <td>{{ item.excess_qty }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="8" class="muted">Позиции не найдены.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {% if pallets %}
+          <section class="section">
+            <h2>Новые паллеты</h2>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Паллета</th>
+                    <th>Код</th>
+                    <th>Коробов</th>
+                    <th>Количество</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for pallet in pallets %}
+                    <tr>
+                      <td>{{ pallet.label|default:"-" }}</td>
+                      <td>{{ pallet.code|default:"-" }}</td>
+                      <td>{{ pallet.box_count|default:"0" }}</td>
+                      <td>{{ pallet.qty|default:"0" }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        {% endif %}
+      </main>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{% extends "accountant/_base.html" %}
+{% block title %}Тарифы логистики клиентов{% endblock %}
+{% block content %}
+<div><h1 class="page-title">Логистика</h1><div class="page-sub">Индивидуальные цены доставки клиента. Новый черновик копирует активные направления из основного прайса.</div></div>
+{% include "accountant/_client_tariff_sections.html" with active_tariff_section="logistics" %}
+{% for message in messages %}<div class="warn-box">{{ message }}</div>{% endfor %}
+<form method="post" class="card" style="display:grid;grid-template-columns:1.6fr 1fr 1fr auto;gap:10px;align-items:end">{% csrf_token %}
+<div><label class="lbl">Клиент</label><select class="field" name="client_id" required><option value="">Выберите клиента</option>{% for client in clients %}<option value="{{ client.id }}">{{ client.short_name|default:client.agn_name }}</option>{% endfor %}</select></div>
+<div><label class="lbl">Название редакции</label><input class="field" name="name" placeholder="Логистика с 01.08.2026"></div><div><label class="lbl">Дата начала</label><input class="field" type="date" name="valid_from"></div><button class="btn primary" type="submit">Создать из основного прайса</button></form>
+<div class="card" style="padding:0;overflow:auto"><table><thead><tr><th>Клиент</th><th>Редакция</th><th>Период</th><th>Статус</th><th>Направлений</th><th></th></tr></thead><tbody>{% for tariff in tariffs %}<tr><td>{{ tariff.client.short_name|default:tariff.client.agn_name }}</td><td>{{ tariff.name }}</td><td>{{ tariff.valid_from|date:'d.m.Y' }}</td><td><span class="badge {% if tariff.status == 'active' %}green{% else %}orange{% endif %}">{{ tariff.get_status_display }}</span></td><td>{{ tariff.items.count }}</td><td><a class="btn" href="/accountant/logistics/tariffs/{{ tariff.id }}/">Открыть</a></td></tr>{% empty %}<tr><td colspan="6" class="muted" style="padding:32px;text-align:center">Индивидуальных логистических тарифов нет.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

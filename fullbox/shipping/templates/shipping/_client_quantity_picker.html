@@ -1,0 +1,336 @@
+<input type="hidden" name="stock_input_mode" id="client-stock-input-mode" value="{{ client_stock_input_mode|default:'quantity' }}">
+
+{% if client_quantity_rows %}
+  <div class="client-quantity-picker" id="client-quantity-picker">
+    <div class="client-quantity-head">
+      <div>
+        <h3 class="card-title" style="font-size:16px;margin:0 0 4px;">Товары на свободном остатке</h3>
+        <p class="hint" style="margin:0;">
+          Введите нужное количество в штуках один раз по товару. Система сама использует целые короба,
+          а неизбежный остаток передаст складу как поштучный отбор.
+        </p>
+      </div>
+      <span class="client-quantity-count" id="client-quantity-visible-count">{{ client_quantity_rows|length }} поз.</span>
+    </div>
+
+    <div class="client-quantity-filters" aria-label="Фильтры товаров">
+      <label class="client-quantity-filter-field" for="client-quantity-search">
+        <span>Артикул / товар</span>
+        <input
+          class="client-quantity-search"
+          id="client-quantity-search"
+          type="search"
+          placeholder="Артикул, название или штрихкод"
+          autocomplete="off"
+        >
+      </label>
+      <label class="client-quantity-filter-field" for="client-quantity-type-filter">
+        <span>Тип товара</span>
+        <select id="client-quantity-type-filter">
+          <option value="">Все типы товара</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="stock-table-wrap">
+      <table class="stock-table client-quantity-table">
+        <thead>
+          <tr>
+            <th>Артикул / товар</th>
+            <th>Размер / тип</th>
+            <th>Штрихкод</th>
+            <th>Свободно</th>
+            <th>К отгрузке, шт.</th>
+            <th>Как будет набрано</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in client_quantity_rows %}
+            <tr
+              data-client-quantity-row
+              data-search="{{ row.sku_code }} {{ row.name }} {{ row.barcode }} {{ row.size }} {{ row.goods_type }}"
+              data-goods-type="{{ row.goods_type|default:'' }}"
+              data-pack-options="{{ row.pack_options_json|escape }}"
+              data-available-qty="{{ row.available_qty }}"
+            >
+              <td>
+                <input type="hidden" name="stock_quantity_key[]" value="{{ row.key }}">
+                <b>{{ row.sku_code }}</b>
+                <div class="hint">{{ row.name|default:"-" }}</div>
+              </td>
+              <td>
+                {{ row.size|default:"-" }}
+                <div class="hint">{{ row.goods_type|default:"-" }}</div>
+              </td>
+              <td>{{ row.barcode|default:"-" }}</td>
+              <td><b>{{ row.available_qty }}</b> шт.</td>
+              <td>
+                <input
+                  type="number"
+                  name="stock_quantity[]"
+                  class="client-quantity-input"
+                  min="0"
+                  max="{{ row.available_qty }}"
+                  step="1"
+                  inputmode="numeric"
+                  value="{{ row.selected_qty }}"
+                  placeholder="0"
+                  aria-label="Количество {{ row.sku_code }} к отгрузке"
+                >
+                <div class="client-quantity-error" data-client-quantity-error></div>
+              </td>
+              <td>
+                <div class="client-quantity-plan" data-client-quantity-plan>
+                  {% if row.selected_qty %}
+                    {% if row.planned_whole_boxes %}<div>Целых коробов: {{ row.planned_whole_boxes }}</div>{% endif %}
+                    {% if row.planned_piece_qty %}<div>Поштучно: {{ row.planned_piece_qty }} шт.</div>{% endif %}
+                  {% else %}
+                    <span class="hint">Введите количество</span>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="client-quantity-total">
+      Выбрано: <strong id="client-quantity-position-total">0</strong> поз.,
+      <strong id="client-quantity-unit-total">0</strong> шт.
+    </div>
+    <div
+      class="client-piece-pick-notice"
+      id="client-piece-pick-notice"
+      role="status"
+      {% if not client_quantity_piece_qty %}hidden{% endif %}
+    >
+      Часть заявки — <strong id="client-piece-pick-total">{{ client_quantity_piece_qty|default:0 }}</strong> шт. —
+      будет отобрана поштучно, потому что указанное количество нельзя набрать целыми коробами.
+    </div>
+  </div>
+{% else %}
+  <div class="error-item">Нет свободного товара к отгрузке.</div>
+{% endif %}
+
+<style>
+  .client-quantity-picker { display:grid; gap:12px; }
+  .client-quantity-head { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; }
+  .client-quantity-count {
+    white-space:nowrap; border:1px solid var(--stroke,#e5dfd3); border-radius:999px;
+    padding:6px 10px; background:var(--surface-2,#f6f2ea); font-size:13px; color:var(--muted,#6f6a60);
+  }
+  .client-quantity-filters {
+    display:grid; grid-template-columns:minmax(260px,460px) minmax(180px,280px); gap:12px; align-items:end;
+  }
+  .client-quantity-filter-field { display:grid; gap:6px; font-size:12px; font-weight:800; color:var(--muted); }
+  .client-quantity-filter-field input,
+  .client-quantity-filter-field select { width:100%; color:var(--text,#24211d); }
+  .client-quantity-table { min-width:980px; }
+  .client-quantity-table tbody tr.has-quantity { background:rgba(14,107,91,.07); }
+  .client-quantity-input { min-width:130px; font-weight:800; }
+  .client-quantity-input.is-invalid { border-color:#c0392b; background:#fff4f2; }
+  .client-quantity-error { min-height:16px; margin-top:4px; color:#a3291c; font-size:12px; font-weight:700; }
+  .client-quantity-plan { min-width:210px; font-size:13px; line-height:1.45; }
+  .client-quantity-plan .piece { color:#9a5a00; font-weight:800; }
+  .client-quantity-total { padding:10px 12px; border-radius:10px; background:var(--surface-2,#f6f2ea); }
+  .client-piece-pick-notice {
+    padding:12px 14px; border:1px solid #f2b747; border-radius:10px;
+    background:#fff8e8; color:#7b4700; font-size:14px; line-height:1.45;
+  }
+  @media (max-width:760px) {
+    .client-quantity-filters { grid-template-columns:1fr; }
+  }
+</style>
+
+<script>
+  (() => {
+    const root = document.getElementById('client-quantity-picker');
+    if (!root) return;
+    const rows = Array.from(root.querySelectorAll('[data-client-quantity-row]'));
+    const search = document.getElementById('client-quantity-search');
+    const typeFilter = document.getElementById('client-quantity-type-filter');
+    const mode = document.getElementById('client-stock-input-mode');
+    const visibleCount = document.getElementById('client-quantity-visible-count');
+    const positionTotal = document.getElementById('client-quantity-position-total');
+    const unitTotal = document.getElementById('client-quantity-unit-total');
+    const piecePickNotice = document.getElementById('client-piece-pick-notice');
+    const piecePickTotal = document.getElementById('client-piece-pick-total');
+    const normalize = (value) => String(value || '').trim().toLocaleLowerCase('ru-RU');
+
+    if (typeFilter) {
+      const goodsTypes = Array.from(new Set(
+        rows.map((row) => String(row.dataset.goodsType || '').trim()).filter(Boolean)
+      )).sort((left, right) => left.localeCompare(right, 'ru'));
+      goodsTypes.forEach((goodsType) => {
+        const option = document.createElement('option');
+        option.value = normalize(goodsType);
+        option.textContent = goodsType;
+        typeFilter.appendChild(option);
+      });
+    }
+
+    const positiveInt = (value) => {
+      const text = String(value ?? '').trim();
+      if (!/^\d+$/.test(text)) return text === '' ? 0 : null;
+      const parsed = Number.parseInt(text, 10);
+      return Number.isSafeInteger(parsed) ? parsed : null;
+    };
+
+    const calculatePlan = (target, options) => {
+      const packs = (Array.isArray(options) ? options : [])
+        .map((item) => ({
+          multiplicity: positiveInt(item && item.multiplicity),
+          boxCount: positiveInt(item && item.box_count),
+        }))
+        .filter((item) => item.multiplicity > 0 && item.boxCount > 0)
+        .sort((left, right) => right.multiplicity - left.multiplicity);
+      if (target <= 0 || !packs.length) return { lines: [], pieceQty: target };
+      if (target > 200000) return { lines: [], pieceQty: target, deferred: true };
+
+      const chunks = [];
+      packs.forEach((pack, packIndex) => {
+        let remaining = Math.min(pack.boxCount, Math.floor(target / pack.multiplicity));
+        let chunkSize = 1;
+        while (remaining > 0) {
+          const take = Math.min(chunkSize, remaining);
+          chunks.push({ packIndex, take, value: pack.multiplicity * take });
+          remaining -= take;
+          chunkSize *= 2;
+        }
+      });
+
+      const unreachable = 2147483647;
+      let boxes = new Int32Array(target + 1);
+      boxes.fill(unreachable);
+      boxes[0] = 0;
+      const choices = [];
+      chunks.forEach((chunk) => {
+        const beforeBoxes = boxes;
+        const nextBoxes = beforeBoxes.slice();
+        const selected = new Uint8Array(target + 1);
+        for (let sum = chunk.value; sum <= target; sum += 1) {
+          const before = sum - chunk.value;
+          if (beforeBoxes[before] === unreachable) continue;
+          const candidate = beforeBoxes[before] + chunk.take;
+          if (candidate >= nextBoxes[sum]) continue;
+          nextBoxes[sum] = candidate;
+          selected[sum] = 1;
+        }
+        boxes = nextBoxes;
+        choices.push(selected);
+      });
+
+      let best = target;
+      while (best > 0 && boxes[best] === unreachable) best -= 1;
+      const counts = new Array(packs.length).fill(0);
+      let cursor = best;
+      for (let chunkIndex = chunks.length - 1; chunkIndex >= 0 && cursor > 0; chunkIndex -= 1) {
+        if (!choices[chunkIndex][cursor]) continue;
+        const chunk = chunks[chunkIndex];
+        counts[chunk.packIndex] += chunk.take;
+        cursor -= chunk.value;
+      }
+      return {
+        lines: packs
+          .map((pack, index) => ({ multiplicity: pack.multiplicity, boxCount: counts[index] }))
+          .filter((line) => line.boxCount > 0),
+        pieceQty: target - best,
+      };
+    };
+
+    const renderRow = (row) => {
+      const input = row.querySelector('.client-quantity-input');
+      const error = row.querySelector('[data-client-quantity-error]');
+      const planNode = row.querySelector('[data-client-quantity-plan]');
+      const value = positiveInt(input ? input.value : '');
+      const available = positiveInt(row.dataset.availableQty) || 0;
+      input?.classList.remove('is-invalid');
+      error.textContent = '';
+      row.classList.toggle('has-quantity', Boolean(value && value > 0));
+
+      if (value === null) {
+        input?.classList.add('is-invalid');
+        error.textContent = 'Введите целое количество.';
+        planNode.innerHTML = '<span class="hint">Раскладка недоступна</span>';
+        return { quantity: 0, positions: 0, wholeBoxes: 0, pieceQty: 0 };
+      }
+      if (value > available) {
+        input?.classList.add('is-invalid');
+        error.textContent = `Доступно только ${available} шт.`;
+        planNode.innerHTML = '<span class="hint">Исправьте количество</span>';
+        return { quantity: value, positions: 1, wholeBoxes: 0, pieceQty: 0 };
+      }
+      if (value <= 0) {
+        planNode.innerHTML = '<span class="hint">Введите количество</span>';
+        return { quantity: 0, positions: 0, wholeBoxes: 0, pieceQty: 0 };
+      }
+
+      let options = [];
+      try { options = JSON.parse(row.dataset.packOptions || '[]'); } catch (_error) { options = []; }
+      const plan = calculatePlan(Math.min(value, available), options);
+      if (plan.deferred) {
+        planNode.innerHTML = '<span class="hint">Точная раскладка будет рассчитана при отправке</span>';
+      } else {
+        const fragments = plan.lines.map((line) => (
+          `<div>${line.boxCount} кор. по ${line.multiplicity} шт.</div>`
+        ));
+        if (plan.pieceQty > 0) fragments.push(`<div class="piece">Поштучно: ${plan.pieceQty} шт.</div>`);
+        planNode.innerHTML = fragments.join('') || '<div class="piece">Поштучно: ' + Math.min(value, available) + ' шт.</div>';
+      }
+      return {
+        quantity: value,
+        positions: 1,
+        wholeBoxes: plan.lines.reduce((sum, line) => sum + line.boxCount, 0),
+        pieceQty: plan.deferred ? 0 : plan.pieceQty,
+      };
+    };
+
+    const updateTotals = () => {
+      const totals = rows.reduce((result, row) => {
+        const current = renderRow(row);
+        result.quantity += current.quantity;
+        result.positions += current.positions;
+        result.wholeBoxes += current.wholeBoxes;
+        result.pieceQty += current.pieceQty;
+        return result;
+      }, { quantity: 0, positions: 0, wholeBoxes: 0, pieceQty: 0 });
+      if (positionTotal) positionTotal.textContent = String(totals.positions);
+      if (unitTotal) unitTotal.textContent = totals.quantity.toLocaleString('ru-RU');
+      if (piecePickNotice && piecePickTotal) {
+        piecePickTotal.textContent = totals.pieceQty.toLocaleString('ru-RU');
+        piecePickNotice.hidden = totals.pieceQty <= 0 || (mode && mode.value !== 'quantity');
+      }
+      const footerItems = document.getElementById('footer-item-count');
+      const footerBoxes = document.getElementById('footer-box-count');
+      if (!mode || mode.value === 'quantity') {
+        if (footerItems) footerItems.textContent = totals.quantity.toLocaleString('ru-RU');
+        if (footerBoxes) footerBoxes.textContent = totals.wholeBoxes.toLocaleString('ru-RU');
+      }
+    };
+
+    rows.forEach((row) => {
+      row.querySelector('.client-quantity-input')?.addEventListener('input', () => {
+        if (mode) mode.value = 'quantity';
+        updateTotals();
+      });
+    });
+    const applyFilters = () => {
+      const query = normalize(search ? search.value : '');
+      const selectedType = normalize(typeFilter ? typeFilter.value : '');
+      let shown = 0;
+      rows.forEach((row) => {
+        const matchesSearch = !query || normalize(row.dataset.search).includes(query);
+        const matchesType = !selectedType || normalize(row.dataset.goodsType) === selectedType;
+        const matches = matchesSearch && matchesType;
+        row.hidden = !matches;
+        if (matches) shown += 1;
+      });
+      if (visibleCount) visibleCount.textContent = `${shown} поз.`;
+    };
+    search?.addEventListener('input', applyFilters);
+    typeFilter?.addEventListener('change', applyFilters);
+
+    updateTotals();
+    window.addEventListener('load', () => window.setTimeout(updateTotals, 0), { once: true });
+  })();
+</script>

@@ -1,0 +1,33 @@
+<aside class="dir-side" aria-label="Навигация панели директора">
+  <div class="dir-brand">
+    <div class="dir-brand-text">
+      <div class="dir-brand-mark">{% include "partials/fullbox_brand.html" %}</div>
+      <div class="dir-brand-sub">Панель директора</div>
+    </div>
+    <button type="button" class="dir-collapse" id="js-dir-collapse" aria-label="Свернуть меню">‹</button>
+  </div>
+
+  <nav class="dir-nav">
+    {% for item in nav_items %}
+      <a class="dir-nav-item {% if item.active %}is-active{% endif %}"
+         href="{{ item.href }}"
+         title="{{ item.label }}{% if item.soon %} (скоро){% endif %}">
+        <span class="dir-nav-ico" aria-hidden="true">•</span>
+        <span class="dir-nav-label">{{ item.label }}{% if item.soon %} · скоро{% endif %}</span>
+        {% if item.badge %}<span class="dir-nav-badge">{{ item.badge }}</span>{% endif %}
+      </a>
+    {% endfor %}
+  </nav>
+
+  <div class="dir-side-foot">
+    <div class="dir-side-meta">Интеграции: WMS · 1С · Банк · CRM</div>
+    <div class="dir-profile">
+      <div class="dir-avatar" aria-hidden="true">{{ director_initials }}</div>
+      <div class="dir-profile-text">
+        <div class="dir-profile-name">{{ director_name }}</div>
+        <div class="dir-profile-role">Директор</div>
+      </div>
+    </div>
+    <a class="dir-logout" href="/logout/"><span class="dir-logout-text">Выход</span><span aria-hidden="true">⎋</span></a>
+  </div>
+</aside>

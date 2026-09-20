@@ -1,0 +1,95 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Клиенты FBS{% endblock %}
+
+{% block workspace_body %}
+  <section class="operator-command-row client-command-row">
+    <form class="operator-filters operator-filters-compact" method="get">
+      <label>
+        <span>Клиент, ИНН, кабинет или склад</span>
+        <input type="search" name="q" value="{{ query }}" placeholder="Начните вводить">
+      </label>
+      <label>
+        <span>На странице</span>
+        <select name="page_size">
+          {% for size in page_sizes %}<option value="{{ size }}"{% if size == page_size %} selected{% endif %}>{{ size }}</option>{% endfor %}
+        </select>
+      </label>
+      <div class="filter-actions">
+        <button class="button button-secondary button-compact" type="submit">Найти</button>
+        <a class="button button-secondary button-compact" href="{% url 'fbs:operator_clients' %}">Сбросить</a>
+      </div>
+    </form>
+    <form class="inline-form" method="post" action="{% url 'fbs:operator_sync_all_orders' %}">
+      {% csrf_token %}
+      <input type="hidden" name="return_to" value="clients">
+      <button class="button button-primary button-compact" type="submit">Обновить заказы</button>
+    </form>
+  </section>
+
+  {% if not global_order_pull_enabled %}
+    <div class="notice notice-warn" role="status">Автополучение заказов FBS сейчас выключено глобальной настройкой. Состояние токенов и результаты прошлых проверок показаны ниже.</div>
+  {% endif %}
+
+  <section class="operator-summary">
+    <div><span>Клиенты FBS</span><strong>{{ summary.clients }}</strong></div>
+    <div><span>Токен добавлен</span><strong>{{ summary.credentials }}</strong></div>
+    <div><span>API проверен</span><strong>{{ summary.connected }}</strong></div>
+    <div class="{% if summary.errors %}summary-problem{% endif %}"><span>Ошибки API</span><strong>{{ summary.errors }}</strong></div>
+  </section>
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading">
+      <div><span class="section-kicker">Подключения</span><h2>Клиенты и кабинеты</h2></div>
+      <strong>{{ page.paginator.count }}</strong>
+    </div>
+    <div class="operator-table-scroll">
+      <table class="operator-table client-table">
+        <thead><tr><th>Клиент</th><th>Кабинеты</th><th>Подключение API</th><th>Получение заказов</th><th>Последнее обновление</th><th>Заказы</th><th></th></tr></thead>
+        <tbody>
+          {% for agency in page.object_list %}
+            <tr>
+              <td>
+                <a class="table-main-link" href="{% url 'fbs:operator_client_detail' agency_id=agency.id %}">{{ agency }}</a>
+                <small>ID {{ agency.id }}{% if agency.inn %} · ИНН {{ agency.inn }}{% endif %}</small>
+              </td>
+              <td>
+                <div class="profile-stack">
+                  {% for profile in agency.fbs_profiles_for_ui %}
+                    <span class="marketplace-tag marketplace-{{ profile.marketplace }}">{{ profile.get_marketplace_display }} · {{ profile.name }}</span>
+                  {% endfor %}
+                </div>
+              </td>
+              <td>
+                <span class="connection-state connection-{{ agency.api_state }}">{{ agency.api_state_label }}</span>
+                <small>Токенов: {{ agency.credentials_count }}/{{ agency.profile_count }}</small>
+                {% if agency.last_orders_error %}<small class="text-error sync-error-text">{{ agency.last_orders_error }}</small>{% endif %}
+              </td>
+              <td>
+                {% if agency.order_sync_enabled_count %}<strong>Включено: {{ agency.order_sync_enabled_count }}</strong>{% else %}<span class="text-muted">Выключено</span>{% endif %}
+                <small>Профилей: {{ agency.profile_count }}</small>
+              </td>
+              <td>
+                {% if agency.last_orders_success_at %}<strong>{{ agency.last_orders_success_at|date:"d.m.Y H:i" }}</strong><small>успешно</small>{% else %}<span class="text-muted">Еще не выполнялось</span>{% endif %}
+              </td>
+              <td><strong>{{ agency.fbs_active_order_count }}</strong><small>активных · всего {{ agency.fbs_order_count }}</small></td>
+              <td class="row-action">
+                <a class="button button-secondary button-compact" href="{% url 'fbs:operator_client_detail' agency_id=agency.id %}">Открыть</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-row" colspan="7">Клиенты FBS не найдены</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if page.paginator.num_pages > 1 %}
+    <nav class="operator-pagination" aria-label="Страницы клиентов">
+      {% if page.has_previous %}<a class="button button-secondary button-compact" href="?q={{ query|urlencode }}&page_size={{ page_size }}&page={{ page.previous_page_number }}">Назад</a>{% endif %}
+      <span>Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="button button-secondary button-compact" href="?q={{ query|urlencode }}&page_size={{ page_size }}&page={{ page.next_page_number }}">Далее</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

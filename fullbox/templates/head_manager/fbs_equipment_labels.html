@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Этикетки FBS | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root { --ink: #303030; --muted: #70665f; --accent: #f89000; --stroke: rgba(23, 33, 29, .16); }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 20px; color: var(--ink); background: #f6f8f7; font-family: "Manrope", system-ui, sans-serif; }
+    .toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; max-width: 1100px; margin: 0 auto 16px; }
+    h1, p { margin: 0; }
+    h1 { font-size: 24px; }
+    p { color: var(--muted); font-size: 12px; }
+    .actions { display: flex; gap: 8px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 9px 13px; border: 1px solid var(--stroke); border-radius: 8px; background: #fff; color: var(--ink); text-decoration: none; font-weight: 800; cursor: pointer; }
+    .btn.primary { color: #fff; border-color: var(--accent); background: var(--accent); }
+    .labels { display: grid; grid-template-columns: repeat(auto-fill, 75mm); gap: 8mm; justify-content: center; }
+    .label { width: 75mm; height: 50mm; overflow: hidden; display: grid; grid-template-rows: auto 1fr; gap: 2mm; padding: 3mm; border: .3mm solid #111; background: #fff; break-inside: avoid; page-break-inside: avoid; }
+    .label-head { display: flex; justify-content: space-between; align-items: baseline; gap: 3mm; }
+    .label-kind { font-size: 10pt; font-weight: 900; text-transform: uppercase; }
+    .label-id { font-size: 8pt; color: #555; }
+    .label-body { min-width: 0; display: grid; grid-template-columns: 30mm minmax(0, 1fr); gap: 3mm; align-items: center; }
+    .qr-code { width: 29mm; height: 29mm; justify-self: center; }
+    .qr-code canvas, .qr-code img { display: block; width: 100% !important; height: 100% !important; }
+    .label-details { min-width: 0; display: grid; gap: 3mm; align-content: center; }
+    .label-name { min-width: 0; font-size: 11pt; font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; }
+    .label-code { min-width: 0; font-size: 9pt; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+    @page { size: 75mm 50mm; margin: 0; }
+    @media print {
+      body { padding: 0; background: #fff; }
+      .toolbar { display: none; }
+      .labels { display: block; }
+      .label { border: 0; break-after: page; page-break-after: always; }
+      .label:last-child { break-after: auto; page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+  <header class="toolbar">
+    <div><h1>Этикетки FBS</h1><p>{{ kind_title }} · {{ labels|length }} шт.</p></div>
+    <div class="actions"><a class="btn" href="/head-manager/fbs/settings/">Назад</a><button class="btn primary" type="button" onclick="window.print()">Печатать</button></div>
+  </header>
+  <main class="labels">
+    {% for item in labels %}
+      <section class="label">
+        <div class="label-head"><span class="label-kind">FBS · {{ kind_title }}</span><span class="label-id">ID {{ item.id }}</span></div>
+        <div class="label-body">
+          <div class="qr-code" data-code="{{ item.barcode }}" aria-label="QR {{ item.barcode }}"></div>
+          <div class="label-details">
+            <div class="label-name">{{ item.name }}</div>
+            <div class="label-code">{{ item.barcode }}</div>
+          </div>
+        </div>
+      </section>
+    {% endfor %}
+  </main>
+  <script src="/static/vendor/qrcode.min.js"></script>
+  <script>
+    document.querySelectorAll(".qr-code").forEach(function (element) {
+      new QRCode(element, {
+        text: element.dataset.code,
+        width: 128,
+        height: 128,
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    });
+  </script>
+</body>
+</html>

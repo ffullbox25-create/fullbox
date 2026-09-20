@@ -1,0 +1,76 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Задания FBS{% endblock %}
+
+{% block content %}
+  <section class="section-band">
+    <div class="section-heading">
+      <h2>Внутри FBS</h2>
+      <span class="count">{{ available_movements|length }}</span>
+    </div>
+    <div class="task-list">
+      {% for movement in available_movements %}
+        <article class="task-card task-card-form">
+          <div class="task-main">
+            <strong>Перемещение #{{ movement.id }} · {{ movement.get_mode_display }}</strong>
+            <span>{{ movement.agency }}</span>
+            <span>{{ movement.source_box.box_code }} → {% if movement.target_box %}{{ movement.target_box.box_code }}{% else %}{{ movement.target_pallet.cell.warehouse_location_label }}{% endif %}</span>
+          </div>
+          <div class="task-side"><strong>{{ movement.moved_qty }}/{{ movement.planned_qty }}</strong></div>
+          {% if movement.assigned_to_id == request.user.id %}
+            <a class="button button-primary" href="{% url 'fbs:tsd_internal_movement' movement_id=movement.id %}">Продолжить</a>
+          {% else %}
+            <form method="post" action="{% url 'fbs:tsd_claim_internal_movement' movement_id=movement.id %}" data-submit-once>
+              {% csrf_token %}<button class="button button-primary" type="submit">Взять в работу</button>
+            </form>
+          {% endif %}
+        </article>
+      {% empty %}<div class="empty-state">Внутренних перемещений нет</div>{% endfor %}
+    </div>
+  </section>
+
+  <section class="section-band">
+    <div class="section-heading">
+      <h2>Доступные задания</h2>
+      <span class="count">{{ available_plans|length }}</span>
+    </div>
+    <div class="task-list">
+      {% for plan in available_plans %}
+        <article class="task-card task-card-form">
+          <div class="task-main">
+            <strong>План #{{ plan.id }} · {{ plan.get_mode_display }}</strong>
+            <span>{{ plan.agency }}</span>
+            <span>{{ plan.target_cell.warehouse_location_label }} · {{ plan.target_box.box_code }}</span>
+          </div>
+          <div class="task-side">
+            <strong>{{ plan.moved_qty }}/{{ plan.planned_qty }} шт.</strong>
+            {% if plan.assigned_to_id == request.user.id %}
+              <span class="status status-in_progress">Ваше задание</span>
+            {% else %}
+              <span class="status status-confirmed">Свободно</span>
+            {% endif %}
+          </div>
+          <form method="post" action="{% url 'fbs:tsd_claim_plan' plan_id=plan.id %}" data-submit-once>
+            {% csrf_token %}
+            <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>
+              {% if plan.assigned_to_id == request.user.id %}Продолжить{% else %}Взять в работу{% endif %}
+            </button>
+          </form>
+        </article>
+      {% empty %}
+        <div class="empty-state">Новых заданий нет</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if completed_plans %}
+    <section class="section-band section-muted">
+      <div class="section-heading"><h2>Выполнено</h2></div>
+      <div class="compact-list">
+        {% for plan in completed_plans %}
+          <div><span>#{{ plan.id }} · {{ plan.agency }}</span><strong>{{ plan.moved_qty }} шт.</strong></div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

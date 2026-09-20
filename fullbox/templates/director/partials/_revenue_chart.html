@@ -1,0 +1,23 @@
+<article class="dir-card">
+  <h2 class="dir-card-title">Выручка и прибыль по дням</h2>
+  <p class="dir-card-sub">Демо-данные за выбранный период · источник: биллинг</p>
+  <div class="dir-chart-legend">
+    <span><i style="background:var(--color-primary)"></i>Выручка</span>
+    <span><i style="background:var(--color-success)"></i>Прибыль</span>
+    <span><i style="background:var(--color-text-muted)"></i>План</span>
+  </div>
+  <div class="dir-chart-wrap">
+    <div style="position:absolute;left:8px;right:8px;top:42px;border-top:1px dashed var(--color-text-muted);opacity:.7;z-index:0" aria-hidden="true"></div>
+    <div style="display:grid;grid-template-columns:repeat({{ chart_days|length }},minmax(0,1fr));gap:8px;height:220px;align-items:end;padding:8px;position:relative;z-index:1">
+      {% for d in chart_days %}
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end">
+          <div style="display:flex;gap:3px;align-items:flex-end;height:100%;width:100%;justify-content:center">
+            <div title="Выручка {{ d.revenue }}" style="width:38%;background:var(--color-primary);border-radius:4px 4px 0 0;height:{{ d.revenue_pct }}%"></div>
+            <div title="Прибыль {{ d.profit }}" style="width:38%;background:var(--color-success);border-radius:4px 4px 0 0;height:{{ d.profit_pct }}%"></div>
+          </div>
+          <span style="font-size:11px;color:var(--color-text-muted)">{{ d.label }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</article>

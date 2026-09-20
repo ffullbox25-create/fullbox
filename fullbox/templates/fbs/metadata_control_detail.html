@@ -1,0 +1,108 @@
+{% extends "fbs/metadata_control_base.html" %}
+
+{% block title %}Заказ {{ order.external_order_id }}{% endblock %}
+{% block page_title %}Заказ {{ order.external_order_id }}{% endblock %}
+{% block header_actions %}<a class="button button-secondary" href="{% url 'fbs:metadata_control' %}">К списку</a>{% endblock %}
+
+{% block content %}
+  <section class="order-facts" aria-label="Заказ">
+    <div><span>Клиент</span><strong>{{ order.profile.agency.agn_name }}</strong></div>
+    <div><span>Маркетплейс</span><strong>{{ order.profile.get_marketplace_display }}</strong></div>
+    <div><span>Статус Fullbox</span><strong>{{ order.get_internal_status_display }}</strong></div>
+    <div><span>Статус площадки</span><strong>{{ order.marketplace_status|default:"—" }}</strong></div>
+    <div><span>Подстатус</span><strong>{{ order.marketplace_substatus|default:"—" }}</strong></div>
+  </section>
+
+  <section class="readback-band">
+    <div>
+      <h2>Сверка с маркетплейсом</h2>
+      {% if active_readback %}
+        <p>Команда #{{ active_readback.id }} · {{ active_readback.get_status_display }}</p>
+      {% elif readback_disabled_reason %}
+        <p>{{ readback_disabled_reason }}</p>
+      {% else %}
+        <p>Последняя проверка завершена</p>
+      {% endif %}
+    </div>
+    <form method="post" action="{% url 'fbs:metadata_control_readback' order_id=order.id %}">
+      {% csrf_token %}
+      <button class="button button-primary" type="submit"{% if not can_request_readback %} disabled{% endif %}>Запросить сверку</button>
+    </form>
+  </section>
+
+  <section class="table-band">
+    <div class="table-heading"><h2>КИЗы и сроки годности</h2><span>{{ transfers|length }}</span></div>
+    <div class="responsive-table">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Тип</th>
+            <th>Значение</th>
+            <th>Обязательно</th>
+            <th>Статус</th>
+            <th>Ответ площадки</th>
+            <th>Попытки</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for transfer in transfers %}
+            <tr>
+              <td data-label="SKU">
+                <strong>{{ transfer.order_item.external_sku }}</strong>
+                <small>{{ transfer.order_item.product_name|default:"—" }}</small>
+              </td>
+              <td data-label="Тип">{{ transfer.get_metadata_type_display }}</td>
+              <td data-label="Значение"><code>{{ transfer.value }}</code></td>
+              <td data-label="Обязательно">{% if transfer.is_required %}Да{% else %}Нет{% endif %}</td>
+              <td data-label="Статус"><span class="status status-{{ transfer.status }}">{{ transfer.get_status_display }}</span></td>
+              <td data-label="Ответ площадки">
+                <strong>{{ transfer.external_status|default:"—" }}</strong>
+                {% if 'sgtinInvalidFormat' in transfer.last_error %}<small class="error-copy">Площадка отклонила формат КИЗ. Контролёру: сверить полный Data Matrix с товаром; менеджеру: проверить требования площадки.</small>{% endif %}{% if transfer.last_error %}<small class="error-copy">{{ transfer.last_error }}</small>{% endif %}
+              </td>
+              <td data-label="Попытки">{{ transfer.attempt_count }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="text-muted">Успешный HTTP-ответ не гарантирует принятие КИЗ. Итог приёма смотрите в таблице «КИЗы и сроки годности» после сверки с площадкой.</p>
+  <section class="table-band">
+    <div class="table-heading"><h2>История команд API</h2><span>{{ commands|length }}</span></div>
+    <div class="responsive-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Команда</th>
+            <th>Метод</th>
+            <th>Статус</th>
+            <th>HTTP</th>
+            <th>Инициатор</th>
+            <th>Создана</th>
+            <th>Результат</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for command in commands %}
+            <tr>
+              <td data-label="Команда"><strong>#{{ command.id }}</strong><small>{{ command.control_title }}</small></td>
+              <td data-label="Метод"><code>{{ command.http_method }}</code></td>
+              <td data-label="Статус"><span class="status status-{{ command.status }}">{{ command.get_status_display }}</span></td>
+              <td data-label="HTTP">{{ command.http_status|default:"—" }}</td>
+              <td data-label="Инициатор">
+                {% if command.requested_by %}<strong>{{ command.requested_by.get_username }}</strong>{% else %}<strong>Система</strong>{% endif %}
+                <small>{{ command.get_request_source_display }}</small>
+              </td>
+              <td data-label="Создана">{{ command.created_at|date:"d.m.Y H:i:s" }}</td>
+              <td data-label="Результат">{% if command.error %}<span class="error-copy">{{ command.error }}</span>{% elif command.confirmed_at %}Команда подтверждена {{ command.confirmed_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-row" colspan="7">Команд пока нет</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

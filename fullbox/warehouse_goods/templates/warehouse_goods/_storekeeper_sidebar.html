@@ -1,0 +1,27 @@
+{% include "todo/_unread_nav_styles.html" %}
+<aside class="side">
+  <div class="brand">{% include "partials/fullbox_brand.html" %}</div>
+  <div class="profile">
+    <div class="profile-label">Кабинет</div>
+    <div class="profile-name">Кладовщик<br>{{ request.user.employee_profile.full_name|default:request.user.get_full_name|default:request.user.username }}</div>
+  </div>
+  <nav class="nav" aria-label="Навигация кладовщика">
+    <div class="nav-section">
+      <div class="nav-heading">Главное</div>
+      <a class="nav-link" href="/sklad/"><span class="nav-icon">⌂</span><span class="nav-title">Заявки</span></a>
+      <a class="nav-link{% if todo_unread_count %} todo-unread-attention{% endif %}" href="/todo/"><span class="nav-icon">☑</span><span class="nav-title">Задачи</span>{% if todo_unread_count %}<span class="todo-unread-badge">{{ todo_unread_count }}</span>{% endif %}</a>
+      <a class="nav-link" href="/sklad/journal/"><span class="nav-icon">▣</span><span class="nav-title">Складские остатки</span></a>
+      <a class="nav-link primary" href="/head-manager/goods/"><span class="nav-icon">◫</span><span class="nav-title">Товары</span></a>
+      <a class="nav-link" href="/fbs/tsd/"><span class="nav-icon">F</span><span class="nav-title">FBS</span></a>
+      <a class="nav-link" href="/sku/?view=table"><span class="nav-icon">◇</span><span class="nav-title">Номенклатура товаров</span></a>
+      <a class="nav-link" href="/reachtruck/"><span class="nav-icon">⇢</span><span class="nav-title">Перемещение паллет</span></a>
+      <a class="nav-link" href="/stockmap/visual/"><span class="nav-icon">▦</span><span class="nav-title">Карта склада</span></a>
+      <a class="nav-link" href="/sklad/knowledge/"><span class="nav-icon">?</span><span class="nav-title">База знаний</span></a>
+      <a class="nav-link" href="/labels/settings/"><span class="nav-icon">⚙</span><span class="nav-title">Печать и сканеры</span></a>
+    </div>
+  </nav>
+  <div class="sidebar-actions">
+    <button class="btn collapse-btn" id="sidebar-collapse" type="button" aria-expanded="true" title="Свернуть меню"><span class="nav-icon">‹</span><span class="btn-label">Свернуть меню</span></button>
+    <a class="btn logout-btn" href="/logout/" title="Выход"><span class="nav-icon">↩</span><span class="btn-label">Выход</span></a>
+  </div>
+</aside>

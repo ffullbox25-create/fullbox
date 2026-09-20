@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Склады маркетплейсов | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #0e6b5b;
+      --accent-strong: #0b5246;
+      --sun: #f2b747;
+      --danger: #d4543c;
+      --stroke: rgba(28,31,26,0.12);
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    .wrap {
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 24px 24px 56px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    h1 {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 28px;
+    }
+    .muted { color: var(--muted); }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.14);
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .btn.danger {
+      color: var(--danger);
+      border-color: rgba(212,84,60,0.25);
+      background: rgba(212,84,60,0.05);
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+    .sync-card {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .sync-row {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: minmax(180px, 240px) minmax(220px, 320px) auto;
+      align-items: end;
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+    .field label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: #ffffff;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .alert {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+    .alert.success {
+      background: rgba(14,107,91,0.12);
+      border-color: rgba(14,107,91,0.35);
+      color: var(--accent-strong);
+    }
+    .alert.error {
+      background: rgba(212,84,60,0.12);
+      border-color: rgba(212,84,60,0.35);
+      color: #7f1d1d;
+    }
+    .registry-shell {
+      display: grid;
+      gap: 16px;
+    }
+    .tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--ink);
+    }
+    .tab-btn.active {
+      background: rgba(14,107,91,0.12);
+      border-color: rgba(14,107,91,0.35);
+      color: var(--accent-strong);
+    }
+    .tab-panel {
+      display: none;
+      gap: 14px;
+    }
+    .tab-panel.active {
+      display: grid;
+    }
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      background: var(--surface-2);
+    }
+    table {
+      width: 100%;
+      min-width: 980px;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--stroke);
+      vertical-align: top;
+      text-align: left;
+    }
+    th {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      background: rgba(28,31,26,0.03);
+    }
+    td input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(28,31,26,0.14);
+      background: #fff;
+      font: inherit;
+    }
+    .table-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .empty {
+      padding: 18px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .hidden-inputs {
+      display: none;
+    }
+    @media (max-width: 900px) {
+      .sync-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div>
+        <h1>Склады маркетплейсов</h1>
+        <div class="muted">Полноэкранный реестр складов по маркетплейсам. Для каждого склада веди тип, название и адрес отдельно.</div>
+      </div>
+      <div class="actions">
+        <a class="btn" href="/head-manager/">В кабинет</a>
+        <button class="btn primary" type="submit" form="warehouses-form">Сохранить справочник</button>
+      </div>
+    </div>
+
+    {% if request.GET.saved %}
+      <div class="alert success">Справочник складов обновлен.</div>
+    {% endif %}
+    {% if error %}
+      <div class="alert error">{{ error }}</div>
+    {% endif %}
+    {% if sync_info %}
+      <div class="alert success">{{ sync_info }}{% if sync_agency %} Клиент: {{ sync_agency }}.{% endif %}</div>
+    {% endif %}
+    {% if sync_errors %}
+      <div class="alert error">{{ sync_errors|join:"<br>"|safe }}</div>
+    {% endif %}
+
+    <form method="post" action="/head-manager/marketplace-warehouses/sync/" class="panel sync-card">
+      {% csrf_token %}
+      <div>
+        <strong>Синхронизация складов из API</strong>
+        <div class="muted">WB и Ozon подтягиваем из ключей клиента. Яндекс и Сбер пока ведутся вручную.</div>
+      </div>
+      <div class="sync-row">
+        <div class="field">
+          <label for="client_id">ID клиента</label>
+          <input id="client_id" name="client_id" type="text" placeholder="Например 2763">
+        </div>
+        <div class="field">
+          <label for="client_name">Название клиента</label>
+          <input id="client_name" name="client_name" type="text" value="{{ sync_default_name }}" placeholder="Кейзи">
+        </div>
+        <div class="field">
+          <button class="btn primary" type="submit">Синхронизировать</button>
+        </div>
+      </div>
+    </form>
+
+    <form id="warehouses-form" method="post" class="panel registry-shell">
+      {% csrf_token %}
+      <div class="tabs" role="tablist" aria-label="Маркетплейсы">
+        {% for market in warehouse_marketplaces %}
+          <button
+            class="tab-btn{% if forloop.first %} active{% endif %}"
+            type="button"
+            data-tab-target="{{ market.key }}"
+            role="tab"
+            aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
+          >
+            {{ market.label }}
+          </button>
+        {% endfor %}
+      </div>
+
+      <div class="hidden-inputs">
+        {% for market in warehouse_marketplaces %}
+          <input type="hidden" name="{{ market.key }}" id="marketplace-json-{{ market.key }}">
+        {% endfor %}
+      </div>
+
+      {% for market in warehouse_marketplaces %}
+        <section class="tab-panel{% if forloop.first %} active{% endif %}" data-tab-panel="{{ market.key }}">
+          <div class="table-actions">
+            <div class="hint">Заполни отдельными колонками тип склада, его название и адрес. Эти данные потом будут использоваться в отгрузках и документах.</div>
+            <button class="btn" type="button" data-add-row="{{ market.key }}">Добавить склад</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 180px;">Тип склада</th>
+                  <th style="width: 300px;">Название склада</th>
+                  <th>Адрес склада</th>
+                  <th style="width: 120px;">Действие</th>
+                </tr>
+              </thead>
+              <tbody data-marketplace-body="{{ market.key }}">
+                {% for row in market.rows %}
+                  <tr>
+                    <td><input type="text" value="{{ row.type }}" data-col="type" placeholder="Обычный / Транзитный"></td>
+                    <td><input type="text" value="{{ row.name }}" data-col="name" placeholder="Название склада"></td>
+                    <td><input type="text" value="{{ row.address }}" data-col="address" placeholder="Адрес склада"></td>
+                    <td><button class="btn danger" type="button" data-remove-row>Удалить</button></td>
+                  </tr>
+                {% empty %}
+                  <tr class="empty-row">
+                    <td colspan="4"><div class="empty">Список пуст. Добавь первый склад.</div></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {% endfor %}
+    </form>
+  </div>
+
+  {{ warehouse_rows_json|json_script:"marketplace-warehouse-rows" }}
+
+  <script>
+    (() => {
+      const form = document.getElementById('warehouses-form');
+      const rowsData = JSON.parse(document.getElementById('marketplace-warehouse-rows').textContent);
+      const marketKeys = Object.keys(rowsData);
+
+      const rowTemplate = (row = {}) => `
+        <tr>
+          <td><input type="text" value="${escapeHtml(row.type || '')}" data-col="type" placeholder="Обычный / Транзитный"></td>
+          <td><input type="text" value="${escapeHtml(row.name || '')}" data-col="name" placeholder="Название склада"></td>
+          <td><input type="text" value="${escapeHtml(row.address || '')}" data-col="address" placeholder="Адрес склада"></td>
+          <td><button class="btn danger" type="button" data-remove-row>Удалить</button></td>
+        </tr>
+      `;
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll('&', '&amp;')
+          .replaceAll('"', '&quot;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;');
+      }
+
+      function syncHiddenInputs() {
+        marketKeys.forEach((key) => {
+          const body = form.querySelector(`[data-marketplace-body="${key}"]`);
+          const rows = [];
+          body.querySelectorAll('tr').forEach((row) => {
+            if (row.classList.contains('empty-row')) return;
+            const type = (row.querySelector('[data-col="type"]')?.value || '').trim();
+            const name = (row.querySelector('[data-col="name"]')?.value || '').trim();
+            const address = (row.querySelector('[data-col="address"]')?.value || '').trim();
+            if (!type && !name && !address) return;
+            rows.push({ type, name, address });
+          });
+          const hidden = document.getElementById(`marketplace-json-${key}`);
+          hidden.value = JSON.stringify(rows);
+        });
+      }
+
+      function ensureEmptyState(body) {
+        const hasRows = [...body.querySelectorAll('tr')].some((row) => !row.classList.contains('empty-row'));
+        const emptyRow = body.querySelector('.empty-row');
+        if (!hasRows && !emptyRow) {
+          body.insertAdjacentHTML('beforeend', `
+            <tr class="empty-row">
+              <td colspan="4"><div class="empty">Список пуст. Добавь первый склад.</div></td>
+            </tr>
+          `);
+        }
+        if (hasRows && emptyRow) {
+          emptyRow.remove();
+        }
+      }
+
+      form.querySelectorAll('[data-add-row]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const key = button.getAttribute('data-add-row');
+          const body = form.querySelector(`[data-marketplace-body="${key}"]`);
+          ensureEmptyState(body);
+          const emptyRow = body.querySelector('.empty-row');
+          if (emptyRow) emptyRow.remove();
+          body.insertAdjacentHTML('beforeend', rowTemplate());
+          syncHiddenInputs();
+        });
+      });
+
+      form.addEventListener('click', (event) => {
+        const removeButton = event.target.closest('[data-remove-row]');
+        if (!removeButton) return;
+        const row = removeButton.closest('tr');
+        const body = row.parentElement;
+        row.remove();
+        ensureEmptyState(body);
+        syncHiddenInputs();
+      });
+
+      form.addEventListener('input', syncHiddenInputs);
+      form.addEventListener('submit', syncHiddenInputs);
+
+      document.querySelectorAll('[data-tab-target]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const target = button.getAttribute('data-tab-target');
+          document.querySelectorAll('[data-tab-target]').forEach((item) => {
+            item.classList.toggle('active', item === button);
+            item.setAttribute('aria-selected', item === button ? 'true' : 'false');
+          });
+          document.querySelectorAll('[data-tab-panel]').forEach((panel) => {
+            panel.classList.toggle('active', panel.getAttribute('data-tab-panel') === target);
+          });
+        });
+      });
+
+      syncHiddenInputs();
+    })();
+  </script>
+</body>
+</html>

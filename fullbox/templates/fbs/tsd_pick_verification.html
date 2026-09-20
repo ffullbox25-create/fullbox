@@ -1,0 +1,585 @@
+{% extends verification_base_template|default:"fbs/tsd_base.html" %}
+
+{% block title %}Проверка волны {{ batch.id }}{% endblock %}
+{% block page_class %}tsd-page-operator{% endblock %}
+
+{% block content %}
+  {% if request_role == 'fbs_controller' %}<div data-verification-fragment style="display:contents">{% endif %}
+  {% if request_role == 'fbs_controller' %}
+    <style>
+      .controller-verification-grid{display:grid;grid-template-columns:minmax(220px,.82fr) minmax(420px,1.6fr) minmax(240px,.9fr);gap:16px;align-items:start}
+      .controller-verification-column{min-width:0}
+      .controller-company-banner{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin:0 0 12px;padding:12px 14px;border:2px solid #f89000;background:#fff8e9}
+      .controller-company-banner span{color:#8a4a00;font-size:12px;font-weight:850;letter-spacing:.04em;text-transform:uppercase}
+      .controller-company-banner strong{min-width:0;color:#303030;font-size:20px;line-height:1.2;overflow-wrap:anywhere}
+      .controller-verification-side{position:sticky;top:12px;max-height:calc(100vh - 32px);overflow:auto}
+      .controller-verification-side .compact-list>div{align-items:flex-start;gap:8px}
+      .controller-verification-side .compact-list span,.controller-verification-side .compact-list strong{overflow-wrap:anywhere}
+      .controller-wave-row{padding:10px 8px;border-left:4px solid #bfc4ca;background:#f7f7f7}
+      .controller-wave-row.state-done{border-left-color:#18864b;background:#edf9f2}
+      .controller-wave-row.state-problem{border-left-color:#c34232;background:#fff0ee}
+      .controller-wave-row.state-in_progress{border-left-color:#f89000;background:#fff8e9}
+      .controller-wave-row.state-pending{border-left-color:#7f8790;background:#f3f5f7}
+      .controller-wave-row.is-current{box-shadow:inset 0 0 0 2px #f89000}
+      .controller-wave-main{display:grid;flex:1;gap:2px;min-width:0}
+      .controller-wave-main .controller-wave-sticker{max-width:none;color:#303030;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:15px;text-align:left}
+      .controller-wave-main .controller-wave-order{color:#555;font-weight:750}
+      .controller-wave-state{display:grid;justify-items:end;gap:4px;max-width:44%;text-align:right}
+      .controller-wave-state>.status{max-width:none;text-align:center}
+      .controller-wave-state small{font-weight:700}
+      .controller-wave-legend{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0 9px}
+      .controller-wave-legend .status{font-size:10px}
+      .controller-wave-row small,.controller-scan-row small{display:block;margin-top:3px;color:#666}
+      .controller-wave-row .controller-wave-barcode{color:#303030;font-weight:750}
+      .controller-wave-shipment{color:#555;font-weight:700}
+      .controller-wave-audit{display:grid;gap:9px;margin:0 0 12px;padding:12px;border:1px solid #e8b7b7;border-left:4px solid #c34232;background:#fff7f6}
+      .controller-wave-audit-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+      .controller-wave-audit-head h2{margin:0;font-size:18px}.controller-wave-audit-head strong{color:#a12e22}
+      .controller-wave-audit-list{display:grid;gap:7px}
+      .controller-wave-audit-row{display:grid;grid-template-columns:minmax(130px,.7fr) minmax(180px,1fr) minmax(180px,1.2fr) auto;align-items:center;gap:10px;padding:8px 10px;border:1px solid #ead6d3;background:#fff}
+      .controller-wave-audit-row span,.controller-wave-audit-row strong{min-width:0;overflow-wrap:anywhere}.controller-wave-audit-row small{display:block;color:#666}
+      .controller-primary-scan{margin:10px 0 14px;padding:14px;border:1px solid rgba(248,144,0,.42);border-left:4px solid #f89000;background:#fff}
+      .controller-primary-scan-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+      .controller-primary-scan-heading>div{min-width:0}
+      .controller-primary-scan-heading span{display:block;color:#666;font-size:12px;font-weight:750}
+      .controller-primary-scan-heading h2{margin:2px 0 0;font-size:20px;line-height:1.2;overflow-wrap:anywhere}
+      .controller-primary-scan-heading strong{flex:0 0 auto;padding:7px 10px;border-radius:6px;background:rgba(248,144,0,.13);color:#b54f00;font-size:13px}
+      .controller-primary-scan-form{display:grid;grid-template-columns:1fr;gap:12px;margin:0}
+      .controller-scan-stage{display:grid;gap:10px;padding:12px;border:1px solid #ddd;background:#fff}
+      .controller-scan-stage-product{border-left:4px solid #303030}
+      .controller-scan-stage-marking{border:2px solid #f89000;background:rgba(248,144,0,.06)}
+      .controller-scan-stage-heading{display:flex;align-items:flex-start;gap:10px}
+      .controller-scan-stage-number{display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:#303030;color:#fff;font-weight:800}
+      .controller-scan-stage-marking .controller-scan-stage-number{background:#f86800}
+      .controller-scan-stage-heading>div{min-width:0}
+      .controller-scan-stage-heading h3{margin:0;font-size:17px;line-height:1.25}
+      .controller-scan-stage-heading strong,.controller-scan-stage-heading small{display:block;margin-top:3px;overflow-wrap:anywhere}
+      .controller-scan-stage-heading small{color:#666}
+      .controller-primary-scan-form .controller-scan-field{display:grid;gap:5px;min-width:0}
+      .controller-primary-scan-form input{width:100%;min-width:0;min-height:54px}
+      .controller-kiz-preview{display:block;min-height:42px;padding:9px 11px;border:1px dashed rgba(248,104,0,.48);background:#fff;color:#303030;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:13px;line-height:1.35;overflow-wrap:anywhere;white-space:normal}
+      .controller-kiz-preview.is-empty{color:#777;font-family:inherit}
+      .controller-primary-scan-form .button{min-height:50px;padding-inline:18px}
+      .controller-next-hint{display:block;margin:10px 0 0;color:#666;font-size:13px}
+      .controller-label-scan{margin:10px 0 14px;border:2px solid #f86800;background:#fff}
+      .controller-label-scan-heading{display:flex;align-items:flex-start;gap:12px;padding:14px;background:#303030;color:#fff}
+      .controller-label-scan-heading>div{min-width:0}
+      .controller-label-scan-heading span{display:block;color:#f8b800;font-size:12px;font-weight:750}
+      .controller-label-scan-heading h2{margin:2px 0 0;color:#fff;font-size:22px;line-height:1.2;overflow-wrap:anywhere}
+      .controller-label-scan-heading small{display:block;margin-top:4px;color:#c9c9c9;font-size:12px;overflow-wrap:anywhere}
+      .controller-label-scan-heading .controller-scan-stage-number{background:#f86800}
+      .controller-label-scan-warning{margin:0;padding:12px 14px;border-bottom:1px solid #f0d8c4;background:rgba(248,184,0,.14);color:#303030;font-size:14px;line-height:1.4}
+      .controller-label-scan-body{padding:14px}
+      .controller-label-scan-body .scan-form{margin:0}
+      .controller-label-scan-body input{width:100%;min-width:0;min-height:54px}
+      .controller-label-scan-body .button{min-height:50px;padding-inline:18px}
+      .controller-problem-dialog{width:min(720px,calc(100vw - 28px));max-width:720px;padding:0;border:0;border-radius:8px;background:#fff;box-shadow:0 24px 80px rgba(0,0,0,.35)}
+      .controller-problem-dialog::backdrop{background:rgba(35,20,18,.82)}
+      .controller-problem-dialog-head{padding:20px 22px;background:#a12e22;color:#fff}
+      .controller-problem-dialog-head span{display:block;margin-bottom:4px;color:#ffd9d3;font-size:13px;font-weight:750}
+      .controller-problem-dialog-head h2{margin:0;color:#fff;font-size:28px;line-height:1.15}
+      .controller-problem-dialog-body{display:grid;gap:16px;padding:22px}
+      .controller-problem-reason{padding:14px;border:1px solid #e8b7b7;background:#fff7f6;color:#671c14;font-size:17px;font-weight:750;line-height:1.4;overflow-wrap:anywhere}
+      .controller-problem-order{padding:14px;border:2px solid #a12e22;background:#fff7f6}
+      .controller-problem-order span,.controller-problem-order strong{display:block}.controller-problem-order strong{margin-top:5px;font-size:24px;overflow-wrap:anywhere}
+      .controller-problem-product{display:grid;gap:7px;padding:14px;border:2px solid #303030;background:#f7f7f7}
+      .controller-problem-product>span{color:#555;font-size:12px;font-weight:850;letter-spacing:.04em;text-transform:uppercase}
+      .controller-problem-product>strong{font-size:20px;line-height:1.25;overflow-wrap:anywhere}
+      .controller-problem-product-meta{display:flex;flex-wrap:wrap;gap:8px 14px;color:#555;font-size:14px;font-weight:750}
+      .controller-problem-product-barcode{display:grid;gap:3px;margin-top:3px;padding:10px 12px;border:1px solid #c8c8c8;background:#fff}
+      .controller-problem-product-barcode span{color:#555;font-size:12px;font-weight:850;text-transform:uppercase}
+      .controller-problem-product-barcode strong{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:24px;line-height:1.2;overflow-wrap:anywhere}
+      .controller-problem-product small{color:#555;line-height:1.4}
+      .controller-problem-tote{padding:14px;border:2px solid #f89000;background:rgba(248,144,0,.1)}
+      .controller-problem-tote span,.controller-problem-tote strong{display:block}.controller-problem-tote strong{margin-top:5px;font-size:21px;overflow-wrap:anywhere}
+      .controller-problem-dialog .scan-form{display:grid;gap:10px;margin:0}
+      .controller-problem-dialog input{width:100%;min-height:58px;font-size:19px}
+      .controller-problem-dialog .button{min-height:54px}
+      .controller-multi-order-dialog{width:min(760px,calc(100vw - 28px));max-width:760px;padding:0;border:0;border-radius:8px;background:#fff;box-shadow:0 24px 80px rgba(0,0,0,.35)}
+      .controller-multi-order-dialog::backdrop{background:rgba(35,20,18,.82)}
+      .controller-multi-order-head{padding:20px 22px;background:#303030;color:#fff}
+      .controller-multi-order-head span{display:block;margin-bottom:5px;color:#f8b800;font-size:14px;font-weight:800}
+      .controller-multi-order-head h2{margin:0;color:#fff;font-size:28px;line-height:1.15}
+      .controller-multi-order-body{display:grid;gap:15px;padding:22px}
+      .controller-multi-order-action{padding:16px;border:2px solid #f86800;background:rgba(248,144,0,.13);font-size:19px;font-weight:850;line-height:1.35}
+      .controller-order-checklist{display:grid;gap:8px}
+      .controller-order-unit{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:11px;align-items:center;padding:11px 12px;border:1px solid #d5d5d5;background:#f7f7f7}
+      .controller-order-unit.is-verified{border-color:#8fc9aa;background:#edf9f2}.controller-order-unit.is-next{border:2px solid #f89000;background:#fff8e9}
+      .controller-order-unit-marker{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:#7f8790;color:#fff;font-size:18px;font-weight:900}
+      .controller-order-unit.is-verified .controller-order-unit-marker{background:#18864b}.controller-order-unit.is-next .controller-order-unit-marker{background:#f86800}
+      .controller-order-unit-main{display:grid;gap:2px;min-width:0}.controller-order-unit-main strong,.controller-order-unit-main small{overflow-wrap:anywhere}.controller-order-unit-main small{color:#666}
+      .controller-order-unit-status{color:#666;font-size:13px;font-weight:850;white-space:nowrap}.controller-order-unit.is-verified .controller-order-unit-status{color:#18864b}.controller-order-unit.is-next .controller-order-unit-status{color:#b54f00}
+      .controller-order-bundle-ready{display:grid;gap:12px;margin:10px 0 14px;padding:14px;border:2px solid #18864b;background:#fff}
+      .controller-order-bundle-ready-head{padding:13px;background:#18864b;color:#fff}.controller-order-bundle-ready-head span,.controller-order-bundle-ready-head strong{display:block}.controller-order-bundle-ready-head strong{margin-top:3px;font-size:22px;overflow-wrap:anywhere}
+      .controller-order-bundle-destination{padding:12px;border:1px solid #f0d8c4;background:#fff8e9;font-weight:750;line-height:1.4}.controller-order-bundle-destination strong{overflow-wrap:anywhere}
+      .controller-multi-order-dialog .button{width:100%;min-height:58px;font-size:18px}
+      @media (max-width:1100px){.controller-verification-grid{grid-template-columns:1fr}.controller-verification-side{position:static;max-height:none}}
+      @media (max-width:640px){.controller-primary-scan-heading{align-items:flex-start;flex-direction:column;gap:8px}.controller-primary-scan-form{grid-template-columns:1fr}.controller-order-unit{grid-template-columns:38px minmax(0,1fr)}.controller-order-unit-status{grid-column:2;white-space:normal}}
+    </style>
+    {% if service_tote_prompt %}
+      <dialog id="controller-problem-dialog" class="controller-problem-dialog" aria-modal="true" aria-labelledby="controller-problem-title" data-auto-show-modal>
+        <div class="controller-problem-dialog-head">
+          <span>Сканирование остановлено</span>
+          <h2 id="controller-problem-title">{{ service_tote_prompt.title }}</h2>
+        </div>
+        <div class="controller-problem-dialog-body">
+          <div class="controller-problem-reason" role="alert">{{ service_tote_prompt.reason }}</div>
+          {% if error %}<div class="notice notice-error" role="alert"><strong>Операция не выполнена.</strong> {{ error }}</div>{% endif %}
+          {% if service_tote_prompt.service_tote %}
+            {% if service_tote_prompt.requires_order_scan %}
+              <div class="controller-problem-order">
+                <span>1. Отсканируйте отмененный заказ</span>
+                <strong>{{ service_tote_prompt.order_scan_code }}</strong>
+              </div>
+            {% elif service_tote_prompt.requires_product_scans %}
+              <div class="controller-problem-order">
+                <span>1. Текущий отменённый заказ</span>
+                <strong>Заказ № {{ service_tote_prompt.order_scan_code }}</strong>
+                <small>
+                  Подтверждено {{ service_tote_prompt.canceled_product_confirmed }}
+                  из {{ service_tote_prompt.canceled_product_total }} шт.
+                  Техническая этикетка заказа не нужна: система определила заказ по отсканированному товару.
+                </small>
+              </div>
+              <div class="controller-problem-product">
+                <span>Товар текущего заказа</span>
+                <strong>{{ balance.name|default:balance.sku_code }}</strong>
+                <div class="controller-problem-product-meta">
+                  {% if balance.sku_code %}<span>Артикул: {{ balance.sku_code }}</span>{% endif %}
+                </div>
+                <div class="controller-problem-product-barcode">
+                  <span>Штрихкод товара</span>
+                  <strong>{{ expected_item_code|default:"Не указан" }}</strong>
+                </div>
+                <small>Сверьте этот штрихкод с физическим товаром. Именно по нему система нашла отменённый заказ.</small>
+              </div>
+            {% endif %}
+            {% if not service_tote_prompt.late_applied_label %}<div class="controller-problem-tote">
+              <span>{% if service_tote_prompt.requires_order_scan or service_tote_prompt.requires_product_scans %}2. Переложите весь товар и отсканируйте: {% elif service_tote_prompt.kind == 'marketplace_rejected' %}Переложите весь товар заказа {{ service_tote_prompt.order_scan_code }} и отсканируйте: {% else %}Поместите весь заказ в: {% endif %}{{ service_tote_prompt.service_tote_label }}</span>
+              <strong>{{ service_tote_prompt.service_tote.name }} · {{ service_tote_prompt.service_tote.barcode }}</strong>
+            </div>{% endif %}
+            {% if service_tote_prompt.marketplace_check_failed %}
+              <div class="notice notice-warning" role="status"><strong>Сверка WB требует повторения, но не должна останавливать контролёра.</strong> Снимите заказ в назначенную тару и продолжайте проверку. Финальная отправка поставки останется заблокирована до успешной сверки WB.</div>
+            {% elif service_tote_prompt.marketplace_check_pending %}
+              <div class="notice notice-warning" role="status"><strong>Сверка WB продолжается в фоне.</strong> Снимите заказ в назначенную тару и продолжайте проверку остальных заказов. Финальная отправка дождётся ответа WB.</div>
+            {% endif %}
+            {% if service_tote_prompt.late_applied_label %}
+              <div class="notice notice-warning" role="alert">
+                <strong>Этикетка заказа уже была подтверждена контролёром.</strong>
+                Не снимайте этот заказ через проверку волны. Передайте его кладовщику
+                для удаления из отгрузки по ШК {{ service_tote_prompt.applied_label_barcode }}.
+              </div>
+              <a class="button button-secondary" href="{% url 'fbs:controller_home' %}">К смене контролёра</a>
+            {% elif service_tote_prompt.ready_to_scan %}
+              <form class="scan-form" method="post" action="{{ service_tote_prompt.action_url }}" autocomplete="off" data-submit-once data-scan-feedback data-scan-focus-lock{% if agent_scan_poll_url %} data-agent-scan-poll-url="{{ agent_scan_poll_url }}" data-agent-scan-since="{{ agent_scan_event_id }}"{% endif %}>
+                {% csrf_token %}
+                <input type="hidden" name="action" value="{% if service_tote_prompt.kind == 'marketplace_rejected' %}confirm_marketplace_return_tote{% else %}return_to_pick{% endif %}">
+                <input type="hidden" name="modal_flow" value="1">
+                <input type="hidden" name="problem_kind" value="{{ service_tote_prompt.kind }}">
+                <input type="hidden" name="exception_type" value="{{ service_tote_prompt.exception_type }}">
+                <input type="hidden" name="reason" value="{{ service_tote_prompt.reason }}">
+                {% if service_tote_prompt.requires_order_scan %}
+                  <label for="canceled-order-scan">Скан отмененного заказа</label>
+                  <input id="canceled-order-scan" type="text" name="order_scan" autofocus required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-agent-scan-kind="order-label" data-scan-next="#service-tote-scan" data-scan-expected-value="{{ service_tote_prompt.order_scan_code }}" data-scan-expected-message="Отсканирован другой заказ. Нужен {{ service_tote_prompt.order_scan_code }}.">
+                {% elif service_tote_prompt.requires_product_scans %}
+                  {% if service_tote_prompt.initial_product_scan_token %}<input type="hidden" name="initial_product_scan_token" value="{{ service_tote_prompt.initial_product_scan_token }}">{% endif %}
+                  {% for row in service_tote_prompt.canceled_product_scan_rows %}
+                    <label for="canceled-product-scan-{{ forloop.counter }}">
+                      Товар {{ service_tote_prompt.canceled_product_confirmed|add:forloop.counter }} из {{ service_tote_prompt.canceled_product_total }} · {{ row.name }} · {{ row.sku_code }} · {{ row.scan_label }} {{ row.barcode }}
+                    </label>
+                    <input id="canceled-product-scan-{{ forloop.counter }}" type="text" name="product_scan"{% if forloop.first %} autofocus{% endif %} required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-agent-scan-kind="product" data-scan-next="{% if forloop.last %}#service-tote-scan{% else %}#canceled-product-scan-{{ forloop.counter|add:'1' }}{% endif %}">
+                  {% endfor %}
+                {% endif %}
+                <label for="service-tote-scan">Скан {{ service_tote_prompt.service_tote_label }}</label>
+                <input id="service-tote-scan" type="text" name="service_tote_scan"{% if not service_tote_prompt.requires_order_scan and not service_tote_prompt.canceled_product_scan_rows %} autofocus{% endif %} required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-agent-scan-kind="service-tote" data-scan-autosubmit="250" data-scan-expected-value="{{ service_tote_prompt.service_tote.barcode }}" data-scan-expected-message="Отсканирована другая тара. Нужна {{ service_tote_prompt.service_tote.barcode }}.">
+                <button class="button button-danger" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>{% if service_tote_prompt.requires_product_scans %}Подтвердить товары и тару{% elif service_tote_prompt.requires_order_scan %}Подтвердить заказ и тару{% elif service_tote_prompt.kind == 'marketplace_rejected' %}Снять заказ и продолжить{% else %}Подтвердить тару и продолжить{% endif %}</button>
+              </form>
+            {% else %}
+              <div class="notice notice-warning" role="status" data-auto-refresh="1000"><strong>Подготавливаем снятие заказа.</strong> Окно обновится автоматически.</div>
+            {% endif %}
+          {% else %}
+            <div class="notice notice-error" role="alert">Назначенная служебная тара не найдена. Вернитесь на рабочий стол контролера и привяжите тару.</div>
+            <a class="button button-secondary" href="{% url 'fbs:controller_home' %}">К смене контролера</a>
+          {% endif %}
+        </div>
+      </dialog>
+    {% endif %}
+    {% if multi_item_hold_prompt %}
+      <dialog id="controller-multi-order-dialog" class="controller-multi-order-dialog" aria-modal="true" aria-labelledby="controller-multi-order-title" data-auto-show-modal>
+        <div class="controller-multi-order-head">
+          <span>МНОГОТОВАРНЫЙ ЗАКАЗ · {{ multi_item_hold_prompt.verified_qty }} ИЗ {{ multi_item_hold_prompt.planned_qty }} ШТ.</span>
+          <h2 id="controller-multi-order-title">Заказ {{ multi_item_hold_prompt.order_number }} ещё не собран полностью</h2>
+        </div>
+        <div class="controller-multi-order-body">
+          <div class="controller-multi-order-action" role="alert">Складывайте все позиции этого заказа вместе. Не смешивайте набор с товарами других заказов.</div>
+          <div class="notice notice-warning"><strong>Одна галочка — один проверенный товар.</strong> После последней галочки автоматически напечатается одна общая этикетка Ozon на весь набор.</div>
+          <div class="controller-order-checklist" aria-label="Состав набора заказа {{ multi_item_hold_prompt.order_number }}">
+            {% for unit in multi_item_hold_prompt.unit_rows %}
+              <div class="controller-order-unit{% if unit.is_verified %} is-verified{% endif %}{% if unit.is_next %} is-next{% endif %}">
+                <span class="controller-order-unit-marker" aria-hidden="true">{% if unit.is_verified %}✓{% else %}{{ unit.position }}{% endif %}</span>
+                <span class="controller-order-unit-main">
+                  <strong>Товар {{ unit.position }} из {{ unit.total }} · {{ unit.article }}</strong>
+                  <small>{{ unit.name }}{% if unit.barcode %} · ШК {{ unit.barcode }}{% endif %}</small>
+                </span>
+                <strong class="controller-order-unit-status">{% if unit.is_current_scan %}✓ Только что проверен{% elif unit.is_verified %}✓ Проверен{% elif unit.is_next %}Отсканировать следующим{% else %}Ожидает{% endif %}</strong>
+              </div>
+            {% endfor %}
+          </div>
+          <form method="get" action="{% url 'fbs:tsd_pick_verification' batch_id=batch.id %}">
+            <button class="button button-primary" type="submit">ТОВАР ОТЛОЖЕН — К ТОВАРУ {{ multi_item_hold_prompt.next_position }} ИЗ {{ multi_item_hold_prompt.planned_qty }}</button>
+          </form>
+        </div>
+      </dialog>
+    {% endif %}
+    <div class="controller-verification-grid">
+      <aside class="controller-verification-column controller-verification-side section-band section-muted" aria-labelledby="wave-orders-title">
+        <div class="section-heading"><h2 id="wave-orders-title">Контроль заказов по стикерам</h2><span class="count">{{ verification_wave_rows|length }}</span></div>
+        <div class="controller-wave-legend" aria-label="Обозначения статусов">
+          <span class="status status-done">Прошёл</span>
+          <span class="status status-in_progress">В процессе</span>
+          <span class="status status-pending">Ожидает</span>
+          <span class="status status-problem">Не прошёл / проблема</span>
+        </div>
+        <div class="compact-list">
+          {% for wave_row in verification_wave_rows %}
+            <div class="controller-wave-row state-{{ wave_row.state }}{% if wave_row.is_current %} is-current{% endif %}">
+              <span class="controller-wave-main">
+                <strong class="controller-wave-sticker">Стикер: {% if wave_row.label %}{{ wave_row.label.external_label_id|default:wave_row.label.barcode|default:"ожидается" }}{% else %}ожидается{% endif %}</strong>
+                <small class="controller-wave-order">Заказ WB: {{ wave_row.order.external_order_id }}</small>
+                <small class="controller-wave-barcode">ШК товара: {% if wave_row.item_barcodes %}{{ wave_row.item_barcodes|join:", " }}{% else %}не указан{% endif %}</small>
+                <small>Проверено товара: {{ wave_row.verified_qty }} / {{ wave_row.planned_qty }} шт.</small>
+                {% if wave_row.is_incomplete %}<small class="text-error">{{ wave_row.problem_reason|default:"В заказе есть недокомплект" }}</small>{% endif %}
+                <small class="controller-wave-shipment">{% if wave_row.handover_link %}В коробе отгрузки #{{ wave_row.target_handover_batch.id }}{% elif wave_row.is_handover_added %}Добавлен в отгрузку #{{ wave_row.target_handover_batch.id }}{% elif wave_row.target_handover_batch %}Ещё не добавлен в отгрузку #{{ wave_row.target_handover_batch.id }}{% else %}Отгрузка ещё не создана{% endif %}</small>
+              </span>
+              <span class="controller-wave-state">
+                <strong class="status status-{{ wave_row.state }}">{% if wave_row.state == 'done' %}ПРОШЁЛ{% elif wave_row.state == 'problem' %}НЕ ПРОШЁЛ{% elif wave_row.state == 'in_progress' %}В ПРОЦЕССЕ{% else %}ОЖИДАЕТ{% endif %}</strong>
+                <small>{{ wave_row.state_label }}</small>
+              </span>
+            </div>
+          {% empty %}<div><span>В волне нет заказов для проверки.</span></div>{% endfor %}
+        </div>
+      </aside>
+      <main class="controller-verification-column">
+        <div class="controller-company-banner" aria-label="Компания — владелец товара">
+          <span>Компания</span>
+          <strong>{{ batch.agency.short_name|default:batch.agency.agn_name|default:"Не указана" }}{% if verification_handover_batches %} · {% if verification_handover_batches|length == 1 %}Отгрузка{% else %}Отгрузки{% endif %} {% for handover in verification_handover_batches %}{% if not forloop.first %}, {% endif %}№{{ handover.id }}{% endfor %}{% else %} · Отгрузка ещё не создана{% endif %}</strong>
+        </div>
+  {% endif %}
+  {% if order_incomplete %}
+    <div class="notice notice-error" role="alert">
+      <strong>В заказе недокомплект.</strong>
+      {{ order_problem_reason|default:"Не все позиции заказа найдены при отборе." }}
+      Обычная передача запрещена. Передайте физически собранный товар в проблемную тару через действие «Проблемный товар».
+    </div>
+  {% endif %}
+  {% if verification_label_phase %}
+    <div class="progress-line progress-line-prominent" aria-label="Прогресс проверки волны">
+      <span>Проверка волны #{{ batch.id }} · заказ {{ order.external_order_id }}</span>
+      <strong><small>Проверено</small>{{ wave_verified_qty }} / {{ wave_planned_qty }} <small>шт.</small></strong>
+    </div>
+
+    {% if multi_item_order and label.marketplace == "ozon" %}
+      <section class="controller-order-bundle-ready" aria-labelledby="controller-order-bundle-ready-title">
+        <div class="controller-order-bundle-ready-head">
+          <span>✓ НАБОР СОБРАН · {{ order_verified_qty }} ИЗ {{ order_planned_qty }} ШТ.</span>
+          <strong id="controller-order-bundle-ready-title">Заказ {{ order.external_order_id }}</strong>
+        </div>
+        <div class="controller-order-checklist" aria-label="Проверенный состав набора">
+          {% for unit in order_unit_rows %}
+            <div class="controller-order-unit is-verified">
+              <span class="controller-order-unit-marker" aria-hidden="true">✓</span>
+              <span class="controller-order-unit-main">
+                <strong>Товар {{ unit.position }} из {{ unit.total }} · {{ unit.article }}</strong>
+                <small>{{ unit.name }}{% if unit.barcode %} · ШК {{ unit.barcode }}{% endif %}</small>
+              </span>
+              <strong class="controller-order-unit-status">✓ Проверен</strong>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="controller-order-bundle-destination">
+          {% if print_job %}Одна общая этикетка Ozon на весь набор: <strong>{{ print_status_label|lower }}</strong>.{% elif label.status == label.STATUS_READY or label.status == label.STATUS_APPLIED or preloaded_ozon_order_label %}Система запускает печать одной общей этикетки Ozon на весь набор.{% else %}Система готовит одну общую этикетку Ozon на весь набор; она напечатается автоматически.{% endif %}
+          Держите все позиции вместе и подтвердите QR заказа после печати.
+          {% if packing_handover_box %}После подтверждения весь набор пойдёт в короб <strong>{{ packing_handover_box.qr_code }}</strong>.{% else %}Короб отгрузки будет выбран системой автоматически.{% endif %}
+        </div>
+      </section>
+    {% endif %}
+
+    {% if label.status == label.STATUS_READY or label.status == label.STATUS_APPLIED or preloaded_ozon_order_label %}
+      {% if controller_check_tote %}
+        <section class="controller-label-scan" aria-labelledby="label-scan-title">
+          <div class="controller-label-scan-heading">
+            <div>
+              <span>Последний шаг · товар и ЧЗ уже приняты</span>
+              <h2 id="label-scan-title">{% if preloaded_ozon_order_label %}QR заказа Ozon{% else %}Этикетка заказа{% endif %} {{ order.external_order_id }}</h2>
+              {% if label.external_label_id %}<small>Номер этикетки: {{ label.external_label_id }}</small>{% endif %}
+            </div>
+          </div>
+          <p class="controller-label-scan-warning">
+            {% if preloaded_ozon_order_label %}
+              Сканируйте <strong>напечатанный QR этого заказа Ozon</strong>.
+              После скана сразу берите следующий заказ. Проверка ЧЗ продолжится в фоне,
+              а её результат будет виден в существующей отгрузке.
+            {% else %}
+              Сканируйте <strong>напечатанную этикетку заказа</strong>, которая лежит рядом с принтером.
+              Штрихкод товара здесь не подойдёт — он уже принят на прошлом шаге.
+            {% endif %}
+          </p>
+          <div class="controller-label-scan-body">
+            <form class="scan-form" method="post" autocomplete="off" data-submit-once data-scan-feedback data-scan-focus-lock data-verification-fetch{% if agent_scan_poll_url %} data-agent-scan-poll-url="{{ agent_scan_poll_url }}" data-agent-scan-since="{{ agent_scan_event_id }}"{% endif %}>
+              {% csrf_token %}<input type="hidden" name="action" value="confirm_label">
+              <label for="label-scan">Скан этикетки заказа</label>
+              <input id="label-scan" type="text" name="label_scan" autofocus required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-agent-scan-kind="order-label" data-scan-autosubmit="250" data-scan-expected-value="{{ label.barcode }}" data-scan-expected-message="Это не этикетка текущего заказа. Отсканируйте напечатанную этикетку ещё раз.">
+              <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>{% if preloaded_ozon_order_label %}Подтвердить QR заказа и продолжить{% else %}Подтвердить этикетку и добавить заказ в отгрузку{% endif %}</button>
+            </form>
+          </div>
+        </section>
+        <div class="notice notice-warning" role="status"><strong>Заказ ещё не готов к передаче.</strong> {% if preloaded_ozon_order_label %}После скана можно сразу брать следующий товар. Проверка Ozon завершится в фоне и отобразится в отгрузке.{% else %}После успешного скана он автоматически попадёт в текущую отгрузку. Дополнительную тару сканировать не нужно.{% endif %}</div>
+      {% else %}
+        <div class="notice notice-error" role="alert">Тара проверки не выбрана. Вернитесь на рабочий стол и повторно примите тару подбора.</div>
+      {% endif %}
+    {% elif label.status == label.STATUS_REQUESTED %}
+      {% if handover_assignment and handover_assignment.status == handover_assignment.STATUS_ERROR %}
+        <div class="notice notice-error" role="alert"><strong>Заказ не добавлен в отгрузку.</strong> {{ handover_assignment.error|default:"Маркетплейс отклонил добавление заказа. Откройте новый поток отгрузки." }}</div>
+      {% elif label.marketplace == "wb" and not handover_assignment_confirmed %}
+        <div class="notice notice-warning" data-auto-refresh="1000" role="status"><strong>Заказ добавляется в поставку WB.</strong> {{ label.error|default:"Ожидается подтверждение заказа в поставке WB." }} Экран обновится автоматически.</div>
+      {% elif label.error %}
+        <div class="notice notice-error" role="alert"><strong>Этикетка не может быть создана.</strong> {{ label.error }}</div>
+      {% else %}
+        <div class="notice notice-warning" data-auto-refresh="1000" role="status"><strong>Заказ ещё не добавлен в отгрузку.</strong> Товар проверен, QR заказа готовится и будет напечатан автоматически. Первая проверка готовности начнётся через 1 секунду; при долгом ответе интервал плавно увеличится.</div>
+      {% endif %}
+    {% else %}
+      <div class="notice notice-error" role="alert">Этикетка не готова: {{ label.error|default:label.get_status_display }}</div>
+    {% endif %}
+
+    {% if not multi_item_order or label.marketplace != "ozon" %}
+      <section class="section-band section-muted" aria-labelledby="label-order-composition-title">
+        <div class="section-heading">
+          <h2 id="label-order-composition-title">Состав заказа</h2>
+          <span class="count">{{ order_verified_qty }} / {{ order_planned_qty }} шт.</span>
+        </div>
+        <div class="compact-list">
+          {% for row in order_allocations %}
+            <div><span>{{ row.balance.sku_code }} · {{ row.balance.barcode|default:row.order_item.barcode }} · {{ row.qty_picked }} шт.</span><strong class="text-ok">Проверено</strong></div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    <section class="detail-surface scan-summary">
+      <div class="metric-grid">
+        <div><span>Заказ</span><strong>{{ order.external_order_id }}</strong></div>
+        <div><span>Маркетплейс</span><strong>{{ label.get_marketplace_display }}</strong></div>
+        <div><span>Статус этикетки</span><strong>{% if preloaded_ozon_order_label %}QR заказа загружен заранее{% else %}{{ label.get_status_display }}{% endif %}</strong></div>
+        <div><span>Печать</span><strong>{% if print_job %}{{ print_status_label }}{% else %}Ожидается{% endif %}</strong></div>
+        <div><span>Поток отгрузки</span><strong>{% if controller_check_tote.handover_batch_id %}#{{ controller_check_tote.handover_batch_id }}{% else %}Создаётся автоматически{% endif %}</strong></div>
+        <div><span>Статус отгрузки</span><strong>{% if preloaded_ozon_order_label %}После скана — проверка в фоне{% else %}Нет, до скана QR{% endif %}</strong></div>
+      </div>
+    </section>
+
+    {% if label.status == label.STATUS_READY or label.status == label.STATUS_APPLIED or preloaded_ozon_order_label %}
+      {% if print_job.status == print_job.STATUS_PENDING or print_job.status == print_job.STATUS_PRINTING %}<span hidden data-auto-refresh="5000"></span>{% endif %}
+      {% if print_job_delay_warning %}
+        <div class="notice {% if print_job_retry_ready %}notice-error{% else %}notice-warning{% endif %}" role="alert">
+          <strong>Печать задерживается.</strong>
+          {{ print_job_delay_warning }}
+          {% if print_job.printer_name %}<br>Принтер: <strong>{{ print_job.printer_name }}</strong>.{% endif %}
+          {% if print_job.agent %} Очередь: <strong>{{ print_job.agent }}</strong>.{% endif %}
+        </div>
+      {% endif %}
+      <div class="notice notice-warning" role="alert" data-desktop-print-update hidden>
+        <strong>Для автоматической печати обновите Fullbox Desktop.</strong>
+        Установленная версия <span data-desktop-print-version>не определена</span> не поддерживает прямую очередь печати.
+        <a href="/static/downloads/desktop/Fullbox-Desktop.exe">Скачать актуальную версию</a>, установите её и перезапустите Desktop.
+      </div>
+      <div class="notice notice-error" role="alert" data-desktop-print-error hidden></div>
+      <form class="action-strip" method="post" data-submit-once data-desktop-print-form{% if not error and not ok_message and not print_job %} data-desktop-auto-print{% endif %}>
+        {% csrf_token %}<input type="hidden" name="action" value="print_label"><input type="hidden" name="print_mode" value="{% if error or ok_message or print_job %}manual{% else %}automatic{% endif %}">
+        <button class="button button-secondary" type="submit">{% if print_job_retry_ready %}Повторить печать безопасно{% elif print_job %}Напечатать повторно{% elif preloaded_ozon_order_label %}Напечатать QR заказа{% else %}Напечатать этикетку{% endif %}</button>
+        {% if print_job %}<span>Принтер: {{ print_job.printer_name }}{% if print_job.error %} · {{ print_job.error }}{% endif %}</span>{% endif %}
+      </form>
+    {% endif %}
+  {% else %}
+  <div class="progress-line progress-line-prominent" aria-label="Прогресс проверки волны">
+    <span>Проверка волны #{{ batch.id }}{% if item_selected %} · найден заказ {{ order.external_order_id }}{% else %} · сканируйте любой товар из тары{% endif %}</span>
+    <strong><small>Проверено</small>{{ wave_verified_qty }} / {{ wave_planned_qty }} <small>шт.</small></strong>
+  </div>
+
+  {% if batch.cart %}
+    <div class="notice notice-info" role="status">
+      <strong>Телега-источник:</strong> {{ batch.cart.name }} · {{ batch.cart.barcode }}.
+      Товар на этой проверке сканируется из указанной телеги.
+    </div>
+  {% endif %}
+
+  {% if order_incomplete and not allocation_remaining %}
+    <div class="notice notice-warning" role="status">
+      Физически собранный товар проверен. Теперь выберите «Проблемный товар» и передайте заказ в проблемную тару.
+    </div>
+  {% else %}
+  <section class="controller-primary-scan" aria-labelledby="verify-item-title">
+    <div class="controller-primary-scan-heading">
+      <div>
+        <span>{% if item_selected %}Товар найден автоматически{% elif active_multi_item_order %}Продолжение набора{% else %}Свободный выбор товара{% endif %}</span>
+        <h2 id="verify-item-title">{% if item_selected %}ШК {{ expected_item_code }}{% elif active_multi_item_order %}Заказ {{ active_multi_item_order.external_order_id }} · сканируйте оставшийся товар{% else %}Сканируйте любой товар из тары{% endif %}</h2>
+      </div>
+      <strong>{% if active_multi_item_order and not item_selected %}Набор закреплён{% elif not item_selected %}Система найдёт заказ{% elif marking_required %}Нужен КИЗ{% elif marking_optional %}Проверьте ЧЗ{% elif expiry_required %}Нужен срок{% else %}Товар найден{% endif %}</strong>
+    </div>
+    <form class="scan-form controller-primary-scan-form" method="post" autocomplete="off" data-submit-once data-scan-feedback data-scan-focus-lock data-verification-fetch{% if agent_scan_poll_url %} data-agent-scan-poll-url="{{ agent_scan_poll_url }}" data-agent-scan-since="{{ agent_scan_event_id }}"{% endif %}>
+      {% csrf_token %}<input type="hidden" name="action" value="{% if item_selected %}verify{% else %}select_item{% endif %}"><input type="hidden" name="legacy_marking_absent" value="0">
+      {% if item_selected %}<input type="hidden" name="allocation_id" value="{{ allocation.id }}">{% endif %}
+      <div class="controller-scan-stage controller-scan-stage-product">
+        <div class="controller-scan-stage-heading">
+          <span class="controller-scan-stage-number">1</span>
+          <div><h3>Штрихкод товара</h3>{% if item_selected %}<strong>{{ expected_item_code }}</strong><small>Заказ выбран системой</small>{% elif active_multi_item_order %}<small>Следующий скан будет засчитан только заказу {{ active_multi_item_order.external_order_id }}</small>{% else %}<small>Берите любой товар: порядок списка не важен</small>{% endif %}</div>
+        </div>
+        <div class="controller-scan-field">
+          {% if item_selected %}
+            <input type="hidden" name="item_scan" value="{{ submitted_item_scan }}">
+            <div class="notice notice-ok" role="status">Товар распознан. Продолжайте следующий обязательный этап.</div>
+          {% else %}
+            <label for="verify-item-scan">Скан товара</label>
+            <input id="verify-item-scan" type="text" name="item_scan" autofocus required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-agent-scan-kind="product" data-scan-autosubmit="250">
+            {% if unknown_scan_info %}
+              <div class="notice notice-error" role="alert">
+                <strong>Товара со ШК {{ unknown_scan_info.scanned_value }} в этой таре нет.</strong><br>
+                Скан не засчитан. Отложите товар в служебную тару
+                <strong>{{ unknown_scan_info.tote_name }} · {{ unknown_scan_info.tote_barcode }}</strong>,
+                затем сканируйте следующий товар из текущей тары.
+              </div>
+            {% elif error %}
+              <div class="notice notice-error" role="alert"><strong>Скан не принят.</strong> {{ error }}</div>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+      {% if item_selected and marking_required or item_selected and marking_optional %}
+        <div class="controller-scan-stage controller-scan-stage-marking">
+          <div class="controller-scan-stage-heading">
+            <span class="controller-scan-stage-number">2</span>
+            <div><h3>Честный знак (КИЗ)</h3><small>{% if marking_optional %}Если Data Matrix есть на товаре — отсканируйте его. Галочка в карточке не требуется.{% elif legacy_marking_exception_allowed %}Для внутреннего учёта отсканируйте Data Matrix. Если на старой партии кода физически нет, используйте отдельную кнопку ниже.{% else %}Полный код маркировки отображается ниже{% endif %}</small></div>
+          </div>
+          <div class="controller-scan-field">
+            {% if submitted_marking_scan %}
+              <input type="hidden" name="marking_scan" value="{{ submitted_marking_scan }}">
+              <div class="notice notice-ok" role="status">КИЗ распознан из первого скана и сопоставлен с товаром.</div>
+            {% else %}
+              <label for="verify-marking-scan">Скан КИЗ</label>
+              <input id="verify-marking-scan" type="text" name="marking_scan" {% if retry_marking or marking_optional or marking_required %}autofocus {% endif %}{% if marking_required %}required {% endif %}autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-agent-scan-kind="marking"{% if not expiry_required %} data-scan-autosubmit="250"{% endif %}>
+            {% endif %}
+          </div>
+          {% if used_marking_info %}
+            <div class="notice notice-error" role="alert">
+              <strong>Этот КИЗ уже использован{% if used_marking_info.owner_order_id %} в заказе №{{ used_marking_info.owner_order_id }}{% endif %}.</strong><br>
+              Единица зарегистрирована в служебной таре
+              <strong>{{ used_marking_info.tote_name }} · {{ used_marking_info.tote_barcode }}</strong>.
+              Отложите товар в эту тару. Текущая позиция не подтверждена: сразу отсканируйте КИЗ другой единицы этого товара.
+            </div>
+          {% elif error %}<div class="notice notice-error" role="alert"><strong>КИЗ не принят.</strong> {{ error }}{% if retry_marking %}<br>Штрихкод товара уже подтверждён. Повторно отсканируйте только КИЗ Честного знака.{% endif %}</div>
+          {% elif retry_marking %}<div class="notice notice-error" role="alert">Штрихкод товара уже подтвержден. Повторно отсканируйте только КИЗ Честного знака.</div>{% endif %}
+          {% if marking_optional and not submitted_marking_scan %}<div class="notice notice-warning" role="status">Если на товаре нет Data Matrix, подтвердите его без ЧЗ. Если код есть, его скан обязателен.</div>{% endif %}
+          {% if legacy_marking_exception_allowed and not submitted_marking_scan %}<div class="notice notice-warning" role="status"><strong>Исключение только для старой партии до 01.10.2025.</strong> Нажимайте кнопку пропуска лишь когда Data Matrix физически отсутствует. Система запишет контролёра и время; КИЗ маркетплейсу не передаётся.</div>{% endif %}
+          {% if not submitted_marking_scan %}<output id="verify-marking-preview" class="controller-kiz-preview is-empty" for="verify-marking-scan" aria-live="polite">КИЗ еще не отсканирован</output>{% endif %}
+        </div>
+      {% endif %}
+      {% if item_selected and expiry_required %}
+        <div class="controller-scan-field">
+          <label for="verify-expiry-date">Срок годности</label>
+          <input id="verify-expiry-date" type="date" name="expiry_date" min="{{ minimum_expiry_date|date:'Y-m-d' }}" {% if expiry_entry_required %}required{% else %}value="{{ trace_expiry_date|date:'Y-m-d' }}" readonly{% endif %}>
+        </div>
+      {% endif %}
+      {% if item_selected %}<button class="button button-primary" type="submit"{% if marking_optional %} data-allow-empty-scan{% endif %} {% if not warehouse_writes_enabled %}disabled{% endif %}>{% if marking_optional %}Подтвердить товар без ЧЗ{% else %}Подтвердить товар{% endif %}</button>{% endif %}
+      {% if item_selected and legacy_marking_exception_allowed %}<button class="button button-secondary" type="submit" formnovalidate data-allow-empty-scan onclick="this.form.elements.legacy_marking_absent.value='1';" {% if not warehouse_writes_enabled %}disabled{% endif %}>Партия до 01.10.2025 · не передавать ЧЗ</button>{% endif %}
+    </form>
+    <p class="controller-next-hint">{% if active_multi_item_order %}Сначала проверьте весь набор. После последней единицы сразу откроется QR именно этого заказа.{% else %}Этикетку заказа отсканируете на следующем экране — здесь она не нужна.{% endif %}</p>
+  </section>
+  {% if item_selected and marking_required or item_selected and marking_optional %}
+    <script>
+      (() => {
+        const input = document.getElementById('verify-marking-scan');
+        const preview = document.getElementById('verify-marking-preview');
+        if (!input || !preview) return;
+        const renderKiz = () => {
+          const value = input.value.replace(/\u001d/g, ' [GS] ');
+          preview.textContent = value || 'КИЗ еще не отсканирован';
+          preview.classList.toggle('is-empty', !value);
+        };
+        input.addEventListener('input', renderKiz);
+        input.addEventListener('change', renderKiz);
+        renderKiz();
+      })();
+    </script>
+  {% endif %}
+  {% endif %}
+
+  {% if item_selected %}<section class="detail-surface scan-summary">
+    {% if product_photo_url %}<img class="product-photo" src="{{ product_photo_url }}" alt="{{ balance.name|default:balance.sku_code }}">{% endif %}
+    <div class="metric-grid">
+      <div><span>Клиент</span><strong>{{ batch.agency }}</strong></div>
+      <div><span>Заказ</span><strong>{{ order.external_order_id }}</strong></div>
+      <div><span>Заказ проверен</span><strong>{{ order_verified_qty }} / {{ order_planned_qty }} шт.</strong></div>
+      <div><span>Позиция проверена</span><strong>{{ verified_qty }} / {{ allocation.qty_picked }} шт.</strong></div>
+      <div><span>Осталось</span><strong>{{ allocation_remaining }} шт.</strong></div>
+      <div><span>Артикул</span><strong>{{ balance.sku_code }}</strong></div>
+      <div><span>ШК товара</span><strong>{{ expected_item_code }}</strong></div>
+      {% if marking_required %}<div><span>КИЗ</span><strong>{% if legacy_marking_exception_allowed %}Внутренний скан или подтверждение старой партии{% else %}Требуется сканирование{% endif %}</strong></div>{% elif marking_optional %}<div><span>КИЗ</span><strong>Сканируйте, если Data Matrix есть</strong></div>{% endif %}
+      {% if expiry_required %}<div><span>Срок годности</span><strong>{% if trace_expiry_date %}{{ trace_expiry_date|date:"d.m.Y" }}{% else %}Нужно указать{% endif %}</strong></div>{% endif %}
+    </div>
+  </section>{% endif %}
+
+  {% if item_selected %}<section class="section-band section-muted" aria-labelledby="order-composition-title">
+    <div class="section-heading">
+      <h2 id="order-composition-title">Состав заказа</h2>
+      <span class="count">{{ order_verified_qty }} / {{ order_planned_qty }} шт.</span>
+    </div>
+    <div class="compact-list">
+      {% for row in order_allocations %}
+        <div>
+          <span>{% if row.is_current %}<strong>Сейчас · </strong>{% endif %}{{ row.balance.sku_code }} · {{ row.balance.barcode|default:row.order_item.barcode }} · {{ row.qty_picked }} шт.</span>
+          <strong class="{% if row.is_verified %}text-ok{% endif %}">{% if row.is_verified %}Проверено{% else %}{{ row.verified_qty }} / {{ row.qty_picked }}{% endif %}</strong>
+        </div>
+      {% endfor %}
+    </div>
+  </section>{% endif %}
+
+  {% if request_role == 'fbs_controller' and item_selected %}
+    <nav class="action-strip" aria-label="Проблема товара">
+      <a class="button button-danger" href="{% url 'fbs:tsd_pick_verification_problem' allocation_id=allocation.id %}">Указать проблему заказа</a>
+      <span>Это ручное действие: откроется выбор причины. Заказ будет исключен только после подтверждения причины и сканирования проблемной тары.</span>
+    </nav>
+  {% endif %}
+
+  <section class="section-band section-muted">
+    <div class="section-heading"><h2>Последние сканы волны</h2></div>
+    <div class="compact-list scan-event-list">
+      {% for event in recent_scan_events %}
+        <div class="controller-scan-row">
+          <span>
+            <strong>{{ event.created_at|date:"H:i:s" }} · {% if event.stage == 'cart' %}Тара{% else %}{{ event.get_stage_display }}{% endif %}{% if event.task %} · заказ {{ event.task.order.external_order_id }}{% endif %}</strong>
+            <small>{{ event.created_by.get_username|default:"Система" }}{% if event.stage == 'verify_item' and batch.cart %} · телега {{ batch.cart.name }} · {{ batch.cart.barcode }}{% endif %}{% if event.result == 'error' and event.message %} · <span class="text-error">Причина ошибки: {{ event.message }}</span>{% endif %}</small>
+          </span>
+          <strong class="{% if event.result == 'error' %}text-error{% endif %}">{{ event.get_result_display }}</strong>
+        </div>
+      {% empty %}<div><span>Сканов пока нет</span></div>{% endfor %}
+    </div>
+  </section>
+  {% endif %}
+  {% if request_role == 'fbs_controller' %}
+      </main>
+      <aside class="controller-verification-column controller-verification-side section-band section-muted" aria-labelledby="verified-items-title">
+        <div class="section-heading"><h2 id="verified-items-title">Отсканировано</h2><span class="count">{{ wave_verified_qty }} шт.</span></div>
+        <div class="compact-list scan-event-list">
+          {% for event in verified_product_events %}
+            <div class="controller-scan-row">
+              <span><strong>{% if event.task %}{{ event.task.order.external_order_id }}{% else %}Заказ{% endif %}</strong><small>{{ event.scan_value|default:event.expected_value }} · {{ event.created_at|date:"H:i:s" }}{% if batch.cart %} · телега {{ batch.cart.name }} · {{ batch.cart.barcode }}{% endif %}</small></span>
+              <strong class="text-ok">{{ event.quantity_after|default:"1" }} шт.</strong>
+            </div>
+          {% empty %}<div><span>Подтвержденных сканов товара пока нет.</span></div>{% endfor %}
+        </div>
+        {% if controller_check_tote %}
+          <div class="notice notice-ok" role="status">Текущий поток отгрузки выбран автоматически.</div>
+        {% endif %}
+      </aside>
+    </div>
+  {% endif %}
+  {% if request_role == 'fbs_controller' %}</div>{% endif %}
+{% endblock %}

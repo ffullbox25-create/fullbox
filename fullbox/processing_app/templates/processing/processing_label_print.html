@@ -1,0 +1,5434 @@
+{% load order_display %}
+<!doctype html>
+
+<html lang="ru">
+
+<head>
+
+  <meta charset="utf-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Печать этикеток | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+
+  <style>
+
+    :root {
+
+      --bg: #f2efe8;
+
+      --surface: #fffdf8;
+
+      --surface-2: #f7f2ea;
+
+      --ink: #1c1f1a;
+
+      --muted: #6b6f66;
+
+      --accent: #0e6b5b;
+
+      --accent-strong: #0b5246;
+
+      --accent-soft: rgba(14,107,91,0.12);
+
+      --sun: #f2b747;
+
+      --sun-soft: rgba(242,183,71,0.18);
+
+      --danger: #d4543c;
+
+      --stroke: rgba(28,31,26,0.12);
+
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+
+      --card: var(--surface);
+
+      --card-soft: var(--surface-2);
+
+      --text: var(--ink);
+
+      --page-pad-top: 16px;
+
+      --page-pad-bottom: 24px;
+
+      --page-pad-side: 20px;
+
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+
+      margin: 0;
+
+      font-family: "Manrope", system-ui, sans-serif;
+
+      color: var(--ink);
+
+      overflow: auto;
+
+      background:
+
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+
+        var(--bg);
+
+      min-height: 100vh;
+
+    }
+
+    body::before,
+
+    body::after {
+
+      content: "";
+
+      position: fixed;
+
+      inset: 0;
+
+      pointer-events: none;
+
+      z-index: 0;
+
+    }
+
+    body::before {
+
+      background-image:
+
+        linear-gradient(rgba(28,31,26,0.06) 1px, transparent 1px),
+
+        linear-gradient(90deg, rgba(28,31,26,0.06) 1px, transparent 1px);
+
+      background-size: 36px 36px;
+
+      opacity: 0.08;
+
+    }
+
+    body::after {
+
+      background:
+
+        radial-gradient(420px 240px at 20% 20%, rgba(242,183,71,0.18), transparent 70%),
+
+        radial-gradient(360px 220px at 85% 30%, rgba(14,107,91,0.12), transparent 70%);
+
+      opacity: 0.7;
+
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .wrap {
+
+      position: relative;
+
+      z-index: 1;
+
+      width: 100%;
+
+      max-width: 100%;
+
+      margin: 0 auto;
+
+      padding: var(--page-pad-top) var(--page-pad-side) var(--page-pad-bottom);
+
+    }
+
+    .layout {
+
+      display: grid;
+
+      grid-template-columns: 260px minmax(0, 1fr) 300px;
+
+      gap: 18px;
+
+      align-items: stretch;
+
+      min-height: calc(100vh - (var(--page-pad-top) + var(--page-pad-bottom)));
+
+    }
+
+    .side {
+
+      background: var(--surface);
+
+      border: 1px solid var(--stroke);
+
+      border-radius: 22px;
+
+      padding: 16px;
+
+      box-shadow: var(--shadow);
+
+      display: grid;
+
+      gap: 12px;
+
+      max-height: none;
+      overflow: visible;
+
+    }
+
+    .brand {
+
+      display: grid;
+
+      gap: 4px;
+
+    }
+
+    .brand-title {
+
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+
+      font-size: 22px;
+
+      letter-spacing: 0.6px;
+
+    }
+
+    .profile {
+
+      display: grid;
+
+      gap: 6px;
+
+      padding: 12px;
+
+      border-radius: 16px;
+
+      background: var(--surface-2);
+
+      border: 1px solid var(--stroke);
+
+    }
+
+    .profile-value { font-weight: 600; }
+
+    .nav {
+
+      display: grid;
+
+      gap: 10px;
+
+    }
+
+    .nav-link {
+
+      display: grid;
+
+      gap: 4px;
+
+      padding: 12px 12px;
+
+      border-radius: 16px;
+
+      border: 1px solid var(--stroke);
+
+      background: var(--surface-2);
+
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+
+    }
+
+    .nav-link:hover {
+
+      transform: translateY(-1px);
+
+      border-color: rgba(14,107,91,0.4);
+
+      box-shadow: 0 12px 24px rgba(14,107,91,0.12);
+
+    }
+
+    .nav-link.primary {
+
+      background: linear-gradient(135deg, rgba(242,183,71,0.45), rgba(14,107,91,0.15));
+
+      border-color: transparent;
+
+    }
+
+    .nav-title { font-weight: 700; }
+
+    .nav-sub { font-size: 12px; color: var(--muted); }
+
+    .side-footer {
+
+      display: grid;
+
+      gap: 10px;
+
+    }
+
+    .content {
+
+      display: grid;
+
+      gap: 18px;
+
+      height: 100%;
+
+      max-height: none;
+      overflow: visible;
+
+      padding-right: 4px;
+
+    }
+
+    .rail {
+
+      display: grid;
+
+      gap: 12px;
+
+      align-self: start;
+
+      max-height: none;
+      overflow: visible;
+
+      padding-right: 4px;
+
+    }
+
+    .side,
+    .rail {
+      min-width: 0;
+      width: 100%;
+    }
+
+    .side .panel,
+    .side .card,
+    .rail .panel,
+    .rail .card {
+      width: 100%;
+    }
+
+    .side .panel,
+    .side .card,
+    .rail .panel,
+    .rail .card {
+      padding: 14px;
+    }
+
+    .panel,
+
+    .card {
+
+      background: var(--surface);
+
+      border: 1px solid var(--stroke);
+
+      border-radius: 22px;
+
+      box-shadow: var(--shadow);
+
+    }
+
+    .panel { padding: 18px; }
+
+    .card {
+
+      padding: 18px;
+
+      display: grid;
+
+      gap: 14px;
+
+    }
+
+    .panel-header,
+
+    .card-header {
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: flex-start;
+
+      gap: 14px;
+
+      flex-wrap: wrap;
+
+    }
+
+    .panel-title {
+
+      margin: 0;
+
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+
+      font-size: 20px;
+
+    }
+
+    .panel-subtitle {
+
+      color: var(--muted);
+
+      font-size: 13px;
+
+    }
+
+    .btn {
+
+      padding: 10px 14px;
+
+      border-radius: 12px;
+
+      border: 1px solid var(--stroke);
+
+      background: rgba(28,31,26,0.04);
+
+      color: var(--ink);
+
+      font-weight: 700;
+
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+
+    }
+
+    .btn:hover {
+
+      transform: translateY(-1px);
+
+      border-color: rgba(14,107,91,0.4);
+
+      box-shadow: 0 10px 24px rgba(14,107,91,0.14);
+
+    }
+
+    .btn.primary {
+
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+
+      border-color: transparent;
+
+      color: #2a2110;
+
+    }
+
+    .btn.ghost { background: transparent; }
+
+    .muted { color: var(--muted); }
+
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .grid { display: grid; gap: 18px; }
+
+    .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    .card.wide { grid-column: 1 / -1; }
+
+    .tab-panels { display: grid; gap: 18px; }
+
+    .tab-panel { display: none; }
+
+    .tab-panel.active { display: grid; }
+
+    .field-grid {
+
+      display: grid;
+
+      gap: 10px;
+
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+
+    }
+
+    .field label {
+
+      display: block;
+
+      font-size: 12px;
+
+      color: var(--muted);
+
+      margin-bottom: 6px;
+
+    }
+
+    .field input {
+
+      width: 100%;
+
+      padding: 10px 12px;
+
+      border-radius: 10px;
+
+      border: 1px solid var(--stroke);
+
+      background: var(--surface-2);
+
+      color: var(--ink);
+
+      font-size: 14px;
+
+    }
+
+    .label-grid {
+
+      display: flex;
+
+      flex-wrap: wrap;
+
+      gap: 12px;
+
+      align-items: flex-start;
+
+      min-height: 0;
+
+      padding: 6px;
+
+    }
+
+    .label-table-row {
+
+      display: flex;
+
+      flex-wrap: wrap;
+
+      gap: 12px;
+
+      align-items: flex-start;
+
+      margin-bottom: 12px;
+
+    }
+
+    .labels-panel {
+
+      padding: 12px;
+
+      display: grid;
+
+      gap: 8px;
+
+      grid-template-rows: auto auto auto;
+
+      background: rgba(242,183,71,0.12);
+
+    }
+
+    .labels-panel .card-header { gap: 4px; }
+
+    .labels-panel h2 { margin: 0; font-size: 15px; }
+
+    .labels-panel .muted { font-size: 10px; }
+
+    .labels-panel .field-grid {
+
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+
+      gap: 4px;
+
+    }
+
+    .label-table {
+
+      width: auto;
+
+      max-width: 100%;
+
+      justify-self: start;
+
+      align-self: start;
+
+      table-layout: auto;
+
+      border-collapse: collapse;
+
+      font-size: 11px;
+
+      background: var(--surface-2);
+
+      border-radius: 14px;
+
+      overflow: hidden;
+
+      border: 1px solid var(--stroke);
+
+      display: inline-table;
+
+    }
+
+    .label-table th,
+
+    .label-table td {
+
+      padding: 4px 6px;
+
+      border-bottom: 1px dashed var(--stroke);
+
+      vertical-align: middle;
+
+      text-align: left;
+
+    }
+
+    .label-table th {
+
+      font-size: 10px;
+
+      color: var(--muted);
+
+      letter-spacing: 0.3px;
+
+      text-transform: uppercase;
+
+      background: rgba(28,31,26,0.04);
+
+    }
+
+    .label-table tr:last-child td { border-bottom: none; }
+
+    .label-table input {
+
+      width: 160px;
+
+      padding: 4px 6px;
+
+      border-radius: 8px;
+
+      border: 1px solid var(--stroke);
+
+      background: #fff;
+
+      color: var(--ink);
+
+      font-size: 10px;
+
+    }
+
+    .label-table .check-cell {
+
+      text-align: center;
+
+    }
+
+    .label-table .check-input {
+
+      width: 14px;
+
+      height: 14px;
+
+      padding: 0;
+
+      border-radius: 4px;
+
+    }
+
+    .label-table .size-input {
+
+      width: 88px;
+
+      text-align: right;
+
+    }
+
+    .labels-panel .field label {
+
+      font-size: 9px;
+
+      margin-bottom: 1px;
+
+    }
+
+    .labels-panel .field input {
+
+      padding: 4px 6px;
+
+      font-size: 10px;
+
+    }
+
+    .labels-panel .label-mode .btn,
+
+    .labels-panel .label-tabs .btn {
+
+      padding: 6px 10px;
+
+      font-size: 12px;
+
+      border-radius: 10px;
+
+    }
+
+    .labels-panel .label-grid { height: auto; }
+
+    .labels-panel .label-card {
+
+      height: auto;
+
+      grid-template-rows: auto auto auto;
+
+    }
+
+    .labels-panel .label-stage {
+
+      --label-scale: 2;
+
+      width: calc(var(--label-width) * var(--label-scale) + 16px);
+
+      height: calc(var(--label-height) * var(--label-scale) + 16px);
+
+      padding: 8px;
+
+      position: relative;
+
+      display: inline-flex;
+
+      align-items: flex-start;
+
+      justify-content: flex-start;
+
+      min-height: 0;
+
+    }
+
+        .label-print-controls {
+
+      display: flex;
+
+      gap: 8px;
+
+      align-items: flex-end;
+
+    }
+
+    .label-print-qty {
+
+      display: flex;
+
+      flex-direction: column;
+
+      gap: 4px;
+
+      font-size: 11px;
+
+      color: var(--muted);
+
+    }
+
+    .label-print-qty input {
+
+      width: 84px;
+
+      padding: 6px 8px;
+
+      border-radius: 10px;
+
+      border: 1px solid var(--stroke);
+
+      background: var(--surface);
+
+      font-size: 12px;
+
+      color: var(--ink);
+
+    }
+
+    .label-print-meta {
+
+      font-size: 11px;
+
+      color: var(--muted);
+
+      margin-top: 4px;
+
+    }
+
+.label-card-header {
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+
+      gap: 10px;
+
+    }
+
+    .label-card-header .label-title {
+
+      margin: 0;
+
+    }
+
+    .label-print-btn {
+
+      padding: 6px 10px;
+
+      font-size: 11px;
+
+      border-radius: 999px;
+
+      border: 1px solid var(--stroke);
+
+      background: rgba(255,255,255,0.92);
+
+      color: var(--ink);
+
+      cursor: pointer;
+
+    }
+
+    .label-print-btn:hover {
+
+      transform: translateY(-1px);
+
+    }
+
+    .label-print-btn.secondary {
+
+      background: transparent;
+
+      color: var(--accent-strong);
+
+      border-color: rgba(14,107,91,0.3);
+
+    }
+
+    .label-printers-card {
+
+      display: grid;
+
+      gap: 8px;
+
+      padding: 12px;
+
+      border-radius: 14px;
+
+      border: 1px dashed var(--stroke);
+
+      background: var(--surface-2);
+
+      width: fit-content;
+
+      max-width: 100%;
+
+    }
+
+    .label-printers-title {
+
+      font-weight: 700;
+
+      font-size: 13px;
+
+    }
+
+    .label-printers-card .printer-row input,
+    .label-printers-card .printer-row select {
+
+      width: 260px;
+
+    }
+
+    .label-card {
+
+      width: 100%;
+
+      max-width: 100%;
+
+      scroll-snap-align: start;
+
+      padding: 14px;
+
+      border-radius: 18px;
+
+      border: 1px solid var(--stroke);
+
+      background: var(--surface-2);
+
+      display: grid;
+
+      gap: 12px;
+
+    }
+
+    .labels-panel .label-card {
+
+      width: fit-content;
+
+      max-width: 100%;
+
+      display: inline-grid;
+
+    }
+
+    .label-title {
+
+      font-weight: 700;
+
+      font-size: 15px;
+
+    }
+
+    .label-sub {
+
+      font-size: 12px;
+
+      color: var(--muted);
+
+    }
+
+    .label-mode {
+
+      display: flex;
+
+      gap: 10px;
+
+      flex-wrap: wrap;
+
+      align-items: center;
+
+    }
+
+    .label-tabs {
+
+      display: flex;
+
+      gap: 10px;
+
+      flex-wrap: wrap;
+
+      align-items: center;
+
+      width: 100%;
+
+    }
+
+    .label-tabs-group {
+
+      display: flex;
+
+      gap: 10px;
+
+      flex-wrap: wrap;
+
+      align-items: center;
+
+    }
+
+    .label-actions {
+
+      display: flex;
+
+      gap: 8px;
+
+      flex-wrap: wrap;
+
+      align-items: center;
+
+      margin-left: auto;
+
+    }
+
+    .printer-row {
+
+      display: grid;
+
+      gap: 8px;
+
+    }
+
+    .printer-row label {
+
+      font-size: 12px;
+
+      text-transform: uppercase;
+
+      letter-spacing: 1px;
+
+      color: var(--muted);
+
+    }
+
+    .printer-row input {
+
+      width: 100%;
+
+      padding: 10px 12px;
+
+      border-radius: 10px;
+
+      border: 1px solid var(--stroke);
+
+      background: var(--surface-2);
+
+      font-size: 14px;
+
+    }
+
+    .printer-meta {
+
+      font-size: 12px;
+
+      color: var(--muted);
+
+    }
+
+    .pill {
+
+      display: inline-flex;
+
+      align-items: center;
+
+      gap: 6px;
+
+      padding: 6px 10px;
+
+      border-radius: 999px;
+
+      border: 1px solid var(--stroke);
+
+      background: rgba(14,107,91,0.08);
+
+      color: var(--accent-strong);
+
+      font-size: 12px;
+
+      font-weight: 600;
+
+    }
+
+    .list {
+
+      display: grid;
+
+      gap: 6px;
+
+      padding: 0;
+
+      margin: 0;
+
+      list-style: none;
+
+      font-size: 13px;
+
+    }
+
+    .list li {
+
+      padding: 6px 8px;
+
+      border-radius: 10px;
+
+      border: 1px dashed var(--stroke);
+
+      background: var(--surface);
+
+    }
+
+    .stat-list {
+
+      display: grid;
+
+      gap: 12px;
+
+      margin-top: 12px;
+
+    }
+
+    .stat-item {
+
+      padding: 12px;
+
+      border-radius: 14px;
+
+      border: 1px solid var(--stroke);
+
+      background: var(--surface-2);
+
+    }
+
+    .stat-value {
+
+      font-size: 20px;
+
+      font-weight: 700;
+
+    }
+
+    .stat-label {
+
+      font-size: 12px;
+
+      color: var(--muted);
+
+    }
+
+    .meta-line {
+
+      margin-top: 12px;
+
+      font-size: 12px;
+
+      color: var(--muted);
+
+    }
+
+    .tip {
+
+      margin-top: 12px;
+
+      padding: 10px 12px;
+
+      border-radius: 12px;
+
+      border: 1px dashed var(--stroke);
+
+      background: rgba(242,183,71,0.12);
+
+      font-size: 12px;
+
+      color: #4b3b18;
+
+    }
+
+    .reveal {
+
+      animation: rise 0.7s ease both;
+
+      animation-delay: calc(var(--i, 0) * 70ms);
+
+    }
+
+    @keyframes rise {
+
+      from { opacity: 0; transform: translateY(12px); }
+
+      to { opacity: 1; transform: translateY(0); }
+
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      .reveal { animation: none; }
+
+      .btn:hover,
+
+      .nav-link:hover { transform: none; }
+
+    }
+
+    {% include "labels/_label_styles.css" %}
+
+    @media (max-width: 1200px) {
+
+      body { overflow: auto; }
+
+      .layout { grid-template-columns: 1fr; }
+
+      .side,
+
+      .content,
+
+      .rail {
+
+        max-height: none;
+
+        overflow: visible;
+
+        padding-right: 0;
+
+      }
+
+      .content { height: auto; }
+
+      .grid.cols-2 { grid-template-columns: 1fr; }
+
+    }
+
+    @media (max-width: 900px) {
+
+      .label-stage { min-height: 260px; }
+
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+  <div class="wrap">
+
+    <div class="layout">
+
+      <aside class="side">
+
+        <div class="brand">
+
+          <div class="brand-title">FULLBOX</div>
+
+          <div class="panel-subtitle">Печать этикеток обработки</div>
+
+        </div>
+
+        <div class="profile">
+
+          <div class="profile-value">Карта обработки № {{ order_id|display_order_number:"processing" }}</div>
+
+          <div class="muted">{{ status_label }}</div>
+
+        </div>
+
+        <div class="profile">
+
+          <div class="profile-value">{{ card.product_name|default:"-" }}</div>
+
+          <div class="muted">Артикул: {{ card.article|default:"-" }}</div>
+
+          <div class="muted">Клиент: {{ client_label|default:"-" }}</div>
+
+        </div>
+
+        <div class="side-footer">
+
+          <a class="btn ghost" href="{{ processing_card_url }}">Назад к карте</a>
+
+          {% if return_url %}
+
+            <a class="btn ghost" href="{{ return_url }}">Назад</a>
+
+          {% endif %}
+
+        </div>
+
+      </aside>
+
+<main class="content">
+
+        <div class="tab-panels">
+
+          <section class="card tab-panel reveal labels-panel active" data-tab="labels" style="--i:2">
+
+            <div class="card-header">
+
+              <div>
+
+                <h2>Этикетки</h2>
+
+                <div class="muted">Шаблон этикетки как в приложении этикеток, заполнение — по текущему товару.</div>
+
+              </div>
+
+              <div class="label-tabs">
+
+                <div class="label-tabs-group">
+
+                  {% for label in label_sizes %}
+
+                    <button class="btn" type="button" data-label-key="{{ label.key }}">
+
+                      {{ label.button_title|default:label.preview_title|default:label.key }}
+
+                    </button>
+
+                  {% endfor %}
+
+                </div>
+
+                <div class="label-actions">
+
+                  <button class="btn primary" type="button" id="label-save-btn">Сохранить</button>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            <div class="label-table-row">
+
+            <table class="label-table" data-label-table>
+
+              <thead>
+
+                <tr>
+
+                  <th>Наименование</th>
+
+                  <th>Текст</th>
+
+                  <th>Печать</th>
+
+                  <th>Размер шрифта (мм)</th>
+
+                </tr>
+
+              </thead>
+
+                <tbody>
+
+                    <tr data-field="barcode">
+
+                      <td>ШК</td>
+
+                      <td><input id="label-input-barcode" data-label-text value="{{ label_sample_barcode }}"></td>
+
+                      <td class="check-cell"><input class="check-input" id="label-enabled-barcode" data-label-enabled type="checkbox" checked></td>
+
+                      <td><input class="size-input" id="label-font-barcode" data-label-font type="text" inputmode="decimal" value="0.9"></td>
+
+                    </tr>
+
+                    <tr data-field="box_client" data-label-only="box">
+
+                      <td>Клиент</td>
+
+                      <td><input id="label-input-box_client" data-label-text placeholder="Клиент"></td>
+
+                      <td class="check-cell"><input class="check-input" id="label-enabled-box_client" data-label-enabled type="checkbox" checked></td>
+
+                      <td><input class="size-input" id="label-font-box_client" data-label-font type="text" inputmode="decimal" value="1.0"></td>
+
+                    </tr>
+
+                    <tr data-field="box_basis" data-label-only="box">
+
+                      <td>Основание</td>
+
+                      <td><input id="label-input-box_basis" data-label-text placeholder="Основание"></td>
+
+                      <td class="check-cell"><input class="check-input" id="label-enabled-box_basis" data-label-enabled type="checkbox" checked></td>
+
+                      <td><input class="size-input" id="label-font-box_basis" data-label-font type="text" inputmode="decimal" value="1.0"></td>
+
+                    </tr>
+
+                    <tr data-field="box_pallet_number" data-label-only="box">
+
+                      <td>Номер короба на палете</td>
+
+                      <td><input id="label-input-box_pallet_number" data-label-text placeholder="Номер короба на палете"></td>
+
+                      <td class="check-cell"><input class="check-input" id="label-enabled-box_pallet_number" data-label-enabled type="checkbox" checked></td>
+
+                      <td><input class="size-input" id="label-font-box_pallet_number" data-label-font type="text" inputmode="decimal" value="1.0"></td>
+
+                    </tr>
+
+                  <tr data-field="cz_code" data-label-only="item_cz">
+
+                    <td>Код ЧЗ</td>
+
+                    <td><input id="label-input-cz_code" data-label-text value="{{ label_sample.cz_code }}" placeholder="Код ЧЗ"></td>
+
+                    <td class="check-cell"><input class="check-input" id="label-enabled-cz_code" data-label-enabled type="checkbox" checked></td>
+
+                    <td><input class="size-input" id="label-font-cz_code" data-label-font type="text" inputmode="decimal" value="0.9"></td>
+
+                  </tr>
+
+                <tr data-field="article">
+
+                  <td>Артикул</td>
+
+                  <td><input id="label-input-article" data-label-text value="{{ label_sample.article }}"></td>
+
+                  <td class="check-cell"><input class="check-input" id="label-enabled-article" data-label-enabled type="checkbox" checked></td>
+
+                  <td><input class="size-input" id="label-font-article" data-label-font type="text" inputmode="decimal" value="1.0"></td>
+
+                </tr>
+
+                <tr data-field="name">
+
+                  <td>Название</td>
+
+                  <td><input id="label-input-name" data-label-text value="{{ label_sample.name }}"></td>
+
+                  <td class="check-cell"><input class="check-input" id="label-enabled-name" data-label-enabled type="checkbox" checked></td>
+
+                  <td><input class="size-input" id="label-font-name" data-label-font type="text" inputmode="decimal" value="1.0"></td>
+
+                </tr>
+
+                <tr data-field="size">
+
+                  <td>Размер</td>
+
+                  <td><input id="label-input-size" data-label-text value="{{ label_sample.size }}"></td>
+
+                  <td class="check-cell"><input class="check-input" id="label-enabled-size" data-label-enabled type="checkbox" checked></td>
+
+                  <td><input class="size-input" id="label-font-size" data-label-font type="text" inputmode="decimal" value="1.0"></td>
+
+                </tr>
+
+                <tr data-field="brand">
+
+                  <td>Бренд</td>
+
+                  <td><input id="label-input-brand" data-label-text value="{{ label_sample.brand }}"></td>
+
+                  <td class="check-cell"><input class="check-input" id="label-enabled-brand" data-label-enabled type="checkbox" checked></td>
+
+                  <td><input class="size-input" id="label-font-brand" data-label-font type="text" inputmode="decimal" value="1.0"></td>
+
+                </tr>
+
+                <tr data-field="color">
+
+                  <td>Цвет</td>
+
+                  <td><input id="label-input-color" data-label-text value="{{ label_sample.color }}"></td>
+
+                  <td class="check-cell"><input class="check-input" id="label-enabled-color" data-label-enabled type="checkbox" checked></td>
+
+                  <td><input class="size-input" id="label-font-color" data-label-font type="text" inputmode="decimal" value="0.9"></td>
+
+                </tr>
+
+                <tr data-field="composition">
+
+                  <td>Состав</td>
+
+                  <td><input id="label-input-composition" data-label-text value="{{ label_sample.composition }}"></td>
+
+                  <td class="check-cell"><input class="check-input" id="label-enabled-composition" data-label-enabled type="checkbox" checked></td>
+
+                  <td><input class="size-input" id="label-font-composition" data-label-font type="text" inputmode="decimal" value="0.9"></td>
+
+                </tr>
+
+                <tr data-field="supplier">
+
+                  <td>Поставщик</td>
+
+                  <td><input id="label-input-supplier" data-label-text value="{{ label_sample.supplier }}"></td>
+
+                  <td class="check-cell"><input class="check-input" id="label-enabled-supplier" data-label-enabled type="checkbox" checked></td>
+
+                  <td><input class="size-input" id="label-font-supplier" data-label-font type="text" inputmode="decimal" value="0.9"></td>
+
+                </tr>
+
+                <tr data-field="country">
+
+                  <td>Страна</td>
+
+                  <td><input id="label-input-country" data-label-text value="{{ label_sample.country }}"></td>
+
+                  <td class="check-cell"><input class="check-input" id="label-enabled-country" data-label-enabled type="checkbox" checked></td>
+
+                  <td><input class="size-input" id="label-font-country" data-label-font type="text" inputmode="decimal" value="0.9"></td>
+
+                </tr>
+
+              </tbody>
+
+            </table>
+
+<div class="label-printers-card">
+
+              <div class="label-printers-title">Принтеры</div>
+
+              <div class="printer-meta" data-print-status>Статус печати: {{ print_status_line }}</div>
+
+              <div class="printer-meta" data-print-agent>Агент печати: {{ print_agent_line }}</div>
+
+              <div class="printer-meta" data-print-queue-pending>В очереди: {{ print_queue_pending }}</div>
+
+              <div class="printer-meta" data-print-queue-printing>В печати: {{ print_queue_printing }}</div>
+
+              <div class="printer-meta" data-print-queue-failed>Ошибки: {{ print_queue_failed }}</div>
+
+              <div class="printer-meta" data-print-last-activity{% if not print_last_job_time %} style="display:none"{% endif %}>
+
+                Последняя активность: {{ print_last_job_time }}
+
+              </div>
+
+              <div class="printer-meta" data-print-last-error{% if not print_last_error %} style="display:none"{% endif %}>
+
+                Последняя ошибка: {{ print_last_error }}
+
+              </div>
+
+                <div class="printer-row">
+
+                  <label for="label-printer-quick">Принтер этикеток</label>
+
+                  <select id="label-printer-quick" data-label-printer>
+                    <option value="">Выберите принтер</option>
+                    {% for printer in available_label_printers|default:available_printers %}
+                      <option value="{{ printer }}">{{ printer }}</option>
+                    {% endfor %}
+                  </select>
+
+                </div>
+
+                {% if available_pdf_printers %}
+                  <div class="printer-meta">PDF и виртуальные: {{ available_pdf_printers|join:", " }}</div>
+                {% endif %}
+
+                <div class="actions">
+
+                  <button class="btn" type="button" data-sync-printers>Синхронизировать</button>
+
+                  <a class="btn" href="{{ label_settings_url|default:'/labels/settings/' }}" target="_blank" rel="noopener">Настройки этикеток</a>
+
+                </div>
+
+                <div class="actions">
+
+                  <button class="btn" type="button" data-print-toggle data-print-paused="{% if print_paused %}1{% else %}0{% endif %}">
+
+                    {% if print_paused %}Возобновить печать{% else %}Остановить печать{% endif %}
+
+                  </button>
+
+                  <button class="btn" type="button" data-print-reset>Сбросить печать</button>
+
+                  <button class="btn" type="button" data-print-clear>Очистить очередь</button>
+
+                  <a class="btn" href="{% url 'processing_app:processing-print-agent-setup' %}" target="_blank" rel="noopener">Скачать Fullbox Agent</a>
+
+                </div>
+
+                {% if available_printers_meta.updated_at %}
+
+                  <div class="printer-meta">
+
+                    Последняя синхронизация: {{ available_printers_meta.updated_at }}
+
+                    {% if available_printers_meta.updated_by %} · {{ available_printers_meta.updated_by }}{% endif %}
+
+                  </div>
+
+                {% else %}
+
+                  <div class="printer-meta">Список принтеров пока не синхронизирован.</div>
+
+                {% endif %}
+
+              </div>
+
+              
+
+            </div>
+
+            <form id="label-settings-csrf" style="display:none">
+
+              {% csrf_token %}
+
+            </form>
+
+            <div class="label-grid">
+
+              {% for label in label_sizes %}
+
+                <div class="label-card" data-label-card="{{ label.key }}" data-processing-param-key="{{ label.processing_param_key|default:label.key }}" data-template-key="{{ label.template_key|default:label.key }}" data-layout-key="{{ label.layout_key|default:label.key }}" data-label-width="{{ label.width_mm }}" data-label-height="{{ label.height_mm }}">
+
+                  <div class="label-card-header">
+
+                    <div class="label-title">
+
+                      {{ label.preview_title|default:label.button_title|default:label.key }}
+
+                    </div>
+
+                    <div class="label-print-controls">
+
+                      <div class="label-print-qty">
+
+                        <span>Сколько печатать</span>
+
+                        <input type="number" min="1" step="1" placeholder="Кол-во" data-print-qty>
+
+                      </div>
+
+                      <button class="label-print-btn" type="button" data-label-print>Печать</button>
+
+                      <button class="label-print-btn secondary" type="button" data-label-pdf>PDF</button>
+
+                      {% if label.mode == "cz" %}
+
+                        <button class="label-print-btn secondary" type="button" data-label-reset-printed>Сбросить ЧЗ</button>
+
+                      {% endif %}
+
+                    </div>
+
+                  </div>
+
+                  <div class="label-print-meta" data-print-progress>Напечатано 0, из 0, осталось 0</div>
+
+                  <div class="label-sub">{{ label.description }}</div>
+
+                  <div class="label-stage" style="{% if label.layout_key == "pallet" %}--label-width: {{ label.height_mm }}mm; --label-height: {{ label.width_mm }}mm; --label-scale: 1.4;{% else %}--label-width: {{ label.width_mm }}mm; --label-height: {{ label.height_mm }}mm;{% endif %}">
+
+                    <div class="label-size-badge">{{ label.width_mm }}x{{ label.height_mm }} мм</div>
+
+                    <div class="label-preview" data-label-root data-label-type="{{ label.layout_key|default:label.key }}">
+
+                      {% if label.layout_key == "item" %}
+
+                        {% include "labels/_label_item.html" %}
+
+                      {% elif label.layout_key == "item_cz" %}
+
+                        {% include "labels/_label_item_cz.html" %}
+
+                      {% elif label.layout_key == "box" %}
+
+                        {% include "labels/_label_box.html" %}
+
+                      {% elif label.layout_key == "pallet" %}
+
+                        {% include "labels/_label_pallet.html" %}
+
+                      {% else %}
+
+                        {% include "labels/_label_markup.html" %}
+
+                      {% endif %}
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              {% endfor %}
+
+            </div>
+
+          </section>
+
+        </div>
+
+      </main>
+
+
+
+      <aside class="rail">
+
+
+
+        <section class="panel reveal" style="--i:2">
+
+          <div class="panel-header">
+
+            <div>
+
+              <h2 class="panel-title">ШК и размеры</h2>
+
+              <div class="panel-subtitle">Нажмите строку, чтобы заполнить таблицу параметров.</div>
+
+            </div>
+
+          </div>
+
+          <div class="print-rows">
+
+            <table class="label-table" data-label-rows>
+
+              <thead>
+
+                <tr>
+
+                  <th>Размер</th>
+
+                  <th>ШК</th>
+
+                  <th>Кол-во</th>
+
+                  <th></th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                {% for row in label_rows %}
+
+                  <tr>
+
+                    <td>{{ row.size|default:"-" }}</td>
+
+                    <td>{{ row.barcode|default:"-" }}</td>
+
+                    <td>{{ row.qty|default:"-" }}</td>
+
+                    <td>
+
+                      {% if row.barcode and row.barcode != '-' %}
+
+                        <button class="btn" type="button" data-label-row data-barcode="{{ row.barcode|default:'' }}" data-size="{{ row.size|default:'' }}" data-cz-codes="{{ row.cz_codes_json|default:'[]'|escape }}" data-qty="{{ row.qty_value|default:0 }}" data-qty-no-cz="{{ row.print_qty_no_cz|default:0 }}" data-qty-cz="{{ row.print_qty_cz|default:0 }}" data-print-qtys="{{ row.print_qtys_json|default:'{}'|escape }}">Выбрать</button>
+
+                      {% else %}
+
+                        <span class="muted">-</span>
+
+                      {% endif %}
+
+                    </td>
+
+                  </tr>
+
+                {% empty %}
+
+                  <tr><td colspan="4" class="muted">Нет строк для печати.</td></tr>
+
+                {% endfor %}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </section>
+
+
+
+        <section class="panel reveal" style="--i:1">
+
+          <div class="panel-header">
+
+            <div>
+
+              <h1 class="panel-title">Печать этикеток по заявке</h1>
+
+              <div class="panel-subtitle">Выберите строку с ШК, проверьте параметры и отправьте в печать.</div>
+
+            </div>
+
+            <div class="actions">
+
+              <button class="btn primary" type="button" data-tab-target="labels">Этикетки</button>
+
+              <a class="btn" href="{{ processing_card_url }}">Назад к карте</a>
+
+            </div>
+
+          </div>
+
+        </section>
+
+        <section class="panel reveal" style="--i:3">
+
+          <div class="panel-header">
+
+            <div>
+
+              <h2 class="panel-title">Сводка</h2>
+
+              <div class="panel-subtitle">Данные по текущему товару и активной печати.</div>
+
+            </div>
+
+          </div>
+
+          <div class="stat-list">
+
+            <div class="stat-item">
+
+              <div class="stat-value">{{ label_sizes|length }}</div>
+
+              <div class="stat-label">Шаблонов этикеток</div>
+
+            </div>
+
+            <div class="stat-item">
+
+              <div class="stat-value">{{ label_rows|length }}</div>
+
+              <div class="stat-label">Строк для печати</div>
+
+            </div>
+
+          </div>
+
+          {% if available_printers_meta.updated_at %}
+
+            <div class="meta-line">
+
+              Последняя синхронизация: {{ available_printers_meta.updated_at }}
+
+              {% if available_printers_meta.updated_by %} · {{ available_printers_meta.updated_by }}{% endif %}
+
+            </div>
+
+          {% else %}
+
+            <div class="meta-line">Список принтеров пока не синхронизирован.</div>
+
+          {% endif %}
+
+          <div class="tip">
+
+            Синхронизация выполняется на рабочем ПК из папки проекта, список хранится локально.
+
+          </div>
+
+        </section>
+
+      </aside>
+
+    </div>
+
+  </div>
+
+  {{ label_settings|json_script:"label-settings-data" }}
+    {{ client_label|default:""|json_script:"processing-client-label-data" }}
+
+  <script src="/static/vendor/jsbarcode.min.js"></script>
+
+  <script src="/static/vendor/qrcode.min.js"></script>
+
+  <script src="/static/vendor/bwip-js-min.js"></script>
+
+  <script src="/static/vendor/html2canvas.min.js"></script>
+
+  <script src="/static/vendor/jspdf.umd.min.js"></script>
+
+    <script>
+
+    (() => {
+
+      const tabButtons = Array.from(document.querySelectorAll('[data-tab-target]'));
+
+      const tabPanels = Array.from(document.querySelectorAll('[data-tab]'));
+
+      const tabStorageKey = 'labels_settings_tab';
+
+
+
+      const setTab = (next) => {
+
+        const target = tabPanels.find((panel) => panel.dataset.tab === next);
+
+        const normalized = target ? next : 'labels';
+
+        tabPanels.forEach((panel) => {
+
+          panel.classList.toggle('active', panel.dataset.tab === normalized);
+
+        });
+
+        tabButtons.forEach((button) => {
+
+          button.classList.toggle('primary', button.dataset.tabTarget === normalized);
+
+        });
+
+        localStorage.setItem(tabStorageKey, normalized);
+
+        return normalized;
+
+      };
+
+
+
+      if (tabPanels.length && tabButtons.length) {
+
+        const storedTab = localStorage.getItem(tabStorageKey);
+
+        setTab(storedTab || 'labels');
+
+        tabButtons.forEach((button) => {
+
+          button.addEventListener('click', () => setTab(button.dataset.tabTarget));
+
+        });
+
+      }
+
+
+
+      const labelSizeButtons = Array.from(document.querySelectorAll('[data-label-key]'));
+
+      const labelCards = Array.from(document.querySelectorAll('[data-label-card]'));
+      const getCardByKey = (key) => (
+        key ? labelCards.find((card) => card.dataset.labelCard === key) || null : null
+      );
+      const getTemplateKeyForLabelKey = (key) => {
+        const card = getCardByKey(key);
+        return (card && card.dataset ? card.dataset.templateKey || '' : '') || key || '';
+      };
+
+      const labelSizeStorageKey = 'labels_settings_size';
+
+      const labelSettingsEl = document.getElementById('label-settings-data');
+
+      let labelSettings = {};
+
+      if (labelSettingsEl) {
+
+        try {
+
+          labelSettings = JSON.parse(labelSettingsEl.textContent || '{}') || {};
+
+        } catch (err) {
+
+          labelSettings = {};
+
+        }
+
+      }
+
+      const draftSettings = {};
+
+        const labelFields = [
+
+          'barcode',
+
+          'box_client',
+
+          'box_basis',
+
+          'box_pallet_number',
+
+          'cz_code',
+
+          'article',
+
+          'name',
+
+        'size',
+
+        'brand',
+
+        'subject',
+
+        'color',
+
+        'composition',
+
+        'supplier',
+
+        'country',
+
+      ];
+
+      const textInputs = {};
+
+      const fontInputs = {};
+
+      const enabledInputs = {};
+
+      labelFields.forEach((field) => {
+
+        textInputs[field] = document.getElementById(`label-input-${field}`);
+
+        fontInputs[field] = document.getElementById(`label-font-${field}`);
+
+        enabledInputs[field] = document.getElementById(`label-enabled-${field}`);
+
+      });
+
+      const defaultText = {};
+
+      const defaultFonts = {};
+
+      const defaultEnabled = {};
+
+      labelFields.forEach((field) => {
+
+        defaultText[field] = textInputs[field] ? textInputs[field].value : '';
+
+        defaultFonts[field] = fontInputs[field] ? fontInputs[field].value : '';
+
+        defaultEnabled[field] = enabledInputs[field] ? enabledInputs[field].checked : true;
+
+      });
+
+      let activeLabelKey = null;
+
+
+
+      const readTextValues = () => {
+
+        const data = {};
+
+        labelFields.forEach((field) => {
+
+          data[field] = textInputs[field] ? (textInputs[field].value || '').trim() : '';
+
+        });
+
+        return data;
+
+      };
+
+
+
+      const readFontValues = () => {
+
+        const data = {};
+
+        labelFields.forEach((field) => {
+
+          const raw = fontInputs[field] ? fontInputs[field].value : '';
+
+          const parsed = parseFloat(String(raw).replace(',', '.'));
+
+          if (Number.isFinite(parsed)) {
+
+            data[field] = parsed;
+
+          }
+
+        });
+
+        return data;
+
+      };
+
+
+
+      const getSettingsForKey = (key) => {
+
+        const settingsKey = getTemplateKeyForLabelKey(key);
+
+        const entry = (labelSettings && labelSettings[settingsKey]) || {};
+
+        const text = Object.assign({}, defaultText, entry.text || {});
+
+        const fonts = Object.assign({}, defaultFonts, entry.fonts || {});
+
+        const enabled = Object.assign({}, defaultEnabled, entry.enabled || {});
+
+        return { text, fonts, enabled };
+
+      };
+
+
+
+      const applyTableSettings = (key) => {
+        const settings = getSettingsForKey(key);
+        labelFields.forEach((field) => {
+          if (fontInputs[field]) {
+
+            const fontValue = settings.fonts[field];
+
+            if (fontValue !== undefined && fontValue !== null && fontValue !== '') {
+
+              fontInputs[field].value = fontValue;
+
+            }
+
+          }
+
+          if (enabledInputs[field]) {
+
+            enabledInputs[field].checked = settings.enabled[field] !== false;
+
+          }
+
+        });
+
+      };
+
+
+
+      const snapshotSettings = () => {};
+
+
+
+      const setLabelSize = (nextKey) => {
+
+        if (activeLabelKey) {
+
+          snapshotSettings(activeLabelKey);
+
+        }
+
+        const fallbackKey = labelCards[0] ? labelCards[0].dataset.labelCard : null;
+
+        const normalized = labelCards.find((card) => card.dataset.labelCard === nextKey)
+
+          ? nextKey
+
+          : fallbackKey;
+
+        labelCards.forEach((card) => {
+
+          card.style.display = card.dataset.labelCard === normalized ? 'inline-grid' : 'none';
+
+        });
+
+        labelSizeButtons.forEach((button) => {
+
+          button.classList.toggle('primary', button.dataset.labelKey === normalized);
+
+        });
+
+        if (normalized) {
+
+          activeLabelKey = normalized;
+
+            applyTableSettings(normalized);
+
+            if (typeof toggleLabelOnlyRows === 'function') {
+
+              toggleLabelOnlyRows(normalized);
+
+            }
+
+            localStorage.setItem(labelSizeStorageKey, normalized);
+
+        }
+
+        if (typeof updatePrintProgress === 'function') {
+
+          updatePrintProgress();
+
+        }
+
+        return normalized;
+
+      };
+
+
+
+      const syncButtons = Array.from(document.querySelectorAll('[data-sync-printers]'));
+      if (syncButtons.length) {
+        const syncUrl = '/orders/processing/print-agent/sync-printers/';
+        syncButtons.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            window.open(syncUrl, '_blank', 'noopener');
+          });
+        });
+      }
+
+      const printerInputs = Array.from(document.querySelectorAll('[data-label-printer]'));
+
+      if (printerInputs.length) {
+
+        const availablePrinterNames = () => new Set(
+          printerInputs.flatMap((input) => Array.from(input.options || []))
+            .map((option) => String(option.value || '').trim())
+            .filter(Boolean)
+        );
+
+        const setPrinterValue = (value) => {
+
+          printerInputs.forEach((input) => {
+
+            if (input.value !== value) {
+
+              input.value = value;
+
+            }
+
+          });
+
+        };
+
+        const stored = localStorage.getItem('processing_label_printer') || localStorage.getItem('label_printer');
+
+        if (stored && availablePrinterNames().has(stored)) {
+
+          setPrinterValue(stored);
+
+        }
+
+        printerInputs.forEach((input) => {
+
+          input.addEventListener('change', () => {
+
+            const value = input.value.trim();
+
+            setPrinterValue(value);
+
+            localStorage.setItem('processing_label_printer', value);
+
+            localStorage.setItem('label_printer', value);
+
+          });
+
+        });
+
+      }
+
+    })();
+
+  </script>
+
+  <script>
+
+    (() => {
+
+      const panel = document.querySelector('[data-tab="labels"]');
+
+      if (!panel) {
+
+        return;
+
+      }
+
+
+
+      const table = panel.querySelector('[data-label-table]');
+      const currentClientLabel = (() => {
+        const scriptEl = document.getElementById('processing-client-label-data');
+        if (!scriptEl) {
+          return '';
+        }
+        try {
+          return String(JSON.parse(scriptEl.textContent || ''));
+        } catch (_error) {
+          return '';
+        }
+      })();
+
+      const labelCards = Array.from(panel.querySelectorAll('[data-label-card]'));
+      const getCardByKey = (key) => (
+        key ? labelCards.find((card) => card.dataset.labelCard === key) || null : null
+      );
+      const getTemplateKeyForLabelKey = (key) => {
+        const card = getCardByKey(key);
+        return (card && card.dataset ? card.dataset.templateKey || '' : '') || key || '';
+      };
+      const getProcessingParamKeyForLabelKey = (key) => {
+        const card = getCardByKey(key);
+        return (card && card.dataset ? card.dataset.processingParamKey || '' : '') || key || '';
+      };
+
+      const labelRootByKey = new Map();
+
+      labelCards.forEach((card) => {
+
+        const key = card.dataset.labelCard;
+
+        const root = card.querySelector('.label-preview');
+
+        if (key && root) {
+
+          labelRootByKey.set(key, root);
+
+        }
+
+      });
+
+      if (!table || !labelRootByKey.size) {
+
+        return;
+
+      }
+
+
+
+      const labelSizeButtons = Array.from(panel.querySelectorAll('[data-label-key]'));
+
+      const refreshBtn = panel.querySelector('#label-refresh-btn');
+
+      const saveBtn = panel.querySelector('#label-save-btn');
+      const labelSettingsSaveUrl = '{{ label_settings_save_url|default:"/labels/settings/"|escapejs }}';
+
+      const statusLine = panel.querySelector('[data-print-status]');
+      const queuePendingLines = Array.from(document.querySelectorAll('[data-print-queue-pending]'));
+      const queuePrintingLines = Array.from(document.querySelectorAll('[data-print-queue-printing]'));
+      const queueFailedLines = Array.from(document.querySelectorAll('[data-print-queue-failed]'));
+
+        const lastActivityLine = panel.querySelector('[data-print-last-activity]');
+
+        const lastErrorLine = panel.querySelector('[data-print-last-error]');
+
+        const printButtons = Array.from(panel.querySelectorAll('[data-label-print]'));
+        const pdfButtons = Array.from(panel.querySelectorAll('[data-label-pdf]'));
+        const resetPrintedButtons = Array.from(panel.querySelectorAll('[data-label-reset-printed]'));
+
+        const printProgressKey = 'processing_label_printed';
+
+        const loadPrintProgress = () => {
+
+          try {
+
+            const raw = localStorage.getItem(printProgressKey);
+
+            return raw ? JSON.parse(raw) : {};
+
+          } catch (err) {
+
+            return {};
+
+          }
+
+        };
+
+        const savePrintProgress = (data) => {
+
+          try {
+
+            localStorage.setItem(printProgressKey, JSON.stringify(data));
+
+          } catch (err) {
+
+          }
+
+        };
+
+        const printProgress = loadPrintProgress();
+
+        const getRowQty = (labelKey = 'item') => {
+          const byLabelKey = window.processingLabelQtyByLabelKey || {};
+          const value = byLabelKey[labelKey];
+          if (Number.isFinite(value)) {
+            return value;
+          }
+          const mode = labelModeByKey[labelKey] || 'no-cz';
+          const byMode = window.processingLabelQtyByMode || {};
+          const fallbackByMode = byMode[mode];
+          if (Number.isFinite(fallbackByMode)) {
+            return fallbackByMode;
+          }
+          return Number.isFinite(window.processingLabelQty) ? window.processingLabelQty : 0;
+        };
+        const orderId = '{{ order_id|escapejs }}';
+        const cardId = '{{ card_id|default:""|escapejs }}';
+
+
+        const getPrintKey = (labelKey) => {
+
+          const barcodeValue = (document.getElementById('label-input-barcode') || {}).value || '';
+
+          const sizeValue = (document.getElementById('label-input-size') || {}).value || '';
+
+          return [labelKey || '', orderId || '', barcodeValue.trim(), sizeValue.trim()].join('|');
+
+        };
+
+        const getPrintedCount = (labelKey) => printProgress[getPrintKey(labelKey)] || 0;
+
+        const setPrintedCount = (labelKey, count) => {
+
+          const key = getPrintKey(labelKey);
+
+          printProgress[key] = Math.max(0, count || 0);
+
+          savePrintProgress(printProgress);
+
+        };
+
+        const addPrintedCount = (labelKey, delta) => {
+
+          const key = getPrintKey(labelKey);
+
+          const current = printProgress[key] || 0;
+
+          printProgress[key] = Math.max(0, current + (delta || 0));
+
+          savePrintProgress(printProgress);
+
+        };
+
+        const updatePrintProgress = () => {
+
+          labelCards.forEach((card) => {
+
+            const labelKey = card.dataset.labelCard;
+            const mode = resolveMode(labelKey);
+
+            const totalQty = getRowQty(labelKey);
+
+            const availableCodes = mode === 'cz'
+
+              ? (Array.isArray(window.processingLabelCzCodes)
+
+                ? window.processingLabelCzCodes.filter((code) => String(code || '').trim()).length
+
+                : 0)
+
+              : 0;
+
+            const effectiveTotal = totalQty || (mode === 'cz' ? availableCodes : 0);
+
+            const printed = getPrintedCount(labelKey);
+
+            const remaining = effectiveTotal > 0 ? Math.max(effectiveTotal - printed, 0) : 0;
+
+            const meta = card.querySelector('[data-print-progress]');
+
+            if (meta) {
+
+              meta.textContent = `Напечатано ${printed}, из ${effectiveTotal || 0}, осталось ${remaining}`;
+
+            }
+
+            const qtyInput = card.querySelector('[data-print-qty]');
+
+            if (qtyInput) {
+
+              const current = parseInt(qtyInput.value || '', 10);
+
+              if (!Number.isFinite(current) || current <= 0) {
+
+                const suggested = effectiveTotal ? remaining : (mode === 'cz' ? availableCodes : 1);
+
+                qtyInput.value = suggested || '';
+
+              }
+
+            }
+
+          });
+
+        };
+
+        window.processingLabelUpdateProgress = updatePrintProgress;
+
+
+
+
+
+
+        const toggleLabelOnlyRows = (key) => {
+
+          const rows = Array.from(table.querySelectorAll('[data-field]'));
+
+          const barcodeRow = table.querySelector('[data-field="barcode"]');
+
+          const barcodeTitle = barcodeRow ? barcodeRow.querySelector('td') : null;
+
+          if (barcodeTitle) {
+
+            if (key === 'box') {
+
+              barcodeTitle.textContent = 'ШК для короба';
+
+            } else if (key === 'pallet') {
+
+              barcodeTitle.textContent = 'ШК для паллета';
+
+            } else {
+
+              barcodeTitle.textContent = 'ШК';
+
+            }
+
+          }
+
+          if (key === 'box' || key === 'pallet') {
+
+            const allowed = new Set(['barcode', 'box_client', 'box_basis', 'box_pallet_number']);
+
+            rows.forEach((row) => {
+
+              const field = row.dataset.field || '';
+
+              row.style.display = allowed.has(field) ? '' : 'none';
+
+            });
+
+            return;
+
+          }
+
+          rows.forEach((row) => {
+
+            const field = row.dataset.field || '';
+
+            const onlyKey = row.dataset.labelOnly || '';
+
+            row.style.display = onlyKey && key !== onlyKey && field !== 'box_client' ? 'none' : '';
+
+          });
+
+        };
+
+
+
+      const labelSettingsEl = document.getElementById('label-settings-data');
+
+      let labelSettings = {};
+
+      if (labelSettingsEl) {
+
+        try {
+
+          labelSettings = JSON.parse(labelSettingsEl.textContent || '{}') || {};
+
+        } catch (err) {
+
+          labelSettings = {};
+
+        }
+
+      }
+
+      const draftSettings = {};
+
+
+
+          const fields = [
+
+            'barcode',
+
+            'box_client',
+
+            'box_basis',
+
+            'box_pallet_number',
+
+            'cz_code',
+
+            'article',
+
+            'name',
+
+        'size',
+
+        'brand',
+
+        'subject',
+
+        'color',
+
+        'composition',
+
+        'supplier',
+
+        'country',
+
+      ];
+
+      const inputs = {};
+
+      fields.forEach((field) => {
+
+        const row = table.querySelector(`[data-field="${field}"]`);
+
+        if (!row) {
+
+          return;
+
+        }
+
+        inputs[field] = {
+
+          text: row.querySelector('[data-label-text]'),
+
+          font: row.querySelector('[data-label-font]'),
+
+          enabled: row.querySelector('[data-label-enabled]'),
+
+        };
+
+      });
+
+
+
+      const defaultText = {};
+
+      const defaultFonts = {};
+
+      const defaultEnabled = {};
+
+      fields.forEach((field) => {
+
+        defaultText[field] = inputs[field] && inputs[field].text ? inputs[field].text.value : '';
+
+        defaultFonts[field] = inputs[field] && inputs[field].font ? inputs[field].font.value : '';
+
+        defaultEnabled[field] = inputs[field] && inputs[field].enabled
+
+          ? inputs[field].enabled.checked
+
+          : true;
+
+      });
+
+
+
+      const labelSizeStorageKey = 'labels_settings_size';
+
+      const modeStorageKeys = ['processing_label_mode', 'label_mode', 'labels_label_mode'];
+
+      const labelModeByKey = {
+
+        item: 'no-cz',
+
+        item_5860: 'no-cz',
+
+        item_75120: 'no-cz',
+
+        item_cz: 'cz',
+
+      };
+
+      let activeLabelKey = null;
+
+      const getActiveKey = () => (
+
+        activeLabelKey || (labelCards[0] ? labelCards[0].dataset.labelCard : null)
+
+      );
+
+      const getStoredMode = () => {
+
+        for (const key of modeStorageKeys) {
+
+          const value = localStorage.getItem(key);
+
+          if (value) {
+
+            return value;
+
+          }
+
+        }
+
+        return 'cz';
+
+      };
+
+      const resolveMode = (key) => labelModeByKey[key] || getStoredMode();
+
+
+
+      const parseFont = (value) => {
+
+        const raw = (value || '').trim();
+
+        if (!raw) {
+
+          return null;
+
+        }
+
+        const parsed = parseFloat(raw.replace(',', '.'));
+
+        return Number.isFinite(parsed) ? parsed : null;
+
+      };
+
+
+
+      const limitText = (value, maxLength = 30) => {
+
+        const text = value ? String(value).trim() : '';
+
+        if (!text) {
+
+          return '';
+
+        }
+
+        if (text.length <= maxLength) {
+
+          return text;
+
+        }
+
+        return text.slice(0, maxLength);
+
+      };
+
+
+
+      const readEnabledValues = () => {
+
+        const data = {};
+
+        fields.forEach((field) => {
+
+          const enabled = inputs[field] && inputs[field].enabled
+
+            ? inputs[field].enabled.checked
+
+            : true;
+
+          data[field] = enabled;
+
+        });
+
+        return data;
+
+      };
+
+
+
+      const readTextValues = (enabled) => {
+
+        const data = {};
+
+        fields.forEach((field) => {
+
+          let value = inputs[field] && inputs[field].text ? inputs[field].text.value : '';
+
+          value = value ? String(value).trim() : '';
+          if (field === 'box_client') {
+            value = shortenClientLabel(currentClientLabel);
+          }
+
+          if (enabled && enabled[field] === false) {
+
+            value = '';
+
+          }
+
+          data[field] = value;
+
+        });
+
+        return data;
+
+      };
+
+
+
+      const readFontValues = () => {
+
+        const data = {};
+
+        fields.forEach((field) => {
+
+          const value = inputs[field] && inputs[field].font ? inputs[field].font.value : '';
+
+          const parsed = parseFont(value);
+
+          if (Number.isFinite(parsed)) {
+
+            data[field] = parsed;
+
+          }
+
+        });
+
+        return data;
+
+      };
+
+
+
+      const snapshotSettings = (key) => {
+
+        if (!key) {
+
+          return;
+
+        }
+
+        const enabled = readEnabledValues();
+        const settingsKey = getTemplateKeyForLabelKey(key);
+        if (!settingsKey) {
+          return;
+        }
+
+        draftSettings[settingsKey] = {
+
+          text: readTextValues(enabled),
+
+          fonts: readFontValues(),
+
+          enabled,
+
+        };
+
+      };
+
+
+
+      const getSettingsEntry = (key) => (
+
+        (draftSettings && draftSettings[key])
+
+        || (labelSettings && labelSettings[key])
+
+        || null
+
+      );
+
+
+
+      const cloneSettingsEntry = (entry) => ({
+
+        text: Object.assign({}, entry.text || {}),
+
+        fonts: Object.assign({}, entry.fonts || {}),
+
+        enabled: Object.assign({}, entry.enabled || {}),
+
+      });
+
+
+
+      const hasBoxFields = (entry) => {
+
+        const text = entry && entry.text ? entry.text : {};
+
+        return ['barcode', 'box_client', 'box_basis', 'box_pallet_number'].some((field) => {
+
+          const value = text[field];
+
+          return value && String(value).trim();
+
+        });
+
+      };
+
+
+
+      const seedPalletFromBox = () => {
+
+        const boxEntry = getSettingsEntry('box');
+
+        if (!boxEntry) {
+
+          return;
+
+        }
+
+        draftSettings.pallet = cloneSettingsEntry(boxEntry);
+
+      };
+
+
+
+      const getSettingsForKey = (key) => {
+
+        const settingsKey = getTemplateKeyForLabelKey(key);
+
+        if (settingsKey === 'pallet') {
+
+          const palletEntry = getSettingsEntry('pallet');
+
+          if (!palletEntry || !hasBoxFields(palletEntry)) {
+
+            seedPalletFromBox();
+
+          }
+
+        }
+
+        const entry = getSettingsEntry(settingsKey) || {};
+
+        const text = Object.assign({}, defaultText, entry.text || {});
+
+        const fonts = Object.assign({}, defaultFonts, entry.fonts || {});
+
+        const enabled = Object.assign({}, defaultEnabled, entry.enabled || {});
+
+        return { text, fonts, enabled };
+
+      };
+
+
+
+      const applyTableSettings = (key) => {
+        const settings = getSettingsForKey(key);
+        fields.forEach((field) => {
+          if (inputs[field] && inputs[field].font) {
+
+            const fontValue = settings.fonts[field];
+
+            if (fontValue !== undefined && fontValue !== null && fontValue !== '') {
+
+              inputs[field].font.value = fontValue;
+
+            }
+
+          }
+
+          if (inputs[field] && inputs[field].enabled) {
+
+            inputs[field].enabled.checked = settings.enabled[field] !== false;
+
+          }
+
+        });
+
+      };
+
+
+
+      const setLabelSize = (nextKey) => {
+
+        const fallbackKey = labelCards[0] ? labelCards[0].dataset.labelCard : null;
+
+        const normalized = labelCards.find((card) => card.dataset.labelCard === nextKey)
+
+          ? nextKey
+
+          : fallbackKey;
+
+        labelCards.forEach((card) => {
+
+          card.style.display = card.dataset.labelCard === normalized ? 'inline-grid' : 'none';
+
+        });
+
+        labelSizeButtons.forEach((button) => {
+
+          button.classList.toggle('primary', button.dataset.labelKey === normalized);
+
+        });
+
+          if (normalized) {
+
+            activeLabelKey = normalized;
+
+            applyTableSettings(normalized);
+
+            if (typeof toggleLabelOnlyRows === 'function') {
+
+              toggleLabelOnlyRows(normalized);
+
+            }
+
+            localStorage.setItem(labelSizeStorageKey, normalized);
+
+          }
+
+        return normalized;
+
+      };
+
+
+
+      const applyInlineFont = (el, size) => {
+
+        if (!el) {
+
+          return;
+
+        }
+
+        if (Number.isFinite(size)) {
+
+          const px = Math.round(size * 3.78 * 100) / 100;
+
+          el.style.setProperty('font-size', `${px}px`, 'important');
+
+          el.style.setProperty('line-height', '1.05', 'important');
+
+        } else {
+
+          el.style.removeProperty('font-size');
+
+          el.style.removeProperty('line-height');
+
+        }
+
+      };
+
+
+
+      const setInfoLine = (root, key, value, label, size) => {
+
+        const el = root.querySelector(`[data-info="${key}"]`);
+
+        if (!el) {
+
+          return;
+
+        }
+
+        const text = value ? String(value).trim() : '';
+
+        if (text) {
+
+          el.textContent = label ? `${label}${text}` : text;
+
+          el.style.display = '';
+
+          applyInlineFont(el, size);
+
+        } else {
+
+          el.textContent = '';
+
+          el.style.display = 'none';
+
+        }
+
+      };
+
+
+
+      const setNoCzLine = (root, key, value, label, size) => {
+
+        const el = root.querySelector(`[data-no-cz="${key}"]`);
+
+        if (!el) {
+
+          return;
+
+        }
+
+        const text = value ? String(value).trim() : '';
+
+        if (text) {
+
+          el.textContent = label ? `${label}${text}` : text;
+
+          el.style.display = '';
+
+          applyInlineFont(el, size);
+
+        } else {
+
+          el.textContent = '';
+
+          el.style.display = 'none';
+
+        }
+
+      };
+
+
+
+      const setRowVisible = (root, selector, hasValue) => {
+
+        const row = root.querySelector(selector);
+
+        if (!row) {
+
+          return;
+
+        }
+
+        row.style.display = hasValue ? '' : 'none';
+
+      };
+
+
+
+      const renderBarcode = (root, value) => {
+
+        const raw = value ? String(value).trim() : '';
+
+        const isValidEan13 = (code) => {
+
+          if (!/^\d{13}$/.test(code)) {
+
+            return false;
+
+          }
+
+          let sum = 0;
+
+          for (let i = 0; i < 12; i += 1) {
+
+            const digit = Number(code[i]);
+
+            sum += (i % 2 === 0 ? 1 : 3) * digit;
+
+          }
+
+          const check = (10 - (sum % 10)) % 10;
+
+          return check === Number(code[12]);
+
+        };
+
+        const payload = raw || '0000000000000';
+
+        const format = isValidEan13(raw) ? 'ean13' : 'CODE128';
+
+        root.querySelectorAll('[data-barcode-value]').forEach((el) => {
+
+          if (raw) {
+
+            el.textContent = raw;
+
+            el.style.display = '';
+
+          } else {
+
+            el.textContent = '';
+
+            el.style.display = 'none';
+
+          }
+
+        });
+
+        if (!raw) {
+
+          root.querySelectorAll('[data-barcode-svg]').forEach((el) => { el.innerHTML = ''; });
+
+          root.querySelectorAll('[data-barcode-no-cz]').forEach((el) => { el.innerHTML = ''; });
+
+          return;
+
+        }
+
+        if (!window.JsBarcode) {
+
+          return;
+
+        }
+
+        const baseOptions = {
+
+          displayValue: false,
+
+          margin: 0,
+
+          lineColor: '#111',
+
+          height: 24,
+
+          width: 1,
+
+          fontSize: 5,
+
+          textMargin: 0,
+
+        };
+
+        const draw = (svg) => {
+
+          try {
+
+            JsBarcode(svg, payload, Object.assign({ format }, baseOptions));
+
+          } catch (err) {
+
+            JsBarcode(svg, raw || '0000000000000', Object.assign({ format: 'CODE128' }, baseOptions));
+
+          }
+
+          svg.setAttribute('preserveAspectRatio', 'none');
+
+          svg.setAttribute('width', '100%');
+
+          svg.setAttribute('height', '100%');
+
+        };
+
+        root.querySelectorAll('[data-barcode-svg]').forEach(draw);
+
+        root.querySelectorAll('[data-barcode-no-cz]').forEach(draw);
+
+      };
+
+
+
+      const renderQr = (root, value, enabled) => {
+
+        const box = root.querySelector('[data-qr-box]');
+
+        if (!box) {
+
+          return;
+
+        }
+
+        box.innerHTML = '';
+
+        const text = value ? String(value).trim() : '';
+
+        if (!enabled || !text || !window.QRCode) {
+
+          return;
+
+        }
+
+        const host = box.parentElement || box;
+
+        const rawSize = Math.min(host.clientWidth, host.clientHeight);
+
+        const size = Math.floor(rawSize * 1.0) || 64;
+
+        box.style.width = `${size}px`;
+
+        box.style.height = `${size}px`;
+
+        new QRCode(box, {
+
+          text,
+
+          width: size,
+
+          height: size,
+
+          correctLevel: QRCode.CorrectLevel.M,
+
+        });
+
+      };
+
+
+
+      const normalizeGs1Text = (value) => {
+
+        if (!value) {
+
+          return '';
+
+        }
+
+        const gs = String.fromCharCode(29);
+        const raw = String(value)
+          .trim()
+          .replace(/\\u001d|\\x1d|\\x001d|_x001d_/gi, gs);
+
+        if (!raw) {
+
+          return '';
+
+        }
+
+        if (raw.includes('(') && raw.includes(')')) {
+
+          return raw;
+
+        }
+
+        const czMatch = raw.match(/^01(\d{14})21(.+?)91(.+?)92(.+)$/);
+        if (czMatch) {
+          return `(01)${czMatch[1]}(21)${czMatch[2]}(91)${czMatch[3]}(92)${czMatch[4]}`;
+        }
+
+        const segments = raw.split(gs).filter(Boolean);
+
+        let output = '';
+
+        const consumeSegment = (segment) => {
+
+          let idx = 0;
+
+          while (idx < segment.length) {
+
+            const ai = segment.slice(idx, idx + 2);
+
+            if (ai === '01' && segment.length >= idx + 16) {
+
+              output += `(01)${segment.slice(idx + 2, idx + 16)}`;
+
+              idx += 16;
+
+              continue;
+
+            }
+
+            if (ai === '17' && segment.length >= idx + 8) {
+
+              output += `(17)${segment.slice(idx + 2, idx + 8)}`;
+
+              idx += 8;
+
+              continue;
+
+            }
+
+            if (ai === '10' || ai === '21' || ai === '91' || ai === '92') {
+
+              output += `(${ai})${segment.slice(idx + 2)}`;
+
+              idx = segment.length;
+
+              continue;
+
+            }
+
+            output += segment.slice(idx);
+
+            idx = segment.length;
+
+          }
+
+        };
+
+        if (segments.length) {
+
+          segments.forEach(consumeSegment);
+
+          return output || raw;
+
+        }
+
+        return raw;
+
+      };
+
+
+
+      const renderGs1Matrix = (root, value, enabled) => {
+
+        const box = root.querySelector('[data-qr-box]');
+
+        if (!box) {
+
+          return;
+
+        }
+
+        box.innerHTML = '';
+
+        const raw = value ? String(value).trim() : '';
+        const gs = String.fromCharCode(29);
+        const rawDecoded = raw.replace(/\\u001d|\\x1d|\\x001d|_x001d_/gi, gs);
+        const normalized = normalizeGs1Text(rawDecoded);
+        const candidates = [];
+        if (normalized) {
+          candidates.push({
+            bcid: 'gs1datamatrix',
+            text: normalized,
+            gs1parens: normalized.includes('(') && normalized.includes(')'),
+          });
+        }
+        if (rawDecoded) {
+          candidates.push({
+            bcid: 'gs1datamatrix',
+            text: rawDecoded,
+            parsefnc: true,
+          });
+          candidates.push({
+            bcid: 'datamatrix',
+            text: `^FNC1${rawDecoded}`,
+            parsefnc: true,
+          });
+        }
+
+        const fourRegionSizes = [32, 36, 40, 44, 48, 52];
+        const sizedCandidates = fourRegionSizes.flatMap((matrixSize) => (
+          candidates.map((candidate) => ({ ...candidate, matrixSize }))
+        ));
+        sizedCandidates.push(...candidates.map((candidate) => ({ ...candidate, matrixSize: null })));
+
+        if (!enabled || !candidates.length || !window.bwipjs) {
+
+          return;
+
+        }
+
+        const host = box.parentElement || box;
+
+        const rawSize = Math.min(host.clientWidth, host.clientHeight);
+
+        const size = Math.floor(rawSize * 0.94) || 64;
+
+        box.style.width = `${size}px`;
+
+        box.style.height = `${size}px`;
+
+        const canvas = document.createElement('canvas');
+
+        canvas.style.width = '100%';
+
+        canvas.style.height = '100%';
+
+        box.appendChild(canvas);
+
+        let lastError = null;
+        for (const candidate of sizedCandidates) {
+          try {
+            bwipjs.toCanvas(canvas, {
+              bcid: candidate.bcid || 'gs1datamatrix',
+              text: candidate.text,
+              format: 'square',
+              scale: 2,
+              padding: 0,
+              backgroundcolor: 'FFFFFF',
+              ...(candidate.matrixSize ? {
+                rows: candidate.matrixSize,
+                columns: candidate.matrixSize,
+              } : {}),
+              ...(candidate.gs1parens ? { gs1parens: true } : {}),
+              ...(candidate.parsefnc ? { parsefnc: true } : {}),
+            });
+            return;
+          } catch (err) {
+            lastError = err;
+          }
+        }
+        if (lastError) {
+          console.warn('GS1 DataMatrix render failed', lastError);
+        } else {
+          console.warn('GS1 DataMatrix render failed');
+        }
+
+      };
+
+      const shortenCzCode = (value) => {
+
+        if (!value) {
+
+          return '';
+
+        }
+
+        const gs = String.fromCharCode(29);
+
+        const raw = String(value)
+          .trim()
+          .replace(/\\u001d|\\x1d|\\x001d|_x001d_/gi, gs)
+          .replace(/\u001d|\x1d/gi, gs);
+
+        if (!raw) {
+
+          return '';
+
+        }
+
+        const clean = raw.replace(/^\]d2/i, '');
+
+        const parenMatch = clean.match(/\(01\)(\d{14})\(21\)([^()\x1d]+)/);
+
+        if (parenMatch) {
+
+          return `(01)${parenMatch[1]}(21)${parenMatch[2]}`;
+
+        }
+
+        const prefixMatch = clean.match(/^01(\d{14})21(.+)$/);
+
+        if (prefixMatch) {
+
+          const suffix = prefixMatch[2];
+
+          const cutGs = suffix.indexOf(gs);
+
+          const cut91 = cutGs < 0 ? suffix.indexOf('91') : -1;
+
+          const cut92 = cutGs < 0 ? suffix.indexOf('92') : -1;
+
+          const cuts = [cutGs, cut91, cut92].filter((idx) => idx >= 0);
+
+          const stop = cuts.length ? Math.min(...cuts) : suffix.length;
+
+          return `(01)${prefixMatch[1]}(21)${suffix.slice(0, stop)}`;
+
+        }
+
+        return clean.split(gs)[0];
+
+      };
+
+
+
+      const applyFontVar = (root, name, size) => {
+
+        if (!root) {
+
+          return;
+
+        }
+
+        if (Number.isFinite(size)) {
+
+          root.style.setProperty(name, `${size}mm`);
+
+        } else {
+
+          root.style.removeProperty(name);
+
+        }
+
+      };
+
+
+
+      const applyFontSizes = (root, sizes) => {
+
+        const safeSizes = sizes || {};
+
+        applyFontVar(root, '--font-barcode', safeSizes.barcode);
+
+        applyFontVar(root, '--font-article', safeSizes.article);
+
+        applyFontVar(root, '--font-name', safeSizes.name);
+
+        applyFontVar(root, '--font-size', safeSizes.size);
+
+        applyFontVar(root, '--font-brand', safeSizes.brand);
+
+        applyFontVar(root, '--font-subject', safeSizes.subject);
+
+        applyFontVar(root, '--font-color', safeSizes.color);
+
+        applyFontVar(root, '--font-composition', safeSizes.composition);
+
+        applyFontVar(root, '--font-supplier', safeSizes.supplier);
+
+        applyFontVar(root, '--font-country', safeSizes.country);
+
+        applyFontVar(root, '--font-box-client', safeSizes.box_client);
+
+        applyFontVar(root, '--font-box-basis', safeSizes.box_basis);
+
+        applyFontVar(root, '--font-box-pallet-number', safeSizes.box_pallet_number);
+
+      };
+
+      const shortenClientLabel = (value) => {
+
+        const normalized = String(value || '')
+          .replace(/\u00a0/g, ' ')
+          .replace(/^клиент\s*:\s*/i, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        if (!normalized) {
+
+          return '';
+
+        }
+
+        const ipMatch = normalized.match(/^(?:ип|индивидуальный\s+предприниматель)\s+(.+)$/i);
+
+        if (!ipMatch) {
+
+          return normalized;
+
+        }
+
+        const parts = String(ipMatch[1] || '').trim().split(/\s+/).filter(Boolean);
+
+        if (!parts.length) {
+
+          return 'ИП';
+
+        }
+
+        const surname = parts[0];
+
+        const initials = parts.slice(1, 3).map((part) => `${part.charAt(0).toUpperCase()}.`).join('');
+
+        return initials ? `ИП ${surname} ${initials}` : `ИП ${surname}`;
+
+      };
+
+
+
+        const updateLabelRoot = (root, data, mode, sizes) => {
+
+          const safeSizes = sizes || {};
+
+          const labelType = root ? root.dataset.labelType : '';
+
+          const isCzLabel = labelType === 'item_cz';
+
+          root.classList.toggle('no-cz', mode === 'no-cz');
+
+          applyFontSizes(root, safeSizes);
+
+          setInfoLine(root, 'name', data.name, null);
+
+          setInfoLine(root, 'size', data.size, 'р-р: ');
+
+          setInfoLine(root, 'brand', data.brand, isCzLabel ? 'Бренд: ' : null);
+
+          setInfoLine(root, 'subject', isCzLabel ? (data.subject || 'Маркированный товар') : data.subject, null);
+
+          setInfoLine(root, 'color', data.color, null);
+
+          setInfoLine(root, 'composition', data.composition, isCzLabel ? null : 'Состав: ');
+
+          setInfoLine(root, 'supplier', data.supplier, 'Поставщик: ');
+
+          setInfoLine(root, 'article', data.article, isCzLabel ? 'Арт. ' : 'Артикул: ', safeSizes.article);
+
+          const czDisplay = isCzLabel ? shortenCzCode(data.cz_code) : data.cz_code;
+
+          setInfoLine(root, 'cz_code', czDisplay, null, safeSizes.cz_code);
+
+          setInfoLine(root, 'box_basis', data.box_basis, 'Основание: ');
+
+          setInfoLine(root, 'box_client', shortenClientLabel(data.box_client), null);
+
+          setInfoLine(root, 'box_pallet_number', data.box_pallet_number, null);
+
+          const boxHeader = root.querySelector('[data-box-header]');
+
+          if (boxHeader) {
+
+            const barcode = data.barcode ? String(data.barcode).trim() : '';
+
+            const prefix = labelType === 'pallet' ? 'Паллет' : 'Короб';
+
+            boxHeader.textContent = barcode ? `${prefix} - ${barcode}` : `${prefix} -`;
+
+            boxHeader.style.display = '';
+
+          }
+
+
+
+        setNoCzLine(root, 'article', data.article ? `Артикул: ${data.article}` : '', null);
+
+        setNoCzLine(root, 'box_client', data.box_client ? `Клиент: ${shortenClientLabel(data.box_client)}` : '', null);
+
+        setNoCzLine(root, 'name', data.name, null);
+
+        setNoCzLine(root, 'brand', data.brand, 'Бренд: ', safeSizes.brand);
+
+        setNoCzLine(root, 'color', data.color, 'Цвет: ');
+
+        setNoCzLine(root, 'composition', data.composition, 'Состав: ');
+
+        setNoCzLine(root, 'supplier', data.supplier, 'Поставщик: ');
+
+        setNoCzLine(root, 'country', data.country, 'Страна: ');
+
+        setNoCzLine(root, 'size', data.size, 'Р-р: ');
+
+        const hasBrandColor = Boolean(data.brand || data.color);
+
+        setRowVisible(root, '[data-info-row="brand-color"]', hasBrandColor);
+
+        setRowVisible(root, '[data-no-cz-row="brand-color"]', hasBrandColor);
+
+
+
+          renderBarcode(root, data.barcode);
+
+          let qrValue = '';
+
+          if (labelType === 'item_cz' && data.cz_code) {
+
+            qrValue = data.cz_code;
+
+          } else if (labelType === 'box' || labelType === 'pallet') {
+
+            qrValue = data.barcode || '';
+
+          } else {
+
+            qrValue = [data.barcode, data.article].filter(Boolean).join(' ');
+
+          }
+
+            const qrEnabled = (labelType === 'box' || labelType === 'pallet') ? true : mode === 'cz';
+
+            if (labelType === 'item_cz') {
+
+              renderGs1Matrix(root, qrValue, qrEnabled);
+
+            } else {
+
+              renderQr(root, qrValue, qrEnabled);
+
+            }
+
+          };
+
+
+
+      const updateActivePreview = () => {
+
+        const key = getActiveKey();
+
+        const root = key ? labelRootByKey.get(key) : null;
+
+        if (!root) {
+
+          return;
+
+        }
+
+        const enabled = readEnabledValues();
+
+        const data = readTextValues(enabled);
+
+        const sizes = readFontValues();
+
+        const mode = resolveMode(key);
+
+        updateLabelRoot(root, data, mode, sizes);
+
+      };
+
+
+
+      const syncActiveSettings = () => {
+
+        const key = getActiveKey();
+
+        snapshotSettings(key);
+
+      };
+
+
+
+      const formatDateTime = (date) => {
+
+        const pad = (value) => String(value).padStart(2, '0');
+
+        return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+
+      };
+
+      const printAgentStorageKeys = ['labels_print_agent_id', 'fullbox_agent_id'];
+      const localAgentBridgeState = {
+        payload: null,
+        pending: null,
+      };
+      const localAgentBridgeUrls = [
+        'http://127.0.0.1:17841/whoami',
+        'http://localhost:17841/whoami',
+      ];
+
+      const getStoredAgentId = () => {
+        const payload = localAgentBridgeState.payload || null;
+        const localAgentId = String(payload && payload.agentId ? payload.agentId : '').trim();
+        for (const key of printAgentStorageKeys) {
+          const value = (localStorage.getItem(key) || '').trim();
+          if (value && (!localAgentId || value !== localAgentId || localAgentHasPrintablePrinters(payload))) {
+            return value;
+          }
+        }
+        return '';
+      };
+      const localAgentHasPrintablePrinters = (payload) => {
+        const virtualPrinterMarkers = ['pdf', 'xps', 'onenote', 'fax', 'microsoft print', 'save to pdf', 'anydesk', 'rustdesk', 'remote desktop', 'redirected'];
+        const seen = new Set();
+        const source = Array.isArray(payload && payload.printers) ? payload.printers : [];
+        for (const item of source) {
+          const value = String(item || '').trim();
+          const key = value.toLowerCase();
+          if (!value || seen.has(key)) {
+            continue;
+          }
+          seen.add(key);
+          if (!virtualPrinterMarkers.some((marker) => key.includes(marker))) {
+            return true;
+          }
+        }
+        return false;
+      };
+      const clearStoredLocalAgentId = (agentId) => {
+        const normalized = String(agentId || '').trim();
+        if (!normalized) {
+          return;
+        }
+        printAgentStorageKeys.forEach((key) => {
+          if ((localStorage.getItem(key) || '').trim() === normalized) {
+            localStorage.removeItem(key);
+          }
+        });
+      };
+
+      const fetchLocalAgentBridgePayload = async (url) => {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), 1200);
+        try {
+          const resp = await fetch(url, {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-store',
+            signal: controller.signal,
+          });
+          if (!resp.ok) {
+            return null;
+          }
+          const data = await resp.json();
+          return data && typeof data === 'object' ? data : null;
+        } catch (err) {
+          return null;
+        } finally {
+          window.clearTimeout(timer);
+        }
+      };
+
+      const detectLocalAgentBridge = async () => {
+        const fallbackAgentId = getStoredAgentId();
+        if (localAgentBridgeState.payload) {
+          return localAgentBridgeState.payload;
+        }
+        if (localAgentBridgeState.pending) {
+          return localAgentBridgeState.pending;
+        }
+        localAgentBridgeState.pending = (async () => {
+          for (const url of localAgentBridgeUrls) {
+            const payload = await fetchLocalAgentBridgePayload(url);
+            const agentId = String(payload && payload.agentId ? payload.agentId : '').trim();
+            if (agentId) {
+              if (localAgentHasPrintablePrinters(payload)) {
+                printAgentStorageKeys.forEach((key) => localStorage.setItem(key, agentId));
+              } else {
+                clearStoredLocalAgentId(agentId);
+              }
+              localAgentBridgeState.payload = payload;
+              return payload;
+            }
+          }
+          return fallbackAgentId ? { agentId: fallbackAgentId } : null;
+        })();
+        try {
+          return await localAgentBridgeState.pending;
+        } finally {
+          localAgentBridgeState.pending = null;
+        }
+      };
+
+      const getSelectedAgentId = async () => {
+        const payload = await detectLocalAgentBridge();
+        const localAgentId = String(payload && payload.agentId ? payload.agentId : '').trim();
+        const storedAgentId = getStoredAgentId();
+        const agentId = localAgentHasPrintablePrinters(payload)
+          ? localAgentId
+          : (storedAgentId && storedAgentId !== localAgentId ? storedAgentId : '');
+        if (agentId) {
+          printAgentStorageKeys.forEach((key) => localStorage.setItem(key, agentId));
+        }
+        return agentId;
+      };
+
+
+
+      const setStatusLine = (text) => {
+
+        if (statusLine) {
+
+          statusLine.textContent = `Статус печати: ${text}`;
+
+        }
+
+      };
+
+      const readQueueValue = (lines) => {
+
+        for (const line of lines) {
+
+          const text = line ? line.textContent || '' : '';
+
+          const match = text.match(/(\d+)/);
+
+          if (match) {
+
+            return Number(match[1]);
+
+          }
+
+        }
+
+        return 0;
+
+      };
+
+      const setQueueLine = (lines, label, value) => {
+
+        lines.forEach((line) => {
+
+          if (line) {
+
+            line.textContent = `${label}: ${value}`;
+
+          }
+
+        });
+
+      };
+
+      const setQueueCounts = (pending, printing, failed) => {
+
+        setQueueLine(queuePendingLines, 'В очереди', pending);
+
+        setQueueLine(queuePrintingLines, 'В печати', printing);
+
+        setQueueLine(queueFailedLines, 'Ошибки', failed);
+
+      };
+
+
+
+      const bumpQueueStatus = () => {
+
+        if (!statusLine) {
+
+          return;
+
+        }
+
+        const current = statusLine.textContent || '';
+
+        const match = current.match(/В очереди:\s*(\d+)/);
+
+        const count = match ? Number(match[1]) : readQueueValue(queuePendingLines);
+
+        const suffix = current.includes('агент не активен') ? ' (агент не активен)' : '';
+
+        const nextCount = Math.max(count + 1, 1);
+
+        setStatusLine(`В очереди: ${nextCount}${suffix}`);
+
+        setQueueCounts(nextCount, readQueueValue(queuePrintingLines), readQueueValue(queueFailedLines));
+
+      };
+
+
+
+      const setLastActivity = (text) => {
+
+        if (!lastActivityLine) {
+
+          return;
+
+        }
+
+        lastActivityLine.textContent = `Последняя активность: ${text}`;
+
+        lastActivityLine.style.display = '';
+
+      };
+
+
+
+      const clearLastError = () => {
+
+        if (!lastErrorLine) {
+
+          return;
+
+        }
+
+        lastErrorLine.style.display = 'none';
+
+      };
+
+
+
+      const getSelectedPrinter = () => {
+
+        const printerInputs = Array.from(document.querySelectorAll('[data-label-printer]'));
+        const allowedPrinters = new Set(
+          printerInputs.flatMap((input) => Array.from(input.options || []))
+            .map((option) => String(option.value || '').trim())
+            .filter(Boolean)
+        );
+
+        for (const input of printerInputs) {
+
+          const value = (input.value || '').trim();
+
+          if (value) {
+
+            return value;
+
+          }
+
+        }
+
+        const stored = (
+
+          localStorage.getItem('processing_label_printer')
+
+          || localStorage.getItem('label_printer')
+
+          || ''
+
+        ).trim();
+
+        return stored && allowedPrinters.has(stored) ? stored : '';
+
+      };
+
+
+
+      const getLabelDimensions = (card, root) => {
+
+        const width = parseFloat((card && card.dataset.labelWidth) || (root && root.dataset.labelWidth)) || 58;
+
+        const height = parseFloat((card && card.dataset.labelHeight) || (root && root.dataset.labelHeight)) || 40;
+
+        return { width, height };
+
+      };
+
+
+      const getPrintPageDimensions = (target, dims) => {
+
+        if (!dims) {
+
+          return { width: 58, height: 40 };
+
+        }
+
+        const labelType = target && target.dataset ? target.dataset.labelType : '';
+
+        if (labelType === 'box' || labelType === 'pallet') {
+
+          return { width: dims.height, height: dims.width };
+
+        }
+
+        return { width: dims.width, height: dims.height };
+
+      };
+
+
+
+      const applyLabelDimensions = (target, dims) => {
+
+        if (!target || !dims) {
+
+          return;
+
+        }
+
+        const isPallet = target.dataset && target.dataset.labelType === 'pallet';
+
+        const width = isPallet ? dims.height : dims.width;
+
+        const height = isPallet ? dims.width : dims.height;
+
+        target.style.setProperty('--label-width', `${width}mm`);
+
+        target.style.setProperty('--label-height', `${height}mm`);
+
+        target.style.setProperty('--label-scale', '1');
+
+      };
+
+      const labelImageCache = new Map();
+
+      const rememberLabelImage = (cacheKey, dataUrl) => {
+
+        if (!cacheKey || !dataUrl) {
+
+          return dataUrl;
+
+        }
+
+        if (labelImageCache.has(cacheKey)) {
+
+          labelImageCache.delete(cacheKey);
+
+        }
+
+        labelImageCache.set(cacheKey, dataUrl);
+
+        while (labelImageCache.size > 24) {
+
+          const oldestKey = labelImageCache.keys().next();
+
+          if (oldestKey.done) {
+
+            break;
+
+          }
+
+          labelImageCache.delete(oldestKey.value);
+
+        }
+
+        return dataUrl;
+
+      };
+
+      const makeLabelImageCacheKey = (root, data, mode, sizes, dims) => JSON.stringify({
+
+        labelType: root && root.dataset ? root.dataset.labelType || '' : '',
+
+        mode: mode || '',
+
+        dims: dims || {},
+
+        data: data || {},
+
+        sizes: sizes || {},
+
+      });
+
+
+
+      const buildLabelImage = async (root, data, mode, sizes, dims) => {
+
+        if (!window.html2canvas) {
+
+          alert('Библиотека печати не загружена.');
+
+          return '';
+
+        }
+
+        const cacheKey = makeLabelImageCacheKey(root, data, mode, sizes, dims);
+
+        const cachedImage = labelImageCache.get(cacheKey) || '';
+
+        if (cachedImage) {
+
+          return cachedImage;
+
+        }
+
+        const clone = root.cloneNode(true);
+
+        clone.dataset.renderMode = 'print';
+
+        applyLabelDimensions(clone, dims);
+
+        const holder = document.createElement('div');
+
+        holder.style.position = 'fixed';
+
+        holder.style.left = '-9999px';
+
+        holder.style.top = '0';
+
+        holder.style.background = '#ffffff';
+
+        holder.style.padding = '0';
+
+        holder.style.margin = '0';
+
+        holder.appendChild(clone);
+
+        document.body.appendChild(holder);
+
+        updateLabelRoot(clone, data, mode, sizes);
+
+        await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+
+        try {
+
+          // html2canvas renders CSS pixels at 96 DPI: 600 / 96 = 6.25.
+          const printScale = 6.25;
+
+          const canvas = await window.html2canvas(clone, {
+
+            backgroundColor: '#ffffff',
+
+            scale: printScale,
+
+            logging: false,
+
+            useCORS: true,
+
+          });
+
+          return rememberLabelImage(cacheKey, canvas.toDataURL('image/png'));
+
+        } catch (err) {
+
+          return '';
+
+        } finally {
+
+          holder.remove();
+
+        }
+
+      };
+
+
+
+      const buildPdfDocument = async ({ root, data, mode, sizes, dims, printDims, jobs, requested }) => {
+
+        const jsPdfApi = window.jspdf && window.jspdf.jsPDF ? window.jspdf.jsPDF : null;
+
+        if (!jsPdfApi) {
+
+          setStatusLine('Не удалось загрузить модуль PDF');
+
+          alert('Не удалось загрузить модуль PDF. Обновите страницу и попробуйте снова.');
+
+          return false;
+
+        }
+
+        const orientation = printDims.width >= printDims.height ? 'landscape' : 'portrait';
+
+        const doc = new jsPdfApi({
+          orientation,
+          unit: 'mm',
+          format: [printDims.width, printDims.height],
+          compress: true,
+        });
+
+        let sharedImage = '';
+
+        if (mode !== 'cz') {
+          setStatusLine('Подготовка PDF: 1 / 1');
+          sharedImage = await buildLabelImage(root, data, mode, sizes, dims);
+          if (!sharedImage) {
+            setStatusLine('Ошибка формирования этикетки');
+            alert('Не удалось сформировать этикетку.');
+            return false;
+          }
+        }
+
+        for (let i = 0; i < jobs.length; i += 1) {
+
+          const czCode = jobs[i];
+          const payload = Object.assign({}, data);
+
+          if (mode === 'cz') {
+            payload.cz_code = czCode || '';
+          }
+
+          let image = sharedImage;
+          if (mode === 'cz') {
+            setStatusLine(jobs.length > 1 ? `PDF: ${i + 1} / ${jobs.length}` : 'Подготовка PDF:');
+            image = await buildLabelImage(root, payload, mode, sizes, dims);
+          }
+
+          if (!image) {
+            setStatusLine('Ошибка формирования этикетки');
+            alert('Не удалось сформировать этикетку.');
+            return false;
+          }
+
+          if (i > 0) {
+            doc.addPage([printDims.width, printDims.height], orientation);
+          }
+
+          doc.addImage(image, 'PNG', 0, 0, printDims.width, printDims.height, undefined, 'FAST');
+        }
+
+        const sanitizeFilenamePart = (value) => String(value || '')
+          .trim()
+          .replace(/[\\/:*?"<>|]+/g, '-')
+          .replace(/\s+/g, '_')
+          .replace(/_+/g, '_')
+          .replace(/^_+|_+$/g, '');
+        const barcodePart = sanitizeFilenamePart(data.barcode) || 'no_barcode';
+        const modePart = mode === 'cz' ? 'ЧЗ' : '';
+        const qtyPart = String(jobs.length || requested || 0);
+        const pdfFileName = modePart
+          ? `L_${barcodePart}_${modePart}_${qtyPart}.pdf`
+          : `L_${barcodePart}_${qtyPart}.pdf`;
+
+        doc.save(pdfFileName);
+        setStatusLine(`PDF готов: ${jobs.length} стр.`);
+        return true;
+
+      };
+
+
+
+      const normalizeCzCode = (value) => String(value || '')
+        .trim()
+        .replace(/\\u001d|\\x1d|\\x001d|_x001d_/gi, String.fromCharCode(29))
+        .replace(/\u001d|\x1d/gi, String.fromCharCode(29));
+      const displayCzCode = (value) => String(value || '').replace(/\u001d|\x1d/g, '_x001D_');
+
+      const uniqueCzCodes = (items) => {
+
+        const seen = new Set();
+
+        return (Array.isArray(items) ? items : []).filter((item) => {
+
+          const text = normalizeCzCode(item);
+
+          if (!text || seen.has(text)) {
+
+            return false;
+
+          }
+
+          seen.add(text);
+
+          return true;
+
+        });
+
+      };
+
+      const removePrintedCzCodes = (codes) => {
+
+        if (!Array.isArray(window.processingLabelCzCodes)) {
+
+          return;
+
+        }
+
+        const removeSet = new Set((codes || []).map((code) => normalizeCzCode(code)));
+
+        const filtered = window.processingLabelCzCodes.filter((code) => !removeSet.has(normalizeCzCode(code)));
+
+        window.processingLabelCzCodes = filtered;
+
+        const czInput = document.getElementById('label-input-cz_code');
+
+        if (czInput) {
+
+          const nextCode = filtered.length ? displayCzCode(filtered[0]) : '';
+
+          if (czInput.value !== nextCode) {
+
+            czInput.value = nextCode;
+
+            czInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+            czInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+          }
+
+        }
+
+      };
+
+      const requestCzCodes = async (qty, meta) => {
+
+        if (!orderId) {
+
+          return { ok: false, error: 'Не указан номер заявки.' };
+
+        }
+
+        try {
+
+          const resp = await fetch(`/marking/processing/${orderId}/print/`, {
+
+            method: 'POST',
+
+            headers: {
+
+              'Content-Type': 'application/json',
+
+              'X-CSRFToken': getCsrfToken(),
+
+            },
+
+            credentials: 'same-origin',
+
+            body: JSON.stringify({
+
+              qty,
+
+              barcode: meta && meta.barcode ? meta.barcode : '',
+
+              size: meta && meta.size ? meta.size : '',
+
+            }),
+
+          });
+
+          let payload = {};
+
+          try {
+
+            payload = await resp.json();
+
+          } catch (err) {
+
+            payload = {};
+
+          }
+
+          if (!resp.ok || !payload.ok) {
+
+            return { ok: false, error: payload.error || `Ошибка: ${resp.status}`, available: payload.available || 0 };
+
+          }
+
+          return { ok: true, codes: Array.isArray(payload.codes) ? payload.codes : [], count: payload.count || 0 };
+
+        } catch (err) {
+
+          return { ok: false, error: 'Не удалось получить коды ЧЗ.' };
+
+        }
+
+      };
+
+      const resetPrintedCzCodes = async (qty, meta) => {
+
+        if (!orderId) {
+
+          return { ok: false, error: 'Не указан номер заявки.' };
+
+        }
+
+        try {
+
+          const resp = await fetch(`/marking/processing/${orderId}/print/reset/`, {
+
+            method: 'POST',
+
+            headers: {
+
+              'Content-Type': 'application/json',
+
+              'X-CSRFToken': getCsrfToken(),
+
+            },
+
+            credentials: 'same-origin',
+
+            body: JSON.stringify({
+
+              qty: Number.isFinite(qty) ? qty : 0,
+
+              barcode: meta && meta.barcode ? meta.barcode : '',
+
+              size: meta && meta.size ? meta.size : '',
+
+            }),
+
+          });
+
+          let payload = {};
+
+          try {
+
+            payload = await resp.json();
+
+          } catch (err) {
+
+            payload = {};
+
+          }
+
+          if (!resp.ok || !payload.ok) {
+
+            return { ok: false, error: payload.error || `Ошибка: ${resp.status}` };
+
+          }
+
+          return { ok: true, count: payload.count || 0 };
+
+        } catch (err) {
+
+          return { ok: false, error: 'Не удалось сбросить коды ЧЗ.' };
+
+        }
+
+      };
+
+      const queueCzPrintBatch = async (payload) => {
+        try {
+          const resp = await fetch(`/marking/processing/${orderId}/print/queue/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCsrfToken(),
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.ok) {
+            return { ok: false, error: data.error || `Ошибка: ${resp.status}` };
+          }
+          return {
+            ok: true,
+            jobIds: Array.isArray(data.job_ids) ? data.job_ids : [],
+            count: Number(data.count || 0),
+          };
+        } catch (err) {
+          return { ok: false, error: 'Не удалось передать партию ЧЗ в очередь печати.' };
+        }
+      };
+
+      const getCzPrintBatchStatus = async (jobIds) => {
+        try {
+          const resp = await fetch(`/marking/processing/${orderId}/print/status/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCsrfToken(),
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ job_ids: jobIds }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.ok) {
+            return { ok: false, terminal: false, failed: 0 };
+          }
+          return {
+            ok: true,
+            terminal: Boolean(data.terminal),
+            failed: Number(data.failed || 0),
+          };
+        } catch (err) {
+          return { ok: false, terminal: false, failed: 0 };
+        }
+      };
+
+      const waitForCzPrintBatch = async (jobIds) => {
+        let last = { ok: false, terminal: false, failed: 0 };
+        for (let attempt = 0; attempt < 120; attempt += 1) {
+          last = await getCzPrintBatchStatus(jobIds);
+          if (last.ok && last.terminal) {
+            return last;
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, 750));
+        }
+        return last;
+      };
+
+      const confirmCzPrintBatch = async (jobIds, printed) => {
+        try {
+          const resp = await fetch(`/marking/processing/${orderId}/print/confirm/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCsrfToken(),
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ job_ids: jobIds, printed }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.ok) {
+            return { ok: false, error: data.error || `Ошибка: ${resp.status}` };
+          }
+          return { ok: true, count: Number(data.count || 0) };
+        } catch (err) {
+          return { ok: false, error: 'Не удалось зафиксировать результат печати ЧЗ.' };
+        }
+      };
+
+
+      const enqueuePrintJob = async (card, outputMode = 'queue') => {
+
+        if (!card) {
+
+          return;
+
+        }
+
+        const root = card.querySelector('.label-preview');
+
+        if (!root) {
+
+          return;
+
+        }
+
+        const enabled = readEnabledValues();
+
+        const data = readTextValues(enabled);
+
+        const sizes = readFontValues();
+
+        const mode = resolveMode(card.dataset.labelCard);
+
+        const printer = outputMode === 'queue' ? getSelectedPrinter() : '';
+        const agentId = outputMode === 'queue' ? await getSelectedAgentId() : '';
+
+        const czCodes = Array.isArray(window.processingLabelCzCodes)
+
+          ? window.processingLabelCzCodes
+
+          : [];
+
+        const rowQty = Number.isFinite(window.processingLabelQty)
+
+          ? window.processingLabelQty
+
+          : 0;
+
+
+        if (outputMode === 'queue' && !printer) {
+
+          setStatusLine('Не выбран принтер');
+
+          alert('Выберите принтер этикеток.');
+
+          return;
+
+        }
+
+        if (!data.barcode) {
+
+          setStatusLine('Не заполнен ШК');
+
+          alert('Заполните ШК для печати.');
+
+          return;
+
+        }
+
+        let czList = [];
+
+        if (mode === 'cz') {
+
+          const available = uniqueCzCodes(czCodes);
+
+          if (!available.length && data.cz_code) {
+
+            const fallback = normalizeCzCode(data.cz_code);
+
+            if (fallback) {
+
+              available.push(fallback);
+
+            }
+
+          }
+
+          czList = available;
+
+        }
+
+        setStatusLine('Подготовка этикетки:');
+
+        clearLastError();
+
+        const dims = getLabelDimensions(card, root);
+        const printDims = getPrintPageDimensions(root, dims);
+        const labelKey = (card && card.dataset && card.dataset.labelCard) || 'item';
+        const processingParamKey = getProcessingParamKeyForLabelKey(labelKey);
+        const templateKey = getTemplateKeyForLabelKey(labelKey);
+        const totalQty = getRowQty(labelKey);
+
+        const printedCount = getPrintedCount(labelKey);
+
+        const availableCount = czList.length;
+
+        const qtyInput = card.querySelector('[data-print-qty]');
+
+
+        let requested = parseInt(qtyInput ? qtyInput.value : '', 10);
+
+        if (!Number.isFinite(requested) || requested <= 0) {
+
+          requested = totalQty
+
+            ? Math.max(totalQty - printedCount, 0)
+
+            : (mode === 'cz' ? Math.max(availableCount - printedCount, 0) : 1);
+
+        }
+
+        if (requested <= 0) {
+
+          setStatusLine('Не указано количество');
+
+          alert('Укажите количество для печати.');
+
+          return;
+
+        }
+        let jobs = [];
+
+        if (mode === 'cz') {
+
+          setStatusLine('Получение кодов ЧЗ:');
+
+          const reserveResult = await requestCzCodes(requested, { barcode: data.barcode || '', size: data.size || '' });
+
+          if (!reserveResult.ok) {
+
+            const available = Number.isFinite(reserveResult.available) ? reserveResult.available : 0;
+
+            setStatusLine('Недостаточно кодов ЧЗ');
+
+            alert(reserveResult.error || `Недостаточно кодов ЧЗ: доступно ${available}.`);
+
+            return;
+
+          }
+
+          jobs = uniqueCzCodes(reserveResult.codes);
+
+          if (jobs.length < requested) {
+
+            setStatusLine('Недостаточно кодов ЧЗ');
+
+            alert(`Недостаточно кодов ЧЗ: нужно ${requested}, доступно ${jobs.length}.`);
+
+            return;
+
+          }
+
+        } else {
+
+          jobs = Array.from({ length: requested }, () => null);
+
+        }
+
+        if (qtyInput) {
+
+          qtyInput.value = requested;
+
+        }
+
+        if (mode === 'cz' && outputMode === 'pdf') {
+          setStatusLine('PDF для ЧЗ недоступен');
+          alert('Для этикеток ЧЗ используйте кнопку «Печать». Так система закрепит каждый DataMatrix за отдельным заданием и не допустит повторной печати кода.');
+          return;
+        }
+
+        if (mode === 'cz') {
+          const labels = [];
+          for (let i = 0; i < jobs.length; i += 1) {
+            const czCode = jobs[i];
+            const payload = Object.assign({}, data, { cz_code: czCode || '' });
+            setStatusLine(jobs.length > 1 ? `Подготовка DataMatrix: ${i + 1} / ${jobs.length}` : 'Подготовка DataMatrix:');
+            const image = await buildLabelImage(root, payload, mode, sizes, dims);
+            const base64 = image.split(',')[1] || '';
+            if (!base64) {
+              setStatusLine('Ошибка формирования DataMatrix');
+              alert('Не удалось сформировать этикетку с DataMatrix. Коды ЧЗ не зарезервированы.');
+              return;
+            }
+            labels.push({ code: czCode, label_png_base64: base64 });
+          }
+
+          setStatusLine(`Отправка партии ЧЗ: ${labels.length} шт.`);
+          const queueResult = await queueCzPrintBatch({
+            order_id: orderId || '',
+            card_id: cardId || '',
+            article: data.article || '',
+            barcode: data.barcode || '',
+            size: data.size || '',
+            printer_name: printer,
+            agent_id: agentId,
+            processing_param_key: processingParamKey,
+            template_key: templateKey,
+            label_width_mm: printDims.width,
+            label_height_mm: printDims.height,
+            labels,
+          });
+          if (!queueResult.ok || queueResult.jobIds.length !== labels.length) {
+            setStatusLine('Ошибка очереди печати ЧЗ');
+            alert(queueResult.error || 'Не удалось закрепить коды ЧЗ за партией печати. Повторите операцию.');
+            return;
+          }
+
+          bumpQueueStatus();
+          setLastActivity(formatDateTime(new Date()));
+          clearLastError();
+          setStatusLine(`Печать партии ЧЗ: ${labels.length} шт.`);
+          const batchStatus = await waitForCzPrintBatch(queueResult.jobIds);
+          const statusWarning = !batchStatus.terminal
+            ? '\n\nАгент ещё не подтвердил завершение. Проверьте принтер перед ответом.'
+            : (batchStatus.failed > 0
+              ? `\n\nАгент сообщил об ошибке для ${batchStatus.failed} этикеток. Проверьте фактический результат.`
+              : '');
+          const printed = window.confirm(
+            `Партия: ${labels.length} этикеток ЧЗ.\n\nВсе этикетки распечатались?${statusWarning}\n\n«ОК» — ДА, зафиксировать коды как напечатанные.\n«Отмена» — НЕТ, вернуть коды в доступные.`
+          );
+          const confirmResult = await confirmCzPrintBatch(queueResult.jobIds, printed);
+          if (!confirmResult.ok) {
+            setStatusLine('Результат печати ЧЗ не зафиксирован');
+            alert(confirmResult.error || 'Не удалось зафиксировать результат. Коды остаются зарезервированными и не будут выданы повторно.');
+            return;
+          }
+          if (printed) {
+            removePrintedCzCodes(jobs);
+            addPrintedCount(labelKey, confirmResult.count || jobs.length);
+            setStatusLine(`Напечатано и подтверждено: ${confirmResult.count || jobs.length} шт.`);
+          } else {
+            setStatusLine(`Печать не подтверждена. Возвращено кодов: ${confirmResult.count || jobs.length}.`);
+          }
+          updatePrintProgress();
+          return;
+        }
+
+        if (outputMode === 'pdf') {
+          const pdfOk = await buildPdfDocument({
+            root,
+            data,
+            mode,
+            sizes,
+            dims,
+            printDims,
+            jobs,
+            requested,
+          });
+          if (pdfOk && mode !== 'cz') {
+            addPrintedCount(labelKey, jobs.length);
+            updatePrintProgress();
+          }
+          return;
+        }
+
+        const queueItems = mode === 'cz'
+          ? jobs.map((czCode) => ({ czCode, copies: 1 }))
+          : [{ czCode: null, copies: requested }];
+
+        for (let i = 0; i < queueItems.length; i += 1) {
+
+          const queueItem = queueItems[i];
+          const czCode = queueItem.czCode;
+
+          const payload = Object.assign({}, data);
+
+          if (mode === 'cz') {
+
+            payload.cz_code = czCode || '';
+
+          }
+
+          if (mode !== 'cz' && queueItem.copies > 1) {
+            setStatusLine(`Подготовка этикетки: ${queueItem.copies} шт.`);
+          } else {
+            setStatusLine(queueItems.length > 1 ? `Печать: ${i + 1} / ${queueItems.length}` : 'Подготовка этикетки:');
+          }
+
+          const image = await buildLabelImage(root, payload, mode, sizes, dims);
+
+          const base64 = image.split(',')[1] || '';
+
+          if (!base64) {
+
+            setStatusLine('Ошибка формирования этикетки');
+
+            alert('Не удалось сформировать этикетку.');
+
+            return;
+
+          }
+
+          try {
+
+            if (mode !== 'cz' && queueItem.copies > 1) {
+              setStatusLine(`Отправка в очередь: ${queueItem.copies} шт.`);
+            } else {
+              setStatusLine(queueItems.length > 1 ? `Отправка в очередь: ${i + 1} / ${queueItems.length}` : 'Отправка в очередь печати:');
+            }
+
+            const resp = await fetch('/orders/processing/print-jobs/', {
+
+              method: 'POST',
+
+              headers: {
+
+                'Content-Type': 'application/json',
+
+                'X-CSRFToken': getCsrfToken(),
+
+              },
+
+              credentials: 'same-origin',
+
+              body: JSON.stringify({
+
+                order_id: orderId || '',
+
+                card_id: cardId || '',
+
+                article: payload.article || '',
+
+                barcode: payload.barcode || '',
+
+                size: payload.size || '',
+
+                printer_name: printer,
+                agent_id: agentId,
+                copies: queueItem.copies,
+                processing_param_key: processingParamKey,
+                template_key: templateKey,
+
+                label_png_base64: base64,
+
+                label_width_mm: printDims.width,
+
+                label_height_mm: printDims.height,
+
+              }),
+
+            });
+
+            if (!resp.ok) {
+
+              const message = await resp.text();
+
+              setStatusLine('Ошибка очереди печати');
+
+              alert(`Ошибка очереди печати: ${message || resp.status}`);
+
+              return;
+
+            }
+
+            const queuePayload = await resp.json().catch(() => ({}));
+            const queuedCount = Math.max(
+              1,
+              Number.parseInt(String(queuePayload.queued_count || queueItem.copies || 1), 10) || queueItem.copies || 1,
+            );
+            bumpQueueStatus();
+
+            setLastActivity(formatDateTime(new Date()));
+
+            clearLastError();
+
+            addPrintedCount(labelKey, queuedCount);
+
+            updatePrintProgress();
+
+          } catch (err) {
+
+            setStatusLine('Ошибка отправки на печать');
+
+            alert('Не удалось отправить задание на печать.');
+
+            return;
+
+          }
+
+        }
+
+      };
+
+
+
+      if (printButtons.length) {
+
+        printButtons.forEach((btn) => {
+
+          btn.addEventListener('click', () => {
+
+            const card = btn.closest('[data-label-card]');
+
+            enqueuePrintJob(card, 'queue');
+
+          });
+
+        });
+
+      }
+
+      if (pdfButtons.length) {
+
+        pdfButtons.forEach((btn) => {
+
+          btn.addEventListener('click', () => {
+
+            const card = btn.closest('[data-label-card]');
+
+            enqueuePrintJob(card, 'pdf');
+
+          });
+
+        });
+
+      }
+
+      if (resetPrintedButtons.length) {
+
+        resetPrintedButtons.forEach((btn) => {
+
+          btn.addEventListener('click', async () => {
+
+            const card = btn.closest('[data-label-card]');
+
+            const barcodeInput = document.getElementById('label-input-barcode');
+
+            const sizeInput = document.getElementById('label-input-size');
+
+            const barcodeValue = barcodeInput ? barcodeInput.value.trim() : '';
+
+            const sizeValue = sizeInput ? sizeInput.value.trim() : '';
+
+            if (!barcodeValue) {
+
+              alert('Выберите строку с ШК для сброса ЧЗ.');
+
+              return;
+
+            }
+
+            const qtyInput = card ? card.querySelector('[data-print-qty]') : null;
+
+            let qtyValue = parseInt(qtyInput ? qtyInput.value : '', 10);
+
+            if (!Number.isFinite(qtyValue) || qtyValue <= 0) {
+
+              qtyValue = 0;
+
+            }
+
+            const confirmText = qtyValue > 0
+
+              ? `Сбросить печать ЧЗ: ${qtyValue} шт.?`
+
+              : 'Сбросить все напечатанные коды ЧЗ для выбранного ШК?';
+
+            if (!confirm(confirmText)) {
+
+              return;
+
+            }
+
+            setStatusLine('Сброс печати ЧЗ:');
+
+            const result = await resetPrintedCzCodes(qtyValue, { barcode: barcodeValue, size: sizeValue });
+
+            if (!result.ok) {
+
+              setStatusLine('Ошибка сброса ЧЗ');
+
+              alert(result.error || 'Не удалось сбросить коды ЧЗ.');
+
+              return;
+
+            }
+
+            const key = getPrintKey('item_cz');
+
+            const current = printProgress[key] || 0;
+
+            if (qtyValue > 0) {
+
+              printProgress[key] = Math.max(0, current - (result.count || 0));
+
+            } else {
+
+              printProgress[key] = 0;
+
+            }
+
+            savePrintProgress(printProgress);
+
+            updatePrintProgress();
+
+            setStatusLine(`Сброшено ЧЗ: ${result.count || 0}`);
+
+            window.location.reload();
+
+          });
+
+        });
+
+      }
+
+
+
+      const handleTableUpdate = () => {
+
+        labelImageCache.clear();
+
+        syncActiveSettings();
+
+        updateActivePreview();
+
+      };
+
+      table.addEventListener('input', handleTableUpdate);
+
+      table.addEventListener('change', handleTableUpdate);
+
+
+
+      if (refreshBtn) {
+
+        refreshBtn.addEventListener('click', () => {
+
+          const key = getActiveKey();
+
+          if (!key) {
+
+            return;
+
+          }
+
+          labelImageCache.clear();
+
+          applyTableSettings(key);
+
+          updateActivePreview();
+
+        });
+
+      }
+
+
+
+      const getCsrfToken = () => {
+
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+
+        if (match) {
+
+          return decodeURIComponent(match[1]);
+
+        }
+
+        const hidden = document.querySelector('#label-settings-csrf input[name="csrfmiddlewaretoken"]');
+
+        return hidden ? hidden.value : '';
+
+      };
+
+
+
+      if (saveBtn) {
+
+        saveBtn.addEventListener('click', async () => {
+
+          const key = getActiveKey();
+          const settingsKey = getTemplateKeyForLabelKey(key);
+
+          if (!key || !settingsKey) {
+
+            return;
+
+          }
+
+          const enabled = readEnabledValues();
+
+          const payload = {
+
+            key: settingsKey,
+
+            text: readTextValues(enabled),
+
+            fonts: readFontValues(),
+
+            enabled,
+
+          };
+
+          try {
+
+            const resp = await fetch(labelSettingsSaveUrl, {
+
+              method: 'POST',
+
+              headers: {
+
+                'Content-Type': 'application/json',
+
+                'X-CSRFToken': getCsrfToken(),
+
+              },
+
+              body: JSON.stringify(payload),
+
+            });
+
+            if (!resp.ok) {
+
+              const message = await resp.text();
+
+              alert(`Ошибка сохранения: ${message || resp.status}`);
+
+              return;
+
+            }
+
+            labelSettings[settingsKey] = payload;
+
+            draftSettings[settingsKey] = payload;
+
+            alert('Параметры сохранены.');
+
+          } catch (err) {
+
+            alert('Не удалось сохранить параметры.');
+
+          }
+
+        });
+
+      }
+
+
+
+      if (labelSizeButtons.length && labelCards.length) {
+
+        const storedSize = localStorage.getItem(labelSizeStorageKey);
+
+        setLabelSize(storedSize || labelCards[0].dataset.labelCard);
+
+        labelSizeButtons.forEach((btn) => {
+
+          btn.addEventListener('click', () => {
+
+            setLabelSize(btn.dataset.labelKey);
+
+            updateActivePreview();
+
+          });
+
+        });
+
+      }
+
+
+
+      updateActivePreview();
+
+    })();
+
+  </script>
+
+
+
+  <script>
+
+    (() => {
+
+      const params = new URLSearchParams(window.location.search);
+
+      const forcedMode = (params.get('label_mode') || '').trim();
+      const forcedLabelKey = (params.get('label_size') || '').trim();
+      if (forcedMode || forcedLabelKey) {
+        const normalized = forcedMode === 'cz' ? 'cz' : 'no-cz';
+        const fallbackLabelKey = normalized === 'cz' ? 'item_cz' : 'item';
+        const labelKey = forcedLabelKey || fallbackLabelKey;
+        localStorage.setItem('labels_settings_size', labelKey);
+        localStorage.setItem('processing_label_mode', normalized);
+        localStorage.setItem('labels_label_mode', normalized);
+        const button = document.querySelector(`[data-label-key="${labelKey}"]`);
+        if (button) {
+          button.click();
+        }
+      }
+
+      const barcodeInput = document.getElementById('label-input-barcode');
+
+      const sizeInput = document.getElementById('label-input-size');
+
+      const czInput = document.getElementById('label-input-cz_code');
+
+      let selectedCzCodes = [];
+
+      let selectedQty = 0;
+      let selectedQtyByMode = { 'no-cz': 0, 'cz': 0 };
+      let selectedQtyByLabelKey = {};
+
+      const parseCodes = (raw) => {
+
+        if (!raw) {
+
+          return [];
+
+        }
+
+        try {
+
+          const data = JSON.parse(raw);
+
+          return Array.isArray(data) ? data : [];
+
+        } catch (err) {
+
+          return [];
+
+        }
+
+      };
+
+      const escapeGsForInput = (value) => String(value || '').replace(/\u001d|\x1d/g, '_x001D_');
+
+      const setValue = (input, value) => {
+
+        if (!input) {
+
+          return;
+
+        }
+
+        input.value = value || '';
+
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+
+      };
+
+      const setRow = (barcode, size, codes, qty, qtyNoCz, qtyCz, qtyMap = null) => {
+
+        const list = Array.isArray(codes) ? codes : [];
+
+        selectedCzCodes = list;
+
+        selectedQty = Number.isFinite(qty) ? qty : 0;
+        const noCzQty = Number.isFinite(qtyNoCz) ? qtyNoCz : selectedQty;
+        const czQty = Number.isFinite(qtyCz) ? qtyCz : selectedQty;
+        selectedQtyByMode = { 'no-cz': noCzQty, 'cz': czQty };
+        selectedQtyByLabelKey = {};
+        if (qtyMap && typeof qtyMap === 'object' && !Array.isArray(qtyMap)) {
+          Object.entries(qtyMap).forEach(([key, value]) => {
+            const parsed = parseInt(String(value || '').trim(), 10);
+            selectedQtyByLabelKey[key] = Number.isFinite(parsed) ? parsed : 0;
+          });
+        }
+
+        setValue(barcodeInput, barcode);
+
+        setValue(sizeInput, size);
+
+        if (czInput) {
+
+          const first = list.length ? list[0] : '';
+
+          setValue(czInput, escapeGsForInput(first));
+
+        }
+
+        window.processingLabelCzCodes = selectedCzCodes;
+
+        window.processingLabelQty = selectedQty;
+        window.processingLabelQtyByMode = selectedQtyByMode;
+        window.processingLabelQtyByLabelKey = selectedQtyByLabelKey;
+
+        if (window.processingLabelUpdateProgress) {
+
+          window.processingLabelUpdateProgress();
+
+        }
+
+      };
+
+      const rowButtons = Array.from(document.querySelectorAll('[data-label-row]'));
+
+      const setFromButton = (btn) => {
+
+        if (!btn) {
+
+          return;
+
+        }
+
+        const qty = parseInt(btn.dataset.qty || '0', 10);
+        const qtyNoCz = parseInt(btn.dataset.qtyNoCz || '', 10);
+        const qtyCz = parseInt(btn.dataset.qtyCz || '', 10);
+        const codes = parseCodes(btn.dataset.czCodes || '[]');
+        let qtyMap = {};
+        try {
+          qtyMap = JSON.parse(btn.dataset.printQtys || '{}');
+        } catch (err) {
+          qtyMap = {};
+        }
+        setRow(
+          btn.dataset.barcode || '',
+          btn.dataset.size || '',
+          codes,
+          Number.isFinite(qty) ? qty : 0,
+          Number.isFinite(qtyNoCz) ? qtyNoCz : undefined,
+          Number.isFinite(qtyCz) ? qtyCz : undefined,
+          qtyMap,
+        );
+
+      };
+
+      rowButtons.forEach((btn) => {
+
+        btn.addEventListener('click', () => {
+
+          setFromButton(btn);
+
+        });
+
+      });
+
+      const initialBarcode = (params.get('barcode') || '').trim();
+
+      const initialSize = (params.get('size') || '').trim();
+
+      if (czInput && czInput.value) {
+        setValue(czInput, escapeGsForInput(czInput.value));
+      }
+
+      if (initialBarcode || initialSize) {
+
+        const match = rowButtons.find((btn) => {
+
+          const barcode = btn.dataset.barcode || '';
+
+          const size = btn.dataset.size || '';
+
+          if (initialBarcode && barcode !== initialBarcode) {
+
+            return false;
+
+          }
+
+          if (initialSize && size !== initialSize) {
+
+            return false;
+
+          }
+
+          return true;
+
+        });
+
+        if (match) {
+
+          setFromButton(match);
+
+        } else {
+
+          setRow(initialBarcode, initialSize, [], 0, 0, 0);
+
+        }
+
+      } else if (rowButtons.length) {
+
+        setFromButton(rowButtons[0]);
+
+      }
+
+    })();
+
+  </script>
+  <script>
+    (() => {
+      const pauseButtons = Array.from(document.querySelectorAll('[data-print-toggle]'));
+      const clearButtons = Array.from(document.querySelectorAll('[data-print-clear]'));
+      const resetButtons = Array.from(document.querySelectorAll('[data-print-reset]'));
+      if (!pauseButtons.length && !clearButtons.length && !resetButtons.length) {
+        return;
+      }
+
+      const getCsrfToken = () => {
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        if (match) {
+          return decodeURIComponent(match[1]);
+        }
+        const hidden = document.querySelector('#label-settings-csrf input[name="csrfmiddlewaretoken"]');
+        return hidden ? hidden.value : '';
+      };
+
+      const postJson = async (url, payload) => {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify(payload || {}),
+        });
+        if (!resp.ok) {
+          const message = await resp.text();
+          throw new Error(message || resp.status);
+        }
+        return resp.json();
+      };
+
+      const runAction = async (url, payload, confirmText) => {
+        if (confirmText && !confirm(confirmText)) {
+          return;
+        }
+        try {
+          await postJson(url, payload);
+          window.location.reload();
+        } catch (err) {
+          alert(`Ошибка: ${err.message || err}`);
+        }
+      };
+
+      pauseButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const isPaused = btn.dataset.printPaused === '1';
+          const url = isPaused
+            ? '/orders/processing/print-jobs/resume/'
+            : '/orders/processing/print-jobs/pause/';
+          runAction(url, {}, isPaused ? 'Возобновить печать?' : 'Остановить печать?');
+        });
+      });
+
+      clearButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          runAction(
+            '/orders/processing/print-jobs/clear/',
+            { scope: 'pending' },
+            'Очистить очередь печати? Все ожидающие задания будут удалены.'
+          );
+        });
+      });
+
+      resetButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          runAction(
+            '/orders/processing/print-jobs/reset/',
+            { mode: 'pending' },
+            'Сбросить задания "в печати" обратно в очередь?'
+          );
+        });
+      });
+    })();
+  </script>
+
+</body>
+
+</html>

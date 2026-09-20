@@ -1,0 +1,45 @@
+{% extends "logistics/management_base.html" %}
+{% block title %}Водитель рейса {{ trip.number }}{% endblock %}
+{% block management_title %}Рейс {{ trip.number }} · водитель{% endblock %}
+{% block management_content %}
+  <section class="dm-card dm-grid">
+    <div class="dm-facts">
+      <div class="dm-fact"><div class="dm-label">Текущий водитель</div><div class="dm-value">{{ trip.assigned_driver.full_name|default:"Не назначен" }}</div></div>
+      <div class="dm-fact"><div class="dm-label">Статус водителя</div><div class="dm-value">{{ trip.get_driver_status_display }}</div></div>
+      <div class="dm-fact"><div class="dm-label">Назначил</div><div class="dm-value">{{ trip.driver_assigned_by.full_name|default:"—" }} · {{ trip.driver_assigned_at|date:"d.m.Y H:i"|default:"—" }}</div></div>
+      <div class="dm-fact"><div class="dm-label">Плановая подача</div><div class="dm-value">{{ trip.scheduled_at|date:"d.m.Y H:i"|default:"—" }}</div></div>
+      {% if summary.is_external %}
+        <div class="dm-fact"><div class="dm-label">Клиент</div><div class="dm-value">{{ summary.external_client }}</div></div>
+        <div class="dm-fact"><div class="dm-label">Маршрут</div><div class="dm-value">{{ summary.pickup_address }} → {{ summary.delivery_address }}</div></div>
+      {% else %}
+        <div class="dm-fact"><div class="dm-label">Маркетплейс</div><div class="dm-value">{{ summary.marketplaces }}</div></div>
+        <div class="dm-fact"><div class="dm-label">Адрес</div><div class="dm-value">{{ summary.destinations }}</div></div>
+      {% endif %}
+    </div>
+    {% if trip.driver_status == "preliminary" %}
+      <div class="tm-message tm-message-warning"><strong>Рейс предварительный.</strong> Водитель уже видит план, но не может принять рейс до подтверждения логиста.</div>
+    {% endif %}
+    <form class="dm-form" method="post">
+      {% csrf_token %}
+      <label>Водитель<select name="driver_id" required><option value="">Выберите водителя</option>{% for driver in drivers %}<option value="{{ driver.pk }}"{% if trip.assigned_driver_id == driver.pk %} selected{% endif %}>{{ driver.full_name }}{% if driver.phone %} · {{ driver.phone }}{% endif %}</option>{% endfor %}</select></label>
+      <label>Дата и время подачи<input type="datetime-local" name="scheduled_at" value="{{ scheduled_input }}" required></label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        {% if trip.driver_status == "unassigned" or trip.driver_status == "preliminary" %}
+          <button class="btn" type="submit" name="assignment_mode" value="preliminary">Предварительно поставить на рейс</button>
+        {% endif %}
+        <button class="btn primary" type="submit" name="assignment_mode" value="confirmed">{% if trip.driver_status == "preliminary" %}Подтвердить рейс водителю{% elif trip.assigned_driver_id %}Сохранить подтвержденное назначение{% else %}Сразу подтвердить рейс{% endif %}</button>
+      </div>
+      <div class="dm-muted">Предварительное назначение сообщает водителю о плане, но не разрешает начать рейс. После подтверждения водитель получит отдельное уведомление.</div>
+    </form>
+    {% if not drivers %}<div class="tm-message tm-message-warning">Нет активных сотрудников с ролью «Водитель» и учетной записью. Создайте водителя в разделе сотрудников.</div>{% endif %}
+  </section>
+
+  {% if trip.actual_handover_at or attachments %}
+    <section class="dm-card dm-grid"><h2 style="margin:0;">Результат сдачи</h2>
+      <div class="dm-facts"><div class="dm-fact"><div class="dm-label">Фактическая сдача</div><div class="dm-value">{{ trip.actual_handover_at|date:"d.m.Y H:i"|default:"—" }}</div></div><div class="dm-fact"><div class="dm-label">Ворота</div><div class="dm-value">{{ trip.gate_number|default:"—" }}</div></div><div class="dm-fact"><div class="dm-label">Документ приемки</div><div class="dm-value">{{ trip.delivery_receipt_number|default:"—" }}</div></div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">{% for attachment in attachments %}<a class="btn" href="{{ attachment.file.url }}" target="_blank" rel="noopener">{{ attachment.get_attachment_type_display }}</a>{% endfor %}</div>
+    </section>
+  {% endif %}
+
+  <section class="dm-card"><h2 style="margin-top:0;">История рейса</h2><div class="dm-timeline">{% for item in history %}<div class="dm-event"><strong>{{ item.description }}</strong><div class="dm-muted">{{ item.created_at|date:"d.m.Y H:i" }} · {% if item.actor %}{{ item.actor.get_full_name|default:item.actor.username }}{% else %}Система{% endif %}</div></div>{% empty %}<div class="dm-muted">Событий водительского процесса пока нет.</div>{% endfor %}</div></section>
+{% endblock %}

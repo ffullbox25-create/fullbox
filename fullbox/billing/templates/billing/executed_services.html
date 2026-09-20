@@ -1,0 +1,484 @@
+{% extends "teammanager/_base.html" %}
+{% load billing_tags %}
+
+{% block title %}Услуги и деньги — Биллинг{% endblock %}
+
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.filter-card {
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:12px;
+  display:flex; gap:10px; flex-wrap:wrap; align-items:end;
+}
+.field {
+  border:1px solid var(--line); border-radius:10px; background:#fff;
+  padding:9px 12px; font:inherit; font-size:13px;
+}
+.stage-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }
+.stage-card {
+  display:grid; gap:5px; min-height:92px; padding:14px; border-radius:14px;
+  border:1px solid var(--line); background:#fff; color:inherit; text-decoration:none;
+  box-shadow:var(--shadow);
+}
+.stage-card.active { box-shadow:inset 0 0 0 2px #f89000,var(--shadow); }
+.stage-card.danger { border-color:#f5b7b1; background:#fff7f6; }
+.stage-card.orange { border-color:#f8c56f; background:rgba(248,144,0,.08); }
+.stage-label { color:var(--muted); font-size:12px; font-weight:800; line-height:1.3; }
+.stage-value { font:900 28px/1 "Bricolage Grotesque","Manrope",sans-serif; color:#303030; }
+.type-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.type-link {
+  display:inline-flex; min-height:36px; align-items:center; padding:7px 13px;
+  border:1px solid var(--line); border-radius:999px; background:#fff;
+  color:var(--ink); font-size:12px; font-weight:800; text-decoration:none;
+}
+.type-link.active { background:rgba(248,144,0,.13); border-color:#f89000; color:#8a4c00; }
+.type-detail { margin-left:auto; color:#8a4c00; font-size:12px; font-weight:900; }
+.info-box {
+  padding:12px 14px; border:1px solid rgba(248,144,0,.35); border-radius:12px;
+  background:rgba(248,144,0,.09); color:#6f4000; font-size:13px; font-weight:750;
+}
+.table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:1120px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:2px solid var(--line); }
+td { padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+tbody tr:hover td { background:#fff9ef; }
+.row-main { font-weight:850; }
+.row-sub { color:var(--muted); font-size:11px; margin-top:2px; line-height:1.35; }
+.num { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-weight:850; white-space:nowrap; }
+.badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900; white-space:nowrap; }
+.badge.green { background:var(--green-soft); color:var(--green-strong); }
+.badge.blue { background:#eff6ff; color:var(--blue); }
+.badge.orange { background:var(--orange-soft); color:#b45309; }
+.badge.red { background:#fff0f0; color:var(--red); }
+.badge.gray { background:var(--surface-2); color:var(--muted); }
+.summary-note { color:var(--muted); font-size:12px; font-weight:700; }
+.pagination { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.pagination-links { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.page-current { padding:7px 10px; color:var(--muted); font-size:12px; font-weight:800; }
+.missing-price { display:grid; gap:5px; max-width:320px; }
+.missing-price strong { color:var(--red); }
+.missing-price a { color:#8a4c00; font-weight:900; }
+.confirm-disabled { opacity:.55; cursor:not-allowed; }
+.review-btn { min-height:34px; padding:7px 10px; }
+.review-overlay {
+  position:fixed; inset:0; z-index:1300; display:none; place-items:center; padding:16px;
+  background:rgba(48,48,48,.52);
+}
+.review-overlay.is-open { display:grid; }
+.review-dialog {
+  width:min(620px,96vw); max-height:92vh; overflow:auto; background:#fff;
+  border:1px solid var(--line); border-radius:8px; box-shadow:0 24px 64px rgba(48,48,48,.24);
+}
+.review-head,.review-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:16px; }
+.review-head { border-bottom:1px solid var(--line); }
+.review-foot { border-top:1px solid var(--line); flex-wrap:wrap; }
+.review-body { display:grid; gap:12px; padding:16px; }
+.review-title { margin:0; font:850 20px/1.25 "Bricolage Grotesque","Manrope",sans-serif; }
+.review-close { width:36px; height:36px; border:1px solid var(--line); border-radius:50%; background:#fff; font-size:22px; cursor:pointer; }
+.review-source { padding:11px 12px; border:1px solid rgba(248,144,0,.3); background:rgba(248,144,0,.08); font-size:13px; }
+.review-grid { display:grid; grid-template-columns:1fr 130px; gap:10px; }
+.review-field { display:grid; gap:5px; color:var(--muted); font-size:12px; font-weight:750; }
+.review-field.full { grid-column:1 / -1; }
+.review-field input,.review-field select,.review-field textarea {
+  width:100%; border:1px solid var(--line); border-radius:6px; padding:9px 10px;
+  background:#fff; color:var(--text); font:500 13px/1.3 Manrope,sans-serif;
+}
+.review-field textarea { min-height:78px; resize:vertical; }
+.review-status { min-height:18px; color:var(--muted); font-size:12px; }
+.review-status.error { color:var(--red); font-weight:800; }
+@media (max-width:960px) { .stage-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:650px) {
+  .stage-grid { grid-template-columns:1fr; }
+  .review-grid { grid-template-columns:1fr; }
+  .review-field.full { grid-column:auto; }
+}
+{% endblock %}
+
+{% block content %}
+{% include "billing/_billing_nav.html" %}
+
+<div>
+  <h1 class="page-title">Услуги и деньги</h1>
+  <div class="page-sub">Что сделали для клиента и на каком шаге эта работа превращается в деньги.</div>
+</div>
+
+<div class="stage-grid" aria-label="Этапы биллинга услуг">
+  {% for card in executed_stage_cards %}
+    <a class="stage-card {{ card.tone }} {% if card.active %}active{% endif %}" href="{{ card.href }}">
+      <span class="stage-label">{{ card.label }}</span>
+      <strong class="stage-value">{{ card.count }}</strong>
+    </a>
+  {% endfor %}
+</div>
+
+<div class="type-row" aria-label="Тип работы">
+  {% for item in executed_type_links %}
+    <a class="type-link {% if item.active %}active{% endif %}" href="{{ item.href }}">{{ item.label }}</a>
+  {% endfor %}
+  {% if executed_detail_report_href %}
+    <a class="type-detail" href="{{ executed_detail_report_href }}">Подробный отчёт по этому типу →</a>
+  {% endif %}
+</div>
+
+{% if executed_fbs_billing_disabled %}
+  <div class="info-box">FBS-биллинг выключен: услуги фиксируются, но не тарифицируются. Это не ошибка.</div>
+{% endif %}
+
+<form class="filter-card" method="get">
+  <input type="hidden" name="stage" value="{{ executed_selected_stage }}">
+  {% if executed_filter_order_type %}<input type="hidden" name="order_type" value="{{ executed_filter_order_type }}">{% endif %}
+  <div>
+    <div class="row-sub">С даты передачи</div>
+    <input class="field" type="date" name="date_from" value="{{ executed_filter_date_from }}" style="width:150px">
+  </div>
+  <div>
+    <div class="row-sub">По дату</div>
+    <input class="field" type="date" name="date_to" value="{{ executed_filter_date_to }}" style="width:150px">
+  </div>
+  <div style="min-width:240px;flex:1">
+    <div class="row-sub">Клиент</div>
+    <select class="field" name="client" style="width:100%">
+      <option value="">Все</option>
+      {% for c in executed_clients %}
+        <option value="{{ c.id }}" {% if executed_filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <div class="row-sub">Статус</div>
+    <select class="field" name="status" style="width:190px">
+      <option value="">Все</option>
+      {% for code, label in executed_status_choices %}
+        <option value="{{ code }}" {% if executed_filter_status == code %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <div class="row-sub">Тарификация</div>
+    <select class="field" name="tariff" style="width:220px">
+      <option value="">Все</option>
+      <option value="missing" {% if executed_selected_stage == "missing" %}selected{% endif %}>Нет согласованной цены</option>
+      <option value="confirmed_missing" {% if executed_selected_stage == "confirmed_missing" %}selected{% endif %}>Подтверждены без тарифа</option>
+      <option value="priced" {% if executed_filter_tariff == "priced" %}selected{% endif %}>Есть тариф</option>
+      <option value="invoice" {% if executed_filter_tariff == "invoice" %}selected{% endif %}>В счёте</option>
+    </select>
+  </div>
+  <div>
+    <div class="row-sub">Строк на странице</div>
+    <select class="field" name="page_size" style="width:110px">
+      {% for option in executed_page_size_options %}
+        <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.value }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn primary" type="submit">Показать</button>
+  <a class="btn" href="/team-manager/billing/services/">Сбросить</a>
+</form>
+
+<div class="pagination">
+  <div class="summary-note">Показано {{ executed_rows|length }} из {{ executed_services_total }}.</div>
+  {% if executed_page.paginator.num_pages > 1 %}
+    <nav class="pagination-links" aria-label="Страницы реестра услуг">
+      {% if executed_page.has_previous %}
+        <a class="btn" href="?{% if executed_page_query %}{{ executed_page_query }}&amp;{% endif %}page=1">Первая</a>
+        <a class="btn" href="?{% if executed_page_query %}{{ executed_page_query }}&amp;{% endif %}page={{ executed_page.previous_page_number }}">← Назад</a>
+      {% endif %}
+      <span class="page-current">Страница {{ executed_page.number }} из {{ executed_page.paginator.num_pages }}</span>
+      {% if executed_page.has_next %}
+        <a class="btn" href="?{% if executed_page_query %}{{ executed_page_query }}&amp;{% endif %}page={{ executed_page.next_page_number }}">Дальше →</a>
+        <a class="btn" href="?{% if executed_page_query %}{{ executed_page_query }}&amp;{% endif %}page={{ executed_page.paginator.num_pages }}">Последняя</a>
+      {% endif %}
+    </nav>
+  {% endif %}
+</div>
+
+<div class="table-card">
+  <table>
+    <thead>
+      <tr>
+        <th>Дата</th>
+        <th>Клиент / заявка</th>
+        <th>Услуга</th>
+        <th>Количество</th>
+        <th>Цена</th>
+        <th>Сумма</th>
+        <th>Этап</th>
+        <th>Действие</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in executed_rows %}
+        {% with fact=row.fact charge=row.charge %}
+        <tr>
+          <td>
+            {% if fact %}
+              <div class="row-main">{% if fact.performed_at %}{{ fact.performed_at|date:"d.m.Y H:i" }}{% else %}{{ fact.reported_at|date:"d.m.Y H:i" }}{% endif %}</div>
+              <div class="row-sub">передано: {{ fact.reported_at|date:"d.m.Y H:i" }}</div>
+            {% elif charge.performed_at %}
+              <div class="row-main">{{ charge.performed_at|date:"d.m.Y H:i" }}</div>
+            {% else %}
+              <span class="row-sub">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="row-main">{{ row.client.short_name|default:row.client.agn_name|truncatechars:36 }}</div>
+            {% if fact %}
+              <div class="row-sub">{{ fact.get_order_type_display }} · {{ fact.order_id }}</div>
+            {% elif row.application %}
+              <div class="row-sub">{{ row.application.get_application_type_display }} · {{ row.application.application_id }}</div>
+            {% endif %}
+            {% if row.application %}
+              <div class="row-sub"><a href="/team-manager/billing/applications/{{ row.application.id }}/">Открыть заявку</a></div>
+            {% endif %}
+          </td>
+          <td>
+            <div class="row-main">
+              {% if fact and fact.service_name_snapshot %}
+                {{ fact.service_name_snapshot }}
+              {% elif fact and fact.service_id %}
+                {{ fact.service.name }}
+              {% elif charge %}
+                {{ charge.service_name_snapshot|default:charge.service.name }}
+              {% else %}
+                —
+              {% endif %}
+            </div>
+            {% if fact and fact.metadata.unlisted_service %}
+              <span class="badge orange">вне списка</span>
+            {% elif fact and fact.service_id %}
+              <div class="row-sub">{{ fact.service.code }}</div>
+            {% elif charge.service_id %}
+              <div class="row-sub">{{ charge.service.code }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {% if fact %}
+              <span class="num">{{ fact.quantity }}</span> {{ fact.unit|default:"шт" }}
+            {% else %}
+              <span class="num">{{ charge.quantity }}</span> {{ charge.unit }}
+            {% endif %}
+          </td>
+          <td>
+            {% if row.missing_price %}
+              <span class="badge red">нет цены</span>
+            {% elif row.has_agreed_price %}
+              <span class="num">{{ charge.tariff|money_fmt }}</span>
+              {% if charge.tariff_source_label %}<div class="row-sub">{{ charge.tariff_source_label }}</div>{% endif %}
+            {% else %}
+              <span class="row-sub">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if charge and not row.missing_price %}
+              <span class="num">{{ charge.total_amount|money_fmt }}</span>
+            {% else %}
+              <span class="row-sub">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if row.missing_price %}
+              <div class="missing-price">
+                <strong>Тариф не найден.</strong>
+                <span>Для услуги «{{ charge.service_name_snapshot|default:charge.service.name }}» у клиента «{{ row.client.short_name|default:row.client.agn_name }}» нет согласованной цены на {{ charge.performed_at|date:"d.m.Y"|default:"дату оказания" }}.</span>
+                <a href="/team-manager/billing/clients/{{ row.client.id }}/?tab=tariff">Открыть тариф клиента →</a>
+              </div>
+            {% else %}
+              <span class="badge {{ row.status_badge }}">{{ row.status_label }}</span>
+              {% if fact and fact.discrepancy_reason %}<div class="row-sub">{{ fact.discrepancy_reason|truncatechars:80 }}</div>{% endif %}
+            {% endif %}
+          </td>
+          <td>
+            {% if executed_can_review_unlisted and fact and fact.metadata.unlisted_service %}
+              {% if fact.status == "waiting_manager_review" or fact.status == "needs_clarification" or fact.status == "approved" and not fact.charge_id %}
+                <button
+                  type="button"
+                  class="btn review-btn js-review-service"
+                  data-fact-id="{{ fact.id }}"
+                  data-name="{{ fact.metadata.original_custom_name|default:fact.service_name_snapshot }}"
+                  data-quantity="{{ fact.quantity }}"
+                  data-unit="{{ fact.unit|default:'шт' }}"
+                  data-comment="{{ fact.comment }}"
+                  data-reason="{{ fact.discrepancy_reason }}"
+                  data-service-id="{{ fact.service_id|default:'' }}"
+                >Проверить</button>
+              {% else %}
+                <span class="row-sub">—</span>
+              {% endif %}
+            {% elif row.can_confirm %}
+              <button class="btn js-confirm-charge" type="button" data-id="{{ charge.id }}">Подтвердить количество</button>
+            {% elif row.confirm_disabled %}
+              <button class="btn confirm-disabled" type="button" disabled title="{{ executed_no_price_message }}">Подтвердить количество</button>
+            {% elif row.application %}
+              <a class="btn" href="/team-manager/billing/applications/{{ row.application.id }}/">Открыть</a>
+            {% else %}
+              <span class="row-sub">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endwith %}
+      {% empty %}
+        <tr><td colspan="8" style="padding:28px;text-align:center;color:var(--muted);font-weight:700">Нет услуг или начислений по выбранным фильтрам</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+(function(){
+  function csrf(){ return (document.cookie.match(/csrftoken=([^;]+)/)||[])[1]||''; }
+  document.querySelectorAll('.js-confirm-charge').forEach(function(button){
+    button.addEventListener('click', function(){
+      var chargeId = button.getAttribute('data-id');
+      button.disabled = true;
+      fetch('/team-manager/billing/api/charges/'+chargeId+'/confirm/', {
+        method:'POST',
+        credentials:'same-origin',
+        headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
+        body:'{}'
+      }).then(function(response){ return response.json(); }).then(function(data){
+        if (data.ok) window.location.reload();
+        else { alert(data.error || 'Не удалось подтвердить количество.'); button.disabled = false; }
+      }).catch(function(){
+        alert('Не удалось подтвердить количество.');
+        button.disabled = false;
+      });
+    });
+  });
+})();
+</script>
+
+{% if executed_can_review_unlisted %}
+<div class="review-overlay" id="warehouse-service-review" aria-hidden="true">
+  <section class="review-dialog" role="dialog" aria-modal="true" aria-labelledby="review-title">
+    <header class="review-head">
+      <h2 class="review-title" id="review-title">Проверка услуги склада</h2>
+      <button type="button" class="review-close" id="review-close" aria-label="Закрыть" title="Закрыть">×</button>
+    </header>
+    <div class="review-body">
+      {% csrf_token %}
+      <div class="review-source">
+        <div class="row-sub">Указано складом</div>
+        <div class="row-main" id="review-source-name"></div>
+        <div class="row-sub" id="review-source-reason"></div>
+      </div>
+      <div class="review-grid">
+        <label class="review-field full">Сопоставить с услугой
+          <select id="review-service">
+            <option value="">Выберите услугу</option>
+            {% for service in executed_review_services %}
+              <option value="{{ service.id }}">{{ service.name }}{% if service.code %} · {{ service.code }}{% endif %}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="review-field">Количество
+          <input id="review-quantity" type="number" min="0.001" step="0.001" inputmode="decimal">
+        </label>
+        <label class="review-field">Единица
+          <input id="review-unit" type="text" maxlength="32">
+        </label>
+        <label class="review-field full">Комментарий к факту
+          <input id="review-comment" type="text" maxlength="255">
+        </label>
+        <label class="review-field full">Комментарий менеджера
+          <textarea id="review-manager-comment" maxlength="255" placeholder="Обязателен при отправке на уточнение"></textarea>
+        </label>
+      </div>
+      <div class="review-status" id="review-status" aria-live="polite"></div>
+    </div>
+    <footer class="review-foot">
+      <button type="button" class="btn" data-review-action="clarify">На уточнение</button>
+      <button type="button" class="btn" data-review-action="cancel">Отменить</button>
+      <button type="button" class="btn primary" data-review-action="approve">Сопоставить и одобрить</button>
+    </footer>
+  </section>
+</div>
+
+<script>
+(function(){
+  var modal = document.getElementById('warehouse-service-review');
+  if (!modal) return;
+  var activeFactId = '';
+  var statusEl = document.getElementById('review-status');
+  var actionButtons = modal.querySelectorAll('[data-review-action]');
+  function csrfToken(){
+    var input = modal.querySelector('input[name="csrfmiddlewaretoken"]');
+    return input ? input.value : '';
+  }
+  function setStatus(message, error){
+    statusEl.textContent = message || '';
+    statusEl.classList.toggle('error', !!error);
+  }
+  function closeModal(){
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    activeFactId = '';
+    setStatus('');
+  }
+  function openModal(button){
+    activeFactId = button.getAttribute('data-fact-id') || '';
+    document.getElementById('review-source-name').textContent = button.getAttribute('data-name') || '';
+    document.getElementById('review-source-reason').textContent = button.getAttribute('data-reason') || 'Пояснение не указано';
+    document.getElementById('review-quantity').value = button.getAttribute('data-quantity') || '';
+    document.getElementById('review-unit').value = button.getAttribute('data-unit') || 'шт';
+    document.getElementById('review-comment').value = button.getAttribute('data-comment') || '';
+    document.getElementById('review-manager-comment').value = '';
+    document.getElementById('review-service').value = button.getAttribute('data-service-id') || '';
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function submitReview(action){
+    if (!activeFactId) return;
+    var serviceId = document.getElementById('review-service').value;
+    var managerComment = document.getElementById('review-manager-comment').value.trim();
+    if (action === 'approve' && !serviceId){
+      setStatus('Выберите услугу для сопоставления.', true);
+      return;
+    }
+    if (action === 'clarify' && !managerComment){
+      setStatus('Укажите, что нужно уточнить складу.', true);
+      return;
+    }
+    Array.prototype.forEach.call(actionButtons, function(button){ button.disabled = true; });
+    setStatus('Сохраняю решение...');
+    fetch('/team-manager/billing/api/warehouse-services/facts/'+encodeURIComponent(activeFactId)+'/review/', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+      body: JSON.stringify({
+        action: action,
+        service_id: serviceId || null,
+        quantity: document.getElementById('review-quantity').value,
+        unit: document.getElementById('review-unit').value,
+        comment: document.getElementById('review-comment').value,
+        manager_comment: managerComment
+      })
+    }).then(function(response){
+      return response.json().then(function(data){ return {response: response, data: data}; });
+    }).then(function(result){
+      if (!result.response.ok || !result.data || !result.data.ok){
+        throw new Error((result.data && result.data.error) || 'Не удалось сохранить решение.');
+      }
+      window.location.reload();
+    }).catch(function(error){
+      Array.prototype.forEach.call(actionButtons, function(button){ button.disabled = false; });
+      setStatus(error.message || 'Не удалось сохранить решение.', true);
+    });
+  }
+  document.addEventListener('click', function(event){
+    var openButton = event.target.closest('.js-review-service');
+    if (openButton) openModal(openButton);
+  });
+  document.getElementById('review-close').addEventListener('click', closeModal);
+  Array.prototype.forEach.call(actionButtons, function(button){
+    button.addEventListener('click', function(){ submitReview(button.getAttribute('data-review-action')); });
+  });
+  document.addEventListener('keydown', function(event){
+    if (event.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "warehouse_goods/base.html" %}
+{% block title %}Товары{% endblock %}
+{% block content %}
+<h1 class="goods-breadcrumb"><span class="home-mark">⌂</span><span>/</span><span>Склад</span><span>/</span><strong>Товары</strong></h1>
+
+<div class="source-toolbar" aria-label="Действия с товарами">
+  <a class="btn" href="{% url 'warehouse_goods:create' %}">Добавить товар</a>
+  <a class="btn" href="{% url 'warehouse_goods:export' %}?{{ request.GET.urlencode }}">Экспорт в EXCEL</a>
+  <button class="btn" type="button" disabled title="Импорт будет подключен к штатному загрузчику номенклатуры">Импорт из EXCEL</button>
+  <button class="btn" type="button" data-requires-selection disabled>Объединить товары</button>
+  <span class="toolbar-spacer"></span>
+  <details class="bulk-select">
+    <summary class="btn">ДЕЙСТВИЯ С ВЫБРАННЫМИ</summary>
+    <div class="bulk-menu">
+      <a href="{% url 'warehouse_goods:export' %}?{{ request.GET.urlencode }}">Экспортировать выборку</a>
+      <button type="button" data-requires-selection disabled>Объединить выбранные</button>
+    </div>
+  </details>
+</div>
+
+<form class="goods-filters" method="get">
+  <label><input class="search-input" type="search" name="q" value="{{ filters.q }}" placeholder="ID, Название, Артикул, ШК" autofocus></label>
+  <label><select class="partner-select" name="agency"><option value="">Все партнеры</option>{% for agency in agencies %}<option value="{{ agency.pk }}"{% if filters.agency == agency.pk|stringformat:'s' %} selected{% endif %}>{{ agency.agn_name }}</option>{% endfor %}</select></label>
+  <label><select class="category-select" name="category"><option value="">Все категории</option>{% for category in categories %}<option value="{{ category }}"{% if filters.category == category %} selected{% endif %}>{{ category }}</option>{% endfor %}</select></label>
+  <label><select class="bundle-select" name="bundle"><option value="">Все товары</option><option value="without"{% if filters.bundle == 'without' %} selected{% endif %}>Без наборов</option><option value="only"{% if filters.bundle == 'only' %} selected{% endif %}>Только наборы</option></select></label>
+  <label class="filter-check"><input type="checkbox" name="without_zero" value="1"{% if filters.without_zero %} checked{% endif %}>Без нулевых остатков</label>
+  <label class="filter-check"><input type="checkbox" name="reserves_only" value="1"{% if filters.reserves_only %} checked{% endif %}>Только с резервами</label>
+  <input type="hidden" name="sort" value="{{ filters.sort }}">
+  <input type="hidden" name="page_size" value="{{ filters.page_size }}">
+  <span class="filter-actions"><button class="btn primary" type="submit">Найти</button><a class="btn quiet" href="{% url 'warehouse_goods:list' %}">Сбросить</a></span>
+</form>
+
+<section class="table-card">
+  <div class="table-summary"><span>Найдено товаров: <strong>{{ page_obj.paginator.count }}</strong></span><span>Двойной щелчок открывает карточку товара</span></div>
+  <div class="table-scroll">
+    <table class="goods-table">
+      <thead><tr>
+        <th class="check-col"><input class="row-check" type="checkbox" data-select-all aria-label="Выбрать все"></th>
+        <th class="id-col">ID</th><th class="image-col">Картинка</th><th class="name-col">Название</th><th class="partner-col">Партнер</th><th class="article-col">Артикул</th><th class="barcode-col">Штрихкод</th>
+        <th class="metric-col">КИЗов</th><th class="metric-col">Вес</th><th class="metric-col">Размер</th><th class="metric-col">Габариты</th><th class="metric-col">На складе</th><th class="metric-col">Свободно</th><th class="metric-col">FBO (резерв)</th><th class="metric-col">FBS (резерв)</th><th class="metric-col">Ожидается</th><th class="partner-col">Категория</th><th class="metric-col">Набор</th><th class="notes-col">Заметки</th>
+      </tr></thead>
+      <tbody>
+      {% for sku in page_obj %}
+        <tr data-row-link="{% url 'warehouse_goods:detail' sku.pk %}" tabindex="0">
+          <td class="check-col"><input class="row-check" type="checkbox" value="{{ sku.pk }}" data-row-select aria-label="Выбрать {{ sku.name }}"></td>
+          <td class="id-col"><a href="{% url 'warehouse_goods:detail' sku.pk %}">{{ sku.pk }}</a></td>
+          <td class="image-col">{% if sku.img %}<img class="product-thumb" src="{{ sku.img }}" alt="" loading="lazy">{% elif sku.primary_photo %}<img class="product-thumb" src="{{ sku.primary_photo }}" alt="" loading="lazy">{% else %}<span class="image-placeholder">◫</span>{% endif %}</td>
+          <td class="name-col"><a href="{% url 'warehouse_goods:detail' sku.pk %}">{{ sku.name }}</a>{% if sku.brand %}<small>{{ sku.brand }}</small>{% endif %}</td>
+          <td class="partner-col">{{ sku.agency.agn_name|default:'—' }}</td><td class="article-col">{{ sku.sku_code }}</td><td class="barcode-col">{{ sku.display_barcode|default:'—' }}</td>
+          <td class="metric-col num">{{ sku.marking_count }}</td><td class="metric-col num">{{ sku.weight_kg|default:'—' }}</td><td class="metric-col">{{ sku.size|default:'—' }}</td><td class="metric-col">{% if sku.length_mm or sku.width_mm or sku.height_mm %}{{ sku.length_mm|default:0 }}×{{ sku.width_mm|default:0 }}×{{ sku.height_mm|default:0 }}{% else %}—{% endif %}</td>
+          <td class="metric-col num"><strong>{{ sku.stock_total }}</strong></td><td class="metric-col num stock-good">{{ sku.stock_available }}</td><td class="metric-col num">{{ sku.stock_other }}</td><td class="metric-col num">{{ sku.stock_shipping|add:sku.stock_processing }}</td><td class="metric-col num">0</td><td class="partner-col">{{ sku.tovar_category|default:'—' }}</td><td class="metric-col">Нет</td><td class="notes-col">{{ sku.internal_notes|default:'—'|truncatechars:70 }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="19"><div class="empty-state"><strong>Товары не найдены</strong><span>Измените параметры поиска.</span></div></td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <nav class="pagination" aria-label="Страницы">
+    <div class="pagination-links">{% if page_obj.has_previous %}<a href="?page=1{% if query_without_page %}&{{ query_without_page }}{% endif %}">«</a><a href="?page={{ page_obj.previous_page_number }}{% if query_without_page %}&{{ query_without_page }}{% endif %}">‹</a>{% endif %}<span class="page-current">{{ page_obj.number }}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if query_without_page %}&{{ query_without_page }}{% endif %}">›</a><a href="?page={{ page_obj.paginator.num_pages }}{% if query_without_page %}&{{ query_without_page }}{% endif %}">»</a>{% endif %}</div>
+    <span>Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+    <form class="page-size-form" method="get">{% for key,value in request.GET.items %}{% if key != 'page' and key != 'page_size' %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}<span>Показывать по</span><select name="page_size" onchange="this.form.submit()"><option value="25"{% if filters.page_size == '25' %} selected{% endif %}>25</option><option value="50"{% if filters.page_size == '50' %} selected{% endif %}>50</option><option value="100"{% if filters.page_size == '100' %} selected{% endif %}>100</option><option value="200"{% if filters.page_size == '200' %} selected{% endif %}>200</option><option value="500"{% if filters.page_size == '500' %} selected{% endif %}>500</option></select></form>
+  </nav>
+</section>
+{% endblock %}

@@ -1,0 +1,314 @@
+{% extends "accountant/_base.html" %}
+{% block title %}Клиент {{ agency.short_name|default:agency.agn_name }}{% endblock %}
+{% block content %}
+{% if not agency %}
+<div class="err-box">Клиент не найден</div>
+{% else %}
+<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start">
+  <div>
+    <div class="muted" style="font-size:12px"><a href="/accountant/clients/">Клиенты</a> › #{{ agency.id }}</div>
+    <h1 class="page-title">{{ agency.short_name|default:agency.agn_name }}</h1>
+    <div class="page-sub">
+      <span class="badge {% if lifecycle.status == 'active' %}green{% else %}orange{% endif %}">{{ lifecycle.get_status_display }}</span>
+      {% if agency.inn %} · ИНН {{ agency.inn }}{% endif %}
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn" type="button" id="js-save">Сохранить</button>
+    <button class="btn" type="button" id="js-create-tariff">
+      {% if tariff_draft %}
+        Открыть черновик тарифа
+      {% elif current_tariff %}
+        {% if current_tariff_can_edit %}Редактировать тариф{% else %}Создать новую редакцию тарифа{% endif %}
+      {% else %}
+        Создать тариф
+      {% endif %}
+    </button>
+    {% if lifecycle.status != 'active' %}
+      <button class="btn primary" type="button" id="js-activate">Активировать клиента</button>
+    {% endif %}
+  </div>
+</div>
+
+{% if activation_errors %}
+<div class="warn-box">
+  Нельзя активировать клиента. Заполните обязательные поля:
+  <ul style="margin:8px 0 0;padding-left:18px">
+    {% for e in activation_errors %}<li>{{ e }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+<div id="flash" class="err-box" hidden></div>
+
+<div class="card">
+  <h2 style="margin:0 0 12px;font-size:18px">Реквизиты</h2>
+  <div class="grid-3">
+    <div><label class="lbl">Юридическое название *</label><input class="field js-f" data-k="legal_name" value="{{ agency.agn_name }}"></div>
+    <div><label class="lbl">Краткое название</label><input class="field js-f" data-k="short_name" value="{{ agency.short_name }}"></div>
+    <div><label class="lbl">Префикс клиента *</label><input class="field js-f" data-k="pref" value="{{ agency.pref|default:'' }}" maxlength="32" autocomplete="off" placeholder="Например, TDT"><div class="muted" style="font-size:11px;margin-top:4px">Латинские буквы и цифры. Используется в кодах коробов и паллет.</div></div>
+    <div>
+      <label class="lbl">Тип клиента *</label>
+      <select class="field js-f" data-k="client_type">
+        <option value="">—</option>
+        {% for code, label in type_choices %}
+          <option value="{{ code }}" {% if lifecycle.client_type == code %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div><label class="lbl">ИНН *</label><input class="field js-f" data-k="inn" value="{{ agency.inn }}"></div>
+    <div><label class="lbl">КПП</label><input class="field js-f" data-k="kpp" value="{{ agency.kpp }}"></div>
+    <div><label class="lbl">ОГРН / ОГРНИП</label><input class="field js-f" data-k="ogrn" value="{{ agency.ogrn }}"></div>
+    <div><label class="lbl">Юридический адрес</label><input class="field js-f" data-k="legal_address" value="{{ agency.adres }}"></div>
+    <div><label class="lbl">Фактический адрес</label><input class="field js-f" data-k="actual_address" value="{{ agency.fakt_adres }}"></div>
+    <div><label class="lbl">Почтовый адрес</label><input class="field js-f" data-k="postal_address" value="{{ lifecycle.postal_address }}"></div>
+    <div><label class="lbl">Расчётный счёт</label><input class="field js-f" data-k="account_number" value="{{ agency.bank_itog_account }}"></div>
+    <div><label class="lbl">Банк</label><input class="field js-f" data-k="bank_name" value="{{ agency.bank_name }}"></div>
+    <div><label class="lbl">БИК</label><input class="field js-f" data-k="bank_bik" value="{{ agency.bank_bik }}"></div>
+    <div><label class="lbl">Корр. счёт</label><input class="field js-f" data-k="correspondent_account" value="{{ agency.bank_koresp_account }}"></div>
+    <div><label class="lbl">Контактное лицо</label><input class="field js-f" data-k="contact_person" value="{{ agency.fio_agn }}"></div>
+    <div><label class="lbl">Телефон</label><input class="field js-f" data-k="phone" value="{{ agency.phone }}"></div>
+    <div><label class="lbl">Email</label><input class="field js-f" data-k="email" value="{{ agency.email }}"></div>
+    <div><label class="lbl">Email для документов</label><input class="field js-f" data-k="email_documents" value="{{ lifecycle.email_documents }}"></div>
+    <div><label class="lbl">Email для уведомлений</label><input class="field js-f" data-k="email_notifications" value="{{ lifecycle.email_notifications }}"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin:0 0 12px;font-size:18px">Доступ в ЛК клиента</h2>
+  <div class="grid-3">
+    <div>
+      <label class="lbl">Логин клиента</label>
+      <input class="field js-f" data-k="portal_login" autocomplete="off" value="{% if agency.portal_user %}{{ agency.portal_user.username }}{% endif %}" placeholder="{% if agency.portal_user %}Логин клиента{% else %}Создастся автоматически: clientN{% endif %}" {% if not agency.portal_user %}readonly{% endif %}>
+      {% if not agency.portal_user %}
+        <div class="muted" style="font-size:11px;margin-top:4px">При создании доступа система сама выдаст логин в формате client + номер.</div>
+      {% endif %}
+    </div>
+    <div>
+      <label class="lbl">{% if agency.portal_user %}Новый пароль{% else %}Пароль для входа{% endif %}</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="field js-f" id="portal-password" data-k="portal_password" type="password" autocomplete="new-password" value="" placeholder="{% if agency.portal_user %}Оставьте пустым, чтобы не менять{% else %}Задайте пароль, чтобы создать доступ{% endif %}">
+        <button class="btn" type="button" id="js-generate-portal-password">Сгенерировать пароль</button>
+      </div>
+      <div class="muted" id="portal-password-hint" style="font-size:11px;margin-top:4px" hidden></div>
+    </div>
+    <div>
+      <div class="lbl">Текущий статус</div>
+      {% if agency.portal_user %}
+        <strong>Доступ создан</strong>
+        <div class="muted" style="font-size:12px;margin-top:4px">Пароль {% if agency.portal_user.has_usable_password %}задан{% else %}не задан{% endif %}. Сам пароль не отображается, можно задать новый.</div>
+      {% else %}
+        <span class="badge orange">доступ не создан</span>
+        <div class="muted" style="font-size:12px;margin-top:4px">Укажите пароль и сохраните карточку, чтобы создать вход клиенту.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin:0 0 12px;font-size:18px">Компания обслуживания и договор</h2>
+  <div class="grid-3">
+    <div>
+      <label class="lbl">Компания обслуживания FullBox *</label>
+      <select class="field js-f" data-k="serving_company_id">
+        <option value="">—</option>
+        {% for c in serving_companies %}
+          <option value="{{ c.id }}" {% if lifecycle.serving_company_id == c.id %}selected{% endif %}>
+            {{ c.short_name|default:c.name }} · {% if c.tax_mode == 'no_vat' %}Без НДС{% else %}НДС {{ c.vat_rate }}%{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="lbl">НДС клиента</label>
+      <select class="field js-f" data-k="vat_type">
+        {% for code, label in vat_type_choices %}
+          <option value="{{ code }}" {% if lifecycle.vat_type == code %}selected{% endif %}>
+            {% if code == 'vat_extra' and lifecycle.serving_company and lifecycle.serving_company.vat_rate %}
+              НДС {{ lifecycle.serving_company.vat_rate }}% сверху
+            {% else %}
+              {{ label }}
+            {% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <div class="muted" style="font-size:11px;margin-top:4px">Бухгалтер может менять режим НДС для клиента. Применяется к редактируемым тарифам.</div>
+    </div>
+    <div><label class="lbl">Номер договора *</label><input class="field js-f" data-k="contract_number" value="{{ agency.contract_numb }}"></div>
+    <div><label class="lbl">Номер КП</label><input class="field js-f" data-k="commercial_offer_number" value="{{ lifecycle.commercial_offer_number }}"></div>
+    <div><label class="lbl">Дата договора</label><input class="field js-f" data-k="contract_date" type="date" value="{% if lifecycle.contract_date %}{{ lifecycle.contract_date|date:'Y-m-d' }}{% endif %}"></div>
+    <div style="grid-column:1/-1"><label class="lbl">Комментарий бухгалтера</label><textarea class="field js-f" data-k="accountant_comment" rows="3">{{ lifecycle.accountant_comment }}</textarea></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin:0 0 12px;font-size:18px">Тарифы</h2>
+  {% if current_tariff %}
+    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
+      <div>
+        <div style="font-weight:800">{{ current_tariff.name }}</div>
+        <div class="muted" style="font-size:12px">с {{ current_tariff.valid_from|date:"d.m.Y" }} · {{ current_tariff.get_status_display }}</div>
+        {% if tariff_draft %}
+          <div class="muted" style="font-size:12px;margin-top:4px">Есть черновик для редактирования: {{ tariff_draft.name }}</div>
+        {% elif current_tariff_edit_block_reason %}
+          <div class="muted" style="font-size:12px;margin-top:4px;color:var(--orange-strong, #f86800)">{{ current_tariff_edit_block_reason }}</div>
+        {% elif current_tariff_can_edit %}
+          <div class="muted" style="font-size:12px;margin-top:4px">Услуги по этой редакции ещё не выставлялись — можно редактировать опубликованный тариф напрямую.</div>
+        {% endif %}
+      </div>
+      <a class="btn" href="/accountant/tariffs/{{ current_tariff.id }}/">Открыть тариф</a>
+    </div>
+  {% else %}
+    {% if tariff_draft %}
+      <div class="muted">Есть черновик тарифа. Откройте его, чтобы продолжить редактирование.</div>
+    {% else %}
+      <div class="muted">Активного тарифа нет. Создайте тариф из справочника услуг.</div>
+    {% endif %}
+  {% endif %}
+  {% if tariff_history %}
+    <div style="margin-top:14px">
+      <table>
+        <thead><tr><th>Версия</th><th>Период</th><th>Статус</th><th></th></tr></thead>
+        <tbody>
+          {% for v in tariff_history %}
+            <tr>
+              <td>{{ v.name }}</td>
+              <td>{{ v.valid_from|date:"d.m.Y" }}{% if v.valid_to %} – {{ v.valid_to|date:"d.m.Y" }}{% endif %}</td>
+              <td><span class="badge">{{ v.get_status_display }}</span></td>
+              <td><a class="btn" href="/accountant/tariffs/{{ v.id }}/">Открыть</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2 style="margin:0 0 12px;font-size:18px">История изменений</h2>
+  <table>
+    <thead><tr><th>Когда</th><th>Поле</th><th>Было</th><th>Стало</th><th>Кто</th></tr></thead>
+    <tbody>
+      {% for log in change_logs %}
+        <tr>
+          <td>{{ log.changed_at|date:"d.m.Y H:i" }}</td>
+          <td>{{ log.field_name }}</td>
+          <td class="muted">{{ log.old_value|truncatechars:40 }}</td>
+          <td>{{ log.new_value|truncatechars:40 }}</td>
+          <td>{% if log.user %}{{ log.user }}{% else %}—{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="muted">Пока нет записей</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
+{% block extra_js %}
+{% if agency %}
+<script>
+(function(){
+  var id = {{ agency.id }};
+  var currentTariffId = {% if current_tariff %}{{ current_tariff.id }}{% else %}null{% endif %};
+  var currentTariffCanEdit = {% if current_tariff_can_edit %}true{% else %}false{% endif %};
+  var draftTariffUrl = {% if tariff_draft %}'/accountant/tariffs/{{ tariff_draft.id }}/'{% else %}''{% endif %};
+  function csrf(){ return (document.cookie.match(/csrftoken=([^;]+)/)||[])[1]||''; }
+  function generatedPassword(){
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#%_-';
+    var length = 14;
+    var values = new Uint32Array(length);
+    if(window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(values);
+    else for(var i=0;i<length;i++) values[i] = Math.floor(Math.random() * chars.length);
+    return Array.from(values).map(function(v){ return chars[v % chars.length]; }).join('');
+  }
+  function fillGeneratedPassword(){
+    var input = document.getElementById('portal-password');
+    if(!input) return;
+    input.type = 'text';
+    input.value = generatedPassword();
+    input.focus();
+    input.select();
+    var hint = document.getElementById('portal-password-hint');
+    if(hint){
+      hint.hidden = false;
+      hint.textContent = 'Пароль сгенерирован. Скопируйте его клиенту до сохранения карточки.';
+    }
+  }
+  function flash(msg, ok){
+    var el = document.getElementById('flash');
+    el.hidden = false;
+    el.className = ok ? 'warn-box' : 'err-box';
+    el.style.background = ok ? 'var(--green-soft)' : '';
+    el.style.color = ok ? 'var(--green-strong)' : '';
+    el.textContent = msg;
+  }
+  function collect(){
+    var data = {};
+    document.querySelectorAll('.js-f').forEach(function(el){
+      var k = el.getAttribute('data-k');
+      var v = el.value;
+      if(k === 'serving_company_id') data[k] = v || null;
+      else data[k] = v;
+    });
+    return data;
+  }
+  document.getElementById('js-save').onclick = async function(){
+    var r = await fetch('/accountant/api/clients/'+id+'/patch/', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
+      body: JSON.stringify(collect())
+    });
+    var d = await r.json();
+    if(d.ok){ flash('Сохранено', true); location.reload(); }
+    else flash(typeof d.error==='string'?d.error:JSON.stringify(d.error));
+  };
+  var genPassword = document.getElementById('js-generate-portal-password');
+  if(genPassword) genPassword.onclick = fillGeneratedPassword;
+  var act = document.getElementById('js-activate');
+  if(act) act.onclick = async function(){
+    if(!confirm('Активировать клиента для менеджеров?')) return;
+    var r = await fetch('/accountant/api/clients/'+id+'/activate/', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
+      body: '{}'
+    });
+    var d = await r.json();
+    if(d.ok) location.reload();
+    else {
+      var msg = d.error && d.error.message ? d.error.message : (typeof d.error==='string'?d.error:JSON.stringify(d.error));
+      flash(msg);
+    }
+  };
+  document.getElementById('js-create-tariff').onclick = async function(){
+    if(draftTariffUrl){
+      location.href = draftTariffUrl;
+      return;
+    }
+    if(currentTariffId){
+      if(currentTariffCanEdit){
+        location.href = '/accountant/tariffs/'+currentTariffId+'/';
+        return;
+      }
+      var rCopy = await fetch('/accountant/api/client-tariffs/'+currentTariffId+'/duplicate/', {
+        method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
+        body: '{}'
+      });
+      var dCopy = await rCopy.json();
+      if(dCopy.ok) location.href = '/accountant/tariffs/'+dCopy.data.id+'/';
+      else flash(typeof dCopy.error==='string'?dCopy.error:JSON.stringify(dCopy.error));
+      return;
+    }
+    var r = await fetch('/accountant/api/client-tariffs/create/', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
+      body: JSON.stringify({client_id: id})
+    });
+    var d = await r.json();
+    if(d.ok) location.href = '/accountant/tariffs/'+d.data.id+'/';
+    else flash(typeof d.error==='string'?d.error:JSON.stringify(d.error));
+  };
+})();
+</script>
+{% endif %}
+{% endblock %}

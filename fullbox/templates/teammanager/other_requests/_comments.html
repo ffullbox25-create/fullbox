@@ -1,0 +1,52 @@
+<section class="or-card">
+  <h2>Комментарии</h2>
+  <div class="or-tabs" data-comment-filter>
+    <button type="button" class="or-tab-btn active" data-filter="all">Все</button>
+    <button type="button" class="or-tab-btn" data-filter="client">Клиенту</button>
+    <button type="button" class="or-tab-btn" data-filter="internal">Внутренние</button>
+  </div>
+  <div class="or-chat" id="or-chat">
+    {% for c in comments %}
+      <article class="or-chat-msg" data-visibility="{{ c.visibility }}">
+        <div class="or-chat-meta">
+          <strong>{% if c.author %}{{ c.author.get_full_name|default:c.author.username }}{% else %}Система{% endif %}</strong>
+          <span class="or-chat-badge or-chat-badge-{{ c.visibility }}">{% if c.visibility == 'client' %}клиенту{% else %}внутренний{% endif %}</span>
+          <span class="muted">{{ c.created_at|date:"d.m.Y H:i" }}</span>
+        </div>
+        <div class="or-chat-text">{{ c.text|linebreaksbr }}</div>
+      </article>
+    {% empty %}
+      <p class="muted">Комментариев пока нет.</p>
+    {% endfor %}
+  </div>
+  <form method="post" class="or-comment-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_comment">
+    <textarea name="comment" rows="2" placeholder="Новый комментарий" required></textarea>
+    <div class="or-comment-controls">
+      <select name="visibility">
+        <option value="internal">Внутренний</option>
+        <option value="client">Клиенту</option>
+      </select>
+      <button class="or-btn or-btn-primary" type="submit">Отправить</button>
+    </div>
+  </form>
+</section>
+<script>
+(function () {
+  var tabs = document.querySelectorAll('[data-comment-filter] .or-tab-btn');
+  var chat = document.getElementById('or-chat');
+  if (!tabs.length || !chat) return;
+  tabs.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      tabs.forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var filter = btn.getAttribute('data-filter');
+      chat.querySelectorAll('.or-chat-msg').forEach(function (msg) {
+        var vis = msg.getAttribute('data-visibility');
+        msg.style.display = (filter === 'all' || filter === vis) ? '' : 'none';
+      });
+    });
+  });
+})();
+</script>

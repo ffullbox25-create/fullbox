@@ -1,0 +1,121 @@
+{% extends "accountant/_base.html" %}
+
+{% block title %}Все начисления{% endblock %}
+
+{% block content %}
+<div>
+  <div class="muted" style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em">Начисления</div>
+  <h1 class="page-title" style="margin-top:4px">{{ charges_title }}</h1>
+  <div class="page-sub">{{ charges_description }}</div>
+</div>
+
+{% if charges_no_price %}
+<div class="err-box">{{ charges_no_price }} строк без договорной цены. Их нельзя включить в документы до настройки тарифа.</div>
+{% endif %}
+{% if charges_unconfirmed %}
+<div class="warn-box">{{ charges_unconfirmed }} строк ожидают подтверждения объёма.</div>
+{% endif %}
+
+<div class="grid-4">
+  <div class="card kpi-card"><div class="muted">Строк начислений</div><div class="kpi-val">{{ charges_count }}</div></div>
+  <div class="card kpi-card"><div class="muted">Заявок</div><div class="kpi-val">{{ charges_apps_count }}</div></div>
+  <div class="card kpi-card"><div class="muted">Без цены</div><div class="kpi-val {% if charges_no_price %}tone-danger{% endif %}">{{ charges_no_price }}</div></div>
+  <div class="card kpi-card"><div class="muted">Итого с НДС</div><div class="kpi-val">{{ charges_total }} ₽</div></div>
+</div>
+
+<form class="card" method="get" style="display:grid;grid-template-columns:220px 150px minmax(180px,1fr) 145px 145px auto;gap:10px;align-items:center">
+  <select class="field" name="client">
+    <option value="">Все клиенты</option>
+    {% for client in charge_clients %}
+      <option value="{{ client.id }}" {% if request.GET.client == client.id|stringformat:"s" %}selected{% endif %}>{{ client.short_name|default:client.agn_name|truncatechars:32 }}</option>
+    {% endfor %}
+  </select>
+  <select class="field" name="application_type">
+    <option value="">Все типы</option>
+    <option value="receiving" {% if request.GET.application_type == "receiving" %}selected{% endif %}>Приёмка</option>
+    <option value="processing" {% if request.GET.application_type == "processing" %}selected{% endif %}>Обработка</option>
+    <option value="shipping" {% if request.GET.application_type == "shipping" %}selected{% endif %}>Отгрузка</option>
+    <option value="storage" {% if request.GET.application_type == "storage" %}selected{% endif %}>Хранение</option>
+  </select>
+  <input class="field" type="search" name="q" value="{{ request.GET.q }}" placeholder="Услуга, заявка, клиент, тариф…">
+  <input class="field" type="date" name="date_from" value="{{ request.GET.date_from }}">
+  <input class="field" type="date" name="date_to" value="{{ request.GET.date_to }}">
+  <button class="btn primary" type="submit">Найти</button>
+  <div style="grid-column:1/-1;display:flex;gap:14px;flex-wrap:wrap;font-size:12px;font-weight:700">
+    <label><input type="checkbox" name="unconfirmed" value="1" {% if request.GET.unconfirmed %}checked{% endif %}> Ожидают подтверждения</label>
+    <label><input type="checkbox" name="no_price" value="1" {% if request.GET.no_price %}checked{% endif %}> Без договорной цены</label>
+    {% if request.GET %}<a href="/accountant/charges/" class="muted">Сбросить фильтры ×</a>{% endif %}
+  </div>
+</form>
+
+<div class="card" style="padding:0;overflow:auto">
+  <table style="min-width:1120px">
+    <thead><tr><th>Дата</th><th>Заявка</th><th>Клиент</th><th>Услуга</th><th style="text-align:right">Кол-во</th><th style="text-align:right">Цена</th><th style="text-align:right">Итого</th><th>Источник тарифа</th><th>Статус</th><th></th></tr></thead>
+    <tbody>
+      {% for row in charge_rows %}{% with charge=row.charge %}
+      <tr>
+        <td>{{ charge.performed_at|date:"d.m.Y"|default:"—" }}</td>
+        <td><a href="/team-manager/billing/applications/{{ charge.application_id }}/">№{{ charge.application.application_id }}</a><div class="muted" style="font-size:11px">{{ charge.application.get_application_type_display }}</div></td>
+        <td>{{ charge.client.short_name|default:charge.client.agn_name|truncatechars:28 }}</td>
+        <td><strong>{{ charge.service_name_snapshot|default:charge.service.name }}</strong><div class="muted" style="font-size:11px">{{ charge.service.code }}</div></td>
+        <td style="text-align:right">{{ charge.quantity }} {{ charge.unit }}</td>
+        <td style="text-align:right">{% if charge.client_tariff_version_id or charge.is_manual_override %}{{ charge.tariff }} ₽{% else %}<span class="badge red">нет цены</span>{% endif %}</td>
+        <td style="text-align:right"><strong>{% if charge.client_tariff_version_id or charge.is_manual_override %}{{ charge.total_amount }} ₽{% else %}—{% endif %}</strong></td>
+        <td>{{ charge.tariff_source_label|default:"—" }}{% if charge.tariff_basis %}<div class="muted" style="font-size:11px">{{ charge.tariff_basis }}</div>{% endif %}</td>
+        <td><span class="badge {{ row.status_badge }}">{{ row.status_label }}</span></td>
+        <td style="white-space:nowrap">
+          <a class="btn" style="padding:5px 8px;font-size:11px" href="/team-manager/billing/applications/{{ charge.application_id }}/">Открыть</a>
+          {% if charges_can_manage and not charge.is_included_in_invoice and not charge.is_excluded %}
+            <button class="btn js-charge-recalc" type="button" data-id="{{ charge.id }}" data-version="{{ charge.edit_version }}" style="padding:5px 8px;font-size:11px">Пересчитать</button>
+            {% if not charge.is_confirmed %}<button class="btn js-charge-confirm" type="button" data-id="{{ charge.id }}" data-version="{{ charge.edit_version }}" style="padding:5px 8px;font-size:11px">Подтвердить</button>{% endif %}
+            <button class="btn js-charge-exclude" type="button" data-id="{{ charge.id }}" data-version="{{ charge.edit_version }}" style="padding:5px 8px;font-size:11px">Исключить</button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endwith %}{% empty %}
+      <tr><td colspan="10" class="muted" style="padding:32px;text-align:center">Начислений по выбранным фильтрам нет</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  function csrf(){ return (document.cookie.match(/csrftoken=([^;]+)/)||[])[1]||''; }
+  function post(url, body){
+    return fetch(url, {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json','X-CSRFToken':csrf()}, body:JSON.stringify(body||{})})
+      .then(function(response){ return response.json(); });
+  }
+  function run(button, url, body){
+    button.disabled = true;
+    post(url, body).then(function(data){
+      if(data.ok) window.location.reload();
+      else { alert(data.error || 'Операция не выполнена'); button.disabled = false; }
+    }).catch(function(){ alert('Не удалось выполнить операцию'); button.disabled = false; });
+  }
+  document.querySelectorAll('.js-charge-recalc').forEach(function(button){
+    button.addEventListener('click', function(){
+      if(confirm('Пересчитать строку по действующему тарифу? Отправленные и оплаченные документы не изменятся.')) {
+        run(button, '/team-manager/billing/api/charges/'+button.dataset.id+'/recalc/', {edit_version:button.dataset.version});
+      }
+    });
+  });
+  document.querySelectorAll('.js-charge-confirm').forEach(function(button){
+    button.addEventListener('click', function(){
+      run(button, '/team-manager/billing/api/charges/'+button.dataset.id+'/confirm/', {edit_version:button.dataset.version});
+    });
+  });
+  document.querySelectorAll('.js-charge-exclude').forEach(function(button){
+    button.addEventListener('click', function(){
+      var comment = prompt('Причина исключения (комментарий):');
+      if(comment === null) return;
+      run(button, '/team-manager/billing/api/charges/'+button.dataset.id+'/exclude/', {
+        reason:'other', comment:comment, edit_version:button.dataset.version
+      });
+    });
+  });
+})();
+</script>
+{% endblock %}

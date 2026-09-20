@@ -1,0 +1,2639 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Карта склада · Визуальная схема | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --surface-3: #f4eee3;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #0e6b5b;
+      --accent-strong: #0b5246;
+      --sun: #f2b747;
+      --stroke: rgba(28,31,26,0.12);
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+      --free: #fbf3cd;
+      --occupied: #b8e5c7;
+      --planned: #c9dcff;
+      --planned-ink: #173d73;
+      --stacked: #f05d45;
+      --stacked-ink: #fff4ef;
+      --pick: #0e6b5b;
+      --pick-ink: #effaf6;
+      --reserved: #d7dbe2;
+      --reserved-ink: #505866;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; }
+    .wrap { max-width: none; width: 100%; margin: 0; padding: 10px 12px 16px; }
+    .shell {
+      display: grid;
+      gap: 0;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: nowrap;
+      align-items: stretch;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      font-weight: 800;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      cursor: pointer;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.45);
+      box-shadow: 0 12px 28px rgba(14,107,91,0.16);
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 12px;
+      align-items: start;
+    }
+    body.picker-mode .workspace {
+      grid-template-columns: minmax(0, 1fr) clamp(320px, 24vw, 420px);
+    }
+    .main-shell {
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+    }
+    .map-header {
+      display: grid;
+      gap: 6px;
+    }
+    .map-header h2 {
+      margin: 0;
+      font-size: 17px;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    }
+    .map-header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .legend {
+      display: flex;
+      gap: 8px;
+      flex-wrap: nowrap;
+      align-items: center;
+      overflow-x: auto;
+    }
+    .legend-item {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.72);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid rgba(28,31,26,0.18);
+    }
+    .legend-swatch.free { background: var(--free); }
+    .legend-swatch.occupied,
+    .legend-swatch.placed { background: var(--occupied); }
+    .legend-swatch.planned { background: var(--planned); }
+    .legend-swatch.draft { background: var(--reserved); }
+    .legend-swatch.stacked { background: var(--stacked); }
+    .legend-swatch.pick { background: var(--pick); }
+    .aside-shell {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+      position: sticky;
+      top: 10px;
+    }
+    .side-card {
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      background: var(--surface-2);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+    .topology-alert {
+      border-color: rgba(240,93,69,0.48);
+      background: rgba(240,93,69,0.10);
+    }
+    .topology-alert-title {
+      color: #982d1d;
+      font-size: 14px;
+      font-weight: 900;
+    }
+    .topology-alert-row {
+      border-top: 1px solid rgba(240,93,69,0.20);
+      padding-top: 8px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .topology-alert-code {
+      font-weight: 900;
+      overflow-wrap: anywhere;
+    }
+    .side-header {
+      display: grid;
+      gap: 4px;
+    }
+    .aside-title {
+      margin: 0;
+      font-size: 18px;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    }
+    .aside-hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .picker-draft-list {
+      display: grid;
+      gap: 8px;
+      max-height: min(62vh, 820px);
+      overflow: auto;
+      padding-right: 2px;
+    }
+    .picker-draft-item {
+      display: grid;
+      gap: 6px;
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.82);
+      text-align: left;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    .picker-draft-item:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.38);
+      box-shadow: 0 12px 24px rgba(14,107,91,0.14);
+    }
+    .picker-draft-item.is-active {
+      border-color: rgba(242,183,71,0.9);
+      box-shadow: 0 0 0 2px rgba(242,183,71,0.26);
+      background: linear-gradient(180deg, rgba(255,248,225,0.96), rgba(255,255,255,0.92));
+    }
+    .picker-draft-item-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+    .picker-draft-code {
+      font-weight: 800;
+      color: var(--ink);
+      font-size: 14px;
+    }
+    .picker-draft-state {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .picker-draft-state.manual {
+      color: #7a5a13;
+    }
+    .picker-draft-state.conflict {
+      color: #9e2d20;
+    }
+    .picker-draft-location {
+      font-size: 12px;
+      color: var(--accent-strong);
+      font-weight: 700;
+      line-height: 1.45;
+    }
+    .picker-draft-status {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .picker-draft-conflict {
+      font-size: 12px;
+      color: #9e2d20;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+    .picker-draft-empty {
+      border-radius: 14px;
+      border: 1px dashed var(--stroke);
+      background: rgba(255,255,255,0.6);
+      padding: 14px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .picker-support-card {
+      display: grid;
+      gap: 12px;
+    }
+    .picker-support-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 108px) auto;
+      gap: 10px;
+      align-items: end;
+    }
+    .picker-support-field {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+    .picker-support-field.is-hidden {
+      display: none;
+    }
+    .picker-support-label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .picker-support-select {
+      width: 100%;
+      min-height: 42px;
+      border-radius: 12px;
+      border: 1px solid rgba(14,107,91,0.22);
+      background: rgba(255,255,255,0.82);
+      color: var(--ink);
+      padding: 0 12px;
+      font: inherit;
+      font-weight: 700;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+    .picker-support-select:focus {
+      border-color: rgba(14,107,91,0.42);
+      box-shadow: 0 0 0 3px rgba(14,107,91,0.12);
+      background: rgba(255,255,255,0.94);
+    }
+    .picker-support-apply {
+      min-width: 128px;
+      min-height: 42px;
+    }
+    .picker-support-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .picker-support-actions .btn {
+      min-height: 42px;
+      width: 100%;
+    }
+    .mini-kpis {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .mini-kpi {
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.68);
+      padding: 8px 10px;
+      display: grid;
+      gap: 2px;
+    }
+    .mini-kpi-label {
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-weight: 800;
+    }
+    .mini-kpi-value {
+      font-size: 20px;
+      line-height: 1;
+      font-weight: 800;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    }
+    .locator-inline {
+      display: flex;
+      align-items: center;
+      flex: 1 1 auto;
+      min-width: 0;
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.68);
+      padding: 0;
+    }
+    .locator-input {
+      width: 100%;
+      min-width: 0;
+      border: 0;
+      border-radius: 12px;
+      background: transparent;
+      padding: 11px 12px;
+      font: inherit;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--accent-strong);
+    }
+    .locator-input:focus {
+      outline: none;
+    }
+    .locator-inline:focus-within {
+      border-color: rgba(14,107,91,0.52);
+      box-shadow: 0 0 0 3px rgba(14,107,91,0.12);
+    }
+    .locator-inline.is-match {
+      border-color: rgba(14,107,91,0.38);
+      box-shadow: 0 14px 28px rgba(14,107,91,0.12);
+    }
+    .locator-inline.is-error {
+      border-color: rgba(156,47,33,0.45);
+      box-shadow: 0 0 0 3px rgba(156,47,33,0.10);
+    }
+    .locator-input::placeholder {
+      color: rgba(28,31,26,0.46);
+      text-transform: uppercase;
+    }
+    .support-table-wrap {
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+    .support-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .support-table th,
+    .support-table td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--stroke);
+      vertical-align: middle;
+      font-size: 12px;
+    }
+    .support-table th {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-weight: 800;
+      text-align: left;
+      background: rgba(255,255,255,0.5);
+    }
+    .support-table tr:last-child td {
+      border-bottom: none;
+    }
+    .support-zone-cell {
+      display: grid;
+      gap: 2px;
+    }
+    .support-zone-code {
+      color: var(--accent-strong);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .support-zone-name {
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .support-zone-sub {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+    }
+    .support-balance {
+      display: inline-flex;
+      min-width: 60px;
+      justify-content: center;
+      padding: 6px 8px;
+      border-radius: 999px;
+      background: rgba(14,107,91,0.08);
+      border: 1px solid rgba(14,107,91,0.18);
+      font-weight: 800;
+    }
+    .support-action-cell {
+      text-align: right;
+    }
+    .support-action-cell .btn {
+      padding: 8px 10px;
+      font-size: 12px;
+      min-width: 96px;
+    }
+    .support-occupied-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 42px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(14,107,91,0.22);
+      background: rgba(14,107,91,0.08);
+      color: var(--accent-strong);
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    .support-occupied-btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.48);
+      box-shadow: 0 10px 20px rgba(14,107,91,0.14);
+    }
+    .support-detail-card {
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      background: var(--surface);
+      padding: 12px;
+      display: none;
+      gap: 10px;
+      align-content: start;
+      position: sticky;
+      top: 10px;
+    }
+    .support-detail-card.is-open {
+      display: grid;
+    }
+    .support-detail-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .support-detail-title {
+      margin: 0;
+      font-size: 16px;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    }
+    .support-detail-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      background: rgba(255,255,255,0.68);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .support-detail-table th,
+    .support-detail-table td {
+      padding: 8px 9px;
+      border-bottom: 1px solid var(--stroke);
+      text-align: left;
+      vertical-align: top;
+      font-size: 12px;
+    }
+    .support-detail-table th {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-weight: 800;
+      background: rgba(255,255,255,0.55);
+    }
+    .support-detail-table th:last-child,
+    .support-detail-table td:last-child {
+      text-align: right;
+      white-space: nowrap;
+    }
+    .support-detail-table tr:last-child td {
+      border-bottom: none;
+    }
+    .support-detail-link {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--accent-strong);
+      font: inherit;
+      font-weight: 800;
+      padding: 0;
+      text-align: left;
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-color: rgba(14,107,91,0.28);
+      text-underline-offset: 2px;
+    }
+    .support-detail-link:hover {
+      text-decoration-color: currentColor;
+    }
+    .support-order-link {
+      color: var(--accent-strong);
+      font-weight: 800;
+      text-decoration: underline;
+      text-decoration-color: rgba(14,107,91,0.28);
+      text-underline-offset: 2px;
+    }
+    .support-order-link:hover {
+      text-decoration-color: currentColor;
+    }
+    .support-detail-empty {
+      color: var(--muted);
+      font-size: 12px;
+      padding: 6px 2px 2px;
+    }
+    .map-frame {
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+    .map-scroll {
+      overflow: auto;
+    }
+    .map-table {
+      width: 100%;
+      min-width: 0;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .map-table th,
+    .map-table td {
+      border-right: 1px solid rgba(28,31,26,0.08);
+      border-bottom: 1px solid rgba(28,31,26,0.08);
+      padding: 0;
+      text-align: center;
+      vertical-align: middle;
+      background: rgba(255,255,255,0.72);
+    }
+    .map-table thead th {
+      background: rgba(255,255,255,0.9);
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .map-table thead th.label-head {
+      min-width: 60px;
+      width: 60px;
+      background: #f6f2e9;
+    }
+    .map-table thead th.row-group {
+      padding: 6px 4px;
+      font-size: 12px;
+      color: #fffdf8;
+      background: linear-gradient(180deg, var(--line-group-from, #3a3e48), var(--line-group-to, #20242d));
+      border-right-color: rgba(255,255,255,0.08);
+      border-left: 2px solid rgba(255,255,255,0.12);
+    }
+    .map-table thead th.cell-head {
+      padding: 5px 0;
+      font-size: 10px;
+      background: linear-gradient(180deg, var(--line-cell-from, #b01cff), var(--line-cell-to, #7c08d9));
+      color: #fffdf8;
+      border-right-color: rgba(255,255,255,0.12);
+    }
+    .map-table thead th.line-start {
+      border-left: 2px solid rgba(255,255,255,0.18);
+    }
+    .map-table tbody th.axis {
+      background: var(--section-axis-bg, #fbfaf7);
+      color: var(--accent-strong);
+      font-size: 11px;
+      font-weight: 800;
+      width: 60px;
+    }
+    .map-table tbody tr.section-start td,
+    .map-table tbody tr.section-start th.axis {
+      border-top: 2px solid rgba(28,31,26,0.16);
+    }
+    .map-table tbody tr.section-end td,
+    .map-table tbody tr.section-end th.axis {
+      border-bottom: 2px solid rgba(28,31,26,0.14);
+    }
+    .map-table tbody tr.subhead-group th,
+    .map-table tbody tr.subhead-group td,
+    .map-table tbody tr.subhead-cell th,
+    .map-table tbody tr.subhead-cell td {
+      border-bottom: 1px solid rgba(28,31,26,0.14);
+    }
+    .map-table tbody tr.subhead-group th.subhead-spacer,
+    .map-table tbody tr.subhead-cell th.subhead-spacer {
+      background: #fbfaf7;
+    }
+    .map-table tbody tr.subhead-group td.subhead-group-cell,
+    .map-table tbody tr.subhead-cell td.subhead-cell-unit {
+      color: #fffdf8;
+      text-align: center;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+    }
+    .map-table tbody tr.subhead-group td.subhead-group-cell {
+      background: linear-gradient(180deg, #293444 0%, #1b2432 100%);
+      font-size: 13px;
+      padding: 10px 6px;
+      text-transform: uppercase;
+    }
+    .map-table tbody tr.subhead-cell td.subhead-cell-unit {
+      background: linear-gradient(180deg, #cf38ff 0%, #8518eb 100%);
+      font-size: 12px;
+      padding: 6px;
+    }
+    .map-table tbody tr.subhead-group td.subhead-blank,
+    .map-table tbody tr.subhead-cell td.subhead-blank {
+      background: #f3eee1;
+      color: transparent;
+    }
+    .map-table tbody tr:hover td,
+    .map-table tbody tr:hover th.axis {
+      background: rgba(255,255,255,0.84);
+    }
+    .map-table tbody td.line-start {
+      border-left: 2px solid rgba(28,31,26,0.12);
+    }
+    .map-table td.location-match .cell {
+      box-shadow: inset 0 0 0 2px rgba(14,107,91,0.88), 0 0 0 2px rgba(14,107,91,0.18);
+      position: relative;
+      z-index: 1;
+    }
+    .map-table td.location-match .cell.free,
+    .map-table td.location-match .cell.unavailable,
+    .map-table td.location-match .cell.passage {
+      color: #0b5246;
+      font-weight: 900;
+    }
+    .cell {
+      width: 100%;
+      min-height: 21px;
+      height: 21px;
+      border: 0;
+      border-radius: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .cell.free {
+      background: var(--section-free-bg, var(--line-free-bg, #fff5c9));
+      color: var(--line-free-ink, #6e5d20);
+    }
+    .cell.occupied,
+    .cell.placed {
+      background: #d5f6da;
+      color: #124e2f;
+      cursor: pointer;
+      box-shadow: inset 0 0 0 1px rgba(18,78,47,0.08);
+      padding: 0 1px;
+      font-size: 9px;
+      letter-spacing: 0.02em;
+    }
+    .cell.planned {
+      background: var(--planned);
+      color: var(--planned-ink);
+      cursor: pointer;
+      box-shadow: inset 0 0 0 1px rgba(23,61,115,0.10);
+      padding: 0 1px;
+      font-size: 9px;
+      letter-spacing: 0.02em;
+    }
+    .cell.draft {
+      background: var(--reserved);
+      color: var(--reserved-ink);
+      cursor: pointer;
+      box-shadow: inset 0 0 0 1px rgba(80,88,102,0.12);
+      padding: 0 1px;
+      font-size: 9px;
+      letter-spacing: 0.02em;
+    }
+    .cell.stacked {
+      background: var(--stacked);
+      color: var(--stacked-ink);
+      cursor: pointer;
+      padding: 0 1px;
+      font-size: 9px;
+      letter-spacing: 0.02em;
+    }
+    .cell.unavailable {
+      background: var(--section-unavailable-bg, var(--line-unavailable-bg, #efefef));
+      color: rgba(28,31,26,0.14);
+      cursor: default;
+    }
+    .cell.passage {
+      background: #ffe44d;
+      color: rgba(28,31,26,0.28);
+      cursor: default;
+    }
+    .cell.pickable {
+      background: var(--pick);
+      color: var(--pick-ink);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      box-shadow: inset 0 0 0 1px rgba(14,107,91,0.1);
+    }
+    .cell.pickable:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.58);
+      box-shadow: 0 10px 20px rgba(14,107,91,0.18);
+    }
+    .cell.pickable.near-suggested {
+      box-shadow: 0 0 0 2px rgba(242,183,71,0.45), 0 10px 20px rgba(14,107,91,0.18);
+      border-color: rgba(242,183,71,0.82);
+    }
+    .cell.pickable.draft-suggested {
+      background: var(--reserved);
+      color: var(--reserved-ink);
+      border-color: rgba(80,88,102,0.34);
+      box-shadow: inset 0 0 0 1px rgba(80,88,102,0.1);
+    }
+    .cell.pickable.active-draft {
+      background: var(--reserved);
+      color: var(--reserved-ink);
+      border-color: rgba(242,183,71,0.98);
+      box-shadow: 0 0 0 2px rgba(242,183,71,0.26), 0 10px 22px rgba(14,107,91,0.16);
+    }
+    .cell.pickable.inventory-selected {
+      background: #ff8a19;
+      color: #fff;
+      border-color: #d96500;
+      box-shadow: 0 0 0 3px rgba(255,138,25,0.30), 0 10px 22px rgba(217,101,0,0.22);
+    }
+    .cell.pickable.inventory-selected::after {
+      content: "✓";
+      display: inline-block;
+      margin-left: 2px;
+      font-weight: 900;
+    }
+    .cell.pickable.draft-owned {
+      background: var(--reserved);
+      color: var(--reserved-ink);
+      border-color: rgba(80,88,102,0.34);
+      box-shadow: inset 0 0 0 1px rgba(80,88,102,0.1);
+    }
+    .cell.pickable.draft-reserved {
+      background: var(--reserved);
+      color: var(--reserved-ink);
+      border-color: rgba(28,31,26,0.2);
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+    .picker-note {
+      border-radius: 16px;
+      border: 1px solid rgba(14,107,91,0.25);
+      background: rgba(14,107,91,0.08);
+      color: var(--accent-strong);
+      padding: 12px 14px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .empty-state {
+      border-radius: 18px;
+      border: 1px dashed var(--stroke);
+      background: var(--surface-3);
+      padding: 28px;
+      text-align: center;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(9,12,10,0.42);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 1000;
+    }
+    .modal-backdrop.is-open { display: flex; }
+    .modal {
+      width: min(1040px, 100%);
+      max-height: 88vh;
+      overflow: auto;
+      border-radius: 24px;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+    }
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+    }
+    .modal-title {
+      margin: 0;
+      font-size: 22px;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    }
+    .modal-subtitle {
+      color: var(--muted);
+      margin-top: 4px;
+      font-size: 14px;
+    }
+    .modal-grid {
+      display: grid;
+      gap: 14px;
+    }
+    .modal-pallet {
+      border-radius: 18px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+    .modal-pallet-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: start;
+    }
+    .modal-pallet-title {
+      font-size: 17px;
+      font-weight: 800;
+    }
+    .modal-pallet-meta {
+      display: flex;
+      gap: 8px 14px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .modal-kpis {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .modal-kpi {
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.78);
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .modal-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255,255,255,0.82);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .modal-table th,
+    .modal-table td {
+      padding: 9px 8px;
+      border-bottom: 1px solid var(--stroke);
+      text-align: left;
+      vertical-align: top;
+      font-size: 13px;
+    }
+    .modal-table th {
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .modal-table tr:last-child td { border-bottom: none; }
+    .mobile-only {
+      display: none;
+    }
+    .desktop-only {
+      display: inline;
+    }
+    @media (max-width: 1480px) {
+      body.picker-mode .workspace { grid-template-columns: 1fr; }
+      body.picker-mode .aside-shell { position: static; }
+    }
+    @media (max-width: 1280px) {
+      .workspace { grid-template-columns: 1fr; }
+      .aside-shell { position: static; }
+      .picker-support-toolbar { grid-template-columns: 1fr; }
+      .picker-support-apply { width: 100%; }
+      .picker-support-actions { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 860px) {
+      .wrap { padding: 16px; }
+      .map-frame { overflow: hidden; }
+      .map-scroll { overflow: auto; }
+      .support-table-wrap { overflow-x: auto; }
+      .support-table { min-width: 520px; }
+      .actions {
+        flex-wrap: wrap;
+      }
+      .locator-inline {
+        min-width: 100%;
+      }
+      .mobile-only {
+        display: inline;
+      }
+      .desktop-only {
+        display: none;
+      }
+      .map-table thead th.label-head,
+      .map-table tbody th.axis,
+      .map-table tbody tr.subhead-group td.subhead-group-cell {
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+<body{% if picker_mode %} class="picker-mode"{% endif %}>
+  <div class="wrap">
+    <div class="shell">
+      <section class="panel workspace">
+        <div class="main-shell">
+          {% if os_rows %}
+            <div class="map-frame">
+              <div class="map-scroll">
+                <table class="map-table">
+                  <thead>
+                    <tr>
+                      <th class="label-head" rowspan="2"><span class="desktop-only">Линия</span><span class="mobile-only">Л</span></th>
+                      <th class="label-head" rowspan="2"><span class="desktop-only">Этаж</span><span class="mobile-only">Э</span></th>
+                      {% for column in os_columns %}
+                        <th class="row-group line-start" colspan="3" style="{{ column.tone_style }}"><span class="desktop-only">{{ column.label }}</span><span class="mobile-only">{{ column.row }}</span></th>
+                      {% endfor %}
+                    </tr>
+                    <tr>
+                      {% for column in os_columns %}
+                        <th class="cell-head line-start" style="{{ column.tone_style }}">1</th>
+                        <th class="cell-head" style="{{ column.tone_style }}">2</th>
+                        <th class="cell-head" style="{{ column.tone_style }}">3</th>
+                      {% endfor %}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for matrix_row in os_matrix_rows %}
+                      {% if matrix_row.show_subheader %}
+                        <tr class="subhead-group">
+                          <th class="subhead-spacer"></th>
+                          <th class="subhead-spacer"></th>
+                          {% for column in os_lower_columns %}
+                            <td class="{% if forloop.counter == 1 or forloop.counter == 5 %}line-start {% endif %}{% if column.actual_row %}subhead-group-cell{% else %}subhead-blank{% endif %}" colspan="3" style="{{ column.tone_style }}">
+                              {% if column.actual_row %}<span class="desktop-only">{{ column.label }}</span><span class="mobile-only">{{ column.actual_row }}</span>{% endif %}
+                            </td>
+                          {% endfor %}
+                        </tr>
+                        <tr class="subhead-cell">
+                          <th class="subhead-spacer"></th>
+                          <th class="subhead-spacer"></th>
+                          {% for column in os_lower_columns %}
+                            <td class="{% if forloop.counter == 1 or forloop.counter == 5 %}line-start {% endif %}{% if column.actual_row %}subhead-cell-unit{% else %}subhead-blank{% endif %}" style="{{ column.tone_style }}">{% if column.actual_row %}1{% endif %}</td>
+                            <td class="{% if column.actual_row %}subhead-cell-unit{% else %}subhead-blank{% endif %}" style="{{ column.tone_style }}">{% if column.actual_row %}2{% endif %}</td>
+                            <td class="{% if column.actual_row %}subhead-cell-unit{% else %}subhead-blank{% endif %}" style="{{ column.tone_style }}">{% if column.actual_row %}3{% endif %}</td>
+                          {% endfor %}
+                        </tr>
+                      {% endif %}
+                      <tr class="{% if matrix_row.section_start %}section-start {% endif %}{% if matrix_row.section_end %}section-end{% endif %}" style="{{ matrix_row.band_style }}">
+                        <th class="axis">{{ matrix_row.section_label }}</th>
+                        <th class="axis">{{ matrix_row.tier }}</th>
+                        {% for cell in matrix_row.cells %}
+                          <td{% if cell.line_start %} class="line-start"{% endif %} style="{{ cell.tone_style }}"{% if cell.location_code %} data-map-location-code="{{ cell.location_code }}" data-map-location-label="{{ cell.location_label }}"{% endif %}>
+                            {% if cell.state == "unavailable" %}
+                              <div class="cell unavailable">—</div>
+                            {% elif cell.state == "passage" %}
+                              <div class="cell passage" title="Проход"></div>
+                            {% elif picker_mode and editor_picker_mode %}
+                              <button
+                                type="button"
+                                class="cell pickable {{ cell.state }}"
+                                data-pick-zone="OS"
+                                data-pick-row="{{ cell.row }}"
+                                data-pick-section="{{ cell.section }}"
+                                data-pick-tier="{{ cell.tier }}"
+                                data-pick-cell="{{ cell.cell }}"
+                                data-pick-label="{{ cell.location_label }}"
+                                data-base-label="{{ cell.number }}"
+                                title="{{ cell.detail_summary|default:cell.location_label }}"
+                              >{{ cell.display_marker|default:cell.cell }}</button>
+                            {% elif picker_mode and cell.state == "draft_owned" %}
+                              <button
+                                type="button"
+                                class="cell pickable draft-owned"
+                                data-pick-zone="OS"
+                                data-pick-row="{{ cell.row }}"
+                                data-pick-section="{{ cell.section }}"
+                                data-pick-tier="{{ cell.tier }}"
+                                data-pick-cell="{{ cell.cell }}"
+                                data-pick-label="{{ cell.location_label }}"
+                                data-base-label="{{ cell.number }}"
+                                title="{{ cell.detail_summary|default:cell.location_label }}"
+                              >{{ cell.display_marker|default:cell.cell }}</button>
+                            {% elif picker_mode and cell.state == "free" %}
+                              <button
+                                type="button"
+                                class="cell pickable"
+                                data-pick-zone="OS"
+                                data-pick-row="{{ cell.row }}"
+                                data-pick-section="{{ cell.section }}"
+                                data-pick-tier="{{ cell.tier }}"
+                                data-pick-cell="{{ cell.cell }}"
+                                data-pick-label="{{ cell.location_label }}"
+                                data-base-label="{{ cell.number }}"
+                                title="{{ cell.location_label }}"
+                              >{{ cell.cell }}</button>
+                            {% elif cell.state == "free" %}
+                              <div class="cell free" title="{{ cell.location_label }}">{{ cell.cell }}</div>
+                            {% elif cell.state == "placed" or cell.state == "occupied" %}
+                              <button
+                                type="button"
+                                class="cell placed"
+                                data-row="{{ cell.row }}"
+                                data-detail-key="{{ cell.detail_key }}"
+                                title="{{ cell.detail_summary|default:cell.location_label }}"
+                              >{{ cell.display_marker|default:"1" }}</button>
+                            {% elif cell.state == "planned" %}
+                              <button
+                                type="button"
+                                class="cell planned"
+                                data-row="{{ cell.row }}"
+                                data-detail-key="{{ cell.detail_key }}"
+                                title="{{ cell.detail_summary|default:cell.location_label }}"
+                              >{{ cell.display_marker|default:"1" }}</button>
+                            {% elif cell.state == "draft" %}
+                              <button
+                                type="button"
+                                class="cell draft"
+                                data-row="{{ cell.row }}"
+                                data-detail-key="{{ cell.detail_key }}"
+                                title="{{ cell.detail_summary|default:cell.location_label }}"
+                              >{{ cell.display_marker|default:"1" }}</button>
+                            {% else %}
+                              <button
+                                type="button"
+                                class="cell stacked"
+                                data-row="{{ cell.row }}"
+                                data-detail-key="{{ cell.detail_key }}"
+                                title="{{ cell.detail_summary|default:cell.location_label }}"
+                              >{{ cell.display_marker|default:cell.pallet_count }}</button>
+                            {% endif %}
+                          </td>
+                        {% endfor %}
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {% else %}
+            <div class="empty-state">Пока нет данных по рядам основного склада.</div>
+          {% endif %}
+        </div>
+
+        <aside class="aside-shell">
+          {% if picker_mode %}
+            <div class="side-card picker-support-card" id="picker-support-card">
+              <div class="picker-support-actions">
+                <button class="btn" type="button" id="picker-back-button">{% if inventory_picker_mode %}Отмена{% else %}Назад{% endif %}</button>
+                {% if inventory_picker_mode %}
+                  <button class="btn primary" type="button" id="inventory-picker-submit">
+                    Вернуться к инвентаризации · <span id="inventory-picker-count">0</span>
+                  </button>
+                {% else %}
+                  <button class="btn primary" type="button" id="picker-submit-button">Отправить задание на перемещение</button>
+                {% endif %}
+              </div>
+              {% if inventory_picker_mode %}
+                <div class="picker-note">Отметьте одну или несколько ячеек на карте, затем нажмите «Вернуться к инвентаризации». Повторный клик снимает отметку.</div>
+              {% endif %}
+              <div class="picker-support-toolbar">
+                <label class="picker-support-field">
+                  <select class="picker-support-select" id="picker-support-zone">
+                    <option value="">Выберите зону</option>
+                    <option value="PR">PR</option>
+                    <option value="OTG">OTG</option>
+                    <option value="OBR">OBR</option>
+                    <option value="MR">MR</option>
+                  </select>
+                </label>
+                <label class="picker-support-field is-hidden" id="picker-support-row-wrap">
+                  <span class="picker-support-label">Ряд MR</span>
+                  <select class="picker-support-select" id="picker-support-row">
+                    {% for zone in mr_rows %}
+                      <option value="{{ zone.row }}">{{ zone.row }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <button class="btn primary picker-support-apply" type="button" id="picker-support-apply">Применить</button>
+              </div>
+            </div>
+            {% if not inventory_picker_mode %}
+              <div class="side-card" id="picker-draft-card">
+                <div class="side-header">
+                  <h2 class="aside-title">Паллеты к размещению</h2>
+                </div>
+                <div class="picker-draft-list" id="picker-draft-list"></div>
+              </div>
+            {% endif %}
+          {% endif %}
+          <div id="aside-summary-view">
+            {% if unlocated_active_fbs_pallets %}
+              <div class="side-card topology-alert">
+                <div class="topology-alert-title">FBS без физического адреса · {{ unlocated_active_fbs_pallets|length }}</div>
+                <div class="aside-hint">Найдите паллету и разместите её только через физический скан ячейки ричтраком. Автоматическое назначение адреса не выполняется.</div>
+                {% for pallet in unlocated_active_fbs_pallets %}
+                  <div class="topology-alert-row">
+                    <div class="topology-alert-code">{{ pallet.pallet_code }}</div>
+                    <div>{{ pallet.client_name }}</div>
+                    <div>{{ pallet.cell_code }} · {{ pallet.qty }} шт.</div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+            <div class="side-card" id="picker-summary-card">
+              <div class="actions">
+                <a class="btn" href="{{ cabinet_url }}">В кабинет</a>
+                <div class="locator-inline" id="location-locator-inline">
+                  <input
+                    id="location-code-input"
+                    class="locator-input"
+                    type="text"
+                    inputmode="text"
+                    autocomplete="off"
+                    autocapitalize="characters"
+                    spellcheck="false"
+                    placeholder="Например E-3/3-2"
+                    aria-label="ШК ячейки"
+                  >
+                </div>
+              </div>
+              {% if picker_mode %}
+                <div class="picker-note">{% if inventory_picker_mode %}Выбор места для инвентаризации.{% else %}Режим выбора локации активен.{% endif %}</div>
+              {% endif %}
+              <div class="mini-kpis">
+                <div class="mini-kpi">
+                  <div class="mini-kpi-label">Свободно</div>
+                  <div class="mini-kpi-value">{{ os_total_free }}</div>
+                </div>
+                <div class="mini-kpi">
+                  <div class="mini-kpi-label">Занято</div>
+                  <div class="mini-kpi-value">{{ os_total_occupied }}</div>
+                </div>
+                <div class="mini-kpi">
+                  <div class="mini-kpi-label">Аномалии</div>
+                  <div class="mini-kpi-value">{{ os_total_anomaly_cells }}</div>
+                </div>
+              </div>
+              <div class="legend">
+                <div class="legend-item"><span class="legend-swatch free"></span>Свободно</div>
+                <div class="legend-item"><span class="legend-swatch draft"></span>Черновая бронь</div>
+                <div class="legend-item"><span class="legend-swatch planned"></span>Задание ричтраку</div>
+                <div class="legend-item"><span class="legend-swatch placed"></span>Размещено</div>
+                <div class="legend-item"><span class="legend-swatch stacked"></span>Аномалия</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#ffe44d;"></span>Проход</div>
+                {% if picker_mode %}
+                  <div class="legend-item"><span class="legend-swatch pick"></span>Выбор места</div>
+                {% endif %}
+              </div>
+            </div>
+            {% if not picker_mode %}
+              <div class="support-table-wrap" id="support-summary-wrap">
+                <table class="support-table">
+                  <thead>
+                    <tr>
+                      <th>Зона</th>
+                      <th>Баланс</th>
+                      <th>Св</th>
+                      <th>Зан</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for zone in support_zones %}
+                      <tr>
+                        <td>
+                          <div class="support-zone-cell">
+                            <div class="support-zone-code">{{ zone.zone }}</div>
+                            <div class="support-zone-name">{{ zone.title }}</div>
+                            <div class="support-zone-sub">{{ zone.subtitle }}</div>
+                          </div>
+                        </td>
+                        <td><span class="support-balance">{{ zone.occupied }}/{{ zone.total }}</span></td>
+                        <td>{{ zone.free }}</td>
+                        <td>
+                          {% if zone.has_details and zone.occupied %}
+                            <button type="button" class="support-occupied-btn" data-support-detail-key="{{ zone.detail_key }}">{{ zone.occupied }}</button>
+                          {% else %}
+                            {{ zone.occupied }}
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                    {% for zone in mr_rows %}
+                      <tr>
+                        <td>
+                          <div class="support-zone-cell">
+                            <div class="support-zone-code">MR</div>
+                            <div class="support-zone-name">Ряд {{ zone.row }}</div>
+                            <div class="support-zone-sub">{{ zone.subtitle }}</div>
+                          </div>
+                        </td>
+                        <td><span class="support-balance">{{ zone.occupied }}/{{ zone.total }}</span></td>
+                        <td>{{ zone.free }}</td>
+                        <td>
+                          {% if zone.has_details and zone.occupied %}
+                            <button type="button" class="support-occupied-btn" data-support-detail-key="{{ zone.detail_key }}">{{ zone.occupied }}</button>
+                          {% else %}
+                            {{ zone.occupied }}
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% endif %}
+          </div>
+          <div class="support-detail-card" id="support-detail-wrap">
+            <div class="support-detail-head">
+              <h2 class="support-detail-title" id="support-detail-title">Зона</h2>
+              <button class="btn" type="button" id="support-detail-back">Назад</button>
+            </div>
+            <div id="support-detail-body"></div>
+          </div>
+        </aside>
+      </section>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="cell-modal" aria-hidden="true">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h3 class="modal-title" id="cell-modal-title">Ячейка склада</h3>
+          <div class="modal-subtitle" id="cell-modal-subtitle">Детали паллет и содержимого.</div>
+        </div>
+        <button class="btn" type="button" id="cell-modal-close">Закрыть</button>
+      </div>
+      <div class="modal-grid" id="cell-modal-body"></div>
+    </div>
+  </div>
+
+  {{ os_cell_details_by_row|json_script:"stockmap-visual-row-details" }}
+  {{ support_zone_details|json_script:"stockmap-support-zone-details" }}
+  {{ picker_draft_state|json_script:"stockmap-picker-draft-state" }}
+
+  <script>
+    (() => {
+      let rowDetails = {};
+      try {
+        rowDetails = JSON.parse(document.getElementById('stockmap-visual-row-details')?.textContent || '{}');
+      } catch (err) {
+        rowDetails = {};
+      }
+      let supportZoneDetails = {};
+      try {
+        supportZoneDetails = JSON.parse(document.getElementById('stockmap-support-zone-details')?.textContent || '{}');
+      } catch (err) {
+        supportZoneDetails = {};
+      }
+      let activeSupportRows = [];
+      let serverPickerDraftState = {};
+      try {
+        serverPickerDraftState = JSON.parse(document.getElementById('stockmap-picker-draft-state')?.textContent || '{}');
+      } catch (err) {
+        serverPickerDraftState = {};
+      }
+
+      const modal = document.getElementById('cell-modal');
+      const modalTitle = document.getElementById('cell-modal-title');
+      const modalSubtitle = document.getElementById('cell-modal-subtitle');
+      const modalBody = document.getElementById('cell-modal-body');
+      const modalClose = document.getElementById('cell-modal-close');
+      const asideSummaryView = document.getElementById('aside-summary-view');
+      const supportDetailWrap = document.getElementById('support-detail-wrap');
+      const supportDetailTitle = document.getElementById('support-detail-title');
+      const supportDetailBody = document.getElementById('support-detail-body');
+      const supportDetailBack = document.getElementById('support-detail-back');
+      const locationLocatorInline = document.getElementById('location-locator-inline');
+      const locationCodeInput = document.getElementById('location-code-input');
+
+      const escapeHtml = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+      const normalizeLocationCode = (value) => String(value ?? '')
+        .toUpperCase()
+        .replace(/^OS\s*[·.]?\s*/i, '')
+        .replace(/\s+/g, '');
+
+      const locationCells = Array.from(document.querySelectorAll('[data-map-location-code]'));
+      const locationCellIndex = new Map();
+      locationCells.forEach((cell) => {
+        const code = normalizeLocationCode(cell.dataset.mapLocationCode || '');
+        if (code) {
+          locationCellIndex.set(code, cell);
+        }
+      });
+      let activeLocationCell = null;
+      let locationClearTimer = null;
+
+      const keepLocatorFocused = () => {
+        if (!locationCodeInput || document.activeElement === locationCodeInput) {
+          return;
+        }
+        if (modal && modal.classList.contains('is-open')) {
+          return;
+        }
+        locationCodeInput.focus({ preventScroll: true });
+      };
+
+      const scheduleLocatorReset = () => {
+        if (locationClearTimer) {
+          window.clearTimeout(locationClearTimer);
+        }
+        locationClearTimer = window.setTimeout(() => {
+          clearLocationMatch({ resetInput: true });
+          keepLocatorFocused();
+        }, 3000);
+      };
+
+      const clearLocationMatch = ({ resetInput = false } = {}) => {
+        if (locationClearTimer) {
+          window.clearTimeout(locationClearTimer);
+          locationClearTimer = null;
+        }
+        if (activeLocationCell) {
+          activeLocationCell.classList.remove('location-match');
+          activeLocationCell = null;
+        }
+        if (locationLocatorInline) {
+          locationLocatorInline.classList.remove('is-match', 'is-error');
+        }
+        if (resetInput && locationCodeInput) {
+          locationCodeInput.value = '';
+          locationCodeInput.removeAttribute('title');
+        }
+      };
+
+      const syncLocationLocator = (rawCode, { scrollIntoView = true } = {}) => {
+        const code = normalizeLocationCode(rawCode);
+        if (!locationCodeInput) {
+          return;
+        }
+        if (!code) {
+          clearLocationMatch({ resetInput: true });
+          return;
+        }
+        locationCodeInput.value = code;
+        if (activeLocationCell) {
+          activeLocationCell.classList.remove('location-match');
+          activeLocationCell = null;
+        }
+        const nextCell = locationCellIndex.get(code);
+        if (!nextCell) {
+          if (locationLocatorInline) {
+            locationLocatorInline.classList.remove('is-match');
+            locationLocatorInline.classList.add('is-error');
+          }
+          locationCodeInput.title = `Ячейка ${code} не найдена в текущей топологии.`;
+          return;
+        }
+        locationCodeInput.title = nextCell.dataset.mapLocationLabel || `OS · ${code}`;
+        nextCell.classList.add('location-match');
+        activeLocationCell = nextCell;
+        if (locationLocatorInline) {
+          locationLocatorInline.classList.remove('is-error');
+          locationLocatorInline.classList.add('is-match');
+        }
+        if (scrollIntoView) {
+          nextCell.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+        }
+      };
+
+      const closeModal = () => {
+        if (!modal) {
+          return;
+        }
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+      };
+
+      const renderItemsTable = (items) => {
+        const rows = Array.isArray(items) ? items.map((item) => `
+          <tr>
+            <td>${escapeHtml(item.sku || '—')}</td>
+            <td>${escapeHtml(item.name || '—')}</td>
+            <td>${escapeHtml(item.size || '—')}</td>
+            <td>${escapeHtml(item.barcode || '—')}</td>
+            <td>${item.qty || 0}</td>
+            <td>${item.box_count || 0}</td>
+          </tr>
+        `).join('') : '';
+        return `
+          <table class="modal-table">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Наименование</th>
+                <th>Размер</th>
+                <th>ШК</th>
+                <th>Кол-во</th>
+                <th>Коробов</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      };
+
+      const openCellDetails = (button) => {
+        if (!modal || !modalBody) {
+          return;
+        }
+        const locationCell = button.closest('[data-map-location-code]');
+        if (locationCell) {
+          syncLocationLocator(locationCell.dataset.mapLocationCode || '', { scrollIntoView: false });
+        }
+        const rowNumber = String(button.dataset.row || '').trim();
+        const detailKey = String(button.dataset.detailKey || '').trim();
+        const details = (rowDetails[rowNumber] || {})[detailKey];
+        if (!details) {
+          return;
+        }
+        modalTitle.textContent = details.cell_label || 'Ячейка склада';
+        modalSubtitle.textContent = details.summary || `${details.pallet_count || 0} паллет`;
+        modalBody.innerHTML = Array.isArray(details.pallets) ? details.pallets.map((pallet) => `
+          <section class="modal-pallet">
+            <div class="modal-pallet-head">
+              <div>
+                <div class="modal-pallet-title">${pallet.pallet_code || 'Паллета'}</div>
+                <div class="support-zone-sub">${escapeHtml(pallet.stage_label || '')}</div>
+                <div class="support-zone-sub">${escapeHtml(pallet.client_name || '—')} · ${escapeHtml(pallet.order_label || '—')}</div>
+              </div>
+            </div>
+            ${Array.isArray(pallet.items) && pallet.items.length
+              ? renderItemsTable(pallet.items)
+              : '<div class="support-zone-sub">Фактический состав появится после размещения паллеты на складе.</div>'}
+          </section>
+        `).join('') : '';
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+      };
+
+      const openSupportPallet = (pallet) => {
+        if (!modal || !modalBody || !pallet) {
+          return;
+        }
+        modalTitle.textContent = `Паллета ${pallet.pallet_code || '—'}`;
+        modalSubtitle.textContent = [
+          pallet.client_name || '',
+          pallet.order_code || pallet.order_label || '',
+          pallet.location || '',
+        ].filter(Boolean).join(' · ');
+        modalBody.innerHTML = `
+          <section class="modal-pallet">
+            <div class="modal-pallet-head">
+              <div>
+                <div class="modal-pallet-title">${escapeHtml(pallet.pallet_code || '—')}</div>
+                <div class="modal-pallet-meta">
+                  Количество: ${Number(pallet.total_qty || 0)} ·
+                  Коробов: ${Number(pallet.box_count || 0)} ·
+                  Доступно: ${Number(pallet.available_qty || 0)}
+                </div>
+              </div>
+            </div>
+            ${Array.isArray(pallet.items) && pallet.items.length
+              ? renderItemsTable(pallet.items)
+              : '<div class="support-detail-empty">Содержимое паллеты не найдено.</div>'}
+          </section>
+        `;
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+      };
+
+      const openSupportDetails = (detailKey) => {
+        const details = supportZoneDetails[detailKey];
+        if (!details || !asideSummaryView || !supportDetailWrap || !supportDetailTitle || !supportDetailBody) {
+          return;
+        }
+        supportDetailTitle.textContent = details.title || 'Зона';
+        const rows = Array.isArray(details.items) ? details.items : [];
+        activeSupportRows = rows;
+        if (!rows.length) {
+          supportDetailBody.innerHTML = '<div class="support-detail-empty">Занятых паллет нет.</div>';
+        } else {
+          supportDetailBody.innerHTML = `
+            <table class="support-detail-table">
+              <thead>
+                <tr>
+                  <th>Паллета</th>
+                  <th>Клиент</th>
+                  <th>Заявка</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map((item, index) => `
+                  <tr>
+                    <td>
+                      <button type="button" class="support-detail-link" data-support-pallet-index="${index}">
+                        ${escapeHtml(item.pallet_code || '—')}
+                      </button>
+                    </td>
+                    <td>${escapeHtml(item.client_name || '—')}</td>
+                    <td>
+                      ${item.order_url
+                        ? `<a class="support-order-link" href="${escapeHtml(item.order_url)}">${escapeHtml(item.order_code || item.order_label || '—')}</a>`
+                        : escapeHtml(item.order_code || item.order_label || '—')}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `;
+          supportDetailBody.querySelectorAll('[data-support-pallet-index]').forEach((button) => {
+            button.addEventListener('click', () => {
+              const index = Number(button.dataset.supportPalletIndex || -1);
+              openSupportPallet(activeSupportRows[index]);
+            });
+          });
+        }
+        asideSummaryView.style.display = 'none';
+        supportDetailWrap.classList.add('is-open');
+      };
+
+      const closeSupportDetails = () => {
+        if (!asideSummaryView || !supportDetailWrap) {
+          return;
+        }
+        supportDetailWrap.classList.remove('is-open');
+        asideSummaryView.style.display = '';
+      };
+
+      document.querySelectorAll('[data-detail-key]').forEach((button) => {
+        button.addEventListener('click', () => openCellDetails(button));
+      });
+      locationCells.forEach((cell) => {
+        cell.addEventListener('click', () => {
+          syncLocationLocator(cell.dataset.mapLocationCode || '', { scrollIntoView: false });
+        });
+      });
+      document.querySelectorAll('[data-support-detail-key]').forEach((button) => {
+        button.addEventListener('click', () => openSupportDetails(String(button.dataset.supportDetailKey || '').trim()));
+      });
+      if (locationCodeInput) {
+        locationCodeInput.addEventListener('input', () => {
+          syncLocationLocator(locationCodeInput.value, { scrollIntoView: true });
+          scheduleLocatorReset();
+        });
+        locationCodeInput.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            scheduleLocatorReset();
+            locationCodeInput.select();
+          }
+        });
+        locationCodeInput.addEventListener('blur', () => {
+          window.setTimeout(() => keepLocatorFocused(), 0);
+        });
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden) {
+            keepLocatorFocused();
+          }
+        });
+        window.addEventListener('load', () => keepLocatorFocused());
+        keepLocatorFocused();
+      }
+      if (modalClose) {
+        modalClose.addEventListener('click', closeModal);
+      }
+      if (supportDetailBack) {
+        supportDetailBack.addEventListener('click', closeSupportDetails);
+      }
+      if (modal) {
+        modal.addEventListener('click', (event) => {
+          if (event.target === modal) {
+            closeModal();
+          }
+        });
+      }
+
+      const pickerMode = {{ picker_mode|yesno:"true,false" }};
+      if (!pickerMode) {
+        return;
+      }
+
+      const inventoryPickerMode = {{ inventory_picker_mode|yesno:"true,false" }};
+
+      const params = new URLSearchParams(window.location.search || '');
+      const inventoryReturnUrl = (() => {
+        const fallback = '/inventory/new/?stockmap_return=1';
+        try {
+          const target = new URL(String(params.get('return_to') || fallback), window.location.origin);
+          if (target.origin === window.location.origin && target.pathname === '/inventory/new/') {
+            return `${target.pathname}${target.search}${target.hash}`;
+          }
+        } catch (err) {}
+        return fallback;
+      })();
+      const queryReservedKeys = new Set(
+        params.getAll('reserved')
+          .map((value) => String(value || '').trim().toUpperCase())
+          .filter((value) => value),
+      );
+      const toInt = (value) => Number.parseInt(String(value || '').trim(), 10) || 0;
+      const osKey = (row, section, tier, cell) => (
+        row > 0 && section > 0 && tier > 0 && cell > 0
+          ? `OS:${row}:${section}:${tier}:${cell}`
+          : ''
+      );
+      const mrKey = (row) => (row > 0 ? `MR:${row}` : '');
+      const nearZone = String(params.get('near_zone') || '').trim().toUpperCase();
+      const nearRow = toInt(params.get('near_row'));
+      const nearSection = toInt(params.get('near_section'));
+      const nearTier = toInt(params.get('near_tier'));
+      const nearCell = toInt(params.get('near_cell'));
+      const draftToken = String(params.get('draft_token') || '').trim();
+      const draftStorageKey = draftToken ? `stockmap_picker_draft:${draftToken}` : '';
+      const pickerDraftList = document.getElementById('picker-draft-list');
+      const pickerSupportCard = document.getElementById('picker-support-card');
+      const pickerSupportZone = document.getElementById('picker-support-zone');
+      const pickerSupportRowWrap = document.getElementById('picker-support-row-wrap');
+      const pickerSupportRow = document.getElementById('picker-support-row');
+      const pickerSupportApply = document.getElementById('picker-support-apply');
+      const pickerBackButton = document.getElementById('picker-back-button');
+      const pickerSubmitButton = document.getElementById('picker-submit-button');
+      const inventoryPickerSubmit = document.getElementById('inventory-picker-submit');
+      const inventoryPickerCount = document.getElementById('inventory-picker-count');
+      const pickerSummaryCard = document.getElementById('picker-summary-card');
+      const pickButtons = Array.from(document.querySelectorAll('[data-pick-zone]'));
+      const nonOsPickerZones = new Set(['PR', 'OTG', 'OBR', 'MR']);
+      const sectionLabels = {
+        1: '0',
+        2: 'A',
+        3: 'B',
+        4: 'C',
+        5: 'D',
+        6: 'E',
+        7: 'F',
+        8: 'G',
+        9: 'I',
+      };
+
+      const sendSelection = (location, label, options = {}) => {
+        const payload = {
+          type: 'stockmap-location-picked',
+          location: location || {},
+          label: label || '',
+          pallet_code: String(options.palletCode || '').trim(),
+          close_window: options.closeWindow !== false,
+          ts: Date.now(),
+        };
+        try {
+          localStorage.setItem('stockmap_location_pick', JSON.stringify(payload));
+        } catch (err) {}
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(payload, window.location.origin);
+        }
+        if (payload.close_window !== false) {
+          window.close();
+        }
+      };
+
+      const sendPickerCommand = (type, payload = {}, options = {}) => {
+        if (!type) {
+          return;
+        }
+        const message = {
+          type,
+          ...payload,
+          ts: Date.now(),
+        };
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(message, window.location.origin);
+        }
+        if (options.closeWindow !== false) {
+          window.close();
+        }
+      };
+
+      const normalizeDraftDestination = (destination) => {
+        const zone = String(destination?.zone || 'PR').trim().toUpperCase();
+        return {
+          zone: zone || 'PR',
+          row: toInt(destination?.row),
+          section: toInt(destination?.section),
+          tier: toInt(destination?.tier),
+          cell: toInt(destination?.cell),
+        };
+      };
+
+      const draftDestinationKey = (destination) => {
+        const normalized = normalizeDraftDestination(destination);
+        if (normalized.zone === 'OS') {
+          return osKey(normalized.row, normalized.section, normalized.tier, normalized.cell);
+        }
+        if (normalized.zone === 'MR') {
+          return mrKey(normalized.row);
+        }
+        if (normalized.zone === 'PR' || normalized.zone === 'OTG' || normalized.zone === 'OBR') {
+          return normalized.zone;
+        }
+        return '';
+      };
+
+      const draftDestinationCode = (destination) => {
+        const normalized = normalizeDraftDestination(destination);
+        if (normalized.zone !== 'OS') {
+          return '';
+        }
+        const lineLabel = sectionLabels[normalized.section] || String(normalized.section || '');
+        if (lineLabel && normalized.row && normalized.tier && normalized.cell) {
+          return `${lineLabel}-${normalized.row}/${normalized.tier}-${normalized.cell}`;
+        }
+        return '';
+      };
+
+      const draftDestinationLabel = (destination) => {
+        const normalized = normalizeDraftDestination(destination);
+        if (normalized.zone === 'MR') {
+          return normalized.row > 0 ? `MR · Ряд ${normalized.row}` : 'MR · Между рядами';
+        }
+        if (normalized.zone === 'OS') {
+          const lineLabel = sectionLabels[normalized.section] || String(normalized.section || '');
+          if (lineLabel && normalized.row && normalized.tier && normalized.cell) {
+            return `OS · Линия ${lineLabel} · Стеллаж ${normalized.row} · Этаж ${normalized.tier} · Ячейка ${normalized.cell}`;
+          }
+          if (lineLabel && normalized.row) {
+            return `OS · Линия ${lineLabel} · Стеллаж ${normalized.row}`;
+          }
+          return 'OS · Основной склад';
+        }
+        if (normalized.zone === 'OTG') {
+          return 'OTG · Зона отгрузки';
+        }
+        if (normalized.zone === 'OBR') {
+          return 'OBR · Зона обработки';
+        }
+        return 'PR · Зона приемки';
+      };
+
+      const inventorySelections = new Map();
+      const inventoryLocationFromKey = (rawKey) => {
+        const parts = String(rawKey || '').trim().toUpperCase().split(':');
+        const zone = parts[0] || '';
+        if (zone === 'OS' && parts.length >= 5) {
+          return normalizeDraftDestination({
+            zone,
+            row: toInt(parts[1]),
+            section: toInt(parts[2]),
+            tier: toInt(parts[3]),
+            cell: toInt(parts[4]),
+          });
+        }
+        if (zone === 'MR' && parts.length >= 2) {
+          return normalizeDraftDestination({ zone, row: toInt(parts[1]) });
+        }
+        if (zone === 'PR' || zone === 'OTG' || zone === 'OBR') {
+          return normalizeDraftDestination({ zone });
+        }
+        return null;
+      };
+      const pickButtonLocation = (button) => ({
+        zone: String(button?.dataset.pickZone || '').trim().toUpperCase(),
+        row: toInt(button?.dataset.pickRow),
+        section: toInt(button?.dataset.pickSection),
+        tier: toInt(button?.dataset.pickTier),
+        cell: toInt(button?.dataset.pickCell),
+      });
+      const renderInventorySelections = () => {
+        if (!inventoryPickerMode) {
+          return;
+        }
+        if (inventoryPickerCount) {
+          inventoryPickerCount.textContent = String(inventorySelections.size);
+        }
+        pickButtons.forEach((button) => {
+          const key = draftDestinationKey(pickButtonLocation(button));
+          const selected = Boolean(key && inventorySelections.has(key));
+          button.classList.toggle('inventory-selected', selected);
+          button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        });
+      };
+      const toggleInventorySelection = (location, label = '') => {
+        const normalized = normalizeDraftDestination(location);
+        const key = draftDestinationKey(normalized);
+        if (!key) {
+          return;
+        }
+        if (inventorySelections.has(key)) {
+          inventorySelections.delete(key);
+        } else {
+          inventorySelections.set(key, {
+            location: normalized,
+            label: String(label || draftDestinationLabel(normalized)).trim(),
+          });
+        }
+        renderInventorySelections();
+      };
+      const submitInventorySelections = () => {
+        const payload = {
+          type: 'stockmap-inventory-locations-picked',
+          locations: Array.from(inventorySelections.values()),
+          ts: Date.now(),
+        };
+        try {
+          localStorage.setItem('stockmap_inventory_location_pick', JSON.stringify(payload));
+        } catch (err) {}
+        try {
+          sessionStorage.setItem('inventory_create_stockmap_selection', JSON.stringify(payload));
+        } catch (err) {}
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(payload, window.location.origin);
+        }
+        if (params.has('return_to')) {
+          window.location.assign(inventoryReturnUrl);
+        } else {
+          window.close();
+        }
+      };
+      if (inventoryPickerMode) {
+        params.getAll('selected').forEach((key) => {
+          const location = inventoryLocationFromKey(key);
+          const normalizedKey = location ? draftDestinationKey(location) : '';
+          if (location && normalizedKey) {
+            inventorySelections.set(normalizedKey, {
+              location,
+              label: draftDestinationLabel(location),
+            });
+          }
+        });
+      }
+
+      const readDraftPickerState = () => {
+        const fromServer = () => {
+          if (serverPickerDraftState && Array.isArray(serverPickerDraftState.rows)) {
+            return serverPickerDraftState;
+          }
+          return null;
+        };
+        const fromQuery = () => {
+          const raw = String(params.get('draft_rows') || '').trim();
+          if (!raw) {
+            return null;
+          }
+          try {
+            const decoded = decodeURIComponent(raw);
+            const payload = JSON.parse(decoded);
+            if (!payload || !Array.isArray(payload.rows)) {
+              return null;
+            }
+            return payload;
+          } catch (err) {
+            return null;
+          }
+        };
+        const fromOpener = () => {
+          try {
+            if (window.opener && !window.opener.closed && window.opener.__stockmapPickerDraft) {
+              const payload = window.opener.__stockmapPickerDraft;
+              if (payload && Array.isArray(payload.rows)) {
+                return payload;
+              }
+            }
+          } catch (err) {}
+          return null;
+        };
+        const fromScopedStorage = () => {
+          if (!draftStorageKey) {
+            return null;
+          }
+          try {
+            const raw = localStorage.getItem(draftStorageKey);
+            if (!raw) {
+              return null;
+            }
+            const payload = JSON.parse(raw);
+            if (payload && Array.isArray(payload.rows)) {
+              return payload;
+            }
+          } catch (err) {}
+          return null;
+        };
+        const fromSharedStorage = () => {
+          try {
+            const raw = localStorage.getItem('stockmap_picker_current_draft');
+            if (!raw) {
+              return null;
+            }
+            const payload = JSON.parse(raw);
+            if (payload && Array.isArray(payload.rows)) {
+              return payload;
+            }
+          } catch (err) {}
+          return null;
+        };
+        return fromServer() || fromQuery() || fromOpener() || fromScopedStorage() || fromSharedStorage();
+      };
+
+      const normalizeDraftRow = (row) => {
+        const destination = normalizeDraftDestination(row?.destination || {});
+        const baseDestination = normalizeDraftDestination(row?.base_destination || row?.destination || {});
+        return {
+          pallet_code: String(row?.pallet_code || '').trim(),
+          selected: row?.selected !== false,
+          selectable: row?.selectable !== false,
+          status_label: String(row?.status_label || '').trim(),
+          status_class: String(row?.status_class || '').trim(),
+          destination,
+          base_destination: baseDestination,
+          server_note: String(row?.server_note || '').trim(),
+          server_conflict: Boolean(row?.server_conflict),
+        };
+      };
+
+      let draftPickerState = readDraftPickerState() || {};
+      let draftRowsState = Array.isArray(draftPickerState.rows)
+        ? draftPickerState.rows.map((row) => normalizeDraftRow(row)).filter((row) => row.pallet_code)
+        : [];
+      let activeDraftPalletCode = String(
+        params.get('active_pallet')
+        || draftPickerState.active_pallet_code
+        || (draftRowsState.find((row) => row.selectable && row.selected)?.pallet_code || '')
+      ).trim();
+      const currentAgencyId = toInt(draftPickerState.agency_id || params.get('agency_id'));
+      const markerToken = (value) => String(value || '')
+        .trim()
+        .split(/[\s/_-]+/, 1)[0]
+        .replace(/[^\p{L}\p{N}]+/gu, '')
+        .toUpperCase();
+      const derivedDraftClientMarker = () => {
+        const explicitMarker = markerToken(draftPickerState.client_marker || params.get('client_marker') || '');
+        if (explicitMarker && !/^\d+$/.test(explicitMarker)) {
+          return explicitMarker;
+        }
+        const palletMarker = draftRowsState
+          .map((row) => markerToken(row?.pallet_code))
+          .find((token) => token && !/^\d+$/.test(token));
+        return palletMarker || explicitMarker;
+      };
+      const currentClientMarker = derivedDraftClientMarker();
+      const pickerDraftApiUrl = '/stockmap/picker/draft/';
+      const pickerSessionTimeoutMs = 20 * 60 * 1000;
+      const pickerHeartbeatMs = 60 * 1000;
+      let lastDraftActivityAt = Date.now();
+      let lastDraftHeartbeatAt = 0;
+      let draftSessionReleased = false;
+      let draftReleaseInProgress = false;
+      let draftSyncQueue = Promise.resolve(true);
+
+      pickButtons.forEach((button) => {
+        if (!button.dataset.baseLabel) {
+          button.dataset.baseLabel = String(button.textContent || '').trim();
+        }
+      });
+
+      const hasDraftRows = () => draftRowsState.some((row) => row.selectable && row.selected);
+
+      const getDraftRowsForPlacement = () => draftRowsState.filter((row) => row.selectable && row.selected);
+
+      const ensureActiveDraftPallet = () => {
+        const rows = getDraftRowsForPlacement();
+        if (!rows.length) {
+          activeDraftPalletCode = '';
+          return null;
+        }
+        const existing = rows.find((row) => row.pallet_code === activeDraftPalletCode);
+        if (existing) {
+          return existing;
+        }
+        activeDraftPalletCode = rows[0].pallet_code;
+        return rows[0];
+      };
+
+      const markDraftActivity = () => {
+        lastDraftActivityAt = Date.now();
+      };
+
+      const queueDraftRequest = (runner) => {
+        draftSyncQueue = draftSyncQueue
+          .catch(() => true)
+          .then(() => runner());
+        return draftSyncQueue;
+      };
+
+      const getCsrfToken = () => {
+        const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+      };
+
+      const postDraftRequest = async (payload, options = {}) => {
+        const response = await fetch(pickerDraftApiUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          keepalive: options.keepalive === true,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(getCsrfToken() ? { 'X-CSRFToken': getCsrfToken() } : {}),
+          },
+          body: JSON.stringify(payload),
+        });
+        let data = {};
+        try {
+          data = await response.json();
+        } catch (err) {}
+        return { response, data };
+      };
+
+      const buildDraftSyncPayload = (action) => ({
+        action,
+        draft_token: draftToken,
+        order_id: String(draftPickerState.order_id || params.get('order_id') || '').trim(),
+        agency_id: currentAgencyId > 0 ? currentAgencyId : 0,
+        client_marker: currentClientMarker,
+        active_pallet_code: activeDraftPalletCode,
+        rows: buildDraftRowsPayload(),
+      });
+
+      const syncDraftReservations = ({ silent = false } = {}) => {
+        if (!draftToken || !hasDraftRows() || currentAgencyId <= 0) {
+          return Promise.resolve(true);
+        }
+        markDraftActivity();
+        draftSessionReleased = false;
+        return queueDraftRequest(async () => {
+          const applyHydratedRows = (data) => {
+            if (!data || !Array.isArray(data.hydrated_rows)) {
+              return false;
+            }
+            return replaceDraftRowsState(data.hydrated_rows);
+          };
+          let { response, data } = await postDraftRequest(buildDraftSyncPayload('sync'));
+          let hydrated = applyHydratedRows(data);
+          if ((!response.ok || data.ok === false) && hydrated && hasDraftRows()) {
+            ({ response, data } = await postDraftRequest(buildDraftSyncPayload('sync')));
+            hydrated = applyHydratedRows(data) || hydrated;
+          }
+          if (!response.ok || data.ok === false) {
+            if (!silent) {
+              const defaultMessage = hydrated
+                ? 'Предложения мест обновлены, но бронь не удалось подтвердить. Проверьте правую панель и повторите отправку.'
+                : 'Не удалось забронировать ячейки на карте.';
+              window.alert(data.error || defaultMessage);
+            }
+            return false;
+          }
+          lastDraftHeartbeatAt = Date.now();
+          draftSessionReleased = false;
+          return true;
+        });
+      };
+
+      const heartbeatDraftReservations = () => {
+        if (!draftToken || !hasDraftRows() || draftSessionReleased) {
+          return Promise.resolve(true);
+        }
+        return queueDraftRequest(async () => {
+          const { response } = await postDraftRequest(
+            {
+              action: 'heartbeat',
+              draft_token: draftToken,
+            },
+          );
+          if (response.ok) {
+            lastDraftHeartbeatAt = Date.now();
+          }
+          return response.ok;
+        });
+      };
+
+      const notifyDraftReleased = (type, extra = {}) => {
+        sendPickerCommand(
+          type,
+          {
+            draft_token: draftToken,
+            ...extra,
+          },
+          { closeWindow: false },
+        );
+      };
+
+      const releaseDraftReservations = ({ keepalive = false } = {}) => {
+        if (!draftToken || draftSessionReleased || draftReleaseInProgress) {
+          return Promise.resolve(true);
+        }
+        draftReleaseInProgress = true;
+        const requestPayload = {
+          action: 'release',
+          draft_token: draftToken,
+        };
+        if (keepalive) {
+          fetch(pickerDraftApiUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            keepalive: true,
+            headers: {
+              'Content-Type': 'application/json',
+              ...(getCsrfToken() ? { 'X-CSRFToken': getCsrfToken() } : {}),
+            },
+            body: JSON.stringify(requestPayload),
+          }).catch(() => null);
+          draftSessionReleased = true;
+          draftReleaseInProgress = false;
+          return Promise.resolve(true);
+        }
+        return queueDraftRequest(async () => {
+          const { response } = await postDraftRequest(requestPayload);
+          draftSessionReleased = response.ok;
+          draftReleaseInProgress = false;
+          return response.ok;
+        });
+      };
+
+      const expireDraftSession = async () => {
+        if (draftSessionReleased || draftReleaseInProgress) {
+          return;
+        }
+        await releaseDraftReservations();
+        notifyDraftReleased('stockmap-picker-expired', {
+          message: 'Бронь мест снята после 20 минут бездействия.',
+        });
+        window.alert('Бронь мест снята после 20 минут бездействия. Окно будет закрыто.');
+        window.close();
+      };
+
+      const writeDraftPickerState = () => {
+        if (!draftStorageKey) {
+          return;
+        }
+        const snapshot = {
+          ...draftPickerState,
+          order_id: String(draftPickerState.order_id || params.get('order_id') || '').trim(),
+          agency_id: currentAgencyId > 0 ? currentAgencyId : 0,
+          client_marker: currentClientMarker,
+          active_pallet_code: activeDraftPalletCode,
+          rows: draftRowsState,
+          ts: Date.now(),
+        };
+        try {
+          localStorage.setItem(draftStorageKey, JSON.stringify(snapshot));
+          localStorage.setItem('stockmap_picker_current_draft', JSON.stringify(snapshot));
+        } catch (err) {}
+        try {
+          if (window.opener && !window.opener.closed) {
+            window.opener.__stockmapPickerDraft = snapshot;
+          }
+        } catch (err) {}
+      };
+
+      const replaceDraftRowsState = (rowsPayload = []) => {
+        if (!Array.isArray(rowsPayload)) {
+          return false;
+        }
+        draftRowsState = rowsPayload
+          .map((row) => normalizeDraftRow(row))
+          .filter((row) => row.pallet_code);
+        draftPickerState = {
+          ...draftPickerState,
+          rows: draftRowsState,
+          active_pallet_code: activeDraftPalletCode,
+        };
+        if (!draftRowsState.some((row) => row.pallet_code === activeDraftPalletCode)) {
+          activeDraftPalletCode = draftRowsState.find((row) => row.selectable && row.selected)?.pallet_code
+            || draftRowsState[0]?.pallet_code
+            || '';
+          draftPickerState.active_pallet_code = activeDraftPalletCode;
+        }
+        writeDraftPickerState();
+        refreshDraftPickerView();
+        return true;
+      };
+
+      const clearDraftRowNotice = (row) => {
+        if (!row || typeof row !== 'object') {
+          return;
+        }
+        row.server_note = '';
+        row.server_conflict = false;
+      };
+
+      const renderDraftList = () => {
+        if (!pickerDraftList) {
+          return;
+        }
+        const rows = getDraftRowsForPlacement();
+        if (!rows.length) {
+          pickerDraftList.innerHTML = '<div class="picker-draft-empty">Нет активных паллет для размещения.</div>';
+          return;
+        }
+        pickerDraftList.innerHTML = rows.map((row) => {
+          const currentKey = draftDestinationKey(row.destination);
+          const baseKey = draftDestinationKey(row.base_destination);
+          const isManual = Boolean(currentKey && baseKey && currentKey !== baseKey);
+          const stateLabel = row.server_conflict
+            ? 'Обновлено'
+            : (row.pallet_code === activeDraftPalletCode ? 'Активна' : (isManual ? 'Изменено' : 'Предложено'));
+          const stateClass = row.server_conflict ? 'conflict' : (isManual ? 'manual' : '');
+          const noteHtml = row.server_note
+            ? `<div class="${row.server_conflict ? 'picker-draft-conflict' : 'picker-draft-status'}">${escapeHtml(row.server_note)}</div>`
+            : '';
+          return `
+            <button type="button" class="picker-draft-item${row.pallet_code === activeDraftPalletCode ? ' is-active' : ''}" data-draft-pallet="${escapeHtml(row.pallet_code)}">
+              <div class="picker-draft-item-head">
+                <span class="picker-draft-code">${escapeHtml(row.pallet_code)}</span>
+                <span class="picker-draft-state ${stateClass}">${escapeHtml(stateLabel)}</span>
+              </div>
+              <div class="picker-draft-location">${escapeHtml(draftDestinationLabel(row.destination))}</div>
+              ${noteHtml}
+            </button>
+          `;
+        }).join('');
+        pickerDraftList.querySelectorAll('[data-draft-pallet]').forEach((button) => {
+          button.addEventListener('click', () => {
+            activeDraftPalletCode = String(button.dataset.draftPallet || '').trim();
+            writeDraftPickerState();
+            refreshDraftPickerView();
+          });
+        });
+      };
+
+      const syncPickerSupportControls = () => {
+        if (!pickerSupportCard || !pickerSupportZone || !pickerSupportRowWrap || !pickerSupportRow || !pickerSupportApply) {
+          return;
+        }
+        if (!hasDraftRows()) {
+          pickerSupportCard.style.display = 'none';
+          return;
+        }
+        pickerSupportCard.style.display = '';
+        const activeRow = ensureActiveDraftPallet();
+        if (!activeRow) {
+          pickerSupportZone.value = '';
+          pickerSupportRowWrap.classList.add('is-hidden');
+          pickerSupportApply.disabled = true;
+          if (pickerSubmitButton) {
+            pickerSubmitButton.disabled = true;
+          }
+          return;
+        }
+        pickerSupportApply.disabled = false;
+        if (pickerSubmitButton) {
+          pickerSubmitButton.disabled = false;
+        }
+        const currentZone = String(activeRow.destination?.zone || '').trim().toUpperCase();
+        pickerSupportZone.value = nonOsPickerZones.has(currentZone) ? currentZone : '';
+        if (pickerSupportZone.value === 'MR') {
+          pickerSupportRowWrap.classList.remove('is-hidden');
+          if (toInt(activeRow.destination?.row) > 0) {
+            pickerSupportRow.value = String(toInt(activeRow.destination.row));
+          } else if (pickerSupportRow.options.length) {
+            pickerSupportRow.value = pickerSupportRow.options[0].value;
+          }
+        } else {
+          pickerSupportRowWrap.classList.add('is-hidden');
+        }
+      };
+
+      const buildDraftRowsPayload = () => getDraftRowsForPlacement().map((row) => ({
+        pallet_code: row.pallet_code,
+        destination: normalizeDraftDestination(row.destination),
+      }));
+
+      const validateDraftPickerRows = () => {
+        const rows = buildDraftRowsPayload();
+        if (!rows.length) {
+          return 'Выберите хотя бы одну паллету для задания.';
+        }
+        const seenOs = new Set();
+        for (const row of rows) {
+          const zone = String(row.destination.zone || '').trim().toUpperCase();
+          if (zone === 'MR' && toInt(row.destination.row) <= 0) {
+            return `Паллета ${row.pallet_code}: для зоны MR укажите ряд.`;
+          }
+          if (zone === 'OS') {
+            const rowNo = toInt(row.destination.row);
+            const sectionNo = toInt(row.destination.section);
+            const tierNo = toInt(row.destination.tier);
+            const cellNo = toInt(row.destination.cell);
+            if (!(rowNo && sectionNo && tierNo && cellNo)) {
+              return `Паллета ${row.pallet_code}: для зоны OS укажите линию, стеллаж, этаж и ячейку.`;
+            }
+            const key = `${rowNo}|${sectionNo}|${tierNo}|${cellNo}`;
+            if (seenOs.has(key)) {
+              return `Паллета ${row.pallet_code}: место OS уже выбрано для другой паллеты.`;
+            }
+            seenOs.add(key);
+          }
+        }
+        return '';
+      };
+
+      const applyLegacyButtonState = (button) => {
+        const zone = String(button.dataset.pickZone || '').trim().toUpperCase();
+        const row = toInt(button.dataset.pickRow);
+        const section = toInt(button.dataset.pickSection);
+        const tier = toInt(button.dataset.pickTier);
+        const cell = toInt(button.dataset.pickCell);
+        let key = '';
+        if (zone === 'OS') {
+          key = osKey(row, section, tier, cell);
+        } else if (zone === 'MR') {
+          key = mrKey(row);
+        } else if (zone === 'PR' || zone === 'OTG' || zone === 'OBR') {
+          key = zone;
+        }
+        if (key && queryReservedKeys.has(key)) {
+          button.classList.add('draft-reserved');
+          button.disabled = true;
+          button.title = 'Это место уже выбрано в текущем наборе.';
+          return;
+        }
+        if (
+          (zone === 'OS' && row === nearRow && section === nearSection && tier === nearTier && cell === nearCell)
+          || (zone === 'MR' && nearZone === 'MR' && row === nearRow)
+          || ((zone === 'PR' || zone === 'OTG' || zone === 'OBR') && zone === nearZone)
+        ) {
+          button.classList.add('near-suggested');
+        }
+      };
+
+      const refreshDraftPickerView = () => {
+        const activeRow = ensureActiveDraftPallet();
+        renderDraftList();
+        syncPickerSupportControls();
+        if (pickerSummaryCard) {
+          pickerSummaryCard.style.display = hasDraftRows() ? 'none' : '';
+        }
+        if (activeRow) {
+          const locationCode = draftDestinationCode(activeRow.destination);
+          if (locationCode) {
+            syncLocationLocator(locationCode, { scrollIntoView: true });
+          } else {
+            clearLocationMatch({ resetInput: true });
+          }
+        }
+        const occupiedByDraft = new Map();
+        getDraftRowsForPlacement().forEach((row) => {
+          const key = draftDestinationKey(row.destination);
+          if (key) {
+            occupiedByDraft.set(key, row);
+          }
+        });
+        pickButtons.forEach((button) => {
+          button.classList.remove('near-suggested', 'draft-suggested', 'active-draft', 'draft-reserved', 'draft-owned');
+          button.disabled = false;
+          delete button.dataset.assignedDraftPallet;
+          button.textContent = button.dataset.baseLabel || button.textContent;
+          const zone = String(button.dataset.pickZone || '').trim().toUpperCase();
+          const row = toInt(button.dataset.pickRow);
+          const section = toInt(button.dataset.pickSection);
+          const tier = toInt(button.dataset.pickTier);
+          const cell = toInt(button.dataset.pickCell);
+          let key = '';
+          if (zone === 'OS') {
+            key = osKey(row, section, tier, cell);
+          } else if (zone === 'MR') {
+            key = mrKey(row);
+          } else if (zone === 'PR' || zone === 'OTG' || zone === 'OBR') {
+            key = zone;
+          }
+          const assignedRow = key ? occupiedByDraft.get(key) : null;
+          if (assignedRow) {
+            button.dataset.assignedDraftPallet = assignedRow.pallet_code;
+            button.textContent = currentClientMarker || button.dataset.baseLabel || button.textContent;
+            if (assignedRow.pallet_code === activeDraftPalletCode) {
+              button.classList.add('active-draft');
+              button.title = `Активная паллета ${assignedRow.pallet_code}: ${draftDestinationLabel(assignedRow.destination)}`;
+            } else {
+              button.classList.add('draft-suggested');
+              button.title = `Предложено для паллеты ${assignedRow.pallet_code}. Нажмите, чтобы сделать её активной.`;
+            }
+            return;
+          }
+        });
+      };
+
+      if (pickerSupportZone) {
+        pickerSupportZone.addEventListener('change', () => {
+          if (!pickerSupportRowWrap) {
+            return;
+          }
+          if (pickerSupportZone.value === 'MR') {
+            pickerSupportRowWrap.classList.remove('is-hidden');
+          } else {
+            pickerSupportRowWrap.classList.add('is-hidden');
+          }
+        });
+      }
+
+      if (pickerSupportApply) {
+        pickerSupportApply.addEventListener('click', () => {
+          if (!pickerSupportZone) {
+            return;
+          }
+          const zone = String(pickerSupportZone.value || '').trim().toUpperCase();
+          if (!nonOsPickerZones.has(zone)) {
+            window.alert('Сначала выберите одну из зон PR, OTG, OBR или MR.');
+            return;
+          }
+          const payload = { zone };
+          if (zone === 'MR') {
+            const mrRow = toInt(pickerSupportRow?.value);
+            if (mrRow <= 0) {
+              window.alert('Для MR нужно выбрать ряд.');
+              return;
+            }
+            payload.row = mrRow;
+          }
+          if (inventoryPickerMode) {
+            toggleInventorySelection(payload, draftDestinationLabel(payload));
+            return;
+          }
+          const activeRow = ensureActiveDraftPallet();
+          if (!activeRow) {
+            return;
+          }
+          markDraftActivity();
+          clearDraftRowNotice(activeRow);
+          activeRow.destination = normalizeDraftDestination(payload);
+          writeDraftPickerState();
+          refreshDraftPickerView();
+          sendSelection(
+            activeRow.destination,
+            draftDestinationLabel(activeRow.destination),
+            { closeWindow: false, palletCode: activeRow.pallet_code },
+          );
+          void syncDraftReservations({ silent: false });
+        });
+      }
+
+      if (pickerBackButton) {
+        pickerBackButton.addEventListener('click', async () => {
+          if (inventoryPickerMode) {
+            window.location.assign(inventoryReturnUrl);
+            return;
+          }
+          await releaseDraftReservations();
+          notifyDraftReleased('stockmap-picker-closed');
+          window.close();
+        });
+      }
+
+      if (pickerSubmitButton) {
+        pickerSubmitButton.addEventListener('click', async () => {
+          const error = validateDraftPickerRows();
+          if (error) {
+            window.alert(error);
+            return;
+          }
+          const syncOk = await syncDraftReservations({ silent: false });
+          if (!syncOk) {
+            return;
+          }
+          sendPickerCommand(
+            'stockmap-picker-submit',
+            { rows: buildDraftRowsPayload(), draft_token: draftToken },
+            { closeWindow: true },
+          );
+        });
+      }
+
+      if (inventoryPickerSubmit) {
+        inventoryPickerSubmit.addEventListener('click', submitInventorySelections);
+      }
+
+      pickButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          if (button.disabled) {
+            return;
+          }
+          const assignedDraftPalletCode = String(button.dataset.assignedDraftPallet || '').trim();
+          if (hasDraftRows() && assignedDraftPalletCode && assignedDraftPalletCode !== activeDraftPalletCode) {
+            markDraftActivity();
+            activeDraftPalletCode = assignedDraftPalletCode;
+            writeDraftPickerState();
+            refreshDraftPickerView();
+            return;
+          }
+          const zone = String(button.dataset.pickZone || '').trim().toUpperCase();
+          const payload = { zone: zone || 'PR' };
+          const row = toInt(button.dataset.pickRow);
+          const section = toInt(button.dataset.pickSection);
+          const tier = toInt(button.dataset.pickTier);
+          const cell = toInt(button.dataset.pickCell);
+          if (row > 0) {
+            payload.row = row;
+          }
+          if (section > 0) {
+            payload.section = section;
+          }
+          if (tier > 0) {
+            payload.tier = tier;
+          }
+          if (cell > 0) {
+            payload.cell = cell;
+          }
+          if (inventoryPickerMode) {
+            toggleInventorySelection(payload, String(button.dataset.pickLabel || '').trim());
+            return;
+          }
+          if (hasDraftRows()) {
+            const activeRow = ensureActiveDraftPallet();
+            if (!activeRow) {
+              return;
+            }
+            markDraftActivity();
+            clearDraftRowNotice(activeRow);
+            activeRow.destination = normalizeDraftDestination(payload);
+            writeDraftPickerState();
+            refreshDraftPickerView();
+            sendSelection(
+              activeRow.destination,
+              draftDestinationLabel(activeRow.destination),
+              { closeWindow: false, palletCode: activeRow.pallet_code },
+            );
+            void syncDraftReservations({ silent: false });
+            return;
+          }
+          sendSelection(payload, String(button.dataset.pickLabel || '').trim());
+        });
+      });
+
+      if (inventoryPickerMode) {
+        if (pickerSupportCard) {
+          pickerSupportCard.style.display = '';
+        }
+        if (pickerSummaryCard) {
+          pickerSummaryCard.style.display = '';
+        }
+        pickButtons.forEach((button) => applyLegacyButtonState(button));
+        renderInventorySelections();
+      } else if (hasDraftRows()) {
+        writeDraftPickerState();
+        refreshDraftPickerView();
+        void syncDraftReservations({ silent: false });
+        ['pointerdown', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach((eventName) => {
+          window.addEventListener(eventName, markDraftActivity, { passive: true });
+        });
+        window.setInterval(() => {
+          if (!draftToken || draftSessionReleased) {
+            return;
+          }
+          const now = Date.now();
+          if (now - lastDraftActivityAt >= pickerSessionTimeoutMs) {
+            void expireDraftSession();
+            return;
+          }
+          if (now - lastDraftHeartbeatAt >= pickerHeartbeatMs) {
+            void heartbeatDraftReservations();
+          }
+        }, 15000);
+        window.addEventListener('beforeunload', () => {
+          if (draftToken && !draftSessionReleased) {
+            void releaseDraftReservations({ keepalive: true });
+          }
+        });
+      } else {
+        if (pickerSupportCard) {
+          pickerSupportCard.style.display = 'none';
+        }
+        if (pickerSummaryCard) {
+          pickerSummaryCard.style.display = '';
+        }
+        pickButtons.forEach((button) => applyLegacyButtonState(button));
+      }
+    })();
+  </script>
+</body>
+</html>

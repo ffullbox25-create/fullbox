@@ -1,0 +1,56 @@
+{% extends "todo/warehouse_task_base.html" %}
+{% block title %}Внутренние задачи склада{% endblock %}
+{% block extra_head %}
+<style>
+  .filters{display:grid;grid-template-columns:minmax(220px,1fr) auto;gap:10px;padding:14px;margin-bottom:14px}.status-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+  .status-tab{display:inline-flex;gap:7px;align-items:center;min-height:37px;padding:0 11px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:12px;font-weight:800}
+  .status-tab.active{background:var(--accent-soft);border-color:rgba(248,144,0,.45)}.status-tab span{color:var(--muted)}
+  .table-wrap{overflow:auto}.tasks-table{width:100%;min-width:970px;border-collapse:collapse}.tasks-table th,.tasks-table td{padding:11px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;font-size:12px}
+  .tasks-table th{background:var(--surface-2);color:var(--muted);font-size:11px}.tasks-table tr:last-child td{border-bottom:0}.task-title{display:block;font-size:13px;font-weight:900;margin-bottom:4px}.task-desc{max-width:390px;color:var(--muted);line-height:1.35}
+  .people{display:grid;gap:3px}.people small{color:var(--muted)}.check-progress{display:grid;grid-template-columns:78px auto;gap:8px;align-items:center;min-width:145px}
+  .deadline.overdue{color:var(--danger);font-weight:900}.empty{padding:42px 20px;text-align:center;color:var(--muted)}
+  @media(max-width:700px){.filters{grid-template-columns:1fr}.filters .button{width:100%}}
+</style>
+{% endblock %}
+{% block content %}
+  <header class="top">
+    <div><h1>Внутренние задачи склада</h1><p>Поручения менеджеров с ответственными, сроками, чек-листами и обсуждением.</p></div>
+    {% if can_create_internal_task %}<div class="actions"><a class="button primary" href="{% url 'todo:create' %}?kind=warehouse_internal&next={{ request.get_full_path|urlencode }}">Создать задачу</a></div>{% endif %}
+  </header>
+
+  <div class="status-tabs" role="navigation" aria-label="Статусы задач">
+    <a class="status-tab{% if selected_status == 'active' %} active{% endif %}" href="?kind=warehouse_internal&status=active">Активные <span>{{ status_counts.active }}</span></a>
+    <a class="status-tab{% if selected_status == 'backlog' %} active{% endif %}" href="?kind=warehouse_internal&status=backlog">Новые <span>{{ status_counts.backlog }}</span></a>
+    <a class="status-tab{% if selected_status == 'in_progress' %} active{% endif %}" href="?kind=warehouse_internal&status=in_progress">В работе <span>{{ status_counts.in_progress }}</span></a>
+    <a class="status-tab{% if selected_status == 'blocked' %} active{% endif %}" href="?kind=warehouse_internal&status=blocked">Приостановлены <span>{{ status_counts.blocked }}</span></a>
+    <a class="status-tab{% if selected_status == 'done' %} active{% endif %}" href="?kind=warehouse_internal&status=done">Выполнены <span>{{ status_counts.done }}</span></a>
+  </div>
+
+  <form class="panel filters" method="get">
+    <input type="hidden" name="kind" value="warehouse_internal"><input type="hidden" name="status" value="{{ selected_status }}">
+    <input class="search-input" type="search" name="q" value="{{ search_query }}" placeholder="Задача или сотрудник">
+    <button class="button primary" type="submit">Найти</button>
+  </form>
+
+  <section class="panel">
+    <div class="table-wrap">
+      {% if tasks %}
+      <table class="tasks-table">
+        <thead><tr><th>Задача</th><th>Ответственные</th><th>Срок</th><th>Чек-лист</th><th>Статус</th><th></th></tr></thead>
+        <tbody>
+          {% for task in tasks %}
+          <tr{% if task.is_unread_for_employee %} class="task-row-attention"{% endif %}>
+            <td><a class="task-title" href="{{ task.open_url }}">{{ task.title }}</a>{% if task.is_unread_for_employee %}<span class="new-badge">Новая</span>{% endif %}{% if task.description %}<div class="task-desc">{{ task.description|truncatechars:150 }}</div>{% endif %}</td>
+            <td><div class="people"><strong>{{ task.assigned_to.full_name|default:"Не назначен" }}</strong>{% if task.participants.all %}<small>Соисполнители: {% for person in task.participants.all %}{{ person.full_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</small>{% endif %}</div></td>
+            <td class="deadline{% if task.is_overdue %} overdue{% endif %}">{{ task.due_date|date:"d.m.Y H:i" }}{% if task.is_overdue %}<br><small>Срок прошёл</small>{% endif %}</td>
+            <td><div class="check-progress"><div class="progress"><span style="width:{{ task.checklist_percent }}%"></span></div><strong>{{ task.checklist_completed }}/{{ task.checklist_total }}</strong></div></td>
+            <td><span class="badge {{ task.status }}">{{ task.workflow_status_label }}</span>{% if task.priority == 'urgent' %}<br><span class="badge urgent" style="margin-top:5px">Срочная</span>{% endif %}</td>
+            <td><a class="button" href="{{ task.open_url }}">Открыть</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="empty">По выбранному фильтру задач нет.</div>{% endif %}
+    </div>
+  </section>
+{% endblock %}

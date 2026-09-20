@@ -1,0 +1,18 @@
+{% extends "teammanager/_base.html" %}
+{% block title %}{{ page_title }} — Биллинг{% endblock %}
+{% block content %}
+<div>
+  <h1 class="page-title" style="margin:0;font-size:28px;font-weight:900">{{ page_title }}</h1>
+  <div class="page-sub" style="color:var(--muted);margin-top:4px">Раздел биллинга менеджера</div>
+</div>
+{% include "billing/_billing_nav.html" %}
+<div class="card" style="padding:18px;display:grid;gap:12px">
+  <div style="background:var(--sun-soft);border:1px solid rgba(242,183,71,.45);border-radius:12px;padding:12px 14px;color:#9a3412;font-weight:700">Раздел готовится</div>
+  <p style="margin:0;font-weight:600;line-height:1.5">{{ page_description }}</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <a class="btn primary" href="/team-manager/billing/clients/">Клиенты</a>
+    <a class="btn" href="/team-manager/billing/charges/">Начисления</a>
+    <a class="btn ghost" href="/team-manager/billing/">← Обзор</a>
+  </div>
+</div>
+{% endblock %}

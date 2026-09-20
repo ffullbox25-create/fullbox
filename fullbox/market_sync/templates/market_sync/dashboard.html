@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Синхронизация маркетплейсов | FULLBOX</title>
+  <link href="/static/vendor/space-grotesk.css" rel="stylesheet">
+  <style>
+    :root { --bg:#0b0b0f; --card:#14141f; --gold:#d6a300; --gold-soft:#e7c34a; --text:#e8e8ed; --muted:#9aa0b3; --stroke: rgba(255,255,255,0.08); }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:'Space Grotesk',system-ui,sans-serif; }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 1680px; margin: 0 auto; padding: 28px 18px 64px; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    h1 { margin:0; letter-spacing:-0.4px; }
+    .muted { color: var(--muted); }
+    .btn { padding:10px 14px; border-radius:10px; border:1px solid var(--stroke); background:rgba(255,255,255,0.02); color:var(--text); font-weight:600; }
+    .btn:hover { border-color: var(--gold); box-shadow:0 10px 25px rgba(214,163,0,0.25); }
+    .btn.primary { background: linear-gradient(120deg,var(--gold),var(--gold-soft)); color: var(--bg); border-color: transparent; }
+    .btn.disabled { opacity:0.5; cursor:not-allowed; pointer-events:none; }
+    .card { background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:16px; box-shadow:0 18px 45px rgba(0,0,0,0.35); display:grid; gap:12px; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:12px; margin-top:16px; }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid var(--stroke); background:rgba(214,163,0,0.12); color:var(--gold); font-weight:600; }
+    .market { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .market-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .market-status { display:flex; align-items:center; gap:6px; }
+    .status { padding:4px 8px; border-radius:999px; border:1px solid var(--stroke); color:var(--muted); font-size:12px; }
+    .status-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+    .status-dot.red { background:#e25555; box-shadow:0 0 6px rgba(226,85,85,0.6); }
+    .status-dot.yellow { background:#e2c355; box-shadow:0 0 6px rgba(226,195,85,0.6); }
+    .status-dot.green { background:#4ac97d; box-shadow:0 0 6px rgba(74,201,125,0.6); }
+    .btn.small { padding:6px 10px; border-radius:8px; font-size:12px; }
+    .client-picker {
+      margin-top: 16px;
+      display: grid;
+      gap: 10px;
+      grid-template-columns: minmax(240px, 420px) auto;
+      align-items: end;
+    }
+    .field-label {
+      display: grid;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .field-input {
+      min-height: 44px;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.03);
+      color: var(--text);
+      padding: 10px 14px;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .sync-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+      flex-wrap: wrap;
+    }
+    .sync-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .sync-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.18);
+      display: inline-block;
+    }
+    .sync-dot.running { background: #e2c355; box-shadow: 0 0 6px rgba(226,195,85,0.6); }
+    .sync-dot.ok { background: #4ac97d; box-shadow: 0 0 6px rgba(74,201,125,0.6); }
+    .sync-dot.error { background: #e25555; box-shadow: 0 0 6px rgba(226,85,85,0.6); }
+    .sync-progress {
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+    }
+    .sync-progress-bar {
+      width: 0;
+      height: 100%;
+      background: linear-gradient(120deg,var(--gold),var(--gold-soft));
+      transition: width 0.2s ease;
+    }
+    .sync-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .sync-block {
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(255,255,255,0.02);
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+    .sync-title {
+      font-size: 13px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .sync-list,
+    .sync-results,
+    .sync-errors {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 6px;
+      color: var(--text);
+      font-size: 14px;
+    }
+    .sync-results,
+    .sync-errors {
+      padding-left: 0;
+    }
+    .sync-errors {
+      color: #ffb0b0;
+    }
+    @media (max-width: 760px) {
+      .client-picker {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="muted">FULLBOX · {% include "partials/current_user.html" %}</div>
+        <h1>Синхронизация маркетплейсов</h1>
+        <div class="muted">Настройка и запуск синхронизаций по выбранному клиенту</div>
+        {% if selected_client %}
+          <div class="pill" style="margin-top:8px;">Клиент: {{ selected_client.agn_name|default:"Без названия" }}{% if selected_client.inn %} · ИНН {{ selected_client.inn }}{% endif %}</div>
+        {% endif %}
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <a class="btn" href="/client/dashboard/lk/{% if selected_client %}?client={{ selected_client.id }}{% endif %}">В кабинет клиента</a>
+        <a class="btn" href="/logout/">Выход</a>
+      </div>
+    </header>
+
+    <form method="get" class="card client-picker">
+      <label class="field-label" for="market-sync-client">
+        <span>Клиент для полной синхронизации каталога</span>
+        <select class="field-input" id="market-sync-client" name="client">
+          <option value="">Выберите клиента</option>
+          {% for agency in agency_options %}
+            <option value="{{ agency.id }}"{% if selected_client_id == agency.id|stringformat:'s' %} selected{% endif %}>
+              {{ agency.agn_name|default:agency.fio_agn|default:"Клиент" }}{% if agency.inn %} · ИНН {{ agency.inn }}{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="btn primary" type="submit">Открыть окно синхронизации</button>
+    </form>
+
+    <div class="grid">
+      <div class="card">
+        {% for market in marketplaces %}
+          <div class="market">
+            <strong>{{ market.name }}</strong>
+            <div class="market-actions">
+              <span class="market-status"><span class="status-dot {{ market.status_class }}"></span><span class="status">{{ market.status_text }}</span></span>
+              {% if market.settings_url %}
+                <a class="btn small" href="{{ market.settings_url }}">Настроить</a>
+              {% else %}
+                <span class="btn small disabled">Скоро</span>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+        <div class="muted">Синхронизация запускается после привязки ключей маркетплейса.</div>
+        <button id="sync-run-selected" class="btn primary" type="button" {% if not selected_client %}disabled{% endif %}>Синхронизировать клиента</button>
+      </div>
+      <div class="card">
+        <div class="sync-head">
+          <div>
+            <strong>Массовая синхронизация</strong>
+            <div class="muted">Запускает уже существующие процедуры WB и Ozon по всем клиентам, у которых настроены ключи.</div>
+          </div>
+          <div class="sync-status">
+            <span class="sync-dot" id="sync-global-dot"></span>
+            <span id="sync-global-status">Не запускалось</span>
+            <span class="muted" id="sync-global-time">—</span>
+          </div>
+        </div>
+        <div class="sync-progress" aria-label="Прогресс массовой синхронизации">
+          <div class="sync-progress-bar" id="sync-global-progress"></div>
+        </div>
+        <div class="sync-grid">
+          <div class="sync-block">
+            <div class="sync-title">Сводка</div>
+            <div class="sync-results" id="sync-global-summary">
+              <div>Клиентов: —</div>
+              <div>Обработано SKU: —</div>
+              <div>Создано: —</div>
+              <div>Обновлено: —</div>
+            </div>
+          </div>
+          <div class="sync-block">
+            <div class="sync-title">Ошибки</div>
+            <div class="sync-errors" id="sync-global-errors">Ошибок нет</div>
+          </div>
+        </div>
+        <button id="sync-run-global" class="btn primary" type="button">Синхронизировать всех</button>
+      </div>
+    </div>
+
+    <div class="card sync-card" style="margin-top:16px;" data-sync-market="WB" data-sync-label="Wildberries" data-sync-url="/market-sync/wb/run/" data-sync-client="{{ selected_client.id|default:'' }}" data-sync-configured="{% if wb_configured %}1{% else %}0{% endif %}">
+      <div class="sync-head">
+        <div>
+          <strong>Процесс синхронизации Wildberries</strong>
+          <div class="muted">Запускается по нажатию и показывает подробную информацию по этапам.</div>
+        </div>
+        <div class="sync-status">
+          <span class="sync-dot" data-sync-dot></span>
+          <span data-sync-status>Не запущено</span>
+          <span class="muted" data-sync-time>—</span>
+        </div>
+      </div>
+      <div class="sync-progress" aria-label="Прогресс синхронизации">
+        <div class="sync-progress-bar" data-sync-progress></div>
+      </div>
+      <div class="sync-grid">
+        <div class="sync-block">
+          <div class="sync-title">Этапы</div>
+          <ul class="sync-list" data-sync-steps>
+            <li>Ожидание запуска</li>
+          </ul>
+        </div>
+        <div class="sync-block">
+          <div class="sync-title">Результаты</div>
+          <div class="sync-results" data-sync-results>
+            <div>SKU обработано: —</div>
+            <div>Обновлено: —</div>
+            <div>Создано: —</div>
+            <div>Штрихкодов: —</div>
+          </div>
+        </div>
+        <div class="sync-block">
+          <div class="sync-title">Ошибки</div>
+          <div class="sync-errors" data-sync-errors>Нет ошибок</div>
+        </div>
+        <div class="sync-block">
+          <div class="sync-title">Отчет</div>
+          <div class="sync-results" data-sync-report>
+            {% if wb_report %}
+              <div>Последний: {{ wb_report.finished_at|date:"d.m.Y H:i" }}</div>
+              <div>Статус: {% if wb_report.status == "ok" %}Успешно{% else %}Ошибка{% endif %}</div>
+              <div>SKU: {{ wb_report.processed }} (созд: {{ wb_report.created }}, обновл: {{ wb_report.updated }})</div>
+              <div>ШК: {{ wb_report.barcodes_created }}</div>
+              <div>Ошибок: {{ wb_report.errors|length }}</div>
+            {% else %}
+              <div>Отчетов нет</div>
+            {% endif %}
+          </div>
+          <a class="btn small{% if not wb_report %} disabled{% endif %}" data-sync-report-link href="{% if wb_report %}/market-sync/report/{{ wb_report.id }}/{% else %}#{% endif %}" target="_blank">Скачать JSON</a>
+        </div>
+      </div>
+      <button class="btn primary" type="button" data-sync-run {% if not selected_client or not wb_configured %}disabled{% endif %}>Запустить синхронизацию</button>
+    </div>
+
+    <div class="card sync-card" style="margin-top:16px;" data-sync-market="OZON" data-sync-label="Ozon" data-sync-url="/market-sync/ozon/run/" data-sync-client="{{ selected_client.id|default:'' }}" data-sync-configured="{% if ozon_configured %}1{% else %}0{% endif %}">
+      <div class="sync-head">
+        <div>
+          <strong>Процесс синхронизации Ozon</strong>
+          <div class="muted">Запускается по нажатию и показывает подробную информацию по этапам.</div>
+        </div>
+        <div class="sync-status">
+          <span class="sync-dot" data-sync-dot></span>
+          <span data-sync-status>Не запущено</span>
+          <span class="muted" data-sync-time>—</span>
+        </div>
+      </div>
+      <div class="sync-progress" aria-label="Прогресс синхронизации">
+        <div class="sync-progress-bar" data-sync-progress></div>
+      </div>
+      <div class="sync-grid">
+        <div class="sync-block">
+          <div class="sync-title">Этапы</div>
+          <ul class="sync-list" data-sync-steps>
+            <li>Ожидание запуска</li>
+          </ul>
+        </div>
+        <div class="sync-block">
+          <div class="sync-title">Результаты</div>
+          <div class="sync-results" data-sync-results>
+            <div>SKU обработано: —</div>
+            <div>Обновлено: —</div>
+            <div>Создано: —</div>
+            <div>Штрихкодов: —</div>
+          </div>
+        </div>
+        <div class="sync-block">
+          <div class="sync-title">Ошибки</div>
+          <div class="sync-errors" data-sync-errors>Нет ошибок</div>
+        </div>
+        <div class="sync-block">
+          <div class="sync-title">Отчет</div>
+          <div class="sync-results" data-sync-report>
+            {% if ozon_report %}
+              <div>Последний: {{ ozon_report.finished_at|date:"d.m.Y H:i" }}</div>
+              <div>Статус: {% if ozon_report.status == "ok" %}Успешно{% else %}Ошибка{% endif %}</div>
+              <div>SKU: {{ ozon_report.processed }} (созд: {{ ozon_report.created }}, обновл: {{ ozon_report.updated }})</div>
+              <div>ШК: {{ ozon_report.barcodes_created }}</div>
+              <div>Ошибок: {{ ozon_report.errors|length }}</div>
+            {% else %}
+              <div>Отчетов нет</div>
+            {% endif %}
+          </div>
+          <a class="btn small{% if not ozon_report %} disabled{% endif %}" data-sync-report-link href="{% if ozon_report %}/market-sync/report/{{ ozon_report.id }}/{% else %}#{% endif %}" target="_blank">Скачать JSON</a>
+        </div>
+      </div>
+      <button class="btn primary" type="button" data-sync-run {% if not selected_client or not ozon_configured %}disabled{% endif %}>Запустить синхронизацию</button>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <strong>Информационный блок</strong>
+      <p class="muted">Во время синхронизации маркетплейсов:</p>
+      <ul class="sync-list">
+        <li>проверяется доступ по токену/Client ID выбранного маркетплейса;</li>
+        <li>запрашиваются карточки с пагинацией (WB/Ozon);</li>
+        <li>импортируются поля: названия, бренд, состав, предмет, пол, сезон, страна, размеры, ВГХ, веса и маркеры;</li>
+        <li>добавляются фото и привязки внешних ID, создаются новые штрихкоды без дублирования;</li>
+        <li>результаты и ошибки сохраняются в отчете и отображаются на странице.</li>
+      </ul>
+      <p class="muted">После завершения нажми кнопку ещё раз, чтобы обновить данные или отследить ошибки.</p>
+    </div>
+  </div>
+</body>
+  <script>
+  (function() {
+    const runSelectedBtn = document.getElementById('sync-run-selected');
+    const runGlobalBtn = document.getElementById('sync-run-global');
+    const globalStatusEl = document.getElementById('sync-global-status');
+    const globalTimeEl = document.getElementById('sync-global-time');
+    const globalDotEl = document.getElementById('sync-global-dot');
+    const globalProgressEl = document.getElementById('sync-global-progress');
+    const globalSummaryEl = document.getElementById('sync-global-summary');
+    const globalErrorsEl = document.getElementById('sync-global-errors');
+    const cards = Array.from(document.querySelectorAll('.sync-card[data-sync-market]'));
+    if (!cards.length) {
+      if (runSelectedBtn) {
+        runSelectedBtn.disabled = true;
+      }
+    }
+
+    function getCookie(name) {
+      const matches = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+      return matches ? decodeURIComponent(matches[2]) : '';
+    }
+
+    function nowLabel() {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${pad(now.getDate())}.${pad(now.getMonth() + 1)}.${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    }
+
+    function initCard(card) {
+      const runBtn = card.querySelector('[data-sync-run]');
+      const statusEl = card.querySelector('[data-sync-status]');
+      const timeEl = card.querySelector('[data-sync-time]');
+      const dotEl = card.querySelector('[data-sync-dot]');
+      const progressEl = card.querySelector('[data-sync-progress]');
+      const stepsEl = card.querySelector('[data-sync-steps]');
+      const resultsEl = card.querySelector('[data-sync-results]');
+      const errorsEl = card.querySelector('[data-sync-errors]');
+      const reportEl = card.querySelector('[data-sync-report]');
+      const reportLink = card.querySelector('[data-sync-report-link]');
+      const clientId = card.dataset.syncClient || '';
+      const configured = card.dataset.syncConfigured === '1';
+      const syncUrl = card.dataset.syncUrl || '';
+      const label = card.dataset.syncLabel || 'маркетплейса';
+      const isReady = Boolean(clientId && configured && syncUrl);
+
+      function setStatus(text, state) {
+        if (statusEl) statusEl.textContent = text;
+        if (dotEl) {
+          dotEl.className = 'sync-dot';
+          if (state) dotEl.classList.add(state);
+        }
+      }
+
+      function setTime() {
+        if (!timeEl) return;
+        timeEl.textContent = nowLabel();
+      }
+
+      function setSteps(items) {
+        if (!stepsEl) return;
+        stepsEl.innerHTML = items.map((item) => `<li>${item}</li>`).join('');
+      }
+
+      function setProgress(value) {
+        if (progressEl) {
+          progressEl.style.width = `${value}%`;
+        }
+      }
+
+      function updateResults(data) {
+        if (!resultsEl) return;
+        resultsEl.innerHTML = `
+          <div>SKU обработано: ${data.processed ?? 0}</div>
+          <div>Обновлено: ${data.updated ?? 0}</div>
+          <div>Создано: ${data.created ?? 0}</div>
+          <div>Штрихкодов: ${data.barcodes_created ?? 0}</div>
+        `;
+      }
+
+      function setErrors(items) {
+        if (!errorsEl) return;
+        if (!items || !items.length) {
+          errorsEl.textContent = 'Ошибок нет';
+          return;
+        }
+        errorsEl.innerHTML = items.map((item) => `<div>${item}</div>`).join('');
+      }
+
+      function setReport(data) {
+        if (!reportEl || !data) return;
+        if (data.report_id) {
+          const timeText = timeEl?.textContent || '—';
+          const statusLabel = data.ok ? 'Успешно' : 'Ошибка';
+          reportEl.innerHTML = `
+            <div>Последний: ${timeText}</div>
+            <div>Статус: ${statusLabel}</div>
+            <div>SKU: ${data.processed ?? 0} (созд: ${data.created ?? 0}, обновл: ${data.updated ?? 0})</div>
+            <div>ШК: ${data.barcodes_created ?? 0}</div>
+            <div>Ошибок: ${(data.errors || []).length}</div>
+          `;
+          if (reportLink && data.report_url) {
+            reportLink.href = data.report_url;
+            reportLink.classList.remove('disabled');
+          }
+        }
+      }
+
+      async function runSync() {
+        if (!isReady) return;
+        setStatus('Проверка доступа', 'running');
+        setTime();
+        setSteps(['Проверка доступа', `Запрос данных ${label}`, 'Обновление SKU', 'Формирование отчёта']);
+        setErrors([]);
+        updateResults({});
+        setProgress(5);
+
+        let progress = 5;
+        const timer = setInterval(() => {
+          progress = Math.min(progress + 7, 94);
+          setProgress(progress);
+        }, 300);
+
+        try {
+          const response = await fetch(syncUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({ client: clientId }),
+          });
+          const data = await response.json().catch(() => ({}));
+          clearInterval(timer);
+          setProgress(100);
+          updateResults(data);
+          if (!response.ok || !data.ok) {
+            setStatus('Синхронизация завершена с ошибкой', 'error');
+            setErrors(data.errors || ['Неизвестная ошибка.']);
+            setReport(data);
+            return;
+          }
+          setStatus('Синхронизация завершена', 'ok');
+          setErrors([]);
+          setSteps(['Проверка доступа', `Запрос данных ${label}`, 'Обновление SKU', 'Сводка результатов']);
+          setReport(data);
+        } catch (error) {
+          clearInterval(timer);
+          setProgress(100);
+          setStatus('Синхронизация не удалась', 'error');
+          setErrors(['Ошибка сети при запуске синхронизации.']);
+        }
+      }
+
+      if (runBtn) {
+        if (!isReady) {
+          runBtn.disabled = true;
+          runBtn.classList.add('disabled');
+          runBtn.title = !clientId ? 'Выберите клиента' : `Синхронизация ${label} не настроена`;
+        }
+        runBtn.addEventListener('click', runSync);
+      }
+
+      return { runSync, isReady };
+    }
+
+    const runners = cards.map(initCard).filter(Boolean);
+    if (runSelectedBtn) {
+      const readyCount = runners.filter((item) => item.isReady).length;
+      if (!readyCount) {
+        runSelectedBtn.disabled = true;
+        runSelectedBtn.title = 'Нет настроенных маркетплейсов для синхронизации';
+      }
+      runSelectedBtn.addEventListener('click', () => {
+        runners.forEach((item) => {
+          if (item.isReady) {
+            item.runSync();
+          }
+        });
+      });
+    }
+
+    function setGlobalStatus(text, state) {
+      if (globalStatusEl) {
+        globalStatusEl.textContent = text;
+      }
+      if (globalDotEl) {
+        globalDotEl.className = 'sync-dot';
+        if (state) {
+          globalDotEl.classList.add(state);
+        }
+      }
+    }
+
+    function setGlobalProgress(value) {
+      if (globalProgressEl) {
+        globalProgressEl.style.width = `${value}%`;
+      }
+    }
+
+    function setGlobalSummary(data) {
+      if (!globalSummaryEl) {
+        return;
+      }
+      globalSummaryEl.innerHTML = `
+        <div>Клиентов: ${data.clients_total ?? 0}</div>
+        <div>Клиентов обработано: ${data.clients_processed ?? 0}</div>
+        <div>Обработано SKU: ${data.processed ?? 0}</div>
+        <div>Создано: ${data.created ?? 0}</div>
+        <div>Обновлено: ${data.updated ?? 0}</div>
+        <div>Штрихкодов: ${data.barcodes_created ?? 0}</div>
+      `;
+    }
+
+    function setGlobalErrors(errors) {
+      if (!globalErrorsEl) {
+        return;
+      }
+      if (!errors || !errors.length) {
+        globalErrorsEl.textContent = 'Ошибок нет';
+        return;
+      }
+      globalErrorsEl.innerHTML = errors.map((item) => `<div>${item}</div>`).join('');
+    }
+
+    async function runGlobalSync() {
+      if (!runGlobalBtn) {
+        return;
+      }
+      runGlobalBtn.disabled = true;
+      setGlobalStatus('Массовая синхронизация запущена', 'running');
+      if (globalTimeEl) {
+        globalTimeEl.textContent = nowLabel();
+      }
+      setGlobalProgress(6);
+      setGlobalSummary({});
+      setGlobalErrors([]);
+      let progress = 6;
+      const timer = setInterval(() => {
+        progress = Math.min(progress + 4, 92);
+        setGlobalProgress(progress);
+      }, 500);
+      try {
+        const response = await fetch('/market-sync/run-all/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+          },
+          body: JSON.stringify({}),
+        });
+        const data = await response.json().catch(() => ({}));
+        clearInterval(timer);
+        setGlobalProgress(100);
+        setGlobalSummary(data || {});
+        setGlobalErrors((data && data.errors) || []);
+        if (!response.ok || !data.ok) {
+          setGlobalStatus('Массовая синхронизация завершена с ошибками', 'error');
+        } else {
+          setGlobalStatus('Массовая синхронизация завершена', 'ok');
+        }
+      } catch (error) {
+        clearInterval(timer);
+        setGlobalProgress(100);
+        setGlobalStatus('Не удалось запустить массовую синхронизацию', 'error');
+        setGlobalErrors(['Ошибка сети при запуске массовой синхронизации.']);
+      } finally {
+        runGlobalBtn.disabled = false;
+      }
+    }
+
+    if (runGlobalBtn) {
+      runGlobalBtn.addEventListener('click', runGlobalSync);
+    }
+  })();
+</script>
+</html>
+

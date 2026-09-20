@@ -1,0 +1,606 @@
+{% extends "sklad/_kb_shell.html" %}
+{% block title %}Проверка инвентаризации короба{% endblock %}
+
+{% block extra_css %}
+.box-check-page { display:grid; gap:14px; }
+.box-check-heading h1 { margin:0; font-size:28px; font-weight:900; }
+.box-check-heading p { margin:5px 0 0; color:var(--muted); font-size:13px; }
+.box-check-note {
+  padding:13px 15px; border:1px solid #ead28d; border-radius:14px;
+  background:#fff8e5; color:#684700; line-height:1.45;
+}
+.box-check-note strong { display:block; margin-bottom:3px; color:var(--ink); }
+.box-check-layout { display:grid; grid-template-columns:minmax(300px,.72fr) minmax(0,1.28fr); gap:14px; }
+.box-check-card { min-width:0; padding:16px; border:1px solid var(--stroke); border-radius:18px; background:var(--surface-2); }
+.box-check-card h2 { margin:0 0 5px; font-size:19px; }
+.box-check-card > p { margin:0 0 13px; color:var(--muted); font-size:13px; }
+.box-check-form,.box-check-field { display:grid; gap:9px; }
+.box-check-field { gap:5px; }
+.box-check-field label { color:var(--muted); font-size:12px; font-weight:800; }
+.box-check-field input {
+  width:100%; min-height:54px; padding:10px 12px; border:1px solid var(--stroke);
+  border-radius:13px; background:#fff; color:var(--ink); font:750 17px "Manrope",sans-serif;
+}
+.box-check-field input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(248,144,0,.16); outline:0; }
+.box-check-field input:disabled { color:#858585; background:#eeeeeb; }
+.box-check-current {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  min-height:48px; padding:9px 11px; border-radius:12px; background:rgba(248,144,0,.13);
+}
+.box-check-current span { color:var(--muted); font-size:12px; }
+.box-check-current strong { overflow-wrap:anywhere; }
+.box-check-status { min-height:48px; padding:11px 12px; border:1px solid var(--stroke); border-radius:12px; font-weight:750; }
+.box-check-status.is-success { color:#17633a; border-color:#b9ddc8; background:#ecf8f1; }
+.box-check-status.is-error { color:#a2251b; border-color:#efb8b3; background:#fff0ee; }
+.box-check-status.is-info { color:#684700; border-color:#ead28d; background:#fff8e5; }
+.box-check-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.box-check-button {
+  min-height:42px; padding:9px 13px; border:1px solid var(--stroke); border-radius:12px;
+  background:#fff; color:var(--ink); font:800 12px "Manrope",sans-serif; cursor:pointer;
+}
+.box-check-button.primary { border-color:transparent; background:linear-gradient(135deg,var(--accent),var(--sun)); }
+.box-check-button.danger { color:#a2251b; border-color:#efb8b3; background:#fff0ee; }
+.box-check-button:disabled { opacity:.45; cursor:not-allowed; }
+.box-check-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1px; margin-bottom:12px; border:1px solid var(--stroke); background:var(--stroke); }
+.box-check-metrics > div { padding:10px; background:#fff; }
+.box-check-metrics span { display:block; color:var(--muted); font-size:11px; }
+.box-check-metrics strong { display:block; margin-top:3px; font-size:20px; }
+.box-check-table-wrap { max-height:520px; margin-top:12px; overflow:auto; border:1px solid var(--stroke); border-radius:13px; background:#fff; }
+.box-check-table { width:100%; border-collapse:collapse; font-size:12px; }
+.box-check-table th,.box-check-table td { padding:9px 8px; border-bottom:1px solid var(--stroke); text-align:left; vertical-align:top; }
+.box-check-table th { position:sticky; top:0; z-index:1; color:var(--muted); background:#f7f7f5; font-size:10px; text-transform:uppercase; }
+.box-check-table td { overflow-wrap:anywhere; }
+.box-check-result { font-weight:850; }
+.box-check-result.is-success { color:#17633a; }
+.box-check-result.is-error { color:#a2251b; }
+.box-check-remove { min-height:32px; padding:4px 7px; border:1px solid var(--stroke); border-radius:8px; background:#fff; cursor:pointer; }
+.box-check-empty { padding:24px; color:var(--muted); text-align:center; }
+.box-check-privacy { margin:9px 0 0; color:var(--muted); font-size:11px; }
+@media (max-width:920px) { .box-check-layout { grid-template-columns:minmax(0,1fr); } }
+@media (max-width:620px) {
+  .box-check-card { padding:11px; }
+  .box-check-metrics { grid-template-columns:minmax(0,1fr); }
+  .box-check-button { width:100%; }
+  .box-check-table { min-width:790px; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="box-check-page" data-box-check-client-only>
+  <header class="box-check-heading">
+    <h1>Проверка инвентаризации короба</h1>
+    <p>Общий склад · локальная сверка штрихкода товара и Честного знака</p>
+  </header>
+
+  <aside class="box-check-note" role="note">
+    <strong>Изолированная проверка — без записи в складской учёт</strong>
+    Сканирование не меняет состав короба, остатки, резервы, КИЗы, инвентаризации и движения.
+    Данные хранятся только в памяти открытой страницы и исчезнут после её обновления или закрытия.
+  </aside>
+
+  <div class="box-check-layout">
+    <section class="box-check-card" aria-labelledby="box-check-scan-title">
+      <h2 id="box-check-scan-title">Проверить короб</h2>
+      <p>По очереди отсканируйте короб, штрихкод товара и Data Matrix Честного знака.</p>
+
+      <form class="box-check-form" method="post" action="{% url 'sklad:warehouse_box_check' %}" data-box-check-form novalidate>
+        {% csrf_token %}
+        <div class="box-check-current">
+          <span>Текущий короб</span>
+          <strong data-box-check-current-box>Не отсканирован</strong>
+        </div>
+
+        <div class="box-check-field">
+          <label for="box-check-box">1. Штрихкод короба</label>
+          <input id="box-check-box" type="text" placeholder="Отсканируйте короб" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-kind="box" autofocus>
+        </div>
+        <div class="box-check-field">
+          <label for="box-check-product">2. Штрихкод товара</label>
+          <input id="box-check-product" type="text" placeholder="Сначала отсканируйте короб" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-kind="product" disabled>
+        </div>
+        <div class="box-check-field">
+          <label for="box-check-marking">3. Data Matrix Честного знака</label>
+          <input id="box-check-marking" type="text" placeholder="Сначала отсканируйте ШК товара" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-kind="marking" disabled>
+        </div>
+
+        <button type="submit" hidden tabindex="-1">Обработать скан</button>
+        <div class="box-check-status is-info" role="status" aria-live="polite" data-box-check-status>Ожидается штрихкод короба.</div>
+        <div class="box-check-actions">
+          <button class="box-check-button" type="button" data-box-check-next-box disabled>Сменить короб</button>
+          <button class="box-check-button" type="button" data-box-check-reset-product disabled>Сбросить пару ШК + КИЗ</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="box-check-card" aria-labelledby="box-check-result-title">
+      <h2 id="box-check-result-title">Результат проверки</h2>
+      <p>Выгрузка содержит только короба и коды, отсканированные в этой открытой проверке.</p>
+      <div class="box-check-metrics" aria-label="Итоги локальной проверки">
+        <div><span>Проверено</span><strong data-box-check-total>0</strong></div>
+        <div><span>Совпало</span><strong data-box-check-matched>0</strong></div>
+        <div><span>Расхождения</span><strong data-box-check-mismatched>0</strong></div>
+      </div>
+      <div class="box-check-actions">
+        <button class="box-check-button primary" type="button" data-box-check-download-current disabled>Скачать текущий короб CSV</button>
+        <button class="box-check-button" type="button" data-box-check-download-all disabled>Скачать все короба CSV</button>
+        <button class="box-check-button danger" type="button" data-box-check-clear disabled>Очистить проверку</button>
+      </div>
+      <div class="box-check-table-wrap">
+        <div class="box-check-empty" data-box-check-empty>Пока нет проверенных пар.</div>
+        <table class="box-check-table" data-box-check-table hidden>
+          <thead><tr><th>Короб</th><th>ШК товара</th><th>GTIN из КИЗа</th><th>Сопоставление</th><th>Честный знак</th><th>Время</th><th></th></tr></thead>
+          <tbody data-box-check-rows></tbody>
+        </table>
+      </div>
+      <p class="box-check-privacy">Файл формируется браузером. Серверу не отправляются ни штрихкоды, ни Data Matrix.</p>
+    </section>
+  </div>
+</div>
+<script>
+(() => {
+  "use strict";
+
+  function initializeBoxCheck() {
+    const root = document.querySelector("[data-box-check-client-only]");
+    if (!root || root.dataset.boxCheckBound === "1") {
+      return;
+    }
+    root.dataset.boxCheckBound = "1";
+
+    const form = root.querySelector("[data-box-check-form]");
+    const boxInput = root.querySelector("#box-check-box");
+    const productInput = root.querySelector("#box-check-product");
+    const markingInput = root.querySelector("#box-check-marking");
+    const status = root.querySelector("[data-box-check-status]");
+    const currentBoxNode = root.querySelector("[data-box-check-current-box]");
+    const rowsNode = root.querySelector("[data-box-check-rows]");
+    const table = root.querySelector("[data-box-check-table]");
+    const empty = root.querySelector("[data-box-check-empty]");
+    const totalNode = root.querySelector("[data-box-check-total]");
+    const matchedNode = root.querySelector("[data-box-check-matched]");
+    const mismatchedNode = root.querySelector("[data-box-check-mismatched]");
+    const nextBoxButton = root.querySelector("[data-box-check-next-box]");
+    const resetProductButton = root.querySelector("[data-box-check-reset-product]");
+    const downloadCurrentButton = root.querySelector("[data-box-check-download-current]");
+    const downloadAllButton = root.querySelector("[data-box-check-download-all]");
+    const clearButton = root.querySelector("[data-box-check-clear]");
+
+    if (!form || !boxInput || !productInput || !markingInput) {
+      return;
+    }
+
+    let currentBox = "";
+    let lastBox = "";
+    let currentProduct = "";
+    let nextRowId = 1;
+    const rows = [];
+    const scanTimers = new WeakMap();
+
+    function playTone(result) {
+      if (typeof window.playScanTone === "function") {
+        window.playScanTone(result);
+      }
+    }
+
+    function focus(input) {
+      window.setTimeout(() => input?.focus({ preventScroll: true }), 0);
+    }
+
+    function resetInput(input) {
+      const timer = scanTimers.get(input);
+      if (timer) {
+        window.clearTimeout(timer);
+        scanTimers.delete(input);
+      }
+      if (typeof window.cancelScanAutoSubmit === "function") {
+        window.cancelScanAutoSubmit(input);
+      }
+      input.value = "";
+      input.dataset.scanWatchedValue = "";
+      delete input.dataset.scanFresh;
+      delete input.dataset.scanSource;
+    }
+
+    function setStatus(message, kind = "info", tone = "") {
+      status.textContent = message;
+      status.className = `box-check-status is-${kind}`;
+      if (tone) {
+        playTone(tone);
+      }
+    }
+
+    function normalizeMarking(rawValue) {
+      return String(rawValue || "")
+        .trim()
+        .replace(/^]d2/i, "")
+        .replace(/_x001d_/gi, "\x1d")
+        .replace(/<\s*gs\s*>/gi, "\x1d")
+        .replace(/\{\s*gs\s*\}/gi, "\x1d")
+        .replace(/\{\s*fnc1\s*\}/gi, "\x1d")
+        .replace(/\\u001d/gi, "\x1d")
+        .replace(/\\x0*1d/gi, "\x1d");
+    }
+
+    function displayMarking(rawValue) {
+      return normalizeMarking(rawValue).replace(/\x1d/g, "<GS>");
+    }
+
+    function extractGtin(rawValue) {
+      const code = normalizeMarking(rawValue);
+      const parenthesized = code.match(/(?:^|\x1d)\(01\)(\d{14})/);
+      if (parenthesized) {
+        return parenthesized[1];
+      }
+      const gs1 = code.match(/(?:^|\x1d)01(\d{14})/);
+      return gs1 ? gs1[1] : "";
+    }
+
+    function productAsGtin14(rawValue) {
+      const value = String(rawValue || "").trim();
+      if (!/^\d{8,14}$/.test(value) || ![8, 12, 13, 14].includes(value.length)) {
+        return "";
+      }
+      return value.padStart(14, "0");
+    }
+
+    function localTime() {
+      return new Intl.DateTimeFormat("ru-RU", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }).format(new Date());
+    }
+
+    function createCell(text, className = "") {
+      const cell = document.createElement("td");
+      cell.textContent = text;
+      if (className) {
+        cell.className = className;
+      }
+      return cell;
+    }
+
+    function renderRows() {
+      rowsNode.replaceChildren();
+      rows.slice().reverse().forEach((row) => {
+        const tr = document.createElement("tr");
+        tr.appendChild(createCell(row.boxCode));
+        tr.appendChild(createCell(row.productBarcode));
+        tr.appendChild(createCell(row.markingGtin || "—"));
+        tr.appendChild(
+          createCell(
+            row.result,
+            `box-check-result ${row.matched ? "is-success" : "is-error"}`,
+          ),
+        );
+        tr.appendChild(createCell(row.markingDisplay));
+        tr.appendChild(createCell(row.scannedAt));
+        const actionCell = document.createElement("td");
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "box-check-remove";
+        remove.textContent = "Убрать";
+        remove.dataset.boxCheckRemove = String(row.id);
+        actionCell.appendChild(remove);
+        tr.appendChild(actionCell);
+        rowsNode.appendChild(tr);
+      });
+
+      const matched = rows.filter((row) => row.matched).length;
+      totalNode.textContent = String(rows.length);
+      matchedNode.textContent = String(matched);
+      mismatchedNode.textContent = String(rows.length - matched);
+      table.hidden = rows.length === 0;
+      empty.hidden = rows.length > 0;
+      downloadAllButton.disabled = rows.length === 0;
+      clearButton.disabled = rows.length === 0;
+      const selectedBox = currentBox || lastBox;
+      downloadCurrentButton.disabled = !selectedBox || !rows.some((row) => row.boxCode === selectedBox);
+    }
+
+    function startBoxScan() {
+      currentBox = "";
+      currentProduct = "";
+      currentBoxNode.textContent = "Не отсканирован";
+      [boxInput, productInput, markingInput].forEach(resetInput);
+      boxInput.disabled = false;
+      productInput.disabled = true;
+      markingInput.disabled = true;
+      productInput.placeholder = "Сначала отсканируйте короб";
+      markingInput.placeholder = "Сначала отсканируйте ШК товара";
+      nextBoxButton.disabled = true;
+      resetProductButton.disabled = true;
+      setStatus("Ожидается штрихкод короба.", "info");
+      renderRows();
+      focus(boxInput);
+    }
+
+    function startProductScan(
+      message = "Короб принят. Отсканируйте штрихкод товара.",
+      { preserveStatus = false } = {},
+    ) {
+      currentProduct = "";
+      resetInput(productInput);
+      resetInput(markingInput);
+      productInput.disabled = false;
+      markingInput.disabled = true;
+      productInput.placeholder = "Отсканируйте ШК товара";
+      markingInput.placeholder = "Сначала отсканируйте ШК товара";
+      resetProductButton.disabled = false;
+      if (!preserveStatus) {
+        setStatus(message, "info");
+      }
+      focus(productInput);
+    }
+
+    function acceptBox(value) {
+      const code = String(value || "").trim();
+      if (!code) {
+        setStatus("Штрихкод короба не получен. Повторите сканирование.", "error", "error");
+        focus(boxInput);
+        return;
+      }
+      currentBox = code;
+      lastBox = code;
+      currentBoxNode.textContent = code;
+      resetInput(boxInput);
+      boxInput.disabled = true;
+      nextBoxButton.disabled = false;
+      startProductScan();
+      renderRows();
+      playTone("success");
+    }
+
+    function acceptProduct(value) {
+      const barcode = String(value || "").trim();
+      if (!currentBox) {
+        startBoxScan();
+        setStatus("Сначала отсканируйте штрихкод короба.", "error", "error");
+        return;
+      }
+      if (!barcode) {
+        setStatus("Штрихкод товара не получен. Повторите сканирование.", "error", "error");
+        focus(productInput);
+        return;
+      }
+      currentProduct = barcode;
+      resetInput(productInput);
+      productInput.disabled = true;
+      markingInput.disabled = false;
+      markingInput.placeholder = "Отсканируйте Data Matrix";
+      setStatus(`ШК ${barcode} принят. Отсканируйте Data Matrix этой единицы.`, "info");
+      focus(markingInput);
+      playTone("success");
+    }
+
+    function acceptMarking(value) {
+      const rawCode = String(value || "").trim();
+      if (!currentBox || !currentProduct) {
+        startProductScan("Сначала отсканируйте штрихкод товара.");
+        setStatus("Нарушен порядок сканирования. Повторите пару ШК + КИЗ.", "error", "error");
+        return;
+      }
+      if (!rawCode) {
+        setStatus("Data Matrix не получен. Повторите сканирование.", "error", "error");
+        focus(markingInput);
+        return;
+      }
+
+      const canonicalMarking = normalizeMarking(rawCode);
+      const markingGtin = extractGtin(rawCode);
+      const productGtin = productAsGtin14(currentProduct);
+      const duplicate = rows.some((row) => row.canonicalMarking === canonicalMarking);
+      let matched = false;
+      let result = "";
+      if (duplicate) {
+        result = "Повторный КИЗ в проверке";
+      } else if (!markingGtin) {
+        result = "GTIN не найден в Data Matrix";
+      } else if (!productGtin) {
+        result = "ШК товара нельзя привести к GTIN";
+      } else if (markingGtin !== productGtin) {
+        result = "ШК и GTIN не совпадают";
+      } else {
+        matched = true;
+        result = "Совпадает";
+      }
+
+      rows.push({
+        id: nextRowId++,
+        boxCode: currentBox,
+        productBarcode: currentProduct,
+        productGtin,
+        markingGtin,
+        markingDisplay: displayMarking(rawCode),
+        canonicalMarking,
+        result,
+        matched,
+        scannedAt: localTime(),
+      });
+      const scannedBox = currentBox;
+      const scannedProduct = currentProduct;
+      renderRows();
+      startProductScan("", { preserveStatus: true });
+      if (matched) {
+        setStatus(`Совпадает: короб ${scannedBox}, ШК ${scannedProduct}, GTIN ${markingGtin}. Следующий шаг — скан ШК товара.`, "success", "success");
+      } else {
+        setStatus(`${result}: короб ${scannedBox}, ШК ${scannedProduct}, GTIN ${markingGtin || "не определён"}. Расхождение добавлено в локальный отчёт; следующий шаг — скан ШК товара.`, "error", "error");
+      }
+    }
+
+    function pendingScanInput() {
+      return [boxInput, productInput, markingInput].find(
+        (input) => !input.disabled && input.dataset.scanFresh === "1" && input.value.trim(),
+      );
+    }
+
+    function csvCell(value) {
+      let text = String(value ?? "").replace(/\r?\n/g, " ");
+      if (/^[=+\-@]/.test(text)) {
+        text = `'${text}`;
+      }
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    function downloadRows(selectedRows, suffix) {
+      if (!selectedRows.length) {
+        setStatus("Для выгрузки нет отсканированных данных.", "error", "error");
+        return;
+      }
+      const header = [
+        "Штрихкод короба",
+        "Штрихкод товара",
+        "GTIN товара",
+        "GTIN из Честного знака",
+        "Результат сопоставления",
+        "Честный знак (разделитель GS=<GS>)",
+        "Время проверки",
+      ];
+      const lines = [header.map(csvCell).join(";")];
+      selectedRows.forEach((row) => {
+        lines.push([
+          row.boxCode,
+          row.productBarcode,
+          row.productGtin,
+          row.markingGtin,
+          row.result,
+          row.markingDisplay,
+          row.scannedAt,
+        ].map(csvCell).join(";"));
+      });
+      const blob = new Blob(["\ufeff", lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+      const link = document.createElement("a");
+      const timestamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "");
+      const safeSuffix = String(suffix || "all").replace(/[^0-9A-Za-zА-Яа-я._-]+/g, "-").slice(0, 80);
+      link.href = URL.createObjectURL(blob);
+      link.download = `warehouse-box-check-${safeSuffix}-${timestamp}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(link.href), 0);
+      setStatus(`Выгрузка сформирована: ${selectedRows.length} строк.`, "success", "success");
+    }
+
+    function processScanInput(input) {
+      if (!input) {
+        setStatus("Новый физический скан не получен.", "error", "error");
+        return;
+      }
+      const timer = scanTimers.get(input);
+      if (timer) {
+        window.clearTimeout(timer);
+        scanTimers.delete(input);
+      }
+      input.dataset.scanFresh = "1";
+      const value = input.value;
+      if (input === boxInput) {
+        acceptBox(value);
+      } else if (input === productInput) {
+        acceptProduct(value);
+      } else {
+        acceptMarking(value);
+      }
+    }
+
+    [boxInput, productInput, markingInput].forEach((input) => {
+      input.addEventListener("input", () => {
+        if (input.disabled || !input.value.trim()) {
+          return;
+        }
+        input.dataset.scanFresh = "1";
+        const previous = scanTimers.get(input);
+        if (previous) {
+          window.clearTimeout(previous);
+        }
+        scanTimers.set(input, window.setTimeout(() => processScanInput(input), 220));
+      });
+      input.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") {
+          return;
+        }
+        event.preventDefault();
+        input.dataset.scanFresh = "1";
+        processScanInput(input);
+      });
+    });
+
+    window.addEventListener("fullbox:scan", (event) => {
+      const detail = event?.detail && typeof event.detail === "object" ? event.detail : {};
+      if (detail.fullboxHandled) {
+        return;
+      }
+      const value = String(detail.value || detail.barcode || detail.code || "").trim();
+      const input = [boxInput, productInput, markingInput].find(
+        (candidate) => !candidate.disabled && !candidate.readOnly,
+      );
+      if (!value || !input) {
+        return;
+      }
+      detail.fullboxHandled = true;
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+      input.dataset.scanFresh = "1";
+      input.dataset.scanSource = String(detail.source || "desktop-direct");
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      processScanInput(input);
+    });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      processScanInput(pendingScanInput());
+    });
+
+    nextBoxButton.addEventListener("click", startBoxScan);
+    resetProductButton.addEventListener("click", () => {
+      if (!currentBox) {
+        startBoxScan();
+        return;
+      }
+      startProductScan("Пара сброшена. Отсканируйте штрихкод товара заново.");
+    });
+    downloadCurrentButton.addEventListener("click", () => {
+      const selectedBox = currentBox || lastBox;
+      downloadRows(rows.filter((row) => row.boxCode === selectedBox), selectedBox);
+    });
+    downloadAllButton.addEventListener("click", () => downloadRows(rows, "all-boxes"));
+    clearButton.addEventListener("click", () => {
+      if (!window.confirm("Очистить все отсканированные данные этой проверки?")) {
+        return;
+      }
+      rows.splice(0, rows.length);
+      lastBox = "";
+      nextRowId = 1;
+      startBoxScan();
+      setStatus("Локальная проверка очищена. Данные не записывались в систему.", "info");
+    });
+    rowsNode.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-box-check-remove]");
+      if (!button) {
+        return;
+      }
+      const rowId = Number.parseInt(button.dataset.boxCheckRemove || "", 10);
+      const index = rows.findIndex((row) => row.id === rowId);
+      if (index >= 0) {
+        rows.splice(index, 1);
+        renderRows();
+        setStatus("Строка удалена только из локальной проверки.", "info");
+      }
+    });
+
+    startBoxScan();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeBoxCheck);
+  } else {
+    initializeBoxCheck();
+  }
+})();
+
+</script>
+{% endblock %}

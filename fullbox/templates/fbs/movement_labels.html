@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QR FBS · {{ movement_request.number }}</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root { --ink: #303030; --muted: #70665f; --accent: #f89000; --stroke: rgba(23, 33, 29, .16); }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 20px; color: var(--ink); background: #f6f8f7; font-family: "Manrope", system-ui, sans-serif; }
+    .toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; max-width: 900px; margin: 0 auto 16px; }
+    h1, p { margin: 0; }
+    h1 { font-size: 22px; }
+    p { color: var(--muted); font-size: 12px; }
+    .actions { display: flex; gap: 8px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 9px 13px; border: 1px solid var(--stroke); border-radius: 8px; background: #fff; color: var(--ink); text-decoration: none; font-weight: 800; cursor: pointer; }
+    .btn-primary { color: #fff; border-color: var(--accent); background: var(--accent); }
+    .labels { display: grid; grid-template-columns: repeat(auto-fill, 75mm); gap: 8mm; justify-content: center; }
+    .label { width: 75mm; height: 50mm; overflow: hidden; display: grid; grid-template-rows: auto 1fr; gap: 2mm; padding: 3mm; border: .3mm solid #111; background: #fff; break-inside: avoid; page-break-inside: avoid; }
+    .label-head { display: flex; justify-content: space-between; align-items: baseline; gap: 3mm; }
+    .label-kind { font-size: 9pt; font-weight: 900; text-transform: uppercase; }
+    .label-logo { width: 22mm; max-height: 7mm; object-fit: contain; object-position: right center; }
+    .label-body { min-width: 0; display: grid; grid-template-columns: 30mm minmax(0, 1fr); gap: 3mm; align-items: center; }
+    .qr-code { width: 29mm; height: 29mm; justify-self: center; }
+    .qr-code canvas, .qr-code img { display: block; width: 100% !important; height: 100% !important; }
+    .label-details { min-width: 0; display: grid; gap: 2mm; align-content: center; }
+    .label-title { min-width: 0; font-size: 17pt; font-weight: 1000; line-height: 1.05; overflow-wrap: anywhere; }
+    .label-subtitle { min-width: 0; font-size: 7pt; line-height: 1.25; overflow-wrap: anywhere; }
+    .label-code { min-width: 0; font-size: 8pt; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+    @page { size: 75mm 50mm; margin: 0; }
+    @media print {
+      body { padding: 0; background: #fff; }
+      .toolbar { display: none; }
+      .labels { display: block; }
+      .label { border: 0; break-after: page; page-break-after: always; }
+      .label:last-child { break-after: auto; page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+  <header class="toolbar">
+    <div><h1>QR для перемещения FBS</h1><p>{{ movement_request.number }}</p></div>
+    <div class="actions"><a class="btn" href="{{ back_url }}">Назад</a><button class="btn btn-primary" type="button" onclick="window.print()">Печатать</button></div>
+  </header>
+  <main class="labels">
+    {% for item in labels %}
+      <section class="label">
+        <div class="label-head"><span class="label-kind">{{ item.kind }}</span><img class="label-logo" src="/static/client-lk/assets/fullbox-logo.png" alt="Фуллбокс"></div>
+        <div class="label-body">
+          <div class="qr-code" data-code="{{ item.code }}" aria-label="QR {{ item.code }}"></div>
+          <div class="label-details">
+            <div class="label-title">{{ item.title }}</div>
+            <div class="label-subtitle">{{ item.subtitle }}</div>
+            <div class="label-code">{{ item.code }}</div>
+          </div>
+        </div>
+      </section>
+    {% endfor %}
+  </main>
+  <script src="/static/vendor/qrcode.min.js"></script>
+  <script>
+    document.querySelectorAll(".qr-code").forEach(function (element) {
+      new QRCode(element, {
+        text: element.dataset.code,
+        width: 128,
+        height: 128,
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    });
+  </script>
+</body>
+</html>

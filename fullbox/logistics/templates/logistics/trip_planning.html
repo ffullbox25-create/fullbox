@@ -1,0 +1,477 @@
+{% extends use_cabinet_shell|yesno:"teammanager/_base.html,logistics/_standalone_base.html" %}
+{% block title %}Планирование рейсов{% endblock %}
+{% block extra_css %}
+  .trip-planning-page {
+    --plan-ink: #303030;
+    --plan-muted: #736e65;
+    --plan-line: rgba(48, 48, 48, 0.13);
+    --plan-surface: #fffdf8;
+    --plan-soft: #f8f5ef;
+    --plan-orange: #f89000;
+    --plan-orange-strong: #f86800;
+    --plan-yellow: #f8b800;
+    --plan-orange-soft: rgba(248, 144, 0, 0.13);
+    --plan-yellow-soft: rgba(248, 184, 0, 0.18);
+    color: var(--plan-ink);
+    min-width: 0;
+  }
+  .trip-planning-title {
+    margin: 0 0 14px;
+    font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    font-size: clamp(23px, 2.4vw, 31px);
+    line-height: 1.15;
+  }
+  .trip-planning-toolbar,
+  .trip-planning-week-nav,
+  .trip-planning-day-head,
+  .trip-planning-card-head,
+  .trip-planning-undated-head {
+    display: flex;
+    align-items: center;
+  }
+  .trip-planning-toolbar {
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .trip-planning-week-nav { gap: 8px; flex-wrap: wrap; }
+  .trip-planning-nav-link,
+  .trip-planning-refresh {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border: 1px solid var(--plan-line);
+    border-radius: 11px;
+    background: var(--plan-surface);
+    color: var(--plan-ink);
+    font: 700 13px "Manrope", sans-serif;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .trip-planning-week-label {
+    min-width: 210px;
+    font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    text-align: center;
+  }
+  .trip-planning-refresh-wrap {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--plan-muted);
+    font-size: 12px;
+  }
+  .trip-planning-create {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 13px;
+    border-radius: 11px;
+    background: linear-gradient(120deg, var(--plan-orange), var(--plan-yellow));
+    color: #303030;
+    font-size: 13px;
+    font-weight: 850;
+    text-decoration: none;
+  }
+  .trip-planning-panel {
+    border: 1px solid var(--plan-line);
+    border-radius: 18px;
+    background: var(--plan-surface);
+    overflow: hidden;
+  }
+  .trip-planning-board { padding: 12px; }
+  .trip-planning-week-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(128px, 1fr));
+    gap: 8px;
+    min-width: 0;
+  }
+  .trip-planning-day {
+    min-width: 0;
+    min-height: 250px;
+    padding: 9px;
+    border: 1px solid var(--plan-line);
+    border-radius: 14px;
+    background: var(--plan-soft);
+  }
+  .trip-planning-day.is-today {
+    border-color: var(--plan-orange);
+    box-shadow: inset 0 0 0 1px rgba(248, 144, 0, 0.2);
+  }
+  .trip-planning-day-head {
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .trip-planning-day-title { min-width: 0; }
+  .trip-planning-day-name {
+    display: block;
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .trip-planning-day-date {
+    display: block;
+    margin-top: 2px;
+    color: var(--plan-muted);
+    font-size: 11px;
+  }
+  .trip-planning-day-count {
+    min-width: 24px;
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(48, 48, 48, 0.07);
+    color: var(--plan-muted);
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .trip-planning-list { display: grid; gap: 8px; }
+  .trip-planning-empty {
+    padding: 18px 4px;
+    color: var(--plan-muted);
+    font-size: 12px;
+    text-align: center;
+  }
+  .trip-planning-card {
+    min-width: 0;
+    display: grid;
+    gap: 6px;
+    padding: 9px;
+    border: 1px solid var(--plan-line);
+    border-left: 4px solid var(--plan-orange);
+    border-radius: 12px;
+    background: var(--plan-surface);
+    color: var(--plan-ink);
+    text-decoration: none;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .trip-planning-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 9px 24px rgba(48, 48, 48, 0.1);
+  }
+  .trip-planning-card-main {
+    min-width: 0;
+    display: grid;
+    gap: 6px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .trip-planning-card.status-draft { border-left-color: #918a80; }
+  .trip-planning-card.status-planned,
+  .trip-planning-card.status-loading { border-left-color: var(--plan-yellow); }
+  .trip-planning-card.status-departed { border-left-color: var(--plan-orange-strong); }
+  .trip-planning-card.status-completed { border-left-color: #777067; }
+  .trip-planning-card.status-canceled { border-left-color: #b43b37; }
+  .trip-planning-card-head {
+    display: grid;
+    justify-items: start;
+    gap: 4px;
+  }
+  .trip-planning-card-number {
+    min-width: 0;
+    font-size: 14px;
+    font-weight: 800;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+  .trip-planning-status,
+  .trip-planning-assignment,
+  .trip-planning-source {
+    max-width: 100%;
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(48, 48, 48, 0.07);
+    color: var(--plan-muted);
+    font-size: 10px;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+  }
+  .trip-planning-assignment.preliminary,
+  .trip-planning-source { background: var(--plan-yellow-soft); color: #785000; }
+  .trip-planning-assignment.confirmed { background: var(--plan-orange-soft); color: #8a4b00; }
+  .trip-planning-time {
+    color: #8a4b00;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .trip-planning-route {
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .trip-planning-meta {
+    color: var(--plan-muted);
+    font-size: 11px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .trip-planning-meta strong { color: var(--plan-ink); }
+  .trip-planning-actions {
+    margin-top: 2px;
+    padding-top: 7px;
+    border-top: 1px solid var(--plan-line);
+  }
+  .trip-planning-actions summary {
+    color: #8a4b00;
+    font-size: 11px;
+    font-weight: 850;
+    cursor: pointer;
+  }
+  .trip-planning-action-form {
+    display: grid;
+    gap: 6px;
+    margin-top: 7px;
+  }
+  .trip-planning-action-form input,
+  .trip-planning-action-form button {
+    width: 100%;
+    min-width: 0;
+    min-height: 32px;
+    border-radius: 9px;
+    font: 700 11px "Manrope", sans-serif;
+  }
+  .trip-planning-action-form input {
+    border: 1px solid var(--plan-line);
+    background: #fff;
+    color: var(--plan-ink);
+    padding: 7px 8px;
+  }
+  .trip-planning-action-form button {
+    border: 0;
+    background: var(--plan-orange-soft);
+    color: #704000;
+    cursor: pointer;
+  }
+  .trip-planning-action-form .trip-planning-cancel-button {
+    background: rgba(180, 59, 55, 0.12);
+    color: #8f2925;
+  }
+  .trip-planning-undated {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--plan-line);
+  }
+  .trip-planning-undated-head {
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 9px;
+  }
+  .trip-planning-undated-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 800;
+  }
+  .trip-planning-undated-note {
+    color: var(--plan-muted);
+    font-size: 11px;
+  }
+  .trip-planning-undated-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  @media (max-width: 1180px) {
+    .trip-planning-week-grid { grid-template-columns: repeat(4, minmax(145px, 1fr)); }
+  }
+  @media (max-width: 860px) {
+    .trip-planning-week-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .trip-planning-undated-grid { grid-template-columns: 1fr; }
+    .trip-planning-day { min-height: 0; }
+  }
+  @media (max-width: 560px) {
+    .trip-planning-toolbar { align-items: stretch; }
+    .trip-planning-week-nav { width: 100%; justify-content: space-between; }
+    .trip-planning-week-label { order: -1; width: 100%; min-width: 0; }
+    .trip-planning-refresh-wrap { width: 100%; justify-content: space-between; }
+    .trip-planning-week-grid { grid-template-columns: 1fr; }
+    .trip-planning-day-head { align-items: baseline; }
+    .trip-planning-day-title { display: flex; align-items: baseline; gap: 6px; }
+    .trip-planning-day-date { display: inline; }
+    .trip-planning-undated-head { align-items: flex-start; flex-direction: column; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .trip-planning-card { transition: none; }
+  }
+{% endblock %}
+{% block content %}
+  {% if use_cabinet_shell %}{% include "logistics/_trips_subnav.html" %}{% endif %}
+  <section class="trip-planning-page" aria-labelledby="trip-planning-title">
+    <h1 id="trip-planning-title" class="trip-planning-title">Планирование рейсов по неделям</h1>
+    <div class="trip-planning-toolbar">
+      <nav class="trip-planning-week-nav" aria-label="Переключение недели">
+        <a class="trip-planning-nav-link" href="{{ previous_week_url }}" aria-label="Предыдущая неделя">←</a>
+        <a class="trip-planning-nav-link" href="{{ current_week_url }}">Текущая</a>
+        <strong class="trip-planning-week-label">{{ week_label }}</strong>
+        <a class="trip-planning-nav-link" href="{{ next_week_url }}" aria-label="Следующая неделя">→</a>
+      </nav>
+      <div class="trip-planning-refresh-wrap">
+        <a class="trip-planning-create" href="{{ external_trip_create_url }}">+ Внешний рейс</a>
+        <span id="trip-planning-refresh-state">Обновлено {{ last_updated_label }}</span>
+        <button class="trip-planning-refresh" id="trip-planning-refresh" type="button">Обновить</button>
+      </div>
+    </div>
+
+    <section class="trip-planning-panel" aria-label="Недельный план рейсов">
+      <div
+        class="trip-planning-board"
+        id="trip-planning-board"
+        data-refresh-url="{{ refresh_url }}"
+      >
+        <div class="trip-planning-week-grid">
+          {% for day in days %}
+            <article class="trip-planning-day{% if day.is_today %} is-today{% endif %}">
+              <header class="trip-planning-day-head">
+                <div class="trip-planning-day-title">
+                  <span class="trip-planning-day-name"><span class="trip-planning-day-full">{{ day.full_name }}</span><span class="trip-planning-day-short" hidden>{{ day.short_name }}</span></span>
+                  <span class="trip-planning-day-date">{{ day.date|date:"d.m" }}</span>
+                </div>
+                <span class="trip-planning-day-count" aria-label="Рейсов: {{ day.count }}">{{ day.count }}</span>
+              </header>
+              <div class="trip-planning-list">
+                {% for row in day.rows %}
+                  <div class="trip-planning-card status-{{ row.status_class }}">
+                    <a class="trip-planning-card-main" href="{{ row.detail_url }}">
+                      <span class="trip-planning-card-head">
+                        <span class="trip-planning-card-number">{% if row.time_label %}<span class="trip-planning-time">{{ row.time_label }}</span> · {% endif %}{{ row.number }}</span>
+                        <span class="trip-planning-status">{{ row.status_label }}</span>
+                        {% if row.is_external %}<span class="trip-planning-assignment confirmed">{{ row.kind_label }}</span>{% endif %}
+                        {% if row.assignment_class %}<span class="trip-planning-assignment {{ row.assignment_class }}">{{ row.assignment_label }}</span>{% endif %}
+                        {% if row.date_source_label %}<span class="trip-planning-source">{{ row.date_source_label }}</span>{% endif %}
+                      </span>
+                      <span class="trip-planning-route">{{ row.route_label }}</span>
+                      <span class="trip-planning-meta"><strong>Перевозчик:</strong> {{ row.carrier_label }}</span>
+                      <span class="trip-planning-meta"><strong>Машина:</strong> {{ row.vehicle_label }}</span>
+                      <span class="trip-planning-meta"><strong>Водитель:</strong> {{ row.driver_label }}</span>
+                      {% if row.is_external %}<span class="trip-planning-meta"><strong>Клиент:</strong> {{ row.client_label }}{% if row.cargo_label %} · {{ row.cargo_label }}{% endif %}</span>{% else %}<span class="trip-planning-meta">{{ row.order_count }} заяв. · {{ row.box_count }} мест</span>{% endif %}
+                    </a>
+                    {% if row.can_plan_edit %}
+                      <details class="trip-planning-actions">
+                        <summary>Перенести / отменить</summary>
+                        <form class="trip-planning-action-form" method="post" action="{{ row.planning_action_url }}">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="reschedule">
+                          <input type="hidden" name="week" value="{{ week_start|date:'Y-m-d' }}">
+                          <input type="datetime-local" name="scheduled_at" value="{{ row.schedule_input_value }}" required>
+                          <input type="text" name="reason" placeholder="Причина переноса">
+                          <button type="submit">Перенести</button>
+                        </form>
+                        <form class="trip-planning-action-form" method="post" action="{{ row.planning_action_url }}" onsubmit="return confirm('Отменить рейс? Состав заявок и складские данные не изменятся.');">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="cancel">
+                          <input type="hidden" name="week" value="{{ week_start|date:'Y-m-d' }}">
+                          <input type="text" name="reason" placeholder="Причина отмены" required>
+                          <button class="trip-planning-cancel-button" type="submit">Отменить рейс</button>
+                        </form>
+                      </details>
+                    {% endif %}
+                  </div>
+                {% empty %}
+                  <div class="trip-planning-empty">Нет рейсов</div>
+                {% endfor %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+
+        <section class="trip-planning-undated" aria-labelledby="trip-planning-undated-title">
+          <header class="trip-planning-undated-head">
+            <h2 class="trip-planning-undated-title" id="trip-planning-undated-title">Без даты</h2>
+            <div class="trip-planning-undated-note">Черновики и активные рейсы, которым ещё не назначили дату</div>
+          </header>
+          <div class="trip-planning-undated-grid">
+            {% for row in undated_rows %}
+              <div class="trip-planning-card status-{{ row.status_class }}">
+                <a class="trip-planning-card-main" href="{{ row.detail_url }}">
+                  <span class="trip-planning-card-head">
+                    <span class="trip-planning-card-number">{% if row.time_label %}<span class="trip-planning-time">{{ row.time_label }}</span> · {% endif %}{{ row.number }}</span>
+                    <span class="trip-planning-status">{{ row.status_label }}</span>
+                    {% if row.is_external %}<span class="trip-planning-assignment confirmed">{{ row.kind_label }}</span>{% endif %}
+                    {% if row.assignment_class %}<span class="trip-planning-assignment {{ row.assignment_class }}">{{ row.assignment_label }}</span>{% endif %}
+                    {% if row.date_source_label %}<span class="trip-planning-source">{{ row.date_source_label }}</span>{% endif %}
+                  </span>
+                  <span class="trip-planning-route">{{ row.route_label }}</span>
+                  <span class="trip-planning-meta"><strong>Перевозчик:</strong> {{ row.carrier_label }}</span>
+                  <span class="trip-planning-meta"><strong>Машина:</strong> {{ row.vehicle_label }}</span>
+                  <span class="trip-planning-meta"><strong>Водитель:</strong> {{ row.driver_label }}</span>
+                  {% if row.is_external %}<span class="trip-planning-meta"><strong>Клиент:</strong> {{ row.client_label }}{% if row.cargo_label %} · {{ row.cargo_label }}{% endif %}</span>{% else %}<span class="trip-planning-meta">{{ row.order_count }} заяв. · {{ row.box_count }} мест</span>{% endif %}
+                </a>
+                {% if row.can_plan_edit %}
+                  <details class="trip-planning-actions">
+                    <summary>Перенести / отменить</summary>
+                    <form class="trip-planning-action-form" method="post" action="{{ row.planning_action_url }}">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="reschedule">
+                      <input type="hidden" name="week" value="{{ week_start|date:'Y-m-d' }}">
+                      <input type="datetime-local" name="scheduled_at" value="{{ row.schedule_input_value }}" required>
+                      <input type="text" name="reason" placeholder="Причина переноса">
+                      <button type="submit">Перенести</button>
+                    </form>
+                    <form class="trip-planning-action-form" method="post" action="{{ row.planning_action_url }}" onsubmit="return confirm('Отменить рейс? Состав заявок и складские данные не изменятся.');">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="cancel">
+                      <input type="hidden" name="week" value="{{ week_start|date:'Y-m-d' }}">
+                      <input type="text" name="reason" placeholder="Причина отмены" required>
+                      <button class="trip-planning-cancel-button" type="submit">Отменить рейс</button>
+                    </form>
+                  </details>
+                {% endif %}
+              </div>
+            {% empty %}
+              <div class="trip-planning-empty">Все активные рейсы распределены по датам.</div>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+    </section>
+  </section>
+  <script>
+  (function () {
+    const board = document.getElementById("trip-planning-board");
+    const refreshButton = document.getElementById("trip-planning-refresh");
+    const refreshState = document.getElementById("trip-planning-refresh-state");
+    if (!board || !refreshButton || !refreshState) return;
+    let refreshing = false;
+
+    async function refreshBoard() {
+      if (refreshing || document.hidden) return;
+      if (board.querySelector("details[open], input:focus")) return;
+      refreshing = true;
+      refreshButton.disabled = true;
+      refreshState.textContent = "Обновление…";
+      try {
+        const response = await fetch(board.dataset.refreshUrl, {
+          credentials: "same-origin",
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+          cache: "no-store"
+        });
+        if (!response.ok) throw new Error("refresh failed");
+        const html = await response.text();
+        const documentCopy = new DOMParser().parseFromString(html, "text/html");
+        const freshBoard = documentCopy.getElementById("trip-planning-board");
+        if (!freshBoard) throw new Error("board missing");
+        board.innerHTML = freshBoard.innerHTML;
+        refreshState.textContent = "Обновлено только что";
+      } catch (error) {
+        refreshState.textContent = "Не удалось обновить автоматически";
+      } finally {
+        refreshing = false;
+        refreshButton.disabled = false;
+      }
+    }
+
+    refreshButton.addEventListener("click", refreshBoard);
+    window.setInterval(refreshBoard, 30000);
+  })();
+  </script>
+{% endblock %}

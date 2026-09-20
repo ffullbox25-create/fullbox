@@ -1,0 +1,71 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Клиент {{ agency }}{% endblock %}
+{% block workspace_crumb %}<a href="{% url 'fbs:operator_clients' %}">Клиенты</a><span>/</span><strong>{{ agency }}</strong>{% endblock %}
+{% block workspace_title %}{{ agency }}{% endblock %}
+{% block workspace_subtitle %}Клиент и его интеграции FBS{% endblock %}
+{% block workspace_actions %}<a class="button button-secondary" href="{% url 'fbs:operator_clients' %}">К клиентам</a>{% endblock %}
+
+{% block workspace_body %}
+  <section class="detail-hero">
+    <div><span class="section-kicker">Клиент FBS</span><h2>{{ agency }}</h2><span>ID {{ agency.id }}</span></div>
+    <div class="detail-actions">
+      <span class="connection-state connection-{{ agency.api_state }}">{{ agency.api_state_label }}</span>
+      <form class="inline-form" method="post" action="{% url 'fbs:operator_sync_client_orders' agency_id=agency.id %}">
+        {% csrf_token %}
+        <button class="button button-primary button-compact" type="submit">Обновить заказы</button>
+      </form>
+    </div>
+  </section>
+  <section class="operator-summary"><div><span>Остаток FBS</span><strong>{{ stock_overview.actual_qty }}</strong></div><div><span>Доступно</span><strong>{{ stock_overview.available_qty }}</strong></div><div><span>В резерве</span><strong>{{ stock_overview.reserved_qty }}</strong></div><div><span>Маркетплейсам</span><strong>{{ stock_overview.marketplace_qty }}</strong></div><div><span>Артикулов</span><strong>{{ stock.sku_count }}</strong></div><div><span>Коробов</span><strong>{{ stock.box_count }}</strong></div></section>
+
+  <div class="detail-layout">
+    <div class="detail-main">
+      <section class="operator-table-band"><div class="operator-table-heading"><h2>Заказы клиента</h2><strong>{{ page.paginator.count }}</strong></div><div class="operator-table-scroll"><table class="operator-table"><thead><tr><th>Заказ</th><th>Площадка</th><th>Состав</th><th>Статус</th><th>Срок</th><th></th></tr></thead><tbody>{% for order in page.object_list %}<tr><td><a class="table-main-link" href="{% url 'fbs:operator_order_detail' order_id=order.id %}">{{ order.external_order_id }}</a></td><td>{{ order.profile.get_marketplace_display }}</td><td>{{ order.unit_count }} шт. · {{ order.line_count }} поз.</td><td><span class="status status-{{ order.internal_status }}">{{ order.internal_status_label }}</span></td><td>{% if order.cutoff_at %}{{ order.cutoff_at|date:"d.m.Y H:i" }}{% else %}<span class="text-muted">Без срока</span>{% endif %}</td><td class="row-action"><a class="button button-secondary button-compact" href="{% url 'fbs:operator_order_detail' order_id=order.id %}">Открыть</a></td></tr>{% empty %}<tr><td class="empty-row" colspan="6">Заказов нет</td></tr>{% endfor %}</tbody></table></div></section>
+      {% if page.paginator.num_pages > 1 %}<nav class="operator-pagination" aria-label="Страницы заказов клиента">{% if page.has_previous %}<a class="button button-secondary button-compact" href="?page={{ page.previous_page_number }}&page_size={{ page_size }}">Назад</a>{% endif %}<span>Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>{% if page.has_next %}<a class="button button-secondary button-compact" href="?page={{ page.next_page_number }}&page_size={{ page_size }}">Далее</a>{% endif %}</nav>{% endif %}
+    </div>
+    <aside class="detail-side">
+      <section class="detail-panel">
+        <h2>Страховой остаток</h2>
+        <p class="text-muted">Вычитается из доступного количества каждого SKU перед передачей на отмеченные склады WB и Ozon. Значение 0 отключает защиту.</p>
+        <form method="post" action="{% url 'fbs:operator_update_client_stock_safety' agency_id=agency.id %}">
+          {% csrf_token %}
+          <label for="safety-stock-qty"><strong>Минимум на каждый SKU, шт.</strong></label>
+          <input id="safety-stock-qty" type="number" name="safety_stock_qty" value="{{ stock_overview.safety_stock_qty }}" min="0" max="1000000" step="1" inputmode="numeric" required style="width:100%;min-height:44px;margin:8px 0 10px;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font:inherit;">
+          <button class="button button-primary" type="submit">Сохранить страховой остаток</button>
+        </form>
+      </section>
+      <section class="detail-panel">
+        <h2>Профили и подключения</h2>
+        <div class="profile-detail-list">
+          {% for profile in profiles %}
+            <article>
+              <header>
+                <span class="marketplace-tag marketplace-{{ profile.marketplace }}">{{ profile.get_marketplace_display }}</span>
+                <span class="connection-state connection-{{ profile.api_state }}">{{ profile.api_state_label }}</span>
+              </header>
+              <strong>{{ profile.name }}</strong>
+              <dl>
+                <div><dt>Токен</dt><dd>{% if profile.credentials_configured %}Добавлен · {{ profile.credentials_source_label }}{% else %}Не добавлен{% endif %}</dd></div>
+                <div><dt>Склад</dt><dd>{{ profile.external_warehouse_id|default:"Не указан" }}</dd></div>
+                <div><dt>Получение заказов</dt><dd>{% if profile.orders_sync_enabled %}Включено{% elif not profile.is_active %}Профиль выключен{% elif not profile.order_pull_enabled %}Выключено в профиле{% else %}Выключено глобально{% endif %}</dd></div>
+                <div><dt>Последний успех</dt><dd>{% if profile.orders_last_success_at %}{{ profile.orders_last_success_at|date:"d.m.Y H:i" }}{% else %}Не было{% endif %}</dd></div>
+              </dl>
+              {% if profile.orders_last_error %}<p class="text-error sync-error-text">{{ profile.orders_last_error }}</p>{% elif profile.credentials_error %}<p class="text-error sync-error-text">{{ profile.credentials_error }}</p>{% endif %}
+              <form class="inline-form" method="post" action="{% url 'fbs:operator_sync_profile_orders' profile_id=profile.id %}">
+                {% csrf_token %}
+                <button class="button button-secondary button-compact" type="submit"{% if profile.orders_sync_running %} disabled{% endif %}>{% if profile.orders_sync_running %}Обновляется{% else %}Обновить этот кабинет{% endif %}</button>
+              </form>
+            </article>
+          {% empty %}
+            <div class="empty-state">Профилей нет</div>
+          {% endfor %}
+        </div>
+      </section>
+      <section class="detail-panel"><h2>Статусы заказов</h2><div class="compact-list">{% for row in status_rows %}<div><span>{{ row.label }}</span><strong>{{ row.count }}</strong></div>{% empty %}<div><span>Заказов нет</span></div>{% endfor %}</div></section>
+      <section class="detail-panel"><h2>Активные волны</h2><div class="compact-list">{% for wave in active_waves %}<div><span><a href="{% url 'fbs:operator_wave_detail' batch_id=wave.id %}">Волна #{{ wave.id }}</a><small>{{ wave.get_status_display }}</small></span><strong>{{ wave.order_count }}</strong></div>{% empty %}<div><span>Нет активных волн</span></div>{% endfor %}</div></section>
+      <section class="detail-panel"><h2>Подсорт</h2><div class="compact-list">{% for plan in open_plans %}<div><span><a href="{% url 'fbs:tsd_storekeeper_plan' plan_id=plan.id %}">План #{{ plan.id }}</a><small>{{ plan.get_status_display }}</small></span><strong>{{ plan.planned_qty }}</strong></div>{% empty %}<div><span>Открытых планов нет</span></div>{% endfor %}</div></section>
+      <section class="detail-panel"><h2>Заявки на перемещение</h2><div class="compact-list">{% for movement in movement_requests %}<div><span><a href="{% url 'fbs:operator_movement_detail' request_id=movement.id %}">{{ movement.number }}</a><small>{{ movement.get_status_display }} · {{ movement.get_mode_display }}</small></span><strong>{{ movement.requested_qty }}</strong></div>{% empty %}<div><span>Заявок нет</span></div>{% endfor %}</div></section>
+    </aside>
+  </div>
+{% endblock %}

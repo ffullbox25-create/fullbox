@@ -1,0 +1,70 @@
+{% extends "todo/warehouse_task_base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block extra_head %}
+<style>
+  .form-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(310px,.8fr);gap:14px}.stack{display:grid;gap:14px}.fields{display:grid;gap:14px}.team-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  #id_participants{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0;padding:0;list-style:none}#id_participants label{display:flex;align-items:flex-start;gap:7px;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:12px;font-weight:700}
+  .checklist-rows{display:grid;gap:8px}.check-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}.check-row input[type=text]{width:100%;min-height:40px;border:1px solid var(--line);border-radius:8px;padding:9px 10px}.check-row.is-removed{display:none}.help{font-size:11px;color:var(--muted)}
+  .form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.non-field-errors{margin-bottom:12px}
+  @media(max-width:900px){.form-grid{grid-template-columns:1fr}}@media(max-width:620px){.team-grid{grid-template-columns:1fr}#id_participants{grid-template-columns:1fr}.form-actions{display:grid}.form-actions .button{width:100%}}
+</style>
+{% endblock %}
+{% block content %}
+  <header class="top"><div><h1>{{ title }}</h1><p>Укажите результат, конкретного ответственного и срок выполнения.</p></div></header>
+  <form method="post" id="warehouse-task-form">
+    {% csrf_token %}<input type="hidden" name="kind" value="{{ task_kind }}"><input type="hidden" name="next" value="{{ return_url }}">
+    {% if form.non_field_errors %}<div class="panel panel-body non-field-errors">{{ form.non_field_errors }}</div>{% endif %}
+    {% if formset.non_form_errors %}<div class="panel panel-body non-field-errors">{{ formset.non_form_errors }}</div>{% endif %}
+    <div class="form-grid">
+      <div class="stack">
+        <section class="panel"><div class="panel-head"><h2>Задача</h2></div><div class="panel-body fields">
+          <div class="form-field"><label for="id_title">Название</label>{{ form.title }}{{ form.title.errors }}</div>
+          <div class="form-field"><label for="id_description">Описание и ожидаемый результат</label>{{ form.description }}{{ form.description.errors }}</div>
+          <div class="team-grid">
+            <div class="form-field"><label for="id_priority">Приоритет</label>{{ form.priority }}{{ form.priority.errors }}</div>
+            <div class="form-field"><label for="id_due_date">Срок выполнения</label>{{ form.due_date }}{{ form.due_date.errors }}</div>
+          </div>
+        </div></section>
+        <section class="panel"><div class="panel-head"><h2>Чек-лист</h2><button class="button" type="button" id="add-check-item">Добавить пункт</button></div><div class="panel-body">
+          {{ formset.management_form }}
+          <div class="checklist-rows" id="checklist-rows">
+            {% for checklist_form in formset %}
+            <div class="check-row{% if checklist_form.DELETE.value %} is-removed{% endif %}" data-form-index="{{ forloop.counter0 }}">
+              <div>{{ checklist_form.id }}{{ checklist_form.title }}{{ checklist_form.title.errors }}<span style="display:none">{{ checklist_form.DELETE }}</span></div>
+              <button class="button danger remove-check-item" type="button" aria-label="Удалить пункт">Удалить</button>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="help" style="margin-top:9px">Задачу нельзя завершить, пока не отмечены все добавленные пункты.</div>
+        </div></section>
+      </div>
+      <div class="stack">
+        <section class="panel"><div class="panel-head"><h2>Ответственные</h2></div><div class="panel-body fields">
+          <div class="form-field"><label for="id_assigned_to">Основной ответственный</label>{{ form.assigned_to }}{{ form.assigned_to.errors }}<div class="help">Только он сможет окончательно завершить задачу.</div></div>
+          <div class="form-field"><span class="field-label">Соисполнители</span>{{ form.participants }}{{ form.participants.errors }}<div class="help">Могут выполнять пункты чек-листа и оставлять комментарии.</div></div>
+          <div class="form-field"><label for="id_observer">Наблюдатель</label>{{ form.observer }}{{ form.observer.errors }}</div>
+        </div></section>
+      </div>
+    </div>
+    <div class="form-actions"><a class="button" href="{{ return_url|default:'/todo/?kind=warehouse_internal' }}">Отмена</a><button class="button primary" type="submit">Сохранить задачу</button></div>
+  </form>
+
+  <template id="empty-check-item">
+    <div class="check-row" data-form-index="__prefix__">
+      <div>{{ formset.empty_form.id }}{{ formset.empty_form.title }}<span style="display:none">{{ formset.empty_form.DELETE }}</span></div>
+      <button class="button danger remove-check-item" type="button" aria-label="Удалить пункт">Удалить</button>
+    </div>
+  </template>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function(){
+  const rows=document.getElementById('checklist-rows');
+  const total=document.getElementById('id_checklist-TOTAL_FORMS');
+  const template=document.getElementById('empty-check-item');
+  function bindRemove(button){button.addEventListener('click',function(){const row=button.closest('.check-row');const del=row.querySelector('input[name$="-DELETE"]');if(del){del.checked=true;row.classList.add('is-removed')}else{row.remove()}})}
+  document.querySelectorAll('.remove-check-item').forEach(bindRemove);
+  document.getElementById('add-check-item').addEventListener('click',function(){const index=parseInt(total.value,10);const html=template.innerHTML.replaceAll('__prefix__',String(index));const holder=document.createElement('div');holder.innerHTML=html.trim();const row=holder.firstElementChild;rows.appendChild(row);total.value=String(index+1);bindRemove(row.querySelector('.remove-check-item'));row.querySelector('input[type="text"]').focus()});
+})();
+</script>
+{% endblock %}

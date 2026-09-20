@@ -1,0 +1,435 @@
+{% load todo_panel %}
+<style>
+  .task-board { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-top:14px; min-width:0; }
+  .task-col { display:flex; flex-direction:column; border:1px solid var(--stroke); border-radius:14px; background:var(--card-soft, rgba(255,255,255,0.04)); min-height:240px; min-width:0; }
+  .task-col-header { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px dashed var(--stroke); font-weight:600; min-width:0; }
+  .task-col-body { display:flex; flex-direction:column; gap:8px; padding:10px; align-items:stretch; min-width:0; }
+  .task-card { display:grid; flex:0 0 auto; gap:6px; width:100%; min-width:0; max-width:100%; padding:10px; border:1px solid var(--stroke); border-radius:12px; background:var(--card, rgba(255,255,255,0.02)); }
+  .task-card > * { min-width:0; }
+  .task-card.has-status { position: relative; overflow: hidden; }
+  .task-card.clickable { cursor:pointer; transition: transform 0.16s ease, box-shadow 0.16s ease; }
+  .task-card.clickable:hover,
+  .task-card.clickable:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+  }
+  .task-card.order-receiving {
+    border-color: rgba(34,197,94,0.35);
+    background: linear-gradient(135deg, rgba(34,197,94,0.12), rgba(236,253,245,0.75));
+  }
+  .task-card.order-processing {
+    border-color: rgba(59,130,246,0.32);
+    background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(239,246,255,0.8));
+  }
+  .task-card.attention {
+    border-color: #dc2626;
+    background: linear-gradient(135deg, rgba(220,38,38,0.2), rgba(255,241,242,0.96));
+    box-shadow: 0 0 0 2px rgba(220,38,38,0.18), 0 18px 40px rgba(220,38,38,0.24);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  .task-card.attention .task-title { color:#991b1b; }
+  .task-new-badge { display:inline-flex; align-items:center; min-height:21px; margin-left:6px; padding:2px 7px; border-radius:999px; background:#dc2626; color:#fff; font-size:10px; font-weight:900; letter-spacing:.35px; text-transform:uppercase; vertical-align:middle; }
+  .task-card.urgent-task {
+    border-color: #ef4444;
+    background: linear-gradient(135deg, rgba(239,68,68,0.18), rgba(255,241,242,0.96));
+    box-shadow: 0 0 0 2px rgba(239,68,68,0.18), 0 18px 40px rgba(239,68,68,0.22);
+  }
+  .task-card.urgent-task .task-title { color:#b91c1c; }
+  .task-title { font-weight:600; margin-bottom:6px; overflow-wrap:anywhere; }
+  .task-title a { color:inherit; text-decoration:none; overflow-wrap:anywhere; }
+  .task-meta { color:var(--muted); font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
+  .task-meta-label { color:var(--muted); }
+  .task-meta-value { color:#0e6b5b; font-weight:600; overflow-wrap:anywhere; }
+  .task-meta-value.accent { color:#b45309; font-weight:700; }
+  .task-supplement-description { color:var(--text, #303030); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+  .task-supplement-action {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    justify-self:start;
+    min-height:34px;
+    padding:7px 12px;
+    border-radius:9px;
+    background:#f89000;
+    color:#303030;
+    font-size:12px;
+    font-weight:700;
+    text-decoration:none;
+  }
+  .task-supplement-action:hover,
+  .task-supplement-action:focus-visible { background:#f86800; color:#303030; }
+  .task-status-row { display:grid; gap:4px; margin-top:6px; min-width:0; }
+  .task-status-pill {
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    width:fit-content;
+    max-width:100%;
+    min-height:28px;
+    padding:4px 10px;
+    border-radius:999px;
+    border:1px solid var(--stroke);
+    font-size:12px;
+    font-weight:700;
+    line-height:1.25;
+    white-space:normal;
+    overflow-wrap:anywhere;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+  }
+  .task-status-pill.status-tone-neutral {
+    background: rgba(100, 116, 139, 0.12);
+    border-color: rgba(100, 116, 139, 0.25);
+    color: #475569;
+  }
+  .task-status-pill.status-tone-pending {
+    background: rgba(217, 119, 6, 0.14);
+    border-color: rgba(217, 119, 6, 0.24);
+    color: #9a5a00;
+  }
+  .task-status-pill.status-tone-moving {
+    background: rgba(37, 99, 235, 0.14);
+    border-color: rgba(37, 99, 235, 0.24);
+    color: #1d4ed8;
+  }
+  .task-status-pill.status-tone-active {
+    background: rgba(14, 107, 91, 0.14);
+    border-color: rgba(14, 107, 91, 0.24);
+    color: #0e6b5b;
+  }
+  .task-status-pill.status-tone-done {
+    background: rgba(34, 197, 94, 0.14);
+    border-color: rgba(34, 197, 94, 0.24);
+    color: #1f7a52;
+  }
+  .task-status-pill.status-tone-danger {
+    background: rgba(220, 38, 38, 0.14);
+    border-color: rgba(220, 38, 38, 0.24);
+    color: #b42318;
+  }
+  .task-tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; min-width:0; }
+  .task-tag { max-width:100%; padding:3px 8px; border-radius:999px; border:1px solid var(--stroke); font-size:11px; text-transform:uppercase; letter-spacing:0.4px; white-space:normal; overflow-wrap:anywhere; }
+  .task-empty { color:var(--muted); font-size:12px; border:1px dashed var(--stroke); border-radius:10px; padding:10px; text-align:center; }
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; border:1px solid var(--stroke); background:var(--card-soft, rgba(255,255,255,0.04)); font-size:12px; font-weight:600; }
+  .task-col.backlog { border-top:3px solid #6b7280; }
+  .task-col.in_progress { border-top:3px solid #3b82f6; }
+  .task-col.blocked { border-top:3px solid #ef4444; }
+  .task-col.done { border-top:3px solid #22c55e; }
+  .pill.backlog { color:#9aa0b3; }
+  .pill.in_progress { color:#3b82f6; }
+  .pill.blocked { color:#ef4444; }
+  .pill.done { color:#22c55e; }
+  .task-tag.low { color:#9aa0b3; }
+  .task-tag.normal { color:#3b82f6; }
+  .task-tag.high { color:#f59e0b; }
+  .task-tag.urgent { color:#ef4444; }
+  .task-summary { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .task-summary .pill { font-size:12px; }
+  .task-filters { display:grid; gap:10px; margin-top:14px; }
+  .task-filter-tabs { display:flex; gap:8px; flex-wrap:wrap; }
+  .task-filter-tab {
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:8px 12px;
+    border-radius:999px;
+    border:1px solid var(--stroke);
+    background:transparent;
+    cursor:pointer;
+    font:inherit;
+    color:inherit;
+  }
+  .task-filter-tab.active {
+    background:#0e6b5b;
+    border-color:#0e6b5b;
+    color:#fff;
+  }
+  .task-filter-tab-count { opacity:0.82; }
+  .task-filter-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .task-filter-select {
+    min-width:190px;
+    flex:0 1 220px;
+    padding:8px 10px;
+    border-radius:10px;
+    border:1px solid var(--stroke);
+    background:var(--card-soft, rgba(255,255,255,0.04));
+    color:inherit;
+  }
+  .task-filter-input {
+    min-width:280px;
+    flex:1 1 320px;
+    padding:8px 10px;
+    border-radius:10px;
+    border:1px solid var(--stroke);
+    background:var(--card-soft, rgba(255,255,255,0.04));
+    color:inherit;
+  }
+  @keyframes pulse {
+    0% { transform: translateY(0); box-shadow: 0 0 0 2px rgba(220,38,38,0.12), 0 18px 40px rgba(220,38,38,0.2); }
+    50% { transform: translateY(-1px); box-shadow: 0 0 0 7px rgba(220,38,38,0.2), 0 22px 46px rgba(220,38,38,0.3); }
+    100% { transform: translateY(0); box-shadow: 0 0 0 2px rgba(220,38,38,0.12), 0 18px 40px rgba(220,38,38,0.2); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .task-card.attention { animation: none; }
+  }
+</style>
+
+<div class="card">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+    <div>
+      <div style="font-weight:600; letter-spacing:0.2px;">Доска задач</div>
+      {% if task_panel_show_meta %}
+        <div class="muted" style="font-size:13px;">
+          {% if task_panel_role_label %}Роль: {{ task_panel_role_label }} · {% endif %}
+          Всего: {{ task_panel_total }}
+        </div>
+      {% endif %}
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn" href="{{ task_panel_create_url }}">Создать</a>
+      <a class="btn" href="{{ task_panel_list_url }}">Все задачи</a>
+    </div>
+  </div>
+
+  {% if task_panel_filter_tabs %}
+    <form class="task-filters" method="get">
+      <input type="hidden" name="todo_filters_applied" value="1">
+      <div class="task-filter-tabs">
+        {% for tab in task_panel_filter_tabs %}
+          <button type="submit" name="todo_filter_type" value="{{ tab.value }}" class="task-filter-tab{% if tab.active %} active{% endif %}">
+            <span>{{ tab.label }}</span>
+            <span class="task-filter-tab-count">({{ tab.count }})</span>
+          </button>
+        {% endfor %}
+      </div>
+      <div class="task-filter-row">
+        <select class="task-filter-select" name="todo_filter_client">
+          <option value="">Все клиенты</option>
+          {% for option in task_panel_client_options %}
+            <option value="{{ option.id }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+        <select class="task-filter-select" name="todo_filter_document_status">
+          <option value="">Все статусы документов</option>
+          {% for option in task_panel_document_status_options %}
+            <option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+        <input
+          class="task-filter-input"
+          type="search"
+          name="todo_filter_query"
+          value="{{ task_panel_search_query }}"
+          placeholder="Сквозной поиск по заявкам, клиентам и статусам"
+        >
+        <button class="btn" type="submit" name="todo_filter_type" value="{{ task_panel_active_filter_type }}">Применить</button>
+        <a class="btn" href="?todo_filters_reset=1">Сбросить</a>
+      </div>
+    </form>
+  {% endif %}
+
+  <div class="task-summary">
+    {% for stat in task_panel_stats %}
+      <div class="pill {{ stat.status }}">{{ stat.label }}: {{ stat.count }}</div>
+    {% endfor %}
+  </div>
+
+  <div class="task-board">
+    {% for column in task_panel_columns %}
+      <div class="task-col {{ column.status }}">
+        <div class="task-col-header">
+          <div>{{ column.label }}</div>
+          <div class="pill {{ column.status }}">{{ column.count }}</div>
+        </div>
+        <div class="task-col-body">
+          {% if column.tasks %}
+            {% for task in column.tasks %}
+              <div class="task-card clickable{% if task.priority == "urgent" %} urgent-task{% endif %}{% if task.shipping_task_subtype == "supplement" %} shipping-supplement{% endif %}{% if task.order_status_label %} has-status{% endif %}{% if task.route and "/orders/receiving/" in task.route %} order-receiving{% elif task.route and "/orders/processing/" in task.route %} order-processing{% endif %}{% if task.is_unread_for_employee %} attention{% endif %}"{% if task.is_unread_for_employee %} data-task-view-url="{{ task.mark_view_url }}"{% endif %}{% if task.panel_url %} onclick="window.location.href='{{ task.panel_url }}'"{% endif %}>
+                <div class="task-title"><a href="{{ task.panel_url }}">{{ task.panel_title }}</a>{% if task.is_unread_for_employee %}<span class="task-new-badge">Новая</span>{% endif %}</div>
+                {% if task.shipping_task_subtype == "supplement" %}
+                  <div class="task-tags">
+                    <span class="task-tag urgent">Срочно</span>
+                    <span class="task-tag">Добор</span>
+                  </div>
+                  {% if task.shipping_supplement_qty_label %}
+                    <div class="task-meta">
+                      <span class="task-meta-label">Количество к добору:</span>
+                      <span class="task-meta-value accent">{{ task.shipping_supplement_qty_label }}</span>
+                    </div>
+                  {% endif %}
+                  {% if task.panel_description %}
+                    <div class="task-supplement-description">{{ task.panel_description|linebreaksbr }}</div>
+                  {% endif %}
+                  <a class="task-supplement-action" href="{{ task.panel_url }}"{% if task.is_unread_for_employee %} data-task-view-url="{{ task.mark_view_url }}"{% endif %} onclick="event.stopPropagation();">{{ task.panel_action_label }}</a>
+                {% endif %}
+                {% if task.route and "/logistics/trips/" in task.route %}
+                  <div class="task-meta">
+                    <span class="task-meta-label">Водитель:</span>
+                    <span class="task-meta-value">{{ task.logistics_driver_label|default:"-" }}</span>
+                  </div>
+                  <div class="task-meta">
+                    <span class="task-meta-label">Гос номер:</span>
+                    <span class="task-meta-value">{{ task.logistics_vehicle_number|default:"-" }}</span>
+                  </div>
+                  <div class="task-meta">
+                    <span class="task-meta-label">Направление:</span>
+                    <span class="task-meta-value">{{ task.logistics_direction_label|default:"-" }}</span>
+                  </div>
+                  <div class="task-meta">
+                    <span class="task-meta-label">Паллет в рейсе:</span>
+                    <span class="task-meta-value">{{ task.logistics_pallet_count|default:"0" }}</span>
+                  </div>
+                {% elif task.route and "/shipping/" in task.route %}
+                  <div class="task-meta">
+                    <span class="task-meta-label">Дата отгрузки:</span>
+                    <span class="task-meta-value">{{ task.panel_updated_at_label|default:"-" }}</span>
+                  </div>
+                  {% if task.assigned_to %}
+                    <div class="task-meta">
+                      <span class="task-meta-label">Роль:</span>
+                      <span class="task-meta-value">{{ task.assigned_to.get_role_display }}</span>
+                    </div>
+                  {% endif %}
+                {% elif task_panel_role == "storekeeper" and task.route %}
+                  {% if "/orders/receiving/" in task.route or "/orders/processing/" in task.route %}
+                  {% else %}
+                    <div class="task-meta">
+                      {% if task_panel_role == "manager" and task.assigned_to and task.assigned_to.role == "storekeeper" and task.observer and task.observer.role == task_panel_role %}
+                        Передана на склад: текущий ответственный {{ task.assigned_to.full_name|short_name }} · Срок:
+                        {% if task.due_date %}
+                          {{ task.due_date|date:'d.m.y H:i' }}
+                        {% else %}
+                          -
+                        {% endif %}
+                      {% elif task_panel_role == "manager" and task.assigned_to and task.assigned_to.role == "storekeeper" and task.created_by and task.created_by.username == task_panel_role %}
+                        Передана на склад: текущий ответственный {{ task.assigned_to.full_name|short_name }} · Срок:
+                        {% if task.due_date %}
+                          {{ task.due_date|date:'d.m.y H:i' }}
+                        {% else %}
+                          -
+                        {% endif %}
+                      {% else %}
+                        Исполнитель:
+                        {% if task.executor_label %}
+                          {{ task.executor_label }}
+                        {% else %}
+                          не назначен
+                        {% endif %}
+                        · Срок:
+                        {% if task.due_date %}
+                          {{ task.due_date|date:'d.m.y H:i' }}
+                        {% else %}
+                          -
+                        {% endif %}
+                      {% endif %}
+                    </div>
+                  {% endif %}
+                {% else %}
+                  <div class="task-meta">
+                    {% if task_panel_role == "manager" and task.assigned_to and task.assigned_to.role == "storekeeper" and task.observer and task.observer.role == task_panel_role %}
+                      Передана на склад: текущий ответственный {{ task.assigned_to.full_name|short_name }} · Срок:
+                      {% if task.due_date %}
+                        {{ task.due_date|date:'d.m.y H:i' }}
+                      {% else %}
+                        -
+                      {% endif %}
+                    {% elif task_panel_role == "manager" and task.assigned_to and task.assigned_to.role == "storekeeper" and task.created_by and task.created_by.username == task_panel_role %}
+                      Передана на склад: текущий ответственный {{ task.assigned_to.full_name|short_name }} · Срок:
+                      {% if task.due_date %}
+                        {{ task.due_date|date:'d.m.y H:i' }}
+                      {% else %}
+                        -
+                      {% endif %}
+                    {% else %}
+                      Исполнитель:
+                      {% if task.executor_label %}
+                        {{ task.executor_label }}
+                      {% else %}
+                        не назначен
+                      {% endif %}
+                      · Срок:
+                      {% if task.due_date %}
+                        {{ task.due_date|date:'d.m.y H:i' }}
+                      {% else %}
+                        -
+                      {% endif %}
+                    {% endif %}
+                  </div>
+                {% endif %}
+                {% if task.route and "/orders/processing/" in task.route and task.processing_packers_label %}
+                  <div class="task-meta">
+                    <span class="task-meta-label">Раскоробовка поручена:</span>
+                    <span class="task-meta-value accent">{{ task.processing_packers_label }}</span>
+                  </div>
+                {% endif %}
+                {% if task.order_status_label %}
+                  <div class="task-status-row">
+                    <span class="task-status-pill status-tone-{{ task.order_status_tone|default:'neutral' }}">{{ task.order_status_label }}</span>
+                    {% if task.order_notice_label %}
+                      <span class="task-status-pill status-tone-{{ task.order_notice_tone|default:'neutral' }}">{{ task.order_notice_label }}</span>
+                    {% endif %}
+                  </div>
+                {% endif %}
+                {% if task.order_client_label %}
+                  <div class="task-meta">
+                    <span class="task-meta-label">Клиент:</span>
+                    <span class="task-meta-value">{{ task.order_client_label }}</span>
+                  </div>
+                {% endif %}
+                {% if task.route and "/shipping/" in task.route %}
+                  {% if task.executor_label and task.executor_label != "-" %}
+                    <div class="task-meta">
+                      <span class="task-meta-label">Склад назначения:</span>
+                      <span class="task-meta-value">{{ task.executor_label }}</span>
+                    </div>
+                  {% endif %}
+                  {% if task.processing_packers_label and task.processing_packers_label != "-" %}
+                    <div class="task-meta">
+                      <span class="task-meta-label">Маркетплейс:</span>
+                      <span class="task-meta-value">{{ task.processing_packers_label }}</span>
+                    </div>
+                  {% endif %}
+                {% endif %}
+                {% if task.panel_updated_at_label %}
+                  {% if task.route and "/shipping/" in task.route %}
+                  {% else %}
+                    <div class="task-meta">
+                      <span class="task-meta-label">Последнее изменение:</span>
+                      <span class="task-meta-value">{{ task.panel_updated_at_label }}</span>
+                    </div>
+                  {% endif %}
+                {% endif %}
+                {% if not task.route or "/orders/receiving/" not in task.route and "/orders/processing/" not in task.route and "/shipping/" not in task.route and "/logistics/trips/" not in task.route %}
+                  <div class="task-tags">
+                    <span class="task-tag {{ task.priority }}">{{ task.get_priority_display }}</span>
+                    {% if task.created_by %}
+                      <span class="task-tag">Постановщик: {{ task.created_by }}</span>
+                    {% endif %}
+                    {% if task.observer %}
+                      <span class="task-tag">Наблюдатель: {{ task.observer.full_name }}</span>
+                    {% endif %}
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="task-empty">Нет задач</div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+<script>
+  (() => {
+    const markViewed = (target) => {
+      const item = target && target.closest ? target.closest('[data-task-view-url]') : null;
+      if (!item || item.dataset.taskViewSent === '1') return;
+      item.dataset.taskViewSent = '1';
+      fetch(item.dataset.taskViewUrl, { credentials: 'same-origin', keepalive: true }).catch(() => {
+        item.dataset.taskViewSent = '0';
+      });
+    };
+    document.addEventListener('pointerdown', (event) => markViewed(event.target), { capture: true });
+    document.addEventListener('click', (event) => markViewed(event.target), { capture: true });
+  })();
+</script>

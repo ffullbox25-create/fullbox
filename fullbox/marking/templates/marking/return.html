@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Возврат ЧЗ | ФУЛЛБОКС</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5f5f3;
+      --surface: #fff;
+      --surface-2: #f8f8f6;
+      --ink: #303030;
+      --muted: #707070;
+      --accent: #f89000;
+      --accent-strong: #f86800;
+      --accent-soft: rgba(248, 144, 0, .13);
+      --stroke: rgba(28, 31, 26, .12);
+      --success: #247a4b;
+      --success-soft: rgba(36, 122, 75, .10);
+      --danger: #b83f35;
+      --danger-soft: rgba(184, 63, 53, .10);
+      --shadow: 0 8px 24px rgba(48, 48, 48, .08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Manrope", system-ui, sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input { font: inherit; }
+    .wrap { padding: 24px; }
+    .layout {
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      gap: 20px;
+      min-height: calc(100vh - 48px);
+    }
+    .side, .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+    .side {
+      display: grid;
+      align-content: start;
+      gap: 16px;
+      padding: 18px;
+    }
+    .fullbox-brand-img { display: block; width: 168px; max-width: 100%; height: auto; }
+    .profile, .nav-link {
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: var(--surface-2);
+    }
+    .profile { padding: 12px; font-weight: 700; }
+    .nav { display: grid; gap: 10px; }
+    .nav-link { display: grid; gap: 4px; padding: 12px; }
+    .nav-link.primary {
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+      border-color: rgba(248, 144, 0, .25);
+    }
+    .nav-title { font-weight: 750; }
+    .nav-sub { color: var(--muted); font-size: 12px; }
+    .logout {
+      padding: 10px 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 700;
+    }
+    .content { min-width: 0; }
+    .panel { padding: 28px; }
+    h1 {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 30px;
+    }
+    .lead { max-width: 760px; margin: 10px 0 22px; color: var(--muted); line-height: 1.55; }
+    .rules {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+    .rule {
+      padding: 13px 14px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: var(--surface-2);
+      line-height: 1.4;
+    }
+    .rule strong { display: block; margin-bottom: 3px; }
+    .scan-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+    }
+    .scan-input {
+      min-width: 0;
+      height: 58px;
+      padding: 0 16px;
+      border: 2px solid rgba(248, 144, 0, .32);
+      border-radius: 8px;
+      outline: none;
+      font-size: 18px;
+    }
+    .scan-input:focus { border-color: var(--accent); }
+    .scan-button {
+      min-width: 170px;
+      height: 58px;
+      padding: 0 20px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .scan-button:disabled { cursor: wait; opacity: .55; }
+    .status {
+      margin-top: 18px;
+      padding: 18px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: var(--surface-2);
+    }
+    .status.success { color: var(--success); background: var(--success-soft); border-color: rgba(36, 122, 75, .24); }
+    .status.error { color: var(--danger); background: var(--danger-soft); border-color: rgba(184, 63, 53, .24); }
+    .status-title { font-size: 19px; font-weight: 800; }
+    .status-message { margin-top: 5px; line-height: 1.5; }
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .fact { padding: 10px; border: 1px solid currentColor; border-radius: 8px; background: rgba(255,255,255,.55); }
+    .fact-label { opacity: .72; font-size: 11px; text-transform: uppercase; }
+    .fact-value { margin-top: 3px; overflow-wrap: anywhere; font-weight: 750; }
+    [hidden] { display: none !important; }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .rules, .facts { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .wrap { padding: 12px; }
+      .side, .panel { padding: 14px; }
+      .scan-form { grid-template-columns: 1fr; }
+      .scan-button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        {% include "partials/fullbox_brand.html" %}
+        <div class="profile">
+          Руководитель обработки<br>
+          {% if request.user.employee_profile %}
+            {{ request.user.employee_profile.full_name }}
+          {% else %}
+            {{ request.user.get_full_name|default:request.user.username }}
+          {% endif %}
+        </div>
+        <nav class="nav">
+          <a class="nav-link" href="/processing-head/">
+            <span class="nav-title">Кабинет обработки</span>
+            <span class="nav-sub">Вернуться на рабочий стол</span>
+          </a>
+          <a class="nav-link primary" href="/marking/return/">
+            <span class="nav-title">Возврат ЧЗ</span>
+            <span class="nav-sub">Вернуть ненаклеенную этикетку</span>
+          </a>
+          <a class="nav-link" href="/marking/free-print/">
+            <span class="nav-title">Свободная печать КИЗ</span>
+            <span class="nav-sub">Загрузка и печать кодов</span>
+          </a>
+          <a class="nav-link" href="/marking/status/">
+            <span class="nav-title">Проверка Честного знака</span>
+            <span class="nav-sub">Статус кода в ГИС МТ</span>
+          </a>
+        </nav>
+        <a class="logout" href="/logout/">Выход</a>
+      </aside>
+
+      <main class="content">
+        <section class="panel">
+          <h1>Возврат ЧЗ</h1>
+          <p class="lead">
+            Отсканируйте этикетку, которая была распечатана, но не наклеена. Код снова станет
+            доступен для печати только после проверки всех коробов и складских остатков.
+          </p>
+
+          <div class="rules">
+            <div class="rule">
+              <strong>Можно вернуть</strong>
+              Распечатанный ЧЗ, который нигде не использован и не лежит в коробе.
+            </div>
+            <div class="rule">
+              <strong>Возврат будет отклонён</strong>
+              Если ЧЗ уже принят, добавлен в короб, находится на складе, в FBS или WMS.
+            </div>
+          </div>
+
+          <form class="scan-form" id="return-form">
+            {% csrf_token %}
+            <input
+              class="scan-input"
+              id="code"
+              name="code"
+              type="text"
+              autocomplete="off"
+              autofocus
+              placeholder="Сканируйте DataMatrix"
+              aria-label="Код Честного знака"
+            >
+            <button class="scan-button" id="return-button" type="submit">Вернуть ЧЗ</button>
+          </form>
+
+          <div class="status" id="status">
+            <div class="status-title">Ожидание сканирования</div>
+            <div class="status-message">Сканирование происходит автоматически — нажимать Enter не нужно.</div>
+            <div class="facts" id="facts" hidden></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const form = document.getElementById("return-form");
+      const input = document.getElementById("code");
+      const button = document.getElementById("return-button");
+      const status = document.getElementById("status");
+      const title = status.querySelector(".status-title");
+      const message = status.querySelector(".status-message");
+      const facts = document.getElementById("facts");
+      const csrf = form.querySelector("[name=csrfmiddlewaretoken]").value;
+
+      const showFact = (label, value) => {
+        if (!value) return;
+        const fact = document.createElement("div");
+        fact.className = "fact";
+        const factLabel = document.createElement("div");
+        factLabel.className = "fact-label";
+        factLabel.textContent = label;
+        const factValue = document.createElement("div");
+        factValue.className = "fact-value";
+        factValue.textContent = value;
+        fact.append(factLabel, factValue);
+        facts.appendChild(fact);
+      };
+
+      const render = (kind, heading, text, data = {}) => {
+        status.className = `status ${kind}`;
+        title.textContent = heading;
+        message.textContent = text;
+        facts.replaceChildren();
+        const details = data.details || {};
+        showFact("Код", data.code_masked);
+        showFact("Заявка", details.order_id || data.order_id);
+        showFact("Короб", details.box_code);
+        showFact("Паллета", details.pallet_code);
+        showFact("Контур", details.process_label);
+        showFact("SKU / размер", [details.sku_code || data.sku_code, details.size || data.size].filter(Boolean).join(" · "));
+        facts.hidden = facts.children.length === 0;
+      };
+
+      let busy = false;
+      let inputTimer = null;
+      let lastDesktopScanValue = "";
+      let lastDesktopScanAt = 0;
+
+      const submitCode = async (rawCode) => {
+        const code = String(rawCode || "").trim();
+        if (!code) {
+          render("error", "Код не считан", "Отсканируйте DataMatrix с этикетки.");
+          input.focus();
+          return;
+        }
+        if (busy) return;
+        busy = true;
+        clearTimeout(inputTimer);
+        inputTimer = null;
+        input.value = code;
+        button.disabled = true;
+        render("", "Проверяем код", "Ищем ЧЗ в коробах и складских остатках…");
+        try {
+          const response = await fetch("/marking/return/scan/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrf,
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({ code }),
+          });
+          const data = await response.json();
+          input.value = "";
+          if (!response.ok || !data.ok) {
+            render("error", "Возврат отклонён", data.error || "Не удалось вернуть код ЧЗ.", data);
+            return;
+          }
+          render("success", "ЧЗ возвращён", data.message, data);
+        } catch (_error) {
+          render("error", "Ошибка связи", "Сервер не ответил. Код не был изменён — повторите сканирование.");
+        } finally {
+          busy = false;
+          button.disabled = false;
+          input.focus();
+        }
+      };
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        clearTimeout(inputTimer);
+        inputTimer = null;
+        void submitCode(input.value);
+      });
+
+      input.addEventListener("input", () => {
+        clearTimeout(inputTimer);
+        inputTimer = null;
+        if (!input.value.trim() || busy) return;
+        inputTimer = setTimeout(() => {
+          inputTimer = null;
+          form.requestSubmit();
+        }, 220);
+      });
+
+      const handleDesktopScanEvent = (event) => {
+        const detail = event && event.detail ? event.detail : {};
+        const value = String(detail.value || "").trim();
+        if (!value || busy) return;
+        const now = Date.now();
+        if (value === lastDesktopScanValue && now - lastDesktopScanAt < 500) return;
+        lastDesktopScanValue = value;
+        lastDesktopScanAt = now;
+        input.value = value;
+        clearTimeout(inputTimer);
+        inputTimer = null;
+        void submitCode(value);
+      };
+
+      window.addEventListener("fullbox:scan", handleDesktopScanEvent);
+      window.addEventListener("fullbox:desktop-ready", () => input.focus());
+    })();
+  </script>
+</body>
+</html>

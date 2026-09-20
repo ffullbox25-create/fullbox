@@ -1,0 +1,2600 @@
+{% load static order_display %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Заявки</title>
+  
+  <style>
+    :root {
+      --surface-3: rgba(255,255,255,0.5);
+      --success-soft: rgba(14,107,91,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      background-image:
+        linear-gradient(rgba(28,31,26,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(28,31,26,0.06) 1px, transparent 1px);
+      background-size: 36px 36px;
+      opacity: 0.08;
+    }
+    body::after {
+      background:
+        radial-gradient(420px 240px at 20% 20%, rgba(242,183,71,0.18), transparent 70%),
+        radial-gradient(360px 220px at 85% 30%, rgba(14,107,91,0.12), transparent 70%);
+      opacity: 0.7;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 1680px;
+      margin: 0 auto;
+      padding: 24px 24px 72px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    h1 {
+      margin: 6px 0 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 30px;
+      letter-spacing: -0.5px;
+    }
+    h2,
+    h3 {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      letter-spacing: -0.3px;
+    }
+    .page-lead {
+      margin-top: 8px;
+      color: var(--muted);
+      max-width: 760px;
+      font-size: 14px;
+    }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .tab,
+    .action-btn,
+    .ghost-btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+    }
+    .tab:hover,
+    .action-btn:hover,
+    .ghost-btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.14);
+    }
+    .tab.active,
+    .action-btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .ghost-btn {
+      background: transparent;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    th,
+    td {
+      border-bottom: 1px solid var(--stroke);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .order-link {
+      font-weight: 700;
+    }
+    .notice,
+    .error {
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin: 0;
+      border: 1px solid transparent;
+    }
+    .notice {
+      border-color: rgba(14,107,91,0.35);
+      background: var(--success-soft);
+      color: var(--accent-strong);
+    }
+    .error {
+      border-color: rgba(212,84,60,0.35);
+      background: var(--danger-soft);
+      color: #7f1d1d;
+    }
+    .item-row.row-error td {
+      background: rgba(212,84,60,0.08);
+    }
+    .item-row.row-error .sku-input {
+      border-color: rgba(212,84,60,0.7);
+      box-shadow: 0 0 0 3px rgba(212,84,60,0.12);
+    }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .receiving-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: end;
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(14,107,91,0.16);
+      background:
+        linear-gradient(135deg, rgba(242,183,71,0.16), rgba(14,107,91,0.08)),
+        var(--surface-2);
+      margin-bottom: 12px;
+    }
+    .receiving-toolbar-main {
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+    }
+    .receiving-toolbar-title {
+      margin: 0;
+      font-size: 26px;
+    }
+    .receiving-toolbar-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
+    }
+    .hero-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .chip-accent {
+      background: rgba(14,107,91,0.1);
+      border-color: rgba(14,107,91,0.18);
+      color: var(--accent-strong);
+    }
+    .receiving-status-stack {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .receiving-form {
+      display: grid;
+      gap: 12px;
+    }
+    .receiving-layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 320px) minmax(0, 1fr) minmax(330px, 380px);
+      gap: 12px;
+      align-items: start;
+    }
+    .receiving-left,
+    .receiving-center,
+    .receiving-right {
+      display: grid;
+      gap: 12px;
+      min-width: 0;
+    }
+    .receiving-center {
+      grid-template-rows: minmax(0, 1fr);
+    }
+    .receiving-right {
+      align-content: start;
+    }
+    .button-stack {
+      display: grid;
+      gap: 8px;
+    }
+    .button-stack .tab,
+    .button-stack .action-btn,
+    .button-stack .ghost-btn {
+      width: 100%;
+      justify-content: center;
+      text-align: center;
+    }
+    .side-alerts {
+      display: grid;
+      gap: 8px;
+    }
+    .form-card {
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+    }
+    .form-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .form-card-title {
+      margin: 0;
+      font-size: 17px;
+    }
+    .form-card-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .field label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--muted);
+    }
+    .required { color: var(--danger); margin-left: 4px; }
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    .datetime-field { display: grid; gap: 8px; }
+    .datetime-row {
+      display: grid;
+      grid-template-columns: minmax(150px, 1fr) minmax(130px, 1fr);
+      gap: 8px;
+    }
+    .datetime-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .datetime-chip {
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    .datetime-chip:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.35);
+      box-shadow: 0 10px 20px rgba(14,107,91,0.12);
+    }
+    input,
+    textarea,
+    select {
+      width: 100%;
+      padding: 9px 11px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 13px;
+      font-family: inherit;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    }
+    input:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .static-field {
+      width: 100%;
+      padding: 9px 11px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+    input[type="checkbox"],
+    input[type="radio"] {
+      width: auto;
+      margin: 0;
+      accent-color: var(--accent);
+    }
+    .table-card {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      height: 100%;
+    }
+    .table-wrap {
+      overflow: auto;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      min-height: 0;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    .receiving-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      min-width: 860px;
+      margin: 0;
+      font-size: 13px;
+    }
+    .receiving-table th,
+    .receiving-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--stroke);
+      vertical-align: middle;
+      line-height: 1.3;
+    }
+    .receiving-table th {
+      background: var(--surface-2);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      white-space: nowrap;
+      font-size: 11px;
+      letter-spacing: 0.03em;
+      box-shadow: 0 1px 0 var(--stroke);
+    }
+    .receiving-table th:nth-child(1),
+    .receiving-table td:nth-child(1) { width: 14%; }
+    .receiving-table th:nth-child(2),
+    .receiving-table td:nth-child(2) { width: 42%; }
+    .receiving-table th:nth-child(3),
+    .receiving-table td:nth-child(3) { width: 9%; }
+    .receiving-table th:nth-child(4),
+    .receiving-table td:nth-child(4) { width: 16%; }
+    .receiving-table th:nth-child(5),
+    .receiving-table td:nth-child(5) { width: 9%; }
+    .receiving-table th:nth-child(6),
+    .receiving-table td:nth-child(6) { width: 10%; text-align: center; }
+    .receiving-table tbody tr:nth-child(even) td {
+      background: rgba(28, 31, 26, 0.025);
+    }
+    .receiving-table input,
+    .receiving-table select,
+    .receiving-table textarea {
+      width: 100%;
+      min-width: 0;
+      font-size: 13px;
+      line-height: 1.3;
+      padding: 6px 8px;
+    }
+    .receiving-table .size-input,
+    .receiving-table .qty-input {
+      text-align: center;
+      padding-left: 4px;
+      padding-right: 4px;
+    }
+    .receiving-table .sku-name,
+    .receiving-table .sku-input,
+    .receiving-table .barcode-input,
+    .receiving-table .sku-brand,
+    .receiving-table .sku-color {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .table-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .row-action {
+      padding: 7px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: transparent;
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    .row-action:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.35);
+      box-shadow: 0 8px 18px rgba(14,107,91,0.12);
+    }
+    .barcode-stack {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+    }
+    .barcode-stack .barcode-input {
+      flex: 1 1 100%;
+      min-width: 0;
+    }
+    .item-meta-stack {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.75fr) minmax(0, 0.75fr);
+      gap: 4px;
+      min-width: 0;
+      align-items: center;
+    }
+    .item-meta-subgrid {
+      display: contents;
+    }
+    .barcode-main {
+      font-weight: 700;
+      font-size: 11px;
+      color: var(--muted);
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .barcode-main:empty,
+    .barcode-main[data-empty="1"] {
+      display: none;
+    }
+    .barcode-toggle {
+      border: none;
+      background: rgba(28,31,26,0.06);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 3px 7px;
+      font-size: 10px;
+      cursor: pointer;
+      width: max-content;
+      flex: 0 0 auto;
+    }
+    .barcode-toggle.active {
+      background: rgba(14,107,91,0.12);
+      color: var(--accent-strong);
+    }
+    .barcode-more {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .barcode-more span {
+      padding: 4px 6px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+    }
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .action-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: stretch;
+    }
+    .action-bar .action-btn {
+      flex: 1 1 100%;
+      justify-content: center;
+    }
+    .sidebar-stack {
+      display: grid;
+      gap: 10px;
+    }
+    .template-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.45);
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 24px 16px;
+      z-index: 50;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .template-modal.active { display: flex; }
+    .template-modal-card {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 20px;
+      width: min(560px, 100%);
+      max-height: min(92vh, 820px);
+      margin: auto;
+      box-shadow: 0 20px 40px rgba(15,23,42,0.2);
+      display: grid;
+      gap: 12px;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    .template-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .template-modal-title {
+      margin: 0;
+      font-size: 20px;
+    }
+    .template-close {
+      border: none;
+      background: rgba(28,31,26,0.08);
+      border-radius: 10px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .template-hint {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 0;
+      line-height: 1.45;
+    }
+    .template-file {
+      border: 1px dashed var(--stroke);
+      background: var(--surface-2);
+      border-radius: 14px;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .template-file-list,
+    .template-file-meta {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .template-upload-note {
+      border: 1px solid rgba(13,111,88,0.18);
+      background: rgba(227,245,239,0.72);
+      color: #0d6f58;
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .template-processing {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(15,23,42,0.45);
+    }
+    .template-processing.active {
+      display: flex;
+    }
+    .template-processing-card {
+      width: min(460px, 100%);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      background: var(--surface);
+      box-shadow: 0 24px 50px rgba(15,23,42,0.24);
+      padding: 22px;
+      text-align: center;
+      display: grid;
+      gap: 10px;
+      justify-items: center;
+    }
+    .template-processing-spinner {
+      width: 42px;
+      height: 42px;
+      border: 4px solid rgba(13,111,88,0.16);
+      border-top-color: #0d6f58;
+      border-radius: 50%;
+      animation: template-spin 0.85s linear infinite;
+    }
+    .template-processing-title {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 800;
+    }
+    .template-processing-text {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    @keyframes template-spin {
+      to { transform: rotate(360deg); }
+    }
+    .receiving-page {
+      height: 100vh;
+      overflow: hidden;
+    }
+    .receiving-page .wrap {
+      max-width: none;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 10px 14px 14px;
+    }
+    .receiving-page header {
+      flex: 0 0 auto;
+      margin-bottom: 12px;
+    }
+    .receiving-page .card {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 16px;
+    }
+    .receiving-page .receiving-form {
+      flex: 1 1 auto;
+      min-height: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .receiving-page .receiving-layout {
+      flex: 1 1 auto;
+      height: 100%;
+      min-height: 0;
+      align-items: stretch;
+    }
+    .receiving-page .receiving-left,
+    .receiving-page .receiving-right {
+      min-height: 0;
+      overflow: auto;
+      padding-right: 4px;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    .receiving-page .receiving-center {
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+      padding-right: 4px;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
+    }
+    .receiving-page .table-card {
+      min-height: 0;
+      height: 100%;
+      max-height: 100%;
+    }
+    .receiving-page .table-wrap {
+      min-height: 0;
+      max-height: 100%;
+      overflow: auto;
+    }
+    @media (max-width: 1500px) {
+      .receiving-layout {
+        grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+      }
+      .receiving-center {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+      }
+      .receiving-right {
+        grid-column: 1;
+      }
+      .bottom-grid {
+        grid-template-columns: 1fr;
+      }
+      .receiving-page {
+        height: auto;
+        overflow: auto;
+      }
+      .receiving-page .wrap {
+        height: auto;
+      }
+      .receiving-page .card {
+        overflow: visible;
+      }
+      .receiving-page .receiving-form {
+        height: auto;
+      }
+      .receiving-page .receiving-layout {
+        height: auto;
+      }
+      .receiving-page .receiving-left,
+      .receiving-page .receiving-center,
+      .receiving-page .receiving-right {
+        overflow: visible;
+        padding-right: 0;
+      }
+      .receiving-page .table-wrap {
+        min-height: 420px;
+      }
+    }
+    @media (max-width: 1180px) {
+      .receiving-toolbar {
+        grid-template-columns: 1fr;
+      }
+      .receiving-toolbar-actions {
+        justify-content: flex-start;
+      }
+      .receiving-layout {
+        grid-template-columns: 1fr;
+      }
+      .receiving-center,
+      .receiving-right {
+        grid-column: auto;
+        grid-row: auto;
+      }
+    }
+    @media (max-width: 860px) {
+      .wrap {
+        padding: 18px 16px 48px;
+      }
+      h1 {
+        font-size: 26px;
+      }
+      .receiving-toolbar-title {
+        font-size: 22px;
+      }
+      .meta-grid,
+      .datetime-row {
+        grid-template-columns: 1fr;
+      }
+      .item-meta-stack {
+        grid-template-columns: 1fr;
+      }
+      .receiving-table {
+        min-width: 760px;
+      }
+    }
+  </style>
+</head>
+<body class="{% if active_tab == 'receiving' %}receiving-page{% endif %}">
+  <div class="wrap">
+    {% if active_tab != 'receiving' %}
+      <header>
+        <div>
+          <div class="eyebrow">FULLBOX · {% include "partials/current_user.html" %}</div>
+          {% if active_tab == 'packing' %}
+            <h1>Заявка на упаковку{% if order_number %} · № {{ order_number|display_order_number:active_tab }}{% endif %}</h1>
+          {% else %}
+            <h1>Журнал заявок</h1>
+          {% endif %}
+        </div>
+        <div class="btn-row">
+          {% if client_view %}
+          {% else %}
+            <a class="tab {% if active_tab == 'journal' %}active{% endif %}" href="/orders/">Журнал заявок</a>
+            {% if active_tab != 'journal' %}
+              <a class="tab {% if active_tab == 'receiving' %}active{% endif %}" href="/orders/receiving/">Новая приемка</a>
+              <a class="tab {% if active_tab == 'packing' %}active{% endif %}" href="/orders/packing/">Упаковка</a>
+            {% endif %}
+          {% endif %}
+            {% if client_view %}
+              <a class="tab" href="/client/dashboard/lk/?client={{ agency.id }}">В кабинет</a>
+            {% else %}
+              <a class="tab" href="{{ cabinet_url }}">В кабинет</a>
+            {% endif %}
+          <a class="tab" href="/logout/">Выход</a>
+        </div>
+      </header>
+    {% endif %}
+
+    <div class="card">
+      {% if active_tab == 'journal' %}
+        <h3>Журнал заявок</h3>
+        <p class="muted">История заявок хранится в аудите.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Когда</th>
+              <th>Тип</th>
+              <th>№ заявки</th>
+              <th>Действие</th>
+              <th>Статус</th>
+              <th>Следующий шаг</th>
+              <th>Кол-во (факт)</th>
+              <th>Клиент</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in entries %}
+              <tr>
+                <td>{{ entry.created_at|date:"d.m.Y H:i" }}</td>
+                <td>{{ entry.type_label }}</td>
+                <td><a class="order-link" href="{{ entry.detail_url }}">{{ entry.order_id }}</a></td>
+                <td>{{ entry.action_label }}</td>
+                <td>{{ entry.status_label }}</td>
+                <td>{{ entry.next_step_label|default:"-" }}</td>
+                <td>
+                  {% if entry.order_type == "receiving" %}
+                    {{ entry.actual_qty|default:"-" }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td>{{ entry.client_label|default:"-" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="8" class="muted">Нет данных</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% elif active_tab == 'receiving' %}
+        <form class="receiving-form" method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          {% if edit_mode %}
+            <input type="hidden" name="edit_order_id" value="{{ edit_order_id }}">
+          {% endif %}
+
+          <div class="template-modal" id="template-modal" aria-hidden="true">
+            <div class="template-modal-card" role="dialog" aria-modal="true" aria-labelledby="template-modal-title">
+              <div class="template-modal-header">
+                <h3 class="template-modal-title" id="template-modal-title">Загрузка шаблона приёмки</h3>
+                <button type="button" class="template-close" id="template-modal-close">Закрыть</button>
+              </div>
+              <p class="template-hint">Скачайте шаблон приёмки, заполните его и выберите готовый Excel-файл. Для каждой позиции укажите «Артикул» или «Штрихкод» и обязательно «Количество».</p>
+              <div class="template-upload-note" id="template-upload-note">После выбора файла нажмите «Продолжить заполнение», укажите обязательные данные поставки и отправьте либо сохраните заявку. Позиции из файла добавятся в состав поставки автоматически.</div>
+              <div class="template-file">
+                <label for="template-receiving-file">Заполненный шаблон приёмки</label>
+                <input id="template-receiving-file" name="template_receiving_file" type="file" accept=".xlsx,.xls">
+                <div class="template-file-list" id="template-receiving-file-list">Файл не выбран.</div>
+                <div class="template-file-meta">Поддерживаются файлы .xlsx и .xls.</div>
+              </div>
+              <div class="action-bar">
+                <button type="button" class="action-btn" id="template-modal-done">Продолжить заполнение</button>
+              </div>
+            </div>
+          </div>
+          <div class="template-processing" id="template-processing" aria-hidden="true" aria-live="assertive">
+            <div class="template-processing-card">
+              <div class="template-processing-spinner" aria-hidden="true"></div>
+              <p class="template-processing-title">Загружаем файл</p>
+              <p class="template-processing-text" id="template-processing-text">Проверяем шаблон приёмки и добавляем позиции в заявку. Не закрывайте вкладку.</p>
+            </div>
+          </div>
+
+          <div class="receiving-layout">
+            <div class="receiving-left">
+              <section class="form-card">
+                <div class="form-card-head">
+                  <div>
+                    <h3 class="form-card-title">Действия</h3>
+                  </div>
+                </div>
+                <div class="button-stack">
+                  {% if client_view %}
+                    <a class="tab" href="/client/dashboard/lk/?client={{ agency.id }}">В кабинет</a>
+                  {% else %}
+                    <a class="tab" href="/orders/">Журнал заявок</a>
+                    <a class="tab active" href="/orders/receiving/">Новая приемка</a>
+                    <a class="tab" href="/orders/packing/">Упаковка</a>
+                    <a class="tab" href="{{ cabinet_url }}">В кабинет</a>
+                  {% endif %}
+                  {% if agency %}
+                    <a class="ghost-btn" id="download-template" href="{% url 'orders-template-receiving' %}" download="Шаблон приемки.xlsx">Скачать шаблон приёмки</a>
+                    <button class="ghost-btn" id="upload-template" type="button">Загрузить заполненный шаблон</button>
+                  {% endif %}
+                </div>
+              </section>
+
+              <div class="side-alerts">
+                {% if error %}
+                  <div class="error">{{ error }}</div>
+                {% endif %}
+                {% if draft_saved %}
+                  <div class="notice">Черновик сохранен.</div>
+                {% elif submitted %}
+                  <div class="notice">Заявка отправлена.</div>
+                {% endif %}
+                <div class="notice" id="draft-autosave-status" hidden></div>
+                <div class="notice" id="draft-restore" hidden>
+                  Найден черновик.
+                  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+                    <button type="button" class="action-btn" id="draft-restore-btn">Восстановить</button>
+                    <button type="button" class="action-btn" id="draft-discard-btn">Новая форма</button>
+                  </div>
+                </div>
+              </div>
+
+              <section class="form-card">
+                <div class="form-card-head">
+                  <div>
+                    <h3 class="form-card-title">Комментарий и отправка</h3>
+                  </div>
+                </div>
+
+                <div class="bottom-grid">
+                  <div class="field">
+                    <label>Комментарий</label>
+                    <textarea name="comment" rows="2" placeholder="Дополнительная информация">{{ edit_payload.comment|default:'' }}</textarea>
+                  </div>
+                  <div class="action-bar">
+                    {% if edit_mode %}
+                      {% if edit_is_draft %}
+                        <button type="submit" class="action-btn primary" name="submit_action" value="send">{% if client_view %}Отправить менеджеру{% else %}Отправить{% endif %}</button>
+                        <button type="submit" class="action-btn" name="submit_action" value="draft">Сохранить черновик</button>
+                      {% else %}
+                        <button type="submit" class="action-btn primary" name="submit_action" value="update">Сохранить изменения</button>
+                      {% endif %}
+                      <button type="button" class="action-btn" id="clear-form">Очистить данные</button>
+                      {% if edit_order_id %}
+                        <a class="action-btn" href="/orders/receiving/{{ edit_order_id }}/">Отмена</a>
+                      {% else %}
+                        <a class="action-btn" href="/orders/">Отмена</a>
+                      {% endif %}
+                    {% else %}
+                      <button type="submit" class="action-btn primary" name="submit_action" value="send">Отправить</button>
+                      <button type="submit" class="action-btn" name="submit_action" value="draft">Сохранить черновик</button>
+                      <button type="button" class="action-btn" id="clear-form">Очистить данные</button>
+                      {% if agency %}
+                        <a class="action-btn" href="/orders/?client={{ agency.id }}">Отмена</a>
+                      {% else %}
+                        <a class="action-btn" href="/orders/">Отмена</a>
+                      {% endif %}
+                    {% endif %}
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div class="receiving-center">
+              <section class="form-card table-card">
+                <div class="form-card-head">
+                  <div>
+                    <h3 class="form-card-title">Состав поставки</h3>
+                  </div>
+                  <span class="small muted">Центральная таблица заявки</span>
+                </div>
+
+                <div class="table-wrap">
+                  <table class="receiving-table">
+                    <thead>
+                      <tr>
+                        <th>Артикул</th>
+                        <th>Наименование · бренд · цвет</th>
+                        <th>Разм.</th>
+                        <th>ШК</th>
+                        <th>Кол-во *</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody id="items-body">
+                      {% if edit_mode and edit_payload.items %}
+                        {% for item in edit_payload.items %}
+                          <tr class="item-row" data-preferred-size="{{ item.size|default:'' }}">
+                            <td>
+                              <input type="text" name="sku_code[]" class="sku-input" list="sku-options" placeholder="SKU" value="{{ item.sku_code|default:'' }}">
+                              <input type="hidden" name="sku_id[]" class="sku-id" value="{{ item.sku_id|default:'' }}">
+                            </td>
+                            <td>
+                              <div class="item-meta-stack">
+                                <input type="text" name="item_name[]" class="sku-name" placeholder="Наименование" value="{{ item.name|default:'' }}" list="sku-name-options">
+                                <div class="item-meta-subgrid">
+                                  <input type="text" name="brand[]" class="sku-brand" placeholder="Бренд" value="{{ item.brand|default:'' }}">
+                                  <input type="text" name="color[]" class="sku-color" placeholder="Цвет" value="{{ item.color|default:'' }}">
+                                </div>
+                              </div>
+                            </td>
+                            <td class="size-cell">
+                              <input type="text" name="size[]" class="size-input" placeholder="Размер" value="{{ item.size|default:'' }}">
+                            </td>
+                            <td>
+                              <div class="barcode-stack">
+                                <input type="text" name="barcode[]" class="barcode-input" placeholder="ШК" value="{{ item.barcode|default:'' }}">
+                                <span class="barcode-main" data-empty="1"></span>
+                                <button type="button" class="barcode-toggle" hidden>+0</button>
+                                <div class="barcode-more" hidden></div>
+                              </div>
+                            </td>
+                            <td>
+                              <input type="number" name="qty[]" class="qty-input" min="1" placeholder="0" value="{{ item.qty|default:'' }}">
+                              <input type="hidden" name="position_comment[]" value="{{ item.comment|default:'' }}">
+                            </td>
+                            <td>
+                              <button type="button" class="row-action remove-row">Удалить</button>
+                            </td>
+                          </tr>
+                        {% endfor %}
+                      {% else %}
+                        <tr class="item-row">
+                          <td>
+                            <input type="text" name="sku_code[]" class="sku-input" list="sku-options" placeholder="SKU">
+                            <input type="hidden" name="sku_id[]" class="sku-id">
+                          </td>
+                          <td>
+                            <div class="item-meta-stack">
+                              <input type="text" name="item_name[]" class="sku-name" placeholder="Наименование" list="sku-name-options">
+                              <div class="item-meta-subgrid">
+                                <input type="text" name="brand[]" class="sku-brand" placeholder="Бренд">
+                                <input type="text" name="color[]" class="sku-color" placeholder="Цвет">
+                              </div>
+                            </div>
+                          </td>
+                          <td class="size-cell">
+                            <input type="text" name="size[]" class="size-input" placeholder="Размер">
+                          </td>
+                          <td>
+                            <div class="barcode-stack">
+                              <input type="text" name="barcode[]" class="barcode-input" placeholder="ШК">
+                              <span class="barcode-main" data-empty="1"></span>
+                              <button type="button" class="barcode-toggle" hidden>+0</button>
+                              <div class="barcode-more" hidden></div>
+                            </div>
+                          </td>
+                          <td>
+                            <input type="number" name="qty[]" class="qty-input" min="1" placeholder="0">
+                            <input type="hidden" name="position_comment[]" value="">
+                          </td>
+                          <td>
+                            <button type="button" class="row-action remove-row">Удалить</button>
+                          </td>
+                        </tr>
+                      {% endif %}
+                    </tbody>
+                  </table>
+                </div>
+                <div class="hint">
+                  Состав поставки можно не указывать. Если добавляете товар, заполните артикул и количество.
+                </div>
+
+                <div class="table-actions">
+                  <button type="button" class="action-btn" id="add-row">+ Добавить строку</button>
+                </div>
+              </section>
+            </div>
+
+            <div class="receiving-right">
+              <section class="form-card">
+                <div class="form-card-head">
+                  <div>
+                    <h3 class="form-card-title">Поставка</h3>
+                  </div>
+                </div>
+
+                <div class="sidebar-stack">
+                  <div class="field">
+                    <label>Клиент <span class="required">*</span></label>
+                    {% if agency %}
+                      <div class="static-field">
+                        {{ agency.agn_name|default:agency.inn|default:"Клиент" }}
+                      </div>
+                      {% if agency.inn %}
+                        <div class="hint">ИНН {{ agency.inn }}</div>
+                      {% endif %}
+                    {% else %}
+                      <div class="static-field">Клиент не выбран</div>
+                    {% endif %}
+                    <input type="hidden" name="agency_id" value="{{ agency.id|default:'' }}">
+                  </div>
+                  <div class="field">
+                    <label>Плановая дата/время прибытия <span class="required">*</span></label>
+                    <div class="datetime-field">
+                      <div class="datetime-row">
+                        <input type="date" id="eta-date" required>
+                        <input type="time" id="eta-time" required step="300">
+                      </div>
+                      <div class="datetime-chips">
+                        <button class="datetime-chip" type="button" data-offset="0" data-time="10:00">Сегодня 10:00</button>
+                        <button class="datetime-chip" type="button" data-offset="0" data-time="16:00">Сегодня 16:00</button>
+                        <button class="datetime-chip" type="button" data-offset="1" data-time="10:00">Завтра 10:00</button>
+                        <button class="datetime-chip" type="button" data-offset="1" data-time="16:00">Завтра 16:00</button>
+                      </div>
+                      <input
+                        type="hidden"
+                        name="eta_at"
+                        id="eta_at"
+                        data-min-hours="{{ min_past_hours }}"
+                        data-now="{{ current_time_input }}"
+                        data-default-value="{{ default_receiving_eta_input }}"
+                        value="{{ edit_payload.eta_at|default:'' }}"
+                      >
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label>Количество мест к приемке</label>
+                    <input type="number" name="expected_boxes" min="1" required placeholder="0" value="{{ edit_payload.expected_boxes|default:'' }}">
+                  </div>
+                  <div class="field">
+                    <label>Сканирование Честного знака</label>
+                    <select name="receiving_chz_service" required>
+                      <option value="">Выберите</option>
+                      <option value="required" {% if edit_payload.receiving_chz_service == "required" %}selected{% endif %}>Требуется — сканировать Data Matrix</option>
+                      <option value="not_required" {% if edit_payload.receiving_chz_service == "not_required" %}selected{% endif %}>Не обязательно — приемщик выберет при приемке</option>
+                    </select>
+                    <small>Если ЧЗ обязателен, приемщик не сможет его отключить. В остальных случаях он выберет режим перед первым сканом.</small>
+                  </div>
+                  <div class="field">
+                    <label>Куда направить товар после приемки <span class="required">*</span></label>
+                    <select name="receiving_route" required>
+                      <option value="">Выберите FBS или FBO</option>
+                      <option value="fbo" {% if edit_payload.receiving_route == "fbo" or edit_mode and not edit_payload.receiving_route %}selected{% endif %}>FBO — на хранение и обработку</option>
+                      {% if client_fbs_enabled or edit_payload.receiving_route == "fbs" %}
+                        <option value="fbs" {% if edit_payload.receiving_route == "fbs" %}selected{% endif %}>FBS — сразу в точное FBS-место</option>
+                      {% endif %}
+                    </select>
+                    {% if client_fbs_enabled %}
+                      <small>Для FBS кладовщик увидит точное место после закрытия каждой палеты. Маршрут нельзя изменить после начала приемки.</small>
+                    {% else %}
+                      <small>Для клиента FBS не подключен, доступен только маршрут FBO.</small>
+                    {% endif %}
+                  </div>
+                  <div class="field">
+                    <label>Тип мест</label>
+                    <select name="place_type" required>
+                      <option value="">Выберите</option>
+                      <option value="pallet" {% if edit_payload.place_type == "pallet" %}selected{% endif %}>Паллет</option>
+                      <option value="box" {% if edit_payload.place_type == "box" %}selected{% endif %}>Короб</option>
+                      <option value="bag" {% if edit_payload.place_type == "bag" %}selected{% endif %}>Мешок</option>
+                    </select>
+                  </div>
+                </div>
+              </section>
+
+              <section class="form-card">
+                <div class="form-card-head">
+                  <div>
+                    <h3 class="form-card-title">Маршрут и документы</h3>
+                  </div>
+                </div>
+
+                <div class="sidebar-stack">
+                  <div class="field">
+                    <label>Номер авто</label>
+                    <input type="text" name="vehicle_number" required placeholder="A123BC77" value="{{ edit_payload.vehicle_number|default:'' }}">
+                  </div>
+                  <div class="field">
+                    <label>Телефон водителя</label>
+                    <input type="tel" name="driver_phone" required inputmode="tel" autocomplete="tel" maxlength="16" placeholder="+7 900 123-45-67" value="{{ edit_payload.driver_phone|default:'' }}">
+                  </div>
+                  <div class="field">
+                    <label>Документы</label>
+                    <input type="file" name="documents" multiple accept=".pdf,.jpg,.jpeg,.png,.xlsx,.doc,.docx">
+                    <div class="hint">PDF, JPG, PNG, XLS, DOC</div>
+                  </div>
+                </div>
+              </section>
+
+            </div>
+          </div>
+        </form>
+
+        <datalist id="sku-options">
+          {% for sku in sku_options %}
+            <option value="{{ sku.code }}" data-id="{{ sku.id }}" data-name="{{ sku.name }}" data-brand="{{ sku.brand|default:'' }}" data-color="{{ sku.color|default:'' }}" data-barcodes="{{ sku.barcodes_joined }}" data-sizes="{{ sku.sizes_json|escape }}"></option>
+          {% endfor %}
+        </datalist>
+        <datalist id="sku-name-options">
+          {% for sku in sku_options %}
+            <option value="{{ sku.name }}" data-id="{{ sku.id }}" data-code="{{ sku.code }}" data-brand="{{ sku.brand|default:'' }}" data-color="{{ sku.color|default:'' }}" data-barcodes="{{ sku.barcodes_joined }}" data-sizes="{{ sku.sizes_json|escape }}"></option>
+          {% endfor %}
+        </datalist>
+      {% elif active_tab == 'processing' %}
+        <h3>Заявка на обработку</h3>
+        <p class="muted">Форма создания обработки будет здесь.</p>
+      {% elif active_tab == 'shipping' %}
+        <h3>Заявка на отгрузку</h3>
+        <p class="muted">Форма создания отгрузки будет здесь.</p>
+      {% elif active_tab == 'other' %}
+        <h3>Прочие заявки</h3>
+        <p class="muted">Заявки клиента на замер, фото, переупаковку и другие задачи склада. Статусы синхронизированы с ЛК.</p>
+        {% if other_rows %}
+          <div class="table-card" style="margin-top:14px">
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>№</th>
+                    <th>Клиент</th>
+                    <th>Тип</th>
+                    <th>Статус</th>
+                    <th>Создана</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in other_rows %}
+                    <tr>
+                      <td>{{ row.display_number }}</td>
+                      <td>{{ row.agency_name }}</td>
+                      <td>{{ row.category_label }}{% if row.description %}<div class="muted">{{ row.description }}</div>{% endif %}</td>
+                      <td>{{ row.status_label }}</td>
+                      <td>{{ row.created_at|date:"d.m.Y H:i" }}</td>
+                      <td><a class="tab" href="{{ row.detail_url }}">Открыть</a></td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        {% else %}
+          <p class="muted" style="margin-top:12px">Прочих заявок пока нет.</p>
+        {% endif %}
+      {% else %}
+        <h3>Прочие заявки</h3>
+        <p class="muted">Общие заявки и обращения.</p>
+      {% endif %}
+    </div>
+  </div>
+  <script>
+    (function(){
+      const tableBody = document.getElementById('items-body');
+      if (!tableBody) {
+        return;
+      }
+      const addBtn = document.getElementById('add-row');
+      const form = tableBody.closest('form');
+      const optionNodes = document.querySelectorAll('#sku-options option');
+      const nameOptionNodes = document.querySelectorAll('#sku-name-options option');
+      const skuMap = {};
+      const skuNameMap = {};
+      const dynamicListHost = document.createElement('div');
+      dynamicListHost.hidden = true;
+      form.appendChild(dynamicListHost);
+      let rowSequence = 0;
+      function hasTemplateUpload() {
+        const receivingFile = document.getElementById('template-receiving-file');
+        return Boolean(receivingFile?.files?.length);
+      }
+
+      function showTemplateProcessing(isDraftSubmit) {
+        const overlay = document.getElementById('template-processing');
+        const text = document.getElementById('template-processing-text');
+        if (!overlay) {
+          return;
+        }
+        if (text) {
+          text.textContent = isDraftSubmit
+            ? 'Проверяем шаблон и сохраняем черновик. Не закрывайте вкладку.'
+            : 'Проверяем шаблон приёмки и добавляем позиции в заявку. Не закрывайте вкладку.';
+        }
+        overlay.hidden = false;
+        overlay.classList.add('active');
+        overlay.setAttribute('aria-hidden', 'false');
+      }
+
+      const parseSizes = (raw) => {
+        if (!raw) {
+          return {};
+        }
+        try {
+          const parsed = JSON.parse(raw);
+          return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (err) {
+          return {};
+        }
+      };
+
+      optionNodes.forEach((option) => {
+        const code = option.value.trim();
+        if (!code) {
+          return;
+        }
+        const barcodes = (option.dataset.barcodes || '').split('|').filter(Boolean);
+        const sizes = parseSizes(option.dataset.sizes);
+        skuMap[code] = {
+          id: option.dataset.id || '',
+          name: option.dataset.name || '',
+          brand: option.dataset.brand || '',
+          color: option.dataset.color || '',
+          barcodes,
+          sizes,
+        };
+      });
+      nameOptionNodes.forEach((option) => {
+        const name = option.value.trim();
+        if (!name || skuNameMap[name]) {
+          return;
+        }
+        skuNameMap[name] = {
+          id: option.dataset.id || '',
+          code: option.dataset.code || '',
+          name,
+          brand: option.dataset.brand || '',
+          color: option.dataset.color || '',
+          barcodes: (option.dataset.barcodes || '').split('|').filter(Boolean),
+          sizes: parseSizes(option.dataset.sizes),
+        };
+      });
+
+      function ensureRowKey(row) {
+        if (!row.dataset.rowKey) {
+          rowSequence += 1;
+          row.dataset.rowKey = `receiving-row-${rowSequence}`;
+        }
+        return row.dataset.rowKey;
+      }
+
+      function uniqueValues(values) {
+        return Array.from(new Set((Array.isArray(values) ? values : []).filter(Boolean)));
+      }
+
+      function ensureTextField(container, selector, name, className, placeholder) {
+        let field = container.querySelector(selector);
+        if (field && field.tagName === 'INPUT') {
+          field.type = 'text';
+          field.name = name;
+          field.className = className;
+          field.placeholder = placeholder;
+          return field;
+        }
+        const replacement = document.createElement('input');
+        replacement.type = 'text';
+        replacement.name = name;
+        replacement.className = className;
+        replacement.placeholder = placeholder;
+        replacement.value = field?.value || '';
+        if (field) {
+          field.replaceWith(replacement);
+        } else {
+          container.prepend(replacement);
+        }
+        return replacement;
+      }
+
+      function mountRowDatalist(row, suffix, values) {
+        const options = uniqueValues(values);
+        if (!options.length) {
+          return '';
+        }
+        const listId = `${ensureRowKey(row)}-${suffix}`;
+        let datalist = dynamicListHost.querySelector(`#${listId}`);
+        if (!datalist) {
+          datalist = document.createElement('datalist');
+          datalist.id = listId;
+          dynamicListHost.appendChild(datalist);
+        }
+        datalist.innerHTML = '';
+        options.forEach((value) => {
+          const option = document.createElement('option');
+          option.value = value;
+          datalist.appendChild(option);
+        });
+        return listId;
+      }
+
+      function clearRowDatalist(row, suffix) {
+        const rowKey = row.dataset.rowKey;
+        if (!rowKey) {
+          return;
+        }
+        dynamicListHost.querySelector(`#${rowKey}-${suffix}`)?.remove();
+      }
+
+      function setKnownSkuFieldState(row, data) {
+        const nameInput = row.querySelector('.sku-name');
+        const brandInput = row.querySelector('.sku-brand');
+        const colorInput = row.querySelector('.sku-color');
+        const isKnown = Boolean(data);
+
+        if (nameInput) {
+          nameInput.readOnly = isKnown;
+          if (isKnown) {
+            nameInput.removeAttribute('list');
+          } else {
+            nameInput.setAttribute('list', 'sku-name-options');
+          }
+        }
+        if (brandInput) {
+          brandInput.readOnly = isKnown;
+        }
+        if (colorInput) {
+          colorInput.readOnly = isKnown;
+        }
+        row.dataset.knownSku = isKnown ? '1' : '0';
+      }
+
+      function renderBarcodes(row, barcodes) {
+        const main = row.querySelector('.barcode-main');
+        const toggle = row.querySelector('.barcode-toggle');
+        const more = row.querySelector('.barcode-more');
+        const list = Array.isArray(barcodes) ? barcodes.filter(Boolean) : [];
+        const currentValue = row.querySelector('.barcode-input')?.value.trim() || '';
+        const primaryValue = currentValue && list.includes(currentValue) ? currentValue : list[0];
+        const extraValues = list.filter((value) => value !== primaryValue);
+
+        if (!list.length) {
+          if (main) {
+            main.textContent = '';
+            main.dataset.empty = '1';
+          }
+          toggle.hidden = true;
+          toggle.classList.remove('active');
+          more.hidden = true;
+          more.innerHTML = '';
+          return;
+        }
+
+        // Не дублируем ШК под полем — показываем подпись только если в поле другое/пусто.
+        if (main) {
+          if (!currentValue || currentValue !== primaryValue) {
+            main.textContent = primaryValue || '';
+            main.dataset.empty = primaryValue ? '0' : '1';
+          } else {
+            main.textContent = '';
+            main.dataset.empty = '1';
+          }
+        }
+        if (extraValues.length) {
+          toggle.hidden = false;
+          toggle.textContent = `+${extraValues.length}`;
+          more.innerHTML = extraValues.map(value => `<span>${value}</span>`).join('');
+        } else {
+          toggle.hidden = true;
+          toggle.classList.remove('active');
+          more.hidden = true;
+          more.innerHTML = '';
+        }
+      }
+
+      function bindSizeListener(row) {
+        const sizeInput = row.querySelector('.size-input');
+        if (!sizeInput || sizeInput.dataset.bound === '1') {
+          return;
+        }
+        sizeInput.dataset.bound = '1';
+        const handler = () => updateBarcodesForRow(row);
+        sizeInput.addEventListener('change', handler);
+        sizeInput.addEventListener('input', handler);
+      }
+
+      function bindBarcodeListener(row) {
+        const barcodeInput = row.querySelector('.barcode-input');
+        if (!barcodeInput || barcodeInput.dataset.bound === '1') {
+          return;
+        }
+        barcodeInput.dataset.bound = '1';
+        const handler = () => {
+          const code = row.querySelector('.sku-input')?.value.trim();
+          const data = skuMap[code];
+          const sizeValue = row.querySelector('.size-input')?.value.trim() || '';
+          const barcodes = sizeValue && data?.sizes?.[sizeValue] ? data.sizes[sizeValue] : (data?.barcodes || []);
+          renderBarcodes(row, barcodes);
+        };
+        barcodeInput.addEventListener('change', handler);
+        barcodeInput.addEventListener('input', handler);
+      }
+
+      function syncSizeField(row, sizeOptions, preferred) {
+        const cell = row.querySelector('.size-cell');
+        if (!cell) {
+          return '';
+        }
+        const options = uniqueValues(sizeOptions).sort((a, b) => a.localeCompare(b, 'ru', { numeric: true, sensitivity: 'base' }));
+        const input = ensureTextField(cell, '.size-input', 'size[]', 'size-input', options.length ? 'Выберите размер' : 'Размер');
+        const current = (preferred || input.value || '').trim();
+        const nextValue = current && options.length ? (options.includes(current) ? current : '') : (current || (options.length === 1 ? options[0] : ''));
+        if (options.length) {
+          input.setAttribute('list', mountRowDatalist(row, 'sizes', options));
+        } else {
+          input.removeAttribute('list');
+          clearRowDatalist(row, 'sizes');
+        }
+        input.readOnly = options.length === 1;
+        input.placeholder = options.length ? 'Выберите размер' : 'Размер';
+        input.value = nextValue;
+        bindSizeListener(row);
+        return input.value.trim();
+      }
+
+      function syncBarcodeField(row, barcodeOptions, preferred, placeholder) {
+        const stack = row.querySelector('.barcode-stack');
+        if (!stack) {
+          return '';
+        }
+        const options = uniqueValues(barcodeOptions);
+        const input = ensureTextField(stack, '.barcode-input', 'barcode[]', 'barcode-input', placeholder || 'ШК');
+        const current = (preferred || input.value || '').trim();
+        const nextValue = current && options.length ? (options.includes(current) ? current : '') : (current || (options.length === 1 ? options[0] : ''));
+        if (options.length) {
+          input.setAttribute('list', mountRowDatalist(row, 'barcodes', options));
+        } else {
+          input.removeAttribute('list');
+          clearRowDatalist(row, 'barcodes');
+        }
+        input.readOnly = options.length === 1;
+        input.placeholder = placeholder || (options.length ? 'Выберите ШК' : 'ШК');
+        input.value = nextValue;
+        bindBarcodeListener(row);
+        return input.value.trim();
+      }
+
+      function updateBarcodesForRow(row) {
+        const code = row.querySelector('.sku-input').value.trim();
+        const data = skuMap[code];
+        if (!data) {
+          syncBarcodeField(row, [], row.querySelector('.barcode-input')?.value || '', 'ШК');
+          renderBarcodes(row, []);
+          return;
+        }
+        const sizeValue = row.querySelector('.size-input')?.value.trim() || '';
+        const sizeOptions = uniqueValues(Object.keys(data.sizes || {}));
+        if (sizeOptions.length && (!sizeValue || !data.sizes[sizeValue])) {
+          syncBarcodeField(row, [], '', 'Сначала выберите размер');
+          renderBarcodes(row, []);
+          return;
+        }
+        const barcodes = sizeValue && data.sizes[sizeValue] ? data.sizes[sizeValue] : data.barcodes;
+        syncBarcodeField(row, barcodes, row.querySelector('.barcode-input')?.value || '', barcodes.length ? 'Выберите ШК' : 'ШК');
+        renderBarcodes(row, barcodes);
+      }
+
+      function applySku(row, code) {
+        const nameInput = row.querySelector('.sku-name');
+        const brandInput = row.querySelector('.sku-brand');
+        const colorInput = row.querySelector('.sku-color');
+        const idInput = row.querySelector('.sku-id');
+        const data = skuMap[code];
+
+        if (!data) {
+          idInput.value = '';
+          setKnownSkuFieldState(row, null);
+          syncSizeField(row, [], row.querySelector('.size-input')?.value || '');
+          syncBarcodeField(row, [], row.querySelector('.barcode-input')?.value || '', 'ШК');
+          renderBarcodes(row, []);
+          return;
+        }
+
+        nameInput.value = data.name || '';
+        if (brandInput) {
+          brandInput.value = data.brand || '';
+        }
+        if (colorInput) {
+          colorInput.value = data.color || '';
+        }
+        idInput.value = data.id || '';
+        setKnownSkuFieldState(row, data);
+
+        const sizeOptions = uniqueValues(Object.keys(data.sizes || {}));
+        sizeOptions.sort((a, b) => a.localeCompare(b, 'ru', { numeric: true, sensitivity: 'base' }));
+        const preferredSize = row.dataset.preferredSize || '';
+        row.dataset.preferredSize = '';
+        const selectedSize = syncSizeField(row, sizeOptions, preferredSize);
+
+        if (sizeOptions.length && !selectedSize) {
+          syncBarcodeField(row, [], '', 'Сначала выберите размер');
+          renderBarcodes(row, []);
+          return;
+        }
+        updateBarcodesForRow(row);
+      }
+
+      function wireRow(row) {
+        ensureRowKey(row);
+        const skuInput = row.querySelector('.sku-input');
+        const nameInput = row.querySelector('.sku-name');
+        const brandInput = row.querySelector('.sku-brand');
+        const colorInput = row.querySelector('.sku-color');
+        const toggle = row.querySelector('.barcode-toggle');
+        const more = row.querySelector('.barcode-more');
+        const remove = row.querySelector('.remove-row');
+
+        skuInput.addEventListener('input', () => {
+          applySku(row, skuInput.value.trim());
+        });
+        const updateNameList = () => {
+          if (!nameInput) {
+            return;
+          }
+          if (nameInput.readOnly) {
+            nameInput.removeAttribute('list');
+            return;
+          }
+          const value = nameInput.value.trim();
+          if (value.length >= 2) {
+            nameInput.setAttribute('list', 'sku-name-options');
+          } else {
+            nameInput.removeAttribute('list');
+          }
+        };
+        if (nameInput) {
+          nameInput.addEventListener('focus', updateNameList);
+          nameInput.addEventListener('input', () => {
+            updateNameList();
+            const value = nameInput.value.trim();
+            const data = skuNameMap[value];
+            if (data && data.code) {
+              skuInput.value = data.code;
+              applySku(row, data.code);
+            }
+          });
+        }
+        if (brandInput) {
+          brandInput.addEventListener('input', () => {
+            if (skuInput.value.trim() && !skuMap[skuInput.value.trim()]) {
+              row.querySelector('.sku-id').value = '';
+            }
+          });
+        }
+        if (colorInput) {
+          colorInput.addEventListener('input', () => {
+            if (skuInput.value.trim() && !skuMap[skuInput.value.trim()]) {
+              row.querySelector('.sku-id').value = '';
+            }
+          });
+        }
+
+        toggle.addEventListener('click', () => {
+          const willShow = more.hidden;
+          more.hidden = !willShow;
+          toggle.classList.toggle('active', willShow);
+        });
+
+        remove.addEventListener('click', () => {
+          const rows = document.querySelectorAll('.item-row');
+          if (rows.length > 1) {
+            clearRowDatalist(row, 'sizes');
+            clearRowDatalist(row, 'barcodes');
+            row.remove();
+            return;
+          }
+          row.querySelectorAll('input').forEach((input) => {
+            input.value = '';
+          });
+          row.querySelectorAll('select').forEach((select) => {
+            select.value = '';
+          });
+          syncSizeField(row, [], '');
+          row.querySelectorAll('.barcode-main').forEach((el) => {
+            el.textContent = '-';
+          });
+          row.querySelectorAll('.barcode-toggle').forEach((el) => {
+            el.hidden = true;
+            el.classList.remove('active');
+          });
+          row.querySelectorAll('.barcode-more').forEach((el) => {
+            el.hidden = true;
+            el.innerHTML = '';
+          });
+          setKnownSkuFieldState(row, null);
+          syncBarcodeField(row, [], '', 'ШК');
+          clearRowDatalist(row, 'sizes');
+          clearRowDatalist(row, 'barcodes');
+        });
+
+        const initialCode = skuInput.value.trim();
+        if (initialCode) {
+          applySku(row, initialCode);
+        } else {
+          setKnownSkuFieldState(row, null);
+          syncSizeField(row, [], row.querySelector('.size-input')?.value || '');
+          syncBarcodeField(row, [], row.querySelector('.barcode-input')?.value || '', 'ШК');
+        }
+      }
+
+      addBtn.addEventListener('click', () => {
+        const baseRow = tableBody.querySelector('.item-row');
+        const clone = baseRow.cloneNode(true);
+        clone.querySelectorAll('input').forEach((input) => {
+          input.value = '';
+        });
+        clone.querySelectorAll('.barcode-main').forEach((el) => {
+          el.textContent = '-';
+        });
+        clone.querySelectorAll('.barcode-toggle').forEach((el) => {
+          el.hidden = true;
+          el.classList.remove('active');
+        });
+        clone.querySelectorAll('.barcode-more').forEach((el) => {
+          el.hidden = true;
+          el.innerHTML = '';
+        });
+        clone.removeAttribute('data-row-key');
+        clone.removeAttribute('data-known-sku');
+        setKnownSkuFieldState(clone, null);
+        syncSizeField(clone, [], '');
+        syncBarcodeField(clone, [], '', 'ШК');
+        wireRow(clone);
+        tableBody.appendChild(clone);
+      });
+
+      tableBody.querySelectorAll('.item-row').forEach(wireRow);
+
+      const clientId = '{{ agency.id|default:"" }}';
+      const submitted = '{{ submitted|yesno:"1,0" }}' === '1';
+      const isEditMode = '{{ edit_mode|yesno:"1,0" }}' === '1';
+      const draftKey = clientId ? `receiving_draft_${clientId}` : '';
+      const skuReturnKey = clientId ? `receiving_return_sku_${clientId}` : '';
+      const draftNotice = document.getElementById('draft-restore');
+      const draftRestoreBtn = document.getElementById('draft-restore-btn');
+      const draftDiscardBtn = document.getElementById('draft-discard-btn');
+      const driverPhoneInput = form?.querySelector('[name="driver_phone"]');
+      const getDriverPhoneDigits = (value) => {
+        let digits = (value || '').replace(/\D/g, '');
+        if (!digits) {
+          return '';
+        }
+        if (digits.startsWith('8')) {
+          digits = `7${digits.slice(1)}`;
+        } else if (digits.startsWith('9')) {
+          digits = `7${digits}`;
+        } else if (!digits.startsWith('7')) {
+          return digits.slice(0, 11);
+        }
+        return digits.slice(0, 11);
+      };
+      const formatDriverPhoneValue = (value) => {
+        const rawValue = (value || '').trim();
+        if (!rawValue) {
+          return '';
+        }
+        if (rawValue === '+') {
+          return '+7';
+        }
+        const digits = getDriverPhoneDigits(rawValue);
+        if (!digits) {
+          return '';
+        }
+        if (!digits.startsWith('7')) {
+          return digits;
+        }
+        const rest = digits.slice(1);
+        let formatted = '+7';
+        if (rest.length) {
+          formatted += ` ${rest.slice(0, 3)}`;
+        }
+        if (rest.length > 3) {
+          formatted += ` ${rest.slice(3, 6)}`;
+        }
+        if (rest.length > 6) {
+          formatted += `-${rest.slice(6, 8)}`;
+        }
+        if (rest.length > 8) {
+          formatted += `-${rest.slice(8, 10)}`;
+        }
+        return formatted;
+      };
+      const normalizeDriverPhoneValue = (value) => {
+        const digits = getDriverPhoneDigits(value);
+        if (digits.length === 11 && digits.startsWith('7')) {
+          return `+${digits}`;
+        }
+        return '';
+      };
+      const syncDriverPhoneInput = () => {
+        if (!driverPhoneInput) {
+          return;
+        }
+        const formatted = formatDriverPhoneValue(driverPhoneInput.value);
+        driverPhoneInput.value = formatted;
+        if (!formatted || normalizeDriverPhoneValue(formatted)) {
+          driverPhoneInput.setCustomValidity('');
+          return;
+        }
+        driverPhoneInput.setCustomValidity('Введите телефон в формате +7 900 123-45-67');
+      };
+      if (driverPhoneInput) {
+        syncDriverPhoneInput();
+        driverPhoneInput.addEventListener('focus', syncDriverPhoneInput);
+        driverPhoneInput.addEventListener('input', syncDriverPhoneInput);
+        driverPhoneInput.addEventListener('blur', syncDriverPhoneInput);
+      }
+      const DRAFT_AUTOSAVE_INTERVAL_MS = 30000;
+      let draftAutosaveTouched = false;
+      let draftServerSaving = false;
+      let draftAutosaveRevision = 0;
+      const draftAutosaveStatus = document.getElementById('draft-autosave-status');
+      const setDraftAutosaveStatus = (text) => {
+        if (!draftAutosaveStatus) {
+          return;
+        }
+        draftAutosaveStatus.hidden = !text;
+        draftAutosaveStatus.textContent = text || '';
+      };
+      const markDraftAutosaveTouched = (event) => {
+        if (event?.target?.matches?.('input[type="file"]')) {
+          return;
+        }
+        draftAutosaveTouched = true;
+        draftAutosaveRevision += 1;
+        if (!draftServerSaving) {
+          setDraftAutosaveStatus('Есть изменения. Черновик будет сохранён автоматически.');
+        }
+      };
+      form.addEventListener('input', markDraftAutosaveTouched, true);
+      form.addEventListener('change', markDraftAutosaveTouched, true);
+
+      const ensureEditOrderId = (orderId) => {
+        if (!orderId) {
+          return;
+        }
+        let editInput = form.querySelector('input[name="edit_order_id"]');
+        if (!editInput) {
+          editInput = document.createElement('input');
+          editInput.type = 'hidden';
+          editInput.name = 'edit_order_id';
+          form.appendChild(editInput);
+        }
+        editInput.value = String(orderId);
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set('edit', String(orderId));
+          window.history.replaceState({}, '', url.toString());
+        } catch (err) {
+          /* ignore */
+        }
+      };
+
+      const saveDraftToServer = async () => {
+        if (draftServerSaving || !form) {
+          return null;
+        }
+        const agencyInput = form.querySelector('[name="agency_id"]');
+        if (!agencyInput || !String(agencyInput.value || '').trim()) {
+          return null;
+        }
+        const revisionAtStart = draftAutosaveRevision;
+        let repeatAfterSave = false;
+        const formData = new FormData(form);
+        Array.from(form.querySelectorAll('input[type="file"][name]')).forEach((input) => {
+          formData.delete(input.name);
+        });
+        formData.set('submit_action', 'draft');
+        formData.set('draft_autosave', '1');
+        draftServerSaving = true;
+        setDraftAutosaveStatus('Сохраняем черновик…');
+        try {
+          const response = await fetch(window.location.href, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData,
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data || data.ok === false) {
+            setDraftAutosaveStatus('Не удалось сохранить черновик. Изменения остаются на странице.');
+            return null;
+          }
+          ensureEditOrderId(data.draft_order_id || data.order_id || '');
+          repeatAfterSave = draftAutosaveRevision !== revisionAtStart;
+          draftAutosaveTouched = repeatAfterSave;
+          setDraftAutosaveStatus(
+            repeatAfterSave
+              ? 'Во время сохранения появились новые изменения. Сохраняем их повторно…'
+              : 'Черновик сохранён ' + new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+          );
+          return data;
+        } catch (err) {
+          setDraftAutosaveStatus('Не удалось сохранить черновик. Изменения остаются на странице.');
+          return null;
+        } finally {
+          draftServerSaving = false;
+          if (repeatAfterSave && draftAutosaveTouched) {
+            window.setTimeout(saveDraftToServer, 0);
+          }
+        }
+      };
+
+      window.setInterval(() => {
+        if (!draftAutosaveTouched) {
+          return;
+        }
+        saveDraftToServer();
+      }, DRAFT_AUTOSAVE_INTERVAL_MS);
+
+      const saveDraft = () => {
+        if (!draftKey) {
+          return;
+        }
+        const rows = Array.from(tableBody.querySelectorAll('.item-row'));
+        const items = rows
+          .map((row) => {
+            const sku_code = row.querySelector('.sku-input')?.value.trim() || '';
+            const name = row.querySelector('.sku-name')?.value.trim() || '';
+            const qty = row.querySelector('.qty-input')?.value.trim() || '';
+            const size = row.querySelector('.size-input')?.value.trim() || '';
+            const comment = row.querySelector('input[name="position_comment[]"]')?.value.trim() || '';
+            if (!sku_code && !name && !qty && !size && !comment) {
+              return null;
+            }
+            return { sku_code, name, qty, size, comment };
+          })
+          .filter(Boolean);
+        const payload = {
+          meta: {
+            eta_at: form.querySelector('[name="eta_at"]')?.value || '',
+            expected_boxes: form.querySelector('[name="expected_boxes"]')?.value || '',
+            receiving_chz_service: form.querySelector('[name="receiving_chz_service"]')?.value || '',
+            receiving_route: form.querySelector('[name="receiving_route"]')?.value || '',
+            place_type: form.querySelector('[name="place_type"]')?.value || '',
+            vehicle_number: form.querySelector('[name="vehicle_number"]')?.value || '',
+            driver_phone: form.querySelector('[name="driver_phone"]')?.value || '',
+            comment: form.querySelector('[name="comment"]')?.value || '',
+          },
+          items,
+          saved_at: Date.now(),
+        };
+        localStorage.setItem(draftKey, JSON.stringify(payload));
+      };
+
+      const loadDraftPayload = () => {
+        if (!draftKey) {
+          return null;
+        }
+        try {
+          return JSON.parse(localStorage.getItem(draftKey) || '');
+        } catch (err) {
+          return null;
+        }
+      };
+
+      const applyDraft = (payload) => {
+        if (!payload || typeof payload !== 'object') {
+          return;
+        }
+        const meta = payload.meta || {};
+        const setValue = (name, value) => {
+          const field = form.querySelector(`[name="${name}"]`);
+          if (field && value) {
+            field.value = value;
+          }
+          if (name === 'eta_at' && value) {
+            const dateField = document.getElementById('eta-date');
+            const timeField = document.getElementById('eta-time');
+            if (dateField && timeField && value.includes('T')) {
+              const [datePart, timePart] = value.split('T');
+              dateField.value = datePart;
+              timeField.value = (timePart || '').slice(0, 5);
+            }
+          }
+        };
+        setValue('eta_at', meta.eta_at);
+        setValue('expected_boxes', meta.expected_boxes);
+        setValue('receiving_chz_service', meta.receiving_chz_service);
+        setValue('receiving_route', meta.receiving_route);
+        setValue('place_type', meta.place_type);
+        setValue('vehicle_number', meta.vehicle_number);
+        setValue('driver_phone', meta.driver_phone);
+        setValue('comment', meta.comment);
+        syncDriverPhoneInput();
+
+        const items = Array.isArray(payload.items) ? payload.items : [];
+        if (!items.length) {
+          return;
+        }
+        const rows = Array.from(tableBody.querySelectorAll('.item-row'));
+        rows.slice(1).forEach((row) => {
+          clearRowDatalist(row, 'sizes');
+          clearRowDatalist(row, 'barcodes');
+          row.remove();
+        });
+        const baseRow = rows[0];
+        const fillRow = (row, item) => {
+          const code = item.sku_code || '';
+          const qty = item.qty || '';
+          const size = item.size || '';
+          const name = item.name || '';
+          const comment = item.comment || '';
+          row.querySelector('.sku-input').value = code;
+          row.querySelector('.qty-input').value = qty;
+          row.dataset.preferredSize = size || '';
+          applySku(row, code);
+          if (name) {
+            row.querySelector('.sku-name').value = name;
+          }
+          const commentField = row.querySelector('input[name="position_comment[]"]');
+          if (commentField && comment) {
+            commentField.value = comment;
+          }
+        };
+        fillRow(baseRow, items[0]);
+        items.slice(1).forEach((item) => {
+          const clone = baseRow.cloneNode(true);
+          clone.querySelectorAll('input').forEach((input) => {
+            input.value = '';
+          });
+          clone.querySelectorAll('select').forEach((select) => {
+            select.value = '';
+          });
+          clone.querySelectorAll('.barcode-main').forEach((el) => {
+            el.textContent = '-';
+          });
+          clone.querySelectorAll('.barcode-toggle').forEach((el) => {
+            el.hidden = true;
+            el.classList.remove('active');
+          });
+          clone.querySelectorAll('.barcode-more').forEach((el) => {
+            el.hidden = true;
+            el.innerHTML = '';
+          });
+          clone.removeAttribute('data-row-key');
+          clone.removeAttribute('data-known-sku');
+          setKnownSkuFieldState(clone, null);
+          syncSizeField(clone, [], '');
+          syncBarcodeField(clone, [], '', 'ШК');
+          wireRow(clone);
+          tableBody.appendChild(clone);
+          fillRow(clone, item);
+        });
+      };
+        const storedDraft = (!submitted && !isEditMode) ? loadDraftPayload() : null;
+        const cartKey = clientId ? `order_cart_${clientId}` : '';
+        const cartStored = cartKey ? localStorage.getItem(cartKey) : '';
+        let cartItems = [];
+        if (cartStored) {
+          try {
+            cartItems = JSON.parse(cartStored);
+          } catch (err) {
+            cartItems = [];
+          }
+        }
+        const hasCartItems = cartItems.length > 0;
+        const shouldAutoRestore = !!(storedDraft && (
+          (skuReturnKey && localStorage.getItem(skuReturnKey) === '1') || hasCartItems
+        ));
+        if (storedDraft && shouldAutoRestore) {
+          applyDraft(storedDraft);
+          if (draftNotice) {
+            draftNotice.hidden = true;
+          }
+          localStorage.removeItem(skuReturnKey);
+      } else if (storedDraft && draftNotice) {
+        draftNotice.hidden = false;
+      }
+      if (draftRestoreBtn && storedDraft) {
+        draftRestoreBtn.addEventListener('click', () => {
+          applyDraft(storedDraft);
+          if (draftNotice) {
+            draftNotice.hidden = true;
+          }
+        });
+      }
+      if (draftDiscardBtn && storedDraft) {
+        draftDiscardBtn.addEventListener('click', () => {
+          if (draftKey) {
+            localStorage.removeItem(draftKey);
+          }
+          if (draftNotice) {
+            draftNotice.hidden = true;
+          }
+        });
+      }
+
+        if (clientId && cartKey) {
+          const items = cartItems;
+          if (items.length) {
+            const findExistingRow = (code, size) => {
+              return Array.from(tableBody.querySelectorAll('.item-row')).find((row) => {
+                const skuValue = row.querySelector('.sku-input').value.trim();
+                const sizeValue = row.querySelector('.size-input')?.value.trim() || '';
+                return skuValue === code && (sizeValue || '') === (size || '');
+            });
+          };
+          const findEmptyRow = () => {
+            return Array.from(tableBody.querySelectorAll('.item-row')).find((row) => {
+              const skuValue = row.querySelector('.sku-input').value.trim();
+              const qtyValue = row.querySelector('.qty-input').value.trim();
+              return !skuValue && !qtyValue;
+            });
+          };
+          const addRowWithSku = (code, qty, size) => {
+            if (!code) {
+              return;
+            }
+            const existing = findExistingRow(code, size || '');
+            if (existing) {
+              existing.querySelector('.qty-input').value = qty;
+              existing.dataset.preferredSize = size || '';
+              applySku(existing, code);
+              return;
+            }
+            let row = findEmptyRow();
+            if (!row) {
+              const baseRow = tableBody.querySelector('.item-row');
+              row = baseRow.cloneNode(true);
+              row.querySelectorAll('input').forEach((input) => {
+                input.value = '';
+              });
+              row.querySelectorAll('select').forEach((select) => {
+                select.value = '';
+              });
+              row.querySelectorAll('.barcode-main').forEach((el) => {
+                el.textContent = '-';
+              });
+              row.querySelectorAll('.barcode-toggle').forEach((el) => {
+                el.hidden = true;
+                el.classList.remove('active');
+              });
+              row.querySelectorAll('.barcode-more').forEach((el) => {
+                el.hidden = true;
+                el.innerHTML = '';
+              });
+              row.removeAttribute('data-row-key');
+              row.removeAttribute('data-known-sku');
+              setKnownSkuFieldState(row, null);
+              syncSizeField(row, [], '');
+              syncBarcodeField(row, [], '', 'ШК');
+              wireRow(row);
+              tableBody.appendChild(row);
+            }
+            row.querySelector('.sku-input').value = code;
+            row.querySelector('.qty-input').value = qty;
+            row.dataset.preferredSize = size || '';
+            applySku(row, code);
+          };
+            items.forEach((item) => addRowWithSku(item.code, item.qty, item.size));
+            localStorage.removeItem(cartKey);
+          }
+        }
+
+      let draftTimer = null;
+      const scheduleSave = () => {
+        if (!draftKey) {
+          return;
+        }
+        if (draftTimer) {
+          clearTimeout(draftTimer);
+        }
+        draftTimer = setTimeout(saveDraft, 200);
+      };
+      form.addEventListener('input', scheduleSave);
+      form.addEventListener('change', scheduleSave);
+      window.addEventListener('beforeunload', saveDraft);
+      if (submitted && draftKey) {
+        localStorage.removeItem(draftKey);
+      }
+      const cancelLink = form.querySelector('a.action-btn[href="/orders/"]');
+      if (cancelLink && draftKey) {
+        cancelLink.addEventListener('click', () => localStorage.removeItem(draftKey));
+      }
+      const skuLink = document.querySelector('.ghost-btn[href*="/client/"][href*="/sku/"]');
+      if (skuLink && draftKey) {
+        skuLink.addEventListener('click', () => {
+          saveDraft();
+          if (skuReturnKey) {
+            localStorage.setItem(skuReturnKey, '1');
+          }
+        });
+      }
+      const clearButton = form.querySelector('#clear-form');
+      if (clearButton) {
+        clearButton.addEventListener('click', () => {
+          if (draftKey) {
+            localStorage.removeItem(draftKey);
+          }
+          if (clientId) {
+            const cartKey = `order_cart_${clientId}`;
+            localStorage.removeItem(cartKey);
+          }
+          const fields = [
+            'eta_at',
+            'expected_boxes',
+            'receiving_chz_service',
+            'receiving_route',
+            'place_type',
+            'vehicle_number',
+            'driver_phone',
+            'comment',
+          ];
+          fields.forEach((name) => {
+            const field = form.querySelector(`[name="${name}"]`);
+          if (field) {
+            field.value = '';
+          }
+        });
+          syncDriverPhoneInput();
+          const etaDate = document.getElementById('eta-date');
+          const etaTime = document.getElementById('eta-time');
+          if (etaDate) {
+            etaDate.value = '';
+          }
+          if (etaTime) {
+            etaTime.value = '';
+          }
+          const docsField = form.querySelector('input[name="documents"]');
+          if (docsField) {
+            docsField.value = '';
+          }
+          const rows = Array.from(tableBody.querySelectorAll('.item-row'));
+          rows.slice(1).forEach((row) => {
+            clearRowDatalist(row, 'sizes');
+            clearRowDatalist(row, 'barcodes');
+            row.remove();
+          });
+          const baseRow = rows[0];
+          if (baseRow) {
+            baseRow.querySelectorAll('input').forEach((input) => {
+              if (input.type === 'hidden') {
+                return;
+              }
+              input.value = '';
+            });
+            baseRow.querySelectorAll('select').forEach((select) => {
+              select.value = '';
+            });
+            baseRow.querySelectorAll('.barcode-main').forEach((el) => {
+              el.textContent = '-';
+            });
+            baseRow.querySelectorAll('.barcode-toggle').forEach((el) => {
+              el.hidden = true;
+              el.classList.remove('active');
+            });
+            baseRow.querySelectorAll('.barcode-more').forEach((el) => {
+              el.hidden = true;
+              el.innerHTML = '';
+            });
+            setKnownSkuFieldState(baseRow, null);
+            syncSizeField(baseRow, [], '');
+            syncBarcodeField(baseRow, [], '', 'ШК');
+            clearRowDatalist(baseRow, 'sizes');
+            clearRowDatalist(baseRow, 'barcodes');
+          }
+        });
+      }
+
+      form.addEventListener('submit', (event) => {
+        const etaHidden = form.querySelector('#eta_at');
+        if (etaHidden) {
+          const etaValue = (etaHidden.value || '').trim();
+          if (!etaValue) {
+            event.preventDefault();
+            alert('Заполните плановую дату и время прибытия.');
+            return;
+          }
+            const minValue = etaHidden.dataset.minValue;
+          if (minValue) {
+            const selected = new Date(etaValue);
+            const minDate = new Date(minValue);
+            if (selected < minDate) {
+              event.preventDefault();
+              alert('Плановая дата/время не может быть в прошлом.');
+              return;
+            }
+          }
+        }
+        const requiredFields = [
+          { name: 'expected_boxes', label: 'Количество мест', check: (val) => Number(val) > 0 },
+          { name: 'receiving_chz_service', label: 'Сканирование Честного знака' },
+          { name: 'receiving_route', label: 'Маршрут FBS/FBO' },
+          { name: 'place_type', label: 'Тип мест' },
+          { name: 'vehicle_number', label: 'Номер авто' },
+          { name: 'driver_phone', label: 'Телефон водителя' },
+        ];
+        for (const field of requiredFields) {
+          const input = form.querySelector(`[name="${field.name}"]`);
+          const value = (input?.value || '').trim();
+          if (!value) {
+            event.preventDefault();
+            alert(`Заполните поле: ${field.label}.`);
+            return;
+          }
+          if (field.check && !field.check(value)) {
+            event.preventDefault();
+            alert(`Проверьте поле: ${field.label}.`);
+            return;
+          }
+          if (field.name === 'driver_phone') {
+            const normalizedPhone = normalizeDriverPhoneValue(value);
+            if (!normalizedPhone) {
+              event.preventDefault();
+              alert('Введите корректный телефон водителя.');
+              return;
+            }
+            input.value = normalizedPhone;
+          }
+        }
+        const rows = Array.from(document.querySelectorAll('.item-row'));
+        rows.forEach((row) => row.classList.remove('row-error'));
+        const rowsWithData = rows.filter((row) => {
+          const sku = row.querySelector('.sku-input').value.trim();
+          const qty = Number(row.querySelector('.qty-input').value);
+          return sku || qty > 0;
+        });
+        const invalidRow = rowsWithData.some((row) => {
+          const sku = row.querySelector('.sku-input').value.trim();
+          const qty = Number(row.querySelector('.qty-input').value);
+          return !sku || qty <= 0;
+        });
+        if (invalidRow) {
+          event.preventDefault();
+          alert('Если добавляете товар, заполните артикул и количество. Если состав не указываете — очистите строку.');
+          return;
+        }
+        const missingSize = rowsWithData.some((row) => {
+          const sku = row.querySelector('.sku-input').value.trim();
+          const data = skuMap[sku];
+          if (!data) {
+            return false;
+          }
+          const sizeOptions = Object.keys(data.sizes || {}).filter(Boolean);
+          if (!sizeOptions.length) {
+            return false;
+          }
+          const sizeValue = row.querySelector('.size-input')?.value.trim();
+          return !sizeValue || !data.sizes[sizeValue];
+        });
+        if (missingSize) {
+          event.preventDefault();
+          alert('Выберите размер для позиции в заявке.');
+          return;
+        }
+        const invalidBarcode = rowsWithData.some((row) => {
+          const sku = row.querySelector('.sku-input').value.trim();
+          const data = skuMap[sku];
+          if (!data) {
+            return false;
+          }
+          const sizeValue = row.querySelector('.size-input')?.value.trim() || '';
+          const barcodeValue = row.querySelector('.barcode-input')?.value.trim() || '';
+          const allowedBarcodes = sizeValue && data.sizes[sizeValue] ? data.sizes[sizeValue] : data.barcodes;
+          if (!allowedBarcodes.length) {
+            return false;
+          }
+          return Boolean(barcodeValue && !allowedBarcodes.includes(barcodeValue));
+        });
+        if (invalidBarcode) {
+          event.preventDefault();
+          alert('Проверьте ШК: если он указан вручную, он должен быть из номенклатуры выбранного артикула. Можно оставить ШК пустым — система подставит его из номенклатуры.');
+          return;
+        }
+        const invalidSkuRows = rowsWithData.filter((row) => {
+          const sku = row.querySelector('.sku-input').value.trim();
+          return sku && !skuMap[sku];
+        });
+        if (invalidSkuRows.length) {
+          event.preventDefault();
+          invalidSkuRows.forEach((row) => row.classList.add('row-error'));
+          const missingSkus = Array.from(new Set(invalidSkuRows.map((row) => row.querySelector('.sku-input').value.trim()).filter(Boolean)));
+          const firstInput = invalidSkuRows[0].querySelector('.sku-input');
+          firstInput?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          firstInput?.focus();
+          const shownSkus = missingSkus.slice(0, 5).join(', ');
+          const tail = missingSkus.length > 5 ? ` и ещё ${missingSkus.length - 5}` : '';
+          alert(`Артикул не найден в номенклатуре: ${shownSkus}${tail}. Сначала заведите его в списке SKU.`);
+          return;
+        }
+        const submitter = event.submitter || document.activeElement;
+        const actionValue = submitter && submitter.name === 'submit_action' ? submitter.value : '';
+        const isDraftSubmit = actionValue === 'draft';
+        if (draftKey && !event.defaultPrevented) {
+          if (isDraftSubmit) {
+            saveDraft();
+          } else {
+            localStorage.removeItem(draftKey);
+          }
+        }
+        if (!event.defaultPrevented && hasTemplateUpload()) {
+          closeTemplateModal();
+          showTemplateProcessing(isDraftSubmit);
+        }
+      });
+
+      const etaInput = document.querySelector('[data-min-hours]');
+      if (etaInput) {
+        const etaDate = document.getElementById('eta-date');
+        const etaTime = document.getElementById('eta-time');
+        if (etaDate && etaTime) {
+          const nowValue = etaInput.dataset.now;
+          const now = nowValue ? new Date(nowValue) : new Date();
+          const defaultValue = etaInput.dataset.defaultValue;
+          const pad = (value) => String(value).padStart(2, '0');
+          const toInputValue = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+          const toDateValue = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
+          const minDateTime = new Date(now);
+          minDateTime.setSeconds(0, 0);
+          const remainder = minDateTime.getMinutes() % 5;
+          if (remainder !== 0) {
+            minDateTime.setMinutes(minDateTime.getMinutes() + (5 - remainder));
+          }
+          const minDateValue = toDateValue(minDateTime);
+          const minTimeValue = `${pad(minDateTime.getHours())}:${pad(minDateTime.getMinutes())}`;
+
+          etaInput.dataset.minValue = toInputValue(minDateTime);
+          etaDate.min = minDateValue;
+
+          const applyDateTime = (date) => {
+            const formatted = toInputValue(date);
+            const [datePart, timePart] = formatted.split('T');
+            etaDate.value = datePart;
+            etaTime.value = timePart;
+            etaInput.value = formatted;
+          };
+
+          if (etaInput.value) {
+            const [datePart, timePart] = etaInput.value.split('T');
+            if (datePart) {
+              etaDate.value = datePart;
+            }
+            if (timePart) {
+              etaTime.value = timePart.slice(0, 5);
+            }
+          } else {
+            const defaultDateTime = defaultValue ? new Date(defaultValue) : new Date(minDateTime.getTime() + (60 * 60 * 1000));
+            applyDateTime(defaultDateTime);
+          }
+
+          const syncHidden = () => {
+            let datePart = etaDate.value;
+            let timePart = etaTime.value;
+            if (datePart === minDateValue && timePart && timePart < minTimeValue) {
+              timePart = minTimeValue;
+              etaTime.value = timePart;
+            }
+            if (datePart && timePart) {
+              etaInput.value = `${datePart}T${timePart}`;
+            } else {
+              etaInput.value = '';
+            }
+          };
+          etaDate.addEventListener('change', syncHidden);
+          etaTime.addEventListener('change', syncHidden);
+
+          const labelForOffset = (offset) => {
+            if (offset === 1) {
+              return 'Завтра';
+            }
+            if (offset === 2) {
+              return 'Послезавтра';
+            }
+            return `Через ${offset} дн.`;
+          };
+          const options = [
+            { offset: 1, time: minTimeValue },
+            { offset: 1, time: '16:00' },
+            { offset: 2, time: '10:00' },
+            { offset: 2, time: '16:00' },
+          ];
+          document.querySelectorAll('.datetime-chip').forEach((chip, idx) => {
+            const option = options[idx];
+            if (!option) {
+              chip.hidden = true;
+              return;
+            }
+            chip.hidden = false;
+            chip.dataset.offset = option.offset;
+            chip.dataset.time = option.time;
+            chip.textContent = `${labelForOffset(option.offset)} ${option.time}`;
+            chip.addEventListener('click', () => {
+              const target = new Date(now);
+              target.setDate(target.getDate() + option.offset);
+              const [hh, mm] = option.time.split(':').map((part) => Number(part));
+              target.setHours(hh || 0, mm || 0, 0, 0);
+              applyDateTime(target);
+            });
+          });
+        }
+      }
+
+      const uploadTemplate = document.getElementById('upload-template');
+      const templateModal = document.getElementById('template-modal');
+      const templateClose = document.getElementById('template-modal-close');
+      const templateDone = document.getElementById('template-modal-done');
+      const templateReceivingFile = document.getElementById('template-receiving-file');
+      const templateReceivingFileList = document.getElementById('template-receiving-file-list');
+      const closeTemplateModal = () => {
+        if (templateModal) {
+          templateModal.classList.remove('active');
+          templateModal.setAttribute('aria-hidden', 'true');
+        }
+      };
+      const openTemplateModal = () => {
+        if (templateModal) {
+          templateModal.classList.add('active');
+          templateModal.setAttribute('aria-hidden', 'false');
+        }
+        if (templateReceivingFile) {
+          templateReceivingFile.focus();
+        }
+      };
+      const updateTemplateList = (input, output) => {
+        if (!output) {
+          return;
+        }
+        const files = input?.files || [];
+        output.textContent = files.length
+          ? `${files[0].name} выбран. Нажмите «Продолжить заполнение», затем отправьте или сохраните заявку.`
+          : 'Файл не выбран.';
+      };
+      if (uploadTemplate && templateModal) {
+        uploadTemplate.addEventListener('click', openTemplateModal);
+      }
+      if (templateClose) {
+        templateClose.addEventListener('click', closeTemplateModal);
+      }
+      if (templateDone) {
+        templateDone.addEventListener('click', closeTemplateModal);
+      }
+      if (templateModal) {
+        templateModal.addEventListener('click', (event) => {
+          if (event.target === templateModal) {
+            closeTemplateModal();
+          }
+        });
+      }
+      if (templateReceivingFile) {
+        templateReceivingFile.addEventListener('change', () => updateTemplateList(templateReceivingFile, templateReceivingFileList));
+      }
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && templateModal?.classList.contains('active')) {
+          closeTemplateModal();
+        }
+      });
+
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Проблема заказа {{ order.external_order_id }}{% endblock %}
+{% block page_class %}tsd-page-operator{% endblock %}
+
+{% block content %}
+  <section class="detail-surface scan-summary">
+    <div class="metric-grid">
+      <div><span>Волна</span><strong>#{{ batch.id }}</strong></div>
+      <div><span>Заказ</span><strong>{{ order.external_order_id }}</strong></div>
+      <div><span>Артикул</span><strong>{{ balance.sku_code }}</strong></div>
+      <div><span>ШК товара</span><strong>{{ balance.barcode|default:allocation.order_item.barcode }}</strong></div>
+      <div><span>В заказе</span><strong>{{ task.picked_qty }} шт.</strong></div>
+      <div><span>Действие</span><strong>Весь заказ в проблему</strong></div>
+    </div>
+  </section>
+
+  <div class="notice notice-warn" role="status">
+    Положите все товары заказа в указанную служебную тару и отсканируйте именно её QR. Задание появится в разделе «Возврат отбора»: сборщик заберёт товар и вернёт его на место по обязательным сканам.
+  </div>
+  {% if error %}<div class="notice notice-error" role="alert"><strong>Операция не выполнена.</strong> {{ error }}</div>{% endif %}
+
+  <section class="detail-surface">
+    <h2>Что не так с заказом</h2>
+    {% if problem_tote %}
+      <form method="get">
+        <input type="hidden" name="lookup" value="1">
+        <button class="button button-secondary" type="submit">Проверить проблемную тару</button>
+      </form>
+    {% else %}
+      <div class="notice notice-warn" role="status">
+        Проблемная тара не привязана. Вернитесь на главный экран контролера и отсканируйте свободную тару проблемных заказов.
+      </div>
+      <a class="button button-secondary" href="{% url 'fbs:controller_home' %}">К смене контролера</a>
+    {% endif %}
+    {% if problem_tote_lookup %}
+      {% if problem_tote_lookup.item %}
+        <div class="notice {% if problem_tote_lookup.can_return %}notice-warn{% else %}notice-error{% endif %}" role="alert">
+          {{ problem_tote_lookup.message }}
+        </div>
+        {% if problem_tote_lookup.can_return %}
+          <form class="scan-form" method="post" autocomplete="off" data-submit-once data-scan-feedback data-scan-focus-lock{% if agent_scan_poll_url %} data-agent-scan-poll-url="{{ agent_scan_poll_url }}" data-agent-scan-since="{{ agent_scan_event_id }}"{% endif %}>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="return_problem_item">
+            <input type="hidden" name="problem_item_id" value="{{ problem_tote_lookup.item.id }}">
+            <label for="return-problem-tote-scan">Проблемная тара</label>
+            <input id="return-problem-tote-scan" type="text" name="problem_tote_scan" required autofocus autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target placeholder="{{ problem_tote_lookup.problem_tote_code }}">
+            <button class="button button-primary" type="submit">Подтвердить перекладку в {{ problem_tote_lookup.target_check_tote_code }}</button>
+          </form>
+        {% endif %}
+      {% else %}
+        <div class="notice notice-error" role="alert">{{ problem_tote_lookup.message }}</div>
+      {% endif %}
+    {% endif %}
+  </section>
+
+  {% if canceled_label_applied %}
+    <section class="section-band">
+      <div class="notice notice-warning" role="alert">
+        <strong>Этикетка отмененного заказа уже была подтверждена.</strong>
+        Передайте заказ кладовщику для снятия из отгрузки по настоящему ШК этикетки.
+        Через проверку волны этот заказ не перемещается.
+      </div>
+    </section>
+  {% else %}
+  {% if service_tote_kind == 'canceled' %}
+    <section class="scan-step" aria-labelledby="canceled-order-title">
+      <div class="step-number">1</div>
+      <div class="step-copy">
+        <h2 id="canceled-order-title">Отсканируйте все товары отмененного заказа</h2>
+        <strong>{{ order.external_order_id }} · {{ canceled_product_total }} шт.</strong>
+        <span>Этикетка заказа для этого действия не требуется.</span>
+      </div>
+    </section>
+  {% endif %}
+  <section class="scan-step" aria-labelledby="problem-tote-title">
+    <div class="step-number">{% if service_tote_kind == 'canceled' %}2{% else %}1{% endif %}</div>
+    <div class="step-copy"><h2 id="problem-tote-title">Положите заказ в {{ service_tote_label }}</h2><strong>{% if service_tote %}{{ service_tote.name }} · {{ service_tote.barcode }}{% else %}Служебная тара не привязана к смене{% endif %}</strong></div>
+  </section>
+
+  <form class="scan-form" method="post" autocomplete="off" data-submit-once data-scan-feedback data-scan-focus-lock{% if agent_scan_poll_url %} data-agent-scan-poll-url="{{ agent_scan_poll_url }}" data-agent-scan-since="{{ agent_scan_event_id }}"{% endif %}>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="return_to_pick">
+    <label for="problem-type">Причина</label>
+    <select id="problem-type" name="exception_type" required>
+      {% for value, label in exception_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+    </select>
+    <label for="problem-reason">Комментарий</label>
+    <input id="problem-reason" type="text" name="reason" maxlength="500" placeholder="Что обнаружено при проверке">
+    {% if service_tote_kind == 'canceled' %}
+      {% for row in canceled_product_scan_rows %}
+        <label for="canceled-product-scan-{{ forloop.counter }}">Товар {{ forloop.counter }} из {{ canceled_product_total }} · {{ row.name }} · {{ row.sku_code }} · {{ row.scan_label }} {{ row.barcode }}</label>
+        <input id="canceled-product-scan-{{ forloop.counter }}" type="text" name="product_scan"{% if forloop.first %} autofocus{% endif %} required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-agent-scan-kind="product" data-scan-next="{% if forloop.last %}#service-tote-scan{% else %}#canceled-product-scan-{{ forloop.counter|add:'1' }}{% endif %}">
+      {% endfor %}
+    {% endif %}
+    <label for="service-tote-scan">Скан {{ service_tote_label }}</label>
+    <input id="service-tote-scan" type="text" name="service_tote_scan" required{% if service_tote_kind != 'canceled' or not canceled_product_scan_rows %} autofocus{% endif %} autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-agent-scan-kind="service-tote" data-scan-autosubmit="250"{% if service_tote %} data-scan-expected-value="{{ service_tote.barcode }}" data-scan-expected-message="Отсканирована другая тара. Нужна {{ service_tote.barcode }}." placeholder="{{ service_tote.barcode }}"{% endif %}>
+    <button class="button button-danger" type="submit" {% if not warehouse_writes_enabled or not service_tote %}disabled{% endif %}>{% if service_tote_kind == 'canceled' %}Подтвердить товары и тару{% else %}Подтвердить тару и продолжить{% endif %}</button>
+  </form>
+  {% endif %}
+{% endblock %}

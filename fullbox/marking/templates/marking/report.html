@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Отчёт ЧЗ | ФУЛЛБОКС</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#f5f5f3; --surface:#fff; --surface-2:#f8f8f6; --ink:#303030; --muted:#737373;
+      --line:rgba(28,31,26,.12); --accent:#f89000; --accent-strong:#f86800;
+      --accent-soft:rgba(248,144,0,.13); --success:#247a4b; --success-soft:rgba(36,122,75,.10);
+      --danger:#b83f35; --danger-soft:rgba(184,63,53,.10); --blue:#3367a8; --blue-soft:rgba(51,103,168,.10);
+      --shadow:0 8px 24px rgba(48,48,48,.07);
+    }
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:Manrope,system-ui,sans-serif}
+    a{color:inherit;text-decoration:none} button,input,select{font:inherit}.shell{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh}
+    .side{position:sticky;top:0;height:100vh;padding:22px 18px;background:#fff;border-right:1px solid var(--line);display:grid;grid-template-rows:auto auto 1fr auto;gap:16px;overflow:auto}
+    .fullbox-brand-img{display:block;width:168px;max-width:100%;height:auto}.profile{padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
+    .profile-label{font-size:11px;text-transform:uppercase;color:var(--muted)}.profile-name{margin-top:4px;font-weight:800;line-height:1.4}.nav{display:grid;align-content:start;gap:8px}
+    .nav-link{display:grid;grid-template-columns:24px 1fr;gap:9px;align-items:center;min-height:44px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:#fff}
+    .nav-link:hover,.nav-link.active{color:var(--accent-strong);border-color:rgba(248,144,0,.28);background:var(--accent-soft)}.nav-link.active{font-weight:800}.logout{text-align:center;padding:10px;border:1px solid var(--line);border-radius:8px;font-weight:750}
+    .main{min-width:0;padding:26px}.top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:18px}.eyebrow{color:var(--accent-strong);font-size:12px;font-weight:850;text-transform:uppercase}
+    h1{margin:3px 0 0;font-family:"Bricolage Grotesque",Manrope,sans-serif;font-size:30px}.lead{margin:7px 0 0;color:var(--muted)}.actions{display:flex;gap:8px;flex-wrap:wrap}
+    .button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 14px;border:1px solid var(--line);border-radius:8px;background:#fff;font-weight:800;cursor:pointer}.button.primary{background:var(--accent);border-color:var(--accent);color:#fff}.button:disabled{opacity:.55;cursor:wait}
+    .metrics{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:10px;margin-bottom:16px}.metric{padding:14px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:var(--shadow)}.metric span{display:block;min-height:32px;color:var(--muted);font-size:12px}.metric strong{display:block;margin-top:4px;font-size:25px}.metric.free strong{color:var(--success)}.metric.printed strong{color:var(--blue)}.metric.used strong{color:var(--accent-strong)}
+    .panel{margin-bottom:16px;padding:18px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:var(--shadow)}.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}.panel-title{margin:0;font-size:19px}.panel-note{margin:4px 0 0;color:var(--muted);font-size:12px}
+    .filters{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px}.field{display:grid;gap:5px;min-width:0;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase}.field.wide{grid-column:span 2}.field input,.field select{width:100%;height:42px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);text-transform:none}.field input:focus,.field select:focus{outline:2px solid rgba(248,144,0,.2);border-color:var(--accent)}.filter-actions{display:flex;gap:8px;align-items:end;margin-top:12px}
+    .upload-grid{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:10px;align-items:end}.upload-grid .file{grid-column:span 2}.file-input{height:42px;padding:7px!important}.upload-status{margin-top:12px;padding:12px;border-radius:8px;background:var(--surface-2);color:var(--muted)}.upload-status.success{color:var(--success);background:var(--success-soft)}.upload-status.error{color:var(--danger);background:var(--danger-soft)}
+    .table-top{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-bottom:12px}.found{color:var(--muted);font-size:13px}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:8px}table{width:100%;min-width:1380px;border-collapse:collapse;font-size:12px}th,td{padding:10px 11px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}th{position:sticky;top:0;z-index:1;background:#f4f5f2;color:var(--muted);font-size:11px;text-transform:uppercase}tr:last-child td{border-bottom:0}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;white-space:nowrap}.sub{margin-top:3px;color:var(--muted);font-size:11px}.badge{display:inline-flex;padding:4px 8px;border-radius:999px;font-weight:850;white-space:nowrap}.badge.free{color:var(--success);background:var(--success-soft)}.badge.queued{color:#8b6100;background:rgba(248,184,0,.14)}.badge.printed{color:var(--blue);background:var(--blue-soft)}.badge.used{color:var(--accent-strong);background:var(--accent-soft)}.empty{padding:36px;text-align:center;color:var(--muted)}
+    .pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;color:var(--muted);font-size:13px}.pagination-links{display:flex;gap:8px}.pagination a{padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--accent-strong);font-weight:800}
+    [hidden]{display:none!important}@media(max-width:1250px){.metrics{grid-template-columns:repeat(3,1fr)}.filters{grid-template-columns:repeat(3,1fr)}.upload-grid{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:850px){.shell{grid-template-columns:1fr}.side{position:relative;height:auto;grid-template-rows:auto auto auto auto}.nav{grid-template-columns:repeat(2,1fr)}.main{padding:16px}.top,.panel-head{display:grid}.metrics{grid-template-columns:repeat(2,1fr)}.filters,.upload-grid{grid-template-columns:1fr}.field.wide,.upload-grid .file{grid-column:auto}.actions .button{flex:1}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="side">
+      <div>{% include "partials/fullbox_brand.html" %}</div>
+      <div class="profile">
+        <div class="profile-label">Кабинет</div>
+        <div class="profile-name">{{ report_role_label }}<br>{{ request.user.employee_profile.full_name|default:request.user.get_full_name|default:request.user.username }}</div>
+      </div>
+      <nav class="nav" aria-label="Навигация отчета ЧЗ">
+        <a class="nav-link" href="{{ report_home_url }}"><span>⌂</span><span>В кабинет</span></a>
+        <a class="nav-link active" href="/marking/report/"><span>▥</span><span>Отчёт ЧЗ</span></a>
+        <a class="nav-link" href="/marking/free-print/"><span>＋</span><span>Загрузка и печать</span></a>
+        {% if report_role != "manager" %}<a class="nav-link" href="/marking/status/"><span>◎</span><span>Проверка ЧЗ</span></a>{% endif %}
+        {% if report_role != "manager" %}<a class="nav-link" href="/marking/return/"><span>↶</span><span>Возврат ЧЗ</span></a>{% endif %}
+      </nav>
+      <a class="logout" href="/logout/">Выход</a>
+    </aside>
+
+    <main class="main">
+      <header class="top">
+        <div>
+          <div class="eyebrow">Единый реестр маркировки</div>
+          <h1>Отчёт ЧЗ</h1>
+          <p class="lead">Загрузка, печать и использование кодов по клиентам, заявкам и товарам.</p>
+        </div>
+        <div class="actions">
+          <a class="button" href="{{ request.path }}">Сбросить фильтры</a>
+          <a class="button" href="{{ export_url }}">Экспорт Excel</a>
+          <a class="button primary" href="#upload-panel">Загрузить ЧЗ</a>
+        </div>
+      </header>
+
+      <section class="metrics" aria-label="Сводка ЧЗ">
+        <div class="metric"><span>Всего кодов</span><strong>{{ metrics.total }}</strong></div>
+        <div class="metric"><span>Загружено из файлов</span><strong>{{ metrics.uploaded }}</strong></div>
+        <div class="metric free"><span>Свободно</span><strong>{{ metrics.free }}</strong></div>
+        <div class="metric"><span>В очереди печати</span><strong>{{ metrics.queued }}</strong></div>
+        <div class="metric printed"><span>Распечатано, не использовано</span><strong>{{ metrics.printed }}</strong></div>
+        <div class="metric used"><span>Использовано</span><strong>{{ metrics.used }}</strong></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div><h2 class="panel-title">Фильтры</h2><p class="panel-note">Показатели сверху учитывают все фильтры, кроме состояния.</p></div>
+        </div>
+        <form method="get">
+          <div class="filters">
+            <label class="field">Состояние
+              <select name="status">{% for key,label in status_choices %}<option value="{{ key }}"{% if filters.status == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+            </label>
+            <label class="field">Клиент
+              <select name="agency"><option value="">Все клиенты</option>{% for agency in agencies %}<option value="{{ agency.id }}"{% if filters.agency == agency.id|stringformat:"s" %} selected{% endif %}>{{ agency.short_name|default:agency.agn_name|default:agency.id }}</option>{% endfor %}</select>
+            </label>
+            <label class="field">Процесс
+              <select name="order_type">{% for key,label in order_type_choices %}<option value="{{ key }}"{% if filters.order_type == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+            </label>
+            <label class="field">Источник
+              <select name="source">{% for key,label in source_choices %}<option value="{{ key }}"{% if filters.source == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+            </label>
+            <label class="field">Заявка<input name="order_id" value="{{ filters.order_id }}" placeholder="Номер заявки"></label>
+            <label class="field">SKU / товар<input name="sku" value="{{ filters.sku }}" placeholder="Артикул или название"></label>
+            <label class="field">Штрихкод товара<input name="barcode" value="{{ filters.barcode }}" placeholder="ШК"></label>
+            <label class="field">Размер<input name="size" value="{{ filters.size }}" placeholder="Размер"></label>
+            <label class="field">Короб<input name="box" value="{{ filters.box }}" placeholder="ШК короба"></label>
+            <label class="field">Сотрудник<input name="operator" value="{{ filters.operator }}" placeholder="ФИО или логин"></label>
+            <label class="field">Загружено с<input type="date" name="date_from" value="{{ filters.date_from }}"></label>
+            <label class="field">Загружено по<input type="date" name="date_to" value="{{ filters.date_to }}"></label>
+            <label class="field wide">Общий поиск<input name="q" value="{{ filters.q }}" placeholder="ЧЗ, заявка, SKU, ШК, короб или клиент"></label>
+          </div>
+          <div class="filter-actions"><button class="button primary" type="submit">Применить</button><a class="button" href="{{ request.path }}">Очистить</a></div>
+        </form>
+      </section>
+
+      <section class="panel" id="upload-panel">
+        <div class="panel-head">
+          <div><h2 class="panel-title">Загрузить ЧЗ</h2><p class="panel-note">Весь файл распределяется по товарам заявки: по колонке «ШК товара» или по GTIN внутри КИЗ. Если есть хотя бы одна ошибка или дубль, импорт отменяется полностью.</p></div>
+          <a class="button" href="/marking/free-print/">Расширенная загрузка и печать</a>
+        </div>
+        <form id="upload-form" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="upload-grid">
+            <label class="field">Процесс<select name="order_type"><option value="processing">Обработка</option><option value="receiving">Приёмка</option></select></label>
+            <label class="field">Заявка<input name="order_id" required placeholder="Номер заявки"></label>
+            <label class="field">SKU<input name="sku_code" required placeholder="Артикул"></label>
+            <label class="field">Размер<input name="size" placeholder="Размер"></label>
+            <label class="field">ШК товара<input name="barcode" required placeholder="Штрихкод"></label>
+            <label class="field file">Файл .xlsx<input class="file-input" type="file" name="file" accept=".xlsx" required></label>
+            <button class="button primary" id="upload-button" type="submit">Загрузить</button>
+          </div>
+        </form>
+        <div class="upload-status" id="upload-status">Формат: одна колонка «ЧЗ» для распределения по GTIN или две колонки «ШК товара» и «ЧЗ». Поля товара выше используются как резерв для однопозиционного файла, если GTIN не совпадает с ШК заявки.</div>
+      </section>
+
+      <section class="panel">
+        <div class="table-top"><div><h2 class="panel-title">Детализация</h2><div class="found">Найдено кодов: {{ rows_total }}</div></div></div>
+        {% if rows %}
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>ЧЗ</th><th>Состояние</th><th>Клиент</th><th>Заявка</th><th>Товар</th><th>Размер</th><th>ШК</th><th>Короб</th><th>Источник</th><th>Загружен</th><th>Распечатан</th><th>Использован</th><th>Ответственный</th></tr></thead>
+              <tbody>{% for row in rows %}<tr>
+                <td><div class="mono">{{ row.code_masked }}</div><div class="sub">ID {{ row.id }}</div></td>
+                <td><span class="badge {{ row.status_code }}">{{ row.status_label }}</span></td>
+                <td>{{ row.client }}</td>
+                <td>{{ row.order_id }}<div class="sub">{{ row.order_type }}</div></td>
+                <td><strong>{{ row.sku_code }}</strong><div class="sub">{{ row.product_name }}</div></td>
+                <td>{{ row.size }}</td><td class="mono">{{ row.barcode }}</td><td class="mono">{{ row.box_barcode }}</td>
+                <td>{{ row.source }}</td><td>{{ row.created_at }}</td><td>{{ row.printed_at }}</td><td>{{ row.used_at }}</td><td>{{ row.operator }}</td>
+              </tr>{% endfor %}</tbody>
+            </table>
+          </div>
+          <div class="pagination"><span>Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span><div class="pagination-links">{% if previous_url %}<a href="{{ previous_url }}">← Назад</a>{% endif %}{% if next_url %}<a href="{{ next_url }}">Вперёд →</a>{% endif %}</div></div>
+        {% else %}<div class="empty">По выбранным фильтрам коды ЧЗ не найдены.</div>{% endif %}
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const form = document.getElementById("upload-form");
+      const button = document.getElementById("upload-button");
+      const status = document.getElementById("upload-status");
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        button.disabled = true;
+        status.className = "upload-status";
+        status.textContent = "Проверяем файл и дубли…";
+        try {
+          const response = await fetch("/marking/free-print/import/", {
+            method: "POST",
+            headers: {"X-CSRFToken": form.querySelector("[name=csrfmiddlewaretoken]").value},
+            body: new FormData(form),
+          });
+          const data = await response.json();
+          if (!response.ok || !data.ok) {
+            status.className = "upload-status error";
+            status.textContent = data.error || "Импорт не выполнен.";
+            return;
+          }
+          status.className = "upload-status success";
+          status.textContent = `Загружено кодов: ${data.added}. Страница обновится автоматически.`;
+          window.setTimeout(() => window.location.reload(), 900);
+        } catch (_error) {
+          status.className = "upload-status error";
+          status.textContent = "Сервер не ответил. Импорт не подтверждён; повторите попытку.";
+        } finally {
+          button.disabled = false;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

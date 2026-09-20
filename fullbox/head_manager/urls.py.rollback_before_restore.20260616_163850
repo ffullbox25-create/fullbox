@@ -1,0 +1,34 @@
+from django.urls import path
+from .views import (
+    CarrierCreateView,
+    CarrierListView,
+    CarrierUpdateView,
+    HeadManagerDashboard,
+    HeadManagerLatestTasksView,
+    HeadManagerStockEditorView,
+    HeadManagerTaskPanelView,
+    MarketplaceWarehousesSyncView,
+    MarketplaceWarehousesView,
+    OwnCompanyCreateView,
+    OwnCompanyListView,
+    OwnCompanyUpdateView,
+)
+
+urlpatterns = [
+    path('', HeadManagerDashboard.as_view(), name='head-manager-dashboard'),
+    path('task-panel/latest/', HeadManagerLatestTasksView.as_view(), name='head-manager-latest-tasks'),
+    path('task-panel/full/', HeadManagerTaskPanelView.as_view(), name='head-manager-task-panel'),
+    path('stock-editor/', HeadManagerStockEditorView.as_view(), name='head-manager-stock-editor'),
+    path('own-companies/', OwnCompanyListView.as_view(), name='head-manager-own-companies'),
+    path('own-companies/new/', OwnCompanyCreateView.as_view(), name='head-manager-own-company-create'),
+    path('own-companies/<int:pk>/edit/', OwnCompanyUpdateView.as_view(), name='head-manager-own-company-edit'),
+    path('carriers/', CarrierListView.as_view(), name='head-manager-carriers'),
+    path('carriers/new/', CarrierCreateView.as_view(), name='head-manager-carrier-create'),
+    path('carriers/<int:pk>/edit/', CarrierUpdateView.as_view(), name='head-manager-carrier-edit'),
+    path('marketplace-warehouses/', MarketplaceWarehousesView.as_view(), name='head-manager-marketplace-warehouses'),
+    path(
+        'marketplace-warehouses/sync/',
+        MarketplaceWarehousesSyncView.as_view(),
+        name='head-manager-marketplace-warehouses-sync',
+    ),
+]

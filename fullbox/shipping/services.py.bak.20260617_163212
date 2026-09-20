@@ -1,0 +1,1784 @@
+from __future__ import annotations
+
+from collections import defaultdict
+from datetime import timedelta
+import json
+import logging
+import re
+
+from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils import timezone
+
+from audit.models import log_order_action, log_stock_move
+from employees.access import resolve_cabinet_url
+from employees.models import Employee
+from reachtruck.models import MoveTask
+from reachtruck.services import create_shipping_pick_request
+from reachtruck.services.claims import active_pallet_lock_codes
+from sklad.models import WarehouseReserve, WarehouseStockSnapshot
+from sklad.services.stock_availability import StockAvailabilityService
+from sklad.services.warehouse_stock_rows import snapshot_stock_rows
+from sklad.services.warehouse_transitions import WarehouseStateCode
+from sklad.services.warehouse_write_path import WarehouseWritePathService
+from sku.models import Agency
+from todo.models import Task
+
+from .box_splits import extract_partial_box_split
+from .models import ShippingOrder, ShippingOrderItem
+
+
+logger = logging.getLogger(__name__)
+_BOX_CODES_COMMENT_RE = re.compile(r"короба:\s*([^;]+)", re.IGNORECASE)
+
+
+def _shipping_print_agent_context(*, request, order_pk: int | None = None) -> dict:
+    scanner_agents: list[dict] = []
+    preferred_agent_id = ""
+    preferred_agent_locked = False
+    try:
+        from agent.models import AgentContext, DeviceAgent
+
+        now = timezone.now()
+        online_threshold = now - timedelta(seconds=30)
+        if getattr(request.user, "is_authenticated", False):
+            context_qs = AgentContext.objects.filter(
+                user=request.user,
+                active=True,
+                expires_at__gt=now,
+            )
+            if order_pk is not None:
+                context_qs = context_qs.filter(order_id=order_pk)
+            session_key_text = str(getattr(request.session, "session_key", "") or "").strip()
+            active_context = None
+            if session_key_text:
+                active_context = (
+                    context_qs.filter(session_key=session_key_text)
+                    .order_by("-last_seen", "-updated_at")
+                    .first()
+                )
+                if active_context and active_context.agent_id:
+                    preferred_agent_locked = True
+            if not active_context and context_qs.count() == 1:
+                active_context = context_qs.order_by("-last_seen", "-updated_at").first()
+                if active_context and active_context.agent_id:
+                    preferred_agent_locked = True
+            if active_context and active_context.agent_id:
+                preferred_agent_id = str(active_context.agent_id).strip()
+        for agent in DeviceAgent.objects.all().order_by("-last_seen", "-updated_at"):
+            is_online = bool(agent.last_seen and agent.last_seen >= online_threshold)
+            scanner_agents.append(
+                {
+                    "agent_id": agent.agent_id,
+                    "title": agent.name or agent.host or agent.agent_id,
+                    "status": "онлайн" if is_online else "нет связи",
+                    "is_online": is_online,
+                    "last_seen": agent.last_seen.isoformat() if agent.last_seen else "",
+                }
+            )
+    except Exception:
+        scanner_agents = []
+        preferred_agent_id = ""
+        preferred_agent_locked = False
+    return {
+        "scanner_agents": scanner_agents,
+        "preferred_agent_id": preferred_agent_id,
+        "preferred_agent_locked": preferred_agent_locked,
+    }
+
+
+def _order_int_part(number: str) -> int:
+    raw = str(number or "").strip()
+    if not raw.startswith("SO-"):
+        return 0
+    part = raw[3:]
+    return int(part) if part.isdigit() else 0
+
+
+def next_shipping_number() -> str:
+    numbers = ShippingOrder.objects.values_list("number", flat=True)
+    max_number = 0
+    for number in numbers:
+        value = _order_int_part(number)
+        if value > max_number:
+            max_number = value
+    return f"SO-{max_number + 1:06d}"
+
+
+def _key(sku_code: str, size: str, goods_type: str, barcode: str = "") -> tuple[str, ...]:
+    barcode_value = (barcode or "").strip().lower()
+    if barcode_value:
+        return ("barcode", barcode_value)
+    return (
+        "sku",
+        (sku_code or "").strip().lower(),
+        (size or "").strip().lower(),
+        StockAvailabilityService.normalize_goods_type(goods_type),
+    )
+
+
+def _box_codes_from_item_comment(comment: str | None) -> list[str]:
+    match = _BOX_CODES_COMMENT_RE.search(str(comment or ""))
+    if not match:
+        return []
+    codes: list[str] = []
+    seen: set[str] = set()
+    for raw_code in match.group(1).split(","):
+        code = str(raw_code or "").strip()
+        normalized = code.lower()
+        if not code or normalized in seen:
+            continue
+        seen.add(normalized)
+        codes.append(code)
+    return codes
+
+
+def shipping_selectable_warehouse_state_codes(*, include_reserved: bool = False) -> tuple[str, ...]:
+    codes = [
+        WarehouseStateCode.STORED.value,
+        WarehouseStateCode.PLACED_AFTER_PROCESSING.value,
+    ]
+    if include_reserved:
+        codes.append(WarehouseStateCode.RESERVED_FOR_SHIPPING.value)
+    return tuple(codes)
+
+
+def _first_active_employee_by_roles(*roles: str) -> Employee | None:
+    for role in [role for role in roles if role]:
+        employee = (
+            Employee.objects.filter(role=role, is_active=True)
+            .order_by("full_name")
+            .first()
+        )
+        if employee:
+            return employee
+    return None
+
+
+def _manager_due_date(submitted_at=None):
+    base_dt = submitted_at or timezone.localtime()
+    if timezone.is_naive(base_dt):
+        base_dt = timezone.make_aware(base_dt, timezone.get_current_timezone())
+    base_dt = timezone.localtime(base_dt)
+    cutoff = base_dt.replace(hour=14, minute=0, second=0, microsecond=0)
+    if base_dt <= cutoff:
+        return base_dt.replace(hour=18, minute=0, second=0, microsecond=0)
+    next_day = base_dt + timedelta(days=1)
+    return next_day.replace(hour=13, minute=0, second=0, microsecond=0)
+
+
+def ensure_manager_review_task(order: ShippingOrder, user=None, *, submitted_at=None) -> Task | None:
+    if not order.pk or not order.agency_id:
+        return None
+    manager = _first_active_employee_by_roles("manager", "head_manager")
+    if not manager:
+        return None
+    route = f"/shipping/{order.pk}/"
+    title = f"Заявка на отгрузку №{order.number}"
+    description = f"Клиент: {order.agency.agn_name or order.agency.inn or order.agency.id}"
+    due_date = _manager_due_date(submitted_at)
+    existing = (
+        Task.objects.filter(route=route, assigned_to=manager, title=title)
+        .order_by("-created_at")
+        .first()
+    )
+    if existing:
+        existing.description = description
+        existing.due_date = due_date
+        if existing.status == "done":
+            existing.status = "backlog"
+        existing.save(update_fields=["description", "due_date", "status", "updated_at"])
+        return existing
+    return Task.objects.create(
+        title=title,
+        description=description,
+        route=route,
+        assigned_to=manager,
+        created_by=user if getattr(user, "is_authenticated", False) else None,
+        due_date=due_date,
+    )
+
+
+def close_manager_review_task(order: ShippingOrder) -> None:
+    if not order.pk:
+        return
+    Task.objects.filter(
+        route=f"/shipping/{order.pk}/",
+        assigned_to__role__in=["manager", "head_manager"],
+    ).exclude(status="done").update(status="done")
+
+
+def ensure_storekeeper_task(order: ShippingOrder, user=None) -> Task | None:
+    if not order.pk or not order.agency_id:
+        return None
+    storekeeper = _first_active_employee_by_roles("storekeeper")
+    if not storekeeper:
+        return None
+    route = f"/shipping/{order.pk}/"
+    title = f"Заявка на отгрузку №{order.number}"
+    description = f"Клиент: {order.agency.agn_name or order.agency.inn or order.agency.id}"
+    due_date = timezone.localtime()
+    existing = (
+        Task.objects.filter(route=route, assigned_to__role="storekeeper")
+        .order_by("-created_at")
+        .first()
+    )
+    if existing:
+        existing.title = title
+        existing.description = description
+        existing.assigned_to = storekeeper
+        existing.due_date = due_date
+        if existing.status == "done":
+            existing.status = "backlog"
+        existing.save(
+            update_fields=["title", "description", "assigned_to", "due_date", "status", "updated_at"]
+        )
+        return existing
+    return Task.objects.create(
+        title=title,
+        description=description,
+        route=route,
+        assigned_to=storekeeper,
+        created_by=user if getattr(user, "is_authenticated", False) else None,
+        due_date=due_date,
+    )
+
+
+def close_storekeeper_task(order: ShippingOrder) -> None:
+    if not order.pk:
+        return
+    Task.objects.filter(
+        route=f"/shipping/{order.pk}/",
+        assigned_to__role="storekeeper",
+    ).exclude(status="done").update(status="done")
+
+
+def mark_storekeeper_task_in_progress(order: ShippingOrder) -> None:
+    if not order.pk:
+        return
+    (
+        Task.objects.filter(
+            route=f"/shipping/{order.pk}/",
+            assigned_to__role="storekeeper",
+        )
+        .exclude(status="done")
+        .update(status="in_progress")
+    )
+
+
+def ensure_logistician_task(order: ShippingOrder, user=None) -> Task | None:
+    if not order.pk or not order.agency_id:
+        return None
+    if order.delivery_type == ShippingOrder.DELIVERY_PICKUP:
+        close_logistician_task(order)
+        return None
+    logistician = _first_active_employee_by_roles("logistician")
+    if not logistician:
+        return None
+    route = f"/shipping/{order.pk}/"
+    title = f"Заявка на отгрузку №{order.number}"
+    description = (
+        f"Клиент: {order.agency.agn_name or order.agency.inn or order.agency.id}. "
+        "Склад завершил подготовку, требуется погрузка и акт отгрузки."
+    )
+    due_date = timezone.localtime()
+    existing = (
+        Task.objects.filter(route=route, assigned_to__role="logistician")
+        .order_by("-created_at")
+        .first()
+    )
+    if existing:
+        existing.title = title
+        existing.description = description
+        existing.assigned_to = logistician
+        existing.due_date = due_date
+        if existing.status == "done":
+            existing.status = "backlog"
+        existing.save(
+            update_fields=["title", "description", "assigned_to", "due_date", "status", "updated_at"]
+        )
+        return existing
+    return Task.objects.create(
+        title=title,
+        description=description,
+        route=route,
+        assigned_to=logistician,
+        created_by=user if getattr(user, "is_authenticated", False) else None,
+        due_date=due_date,
+    )
+
+
+def close_logistician_task(order: ShippingOrder) -> None:
+    if not order.pk:
+        return
+    Task.objects.filter(
+        route=f"/shipping/{order.pk}/",
+        assigned_to__role="logistician",
+    ).exclude(status="done").update(status="done")
+
+
+def ensure_shipping_act_manager_task(order: ShippingOrder, user=None, *, observer: Employee | None = None) -> Task | None:
+    if not order.pk or not order.agency_id:
+        return None
+    manager = _first_active_employee_by_roles("manager", "head_manager")
+    if not manager:
+        return None
+    route = f"/shipping/{order.pk}/act/"
+    title = f"Подписать акт отгрузки №{order.number}"
+    description = (
+        f"Клиент: {order.agency.agn_name or order.agency.inn or order.agency.id}. "
+        "Логист подписал акт отгрузки, требуется подпись менеджера."
+    )
+    due_date = timezone.localtime()
+    existing = (
+        Task.objects.filter(route=route, assigned_to__role__in=["manager", "head_manager"])
+        .order_by("-created_at")
+        .first()
+    )
+    if existing:
+        existing.title = title
+        existing.description = description
+        existing.assigned_to = manager
+        existing.observer = observer
+        existing.due_date = due_date
+        if existing.status == "done":
+            existing.status = "backlog"
+        existing.save(
+            update_fields=["title", "description", "assigned_to", "observer", "due_date", "status", "updated_at"]
+        )
+        return existing
+    return Task.objects.create(
+        title=title,
+        description=description,
+        route=route,
+        assigned_to=manager,
+        observer=observer,
+        created_by=user if getattr(user, "is_authenticated", False) else None,
+        due_date=due_date,
+    )
+
+
+def close_shipping_act_manager_task(order: ShippingOrder) -> None:
+    if not order.pk:
+        return
+    Task.objects.filter(
+        route=f"/shipping/{order.pk}/act/",
+        assigned_to__role__in=["manager", "head_manager"],
+    ).exclude(status="done").update(status="done")
+
+
+def shipping_available_items(
+    order: ShippingOrder,
+    *,
+    exclude_order: ShippingOrder | None = None,
+) -> list[dict]:
+    exclude_shipping_order_id = exclude_order.number if exclude_order is not None else None
+    return StockAvailabilityService.inventory_items_for_agency(
+        order.agency,
+        exclude_shipping_order_id=exclude_shipping_order_id,
+        warehouse_state_codes=shipping_selectable_warehouse_state_codes(
+            include_reserved=exclude_order is not None,
+        ),
+    )
+
+
+def order_payload(order: ShippingOrder, *, extra: dict | None = None) -> dict:
+    items = [
+        {
+            "id": item.id,
+            "sku_code": item.sku_code,
+            "name": item.name,
+            "size": item.size,
+            "barcode": item.barcode,
+            "goods_type": item.goods_type,
+            "qty_requested": item.qty_requested,
+            "qty_reserved": item.qty_reserved,
+            "qty_shipped": item.qty_shipped,
+        }
+        for item in order.items.order_by("id")
+    ]
+    payload = {
+        "shipping_state": order.status,
+        "number": order.number,
+        "shipping_barcode": order.shipping_barcode,
+        "delivery_type": order.delivery_type,
+        "marketplace": order.marketplace.name if order.marketplace_id else "",
+        "marketplace_id": order.marketplace_id,
+        "slot_date": order.slot_date.isoformat() if order.slot_date else "",
+        "destination_warehouse": order.destination_warehouse,
+        "supply_type": order.supply_type,
+        "destination_address": order.destination_address,
+        "planned_ship_date": order.planned_ship_date.isoformat() if order.planned_ship_date else "",
+        "vehicle_type": order.vehicle_type,
+        "wb_supply_barcode": order.wb_supply_barcode,
+        "wb_transit_warehouse": bool(order.wb_transit_warehouse),
+        "transit_address": order.transit_address,
+        "eta_at": order.eta_at.isoformat() if order.eta_at else "",
+        "expected_boxes": int(order.expected_boxes or 0),
+        "place_type": order.place_type,
+        "vehicle_number": order.vehicle_number,
+        "driver_phone": order.driver_phone,
+        "comment": order.comment,
+        "items": items,
+    }
+    if extra:
+        payload.update(extra)
+    return payload
+
+
+def _log_order(order: ShippingOrder, *, action: str, user, description: str, extra: dict | None = None) -> None:
+    log_order_action(
+        action=action,
+        order_id=order.number,
+        order_type="shipping",
+        user=user if getattr(user, "is_authenticated", False) else None,
+        agency=order.agency,
+        description=description,
+        payload=order_payload(order, extra=extra),
+    )
+
+
+@transaction.atomic
+def reserve_order(
+    order: ShippingOrder,
+    user=None,
+    *,
+    target_status: str | None = ShippingOrder.STATUS_RESERVED,
+    log_description: str = "Резерв подтвержден",
+) -> None:
+    if order.is_closed():
+        raise ValidationError("Нельзя резервировать закрытую заявку.")
+    items = list(order.items.order_by("id"))
+    if not items:
+        raise ValidationError("В заявке нет позиций для резерва.")
+
+    availability: dict[tuple[str, ...], int] = defaultdict(int)
+    for row in shipping_available_items(order, exclude_order=order):
+        availability[_key(row.get("sku"), row.get("size"), row.get("goods_type"), row.get("barcode"))] += int(row.get("qty") or 0)
+
+    shortages: list[str] = []
+    for item in items:
+        needed = int(item.qty_requested or 0)
+        key = _key(item.sku_code, item.size, item.goods_type, item.barcode)
+        available = int(availability.get(key, 0))
+        if available < needed:
+            shortages.append(
+                f"{item.sku_code}/{item.size or '-'}: требуется {needed}, доступно {available}"
+            )
+            continue
+        availability[key] = available - needed
+
+    if shortages:
+        raise ValidationError("Недостаточно товара для резерва: " + "; ".join(shortages))
+
+    from reachtruck.services.move_requests import _shipping_reserve_box_plan_for_items
+
+    reserve_box_plan = _shipping_reserve_box_plan_for_items(
+        items=items,
+        agency_id=order.agency_id,
+    )
+    if reserve_box_plan.get("failed"):
+        raise ValidationError(
+            "Не удалось подобрать короба под коробочную схему отгрузки из фактически доступных полных коробов."
+        )
+    selected_box_codes_by_item_id = {
+        int(item_id): [
+            str(code).strip()
+            for code in codes
+            if str(code or "").strip()
+        ]
+        for item_id, codes in dict(reserve_box_plan.get("selected_box_codes_by_item_id") or {}).items()
+        if int(item_id or 0) > 0
+    }
+
+    warehouse_items: list[dict] = []
+    for item in items:
+        qty = int(item.qty_requested or 0)
+        if qty <= 0:
+            item.qty_reserved = 0
+            item.save(update_fields=["qty_reserved", "updated_at"])
+            continue
+        _explicit_box_codes = _box_codes_from_item_comment(item.comment)
+        _selected_box_codes = selected_box_codes_by_item_id.get(int(item.id or 0), [])
+        partial_box_split = extract_partial_box_split(item.comment)
+        box_codes = _explicit_box_codes or _selected_box_codes
+        warehouse_items.append(
+            {
+                "sku": item.sku_code,
+                "sku_code": item.sku_code,
+                "size": item.size,
+                "barcode": item.barcode,
+                "goods_type": item.goods_type,
+                "qty": qty,
+                "box_codes": box_codes,
+                "allow_partial_box_reserve": bool(partial_box_split),
+            }
+        )
+        item.qty_reserved = qty
+        item.save(update_fields=["qty_reserved", "updated_at"])
+    try:
+        WarehouseWritePathService.replace_shipping_reserves(
+            agency=order.agency,
+            order_id=order.number,
+            items=warehouse_items,
+            created_by=user if getattr(user, "is_authenticated", False) else None,
+            source_document_type="shipping_order",
+            source_document_id=order.number,
+        )
+    except ValueError as exc:
+        raise ValidationError(str(exc)) from exc
+
+    update_fields = ["reserved_at", "updated_at"]
+    if target_status is not None and order.status != target_status:
+        order.status = target_status
+        update_fields.append("status")
+    order.reserved_at = timezone.now()
+    order.save(update_fields=update_fields)
+    _log_order(order, action="status", user=user, description=log_description)
+
+
+@transaction.atomic
+def release_order_reserves(order: ShippingOrder, user=None) -> None:
+    if order.is_closed():
+        raise ValidationError("Нельзя снять резерв с закрытой заявки.")
+    WarehouseWritePathService.replace_shipping_reserves(
+        agency=order.agency,
+        order_id=order.number,
+        items=[],
+        created_by=user if getattr(user, "is_authenticated", False) else None,
+        source_document_type="shipping_order",
+        source_document_id=order.number,
+    )
+    order.items.update(qty_reserved=0)
+    if order.status in {
+        ShippingOrder.STATUS_RESERVED,
+        ShippingOrder.STATUS_STOREKEEPER_ACCEPTED,
+        ShippingOrder.STATUS_PICKING,
+        ShippingOrder.STATUS_PACKED,
+    }:
+        order.status = ShippingOrder.STATUS_SUBMITTED
+        order.save(update_fields=["status", "updated_at"])
+    _log_order(order, action="status", user=user, description="Резерв снят")
+
+
+@transaction.atomic
+def return_order_to_draft(order: ShippingOrder, user=None) -> None:
+    if order.is_closed():
+        raise ValidationError("Нельзя вернуть закрытую заявку в подготовку.")
+    release_order_reserves(order, user)
+    order.status = ShippingOrder.STATUS_DRAFT
+    order.reserved_at = None
+    order.save(update_fields=["status", "reserved_at", "updated_at"])
+    close_manager_review_task(order)
+    close_storekeeper_task(order)
+    close_logistician_task(order)
+    close_shipping_act_manager_task(order)
+    _log_order(
+        order,
+        action="status",
+        user=user,
+        description="Заявка возвращена в подготовку клиентом",
+    )
+
+
+@transaction.atomic
+def create_pick_tasks(order: ShippingOrder, user=None, *, requested_by_name: str = "", requested_by_role: str = "") -> list[str]:
+    if order.is_closed():
+        raise ValidationError("Нельзя создать задания ричтраку для закрытой заявки.")
+    pick_readiness = shipping_pick_readiness(order)
+    if not pick_readiness["can_pick"]:
+        raise ValidationError(str(pick_readiness["reason"] or "").strip() or "Не удалось сформировать задания ричтраку.")
+    try:
+        _move_request, move_ids, shortage_qty = create_shipping_pick_request(
+            order=order,
+            user=user,
+            requested_by_name=requested_by_name,
+            requested_by_role=requested_by_role,
+        )
+    except ValueError as exc:
+        raise ValidationError(str(exc)) from exc
+    if not move_ids:
+        raise ValidationError("Не удалось сформировать задания ричтраку: не найден доступный товар по паллетам.")
+    if move_ids:
+        order.status = ShippingOrder.STATUS_PICKING
+        order.save(update_fields=["status", "updated_at"])
+    description = "Созданы задания ричтраку на отбор в OTG"
+    if shortage_qty > 0:
+        description += f" (частично, дефицит {shortage_qty} шт.)"
+    _log_order(
+        order,
+        action="status",
+        user=user,
+        description=description,
+        extra={"reachtruck_move_ids": move_ids, "reachtruck_shortage_qty": shortage_qty},
+    )
+    return move_ids
+
+
+def shipping_pick_readiness(order: ShippingOrder) -> dict[str, str | bool]:
+    if order.is_closed():
+        return {"can_pick": False, "reason": "Заявка уже закрыта."}
+
+    items = list(order.items.order_by("id"))
+    if not items:
+        return {"can_pick": False, "reason": "В заявке нет позиций для отбора."}
+
+    base_rows = snapshot_stock_rows(agency=order.agency)
+    if not base_rows:
+        return {"can_pick": False, "reason": "На складе нет остатков клиента для отбора."}
+
+    blocked_pallets = {
+        str(task.pallet_code or "").strip()
+        for task in MoveTask.objects.select_related("request")
+        .filter(
+            request__agency=order.agency,
+            status=MoveTask.STATUS_IN_PROGRESS,
+        )
+        .exclude(pallet_code="")
+        if str(task.pallet_code or "").strip()
+    }
+    blocked_pallets.update(active_pallet_lock_codes(agency_id=order.agency_id))
+
+    has_matching_stock = False
+    has_matching_pallet_stock = False
+    has_unblocked_pallet_stock = False
+
+    for item in items:
+        qty_required = max(int(item.qty_reserved or item.qty_requested or 0), 0)
+        if qty_required <= 0:
+            continue
+        sku_value = str(item.sku_code or "").strip()
+        size_value = str(item.size or "").strip().lower()
+        barcode_value = str(item.barcode or "").strip().lower()
+        goods_type_value = StockAvailabilityService.normalize_goods_type(item.goods_type)
+        matching_rows = []
+        for row in base_rows:
+            row_barcode = str(row.get("barcode") or "").strip().lower()
+            if barcode_value:
+                if row_barcode != barcode_value:
+                    continue
+            else:
+                if str(row.get("sku") or "").strip().lower() != sku_value.lower():
+                    continue
+                if size_value:
+                    if str(row.get("size") or "").strip().lower() != size_value:
+                        continue
+                elif str(row.get("size") or "").strip():
+                    continue
+            row_goods_type = StockAvailabilityService.normalize_goods_type(row.get("goods_type"))
+            if goods_type_value and row_goods_type and row_goods_type != goods_type_value:
+                continue
+            if int(row.get("qty") or 0) <= 0:
+                continue
+            matching_rows.append(row)
+        if not matching_rows:
+            continue
+        has_matching_stock = True
+        pallet_matching_rows = [row for row in matching_rows if str(row.get("pallet_code") or "").strip()]
+        if not pallet_matching_rows:
+            continue
+        has_matching_pallet_stock = True
+        if any(str(row.get("pallet_code") or "").strip() not in blocked_pallets for row in pallet_matching_rows):
+            has_unblocked_pallet_stock = True
+            break
+
+    if not has_matching_stock:
+        return {
+            "can_pick": False,
+            "reason": "Для зарезервированных позиций не найдено складских остатков.",
+        }
+    if not has_matching_pallet_stock:
+        return {
+            "can_pick": False,
+            "reason": "Нельзя дать задание ричтраку: зарезервированный товар не размещен на паллетах.",
+        }
+    if not has_unblocked_pallet_stock:
+        return {
+            "can_pick": False,
+            "reason": "Паллеты с зарезервированным товаром уже заняты в активных заданиях ричтрака.",
+        }
+    return {"can_pick": True, "reason": ""}
+
+
+def build_shipping_list_page_context(
+    *,
+    request,
+    scope: str,
+    role: str | None,
+    client_agency,
+) -> dict:
+    from . import selectors as shipping_selectors
+    from . import views as shipping_views
+
+    qs = ShippingOrder.objects.select_related("agency", "created_by", "marketplace").prefetch_related("items")
+    selected_client = client_agency if scope == "client" else None
+    client_id = ""
+    if scope == "client" and client_agency is not None:
+        qs = qs.filter(agency=client_agency)
+    else:
+        client_id = str(request.GET.get("client") or "").strip()
+        if client_id.isdigit():
+            qs = qs.filter(agency_id=int(client_id))
+            selected_client = Agency.objects.filter(id=int(client_id), archived=False).first()
+    status = str(request.GET.get("status") or "").strip()
+    if status:
+        qs = qs.filter(status=status)
+    orders = qs.order_by("-created_at")
+    for order in orders:
+        order.ui_status_label = shipping_selectors.shipping_ui_status_label(order)
+        order.display_number = shipping_views._display_shipping_number(order.number)
+    return {
+        "orders": orders,
+        "status": status,
+        "client_filter": client_id,
+        "scope": scope,
+        "role": role,
+        "can_write": shipping_views._can_write(scope, role),
+        "selected_client": selected_client,
+        "cabinet_url": resolve_cabinet_url(role),
+        "status_choices": ShippingOrder.STATUS_CHOICES,
+        "clients": Agency.objects.filter(archived=False).order_by("agn_name") if scope == "staff" else [],
+    }
+
+
+def build_shipping_detail_page_context(
+    *,
+    request,
+    order: ShippingOrder,
+    scope: str,
+    role: str | None,
+) -> dict:
+    from . import selectors as shipping_selectors
+    from . import transport_note as shipping_transport_note
+    from . import views as shipping_views
+
+    can_write = shipping_views._can_write(scope, role)
+    can_edit_items = shipping_views._can_edit_items(scope, role, order)
+    can_submit_for_approval = shipping_views._can_submit_for_approval(scope, role, order)
+    can_manager_approve = shipping_views._can_manager_approve(scope, role, order)
+    can_manager_reopen = shipping_views._can_manager_reopen(scope, role, order)
+    can_storekeeper_accept = shipping_views._can_storekeeper_accept(scope, role, order)
+    can_storekeeper_pick = shipping_views._can_storekeeper_pick(scope, role, order)
+    pick_readiness = shipping_pick_readiness(order) if can_storekeeper_pick else {"can_pick": False, "reason": ""}
+    can_storekeeper_pack = shipping_views._can_storekeeper_pack(scope, role, order)
+    can_storekeeper_manage_packing = shipping_views._can_storekeeper_manage_packing(scope, role, order)
+    can_cancel = shipping_views._can_cancel(scope, role, order)
+    can_edit_order_form = shipping_views._can_edit_order_form(scope, role, order)
+    stock_rows_for_order = shipping_views._shipping_stock_picker_rows(order.agency, exclude_order=order)
+
+    order.display_number = shipping_views._display_shipping_number(order.number)
+    context = shipping_selectors.build_shipping_detail_context(
+        order,
+        scope=scope,
+        role=role,
+        stock_rows=stock_rows_for_order,
+        available_items=shipping_available_items(order, exclude_order=order),
+        order_box_count=shipping_views._order_box_count(order),
+        can_write=can_write,
+        can_edit_items=can_edit_items,
+        can_submit_for_approval=can_submit_for_approval,
+        can_manager_approve=can_manager_approve,
+        can_manager_reopen=can_manager_reopen,
+        can_storekeeper_accept=can_storekeeper_accept,
+        can_storekeeper_pick=can_storekeeper_pick,
+        can_storekeeper_pack=can_storekeeper_pack,
+        can_storekeeper_manage_packing=can_storekeeper_manage_packing,
+        can_cancel=can_cancel,
+        can_edit_order_form=can_edit_order_form,
+    )
+    context["can_storekeeper_pick"] = can_storekeeper_pick and bool(pick_readiness["can_pick"])
+    context["storekeeper_pick_unavailable_reason"] = (
+        str(pick_readiness["reason"] or "").strip()
+        if can_storekeeper_pick and not pick_readiness["can_pick"]
+        else ""
+    )
+    context["can_create_pickup_trip"] = (
+        scope == "staff"
+        and role in {"storekeeper", "manager", "head_manager", "director", "admin", "developer"}
+        and order.delivery_type == ShippingOrder.DELIVERY_PICKUP
+        and order.status == ShippingOrder.STATUS_PACKED
+        and not bool((context.get("dispatch_stage") or {}).get("has_trip"))
+    )
+    context["can_manage_transport_note"] = shipping_transport_note.can_access_transport_note(order, scope, role)
+    context["transport_note_url"] = reverse("shipping:documents", args=[order.pk])
+    return context
+
+
+def build_shipping_create_page_context(
+    *,
+    form,
+    stock_rows: list[dict],
+    parse_errors: list[str],
+    selected_client,
+    scope: str,
+    role: str | None,
+    edit_order,
+    request,
+) -> dict:
+    from . import views as shipping_views
+
+    edit_returns_to_draft = (
+        edit_order is not None
+        and scope == "client"
+        and edit_order.status == ShippingOrder.STATUS_SUBMITTED
+    )
+    context = {
+        "form": form,
+        "marketplace_warehouse_catalog": shipping_views.load_marketplace_warehouse_catalog(),
+        "stock_rows": stock_rows,
+        "parse_errors": parse_errors,
+        "existing_attachments": list(shipping_views._active_shipping_attachments(edit_order)) if edit_order else [],
+        "scope": scope,
+        "role": role,
+        "selected_client": selected_client,
+        "cabinet_url": resolve_cabinet_url(role),
+        "server_now_iso": timezone.localtime().isoformat(),
+        "next_day_deadline_hour": shipping_views.NEXT_DAY_DEADLINE_HOUR,
+        "next_day_deadline_error": shipping_views.NEXT_DAY_DEADLINE_ERROR,
+        "workday_start_hour": shipping_views.WORKDAY_START_HOUR,
+        "workday_end_hour": shipping_views.WORKDAY_END_HOUR,
+        "workday_hours_error": shipping_views.WORKDAY_HOURS_ERROR,
+        "attachment_retention_days": shipping_views.ShippingOrderAttachment.RETENTION_DAYS,
+        "edit_order": edit_order,
+        "is_edit_mode": bool(edit_order),
+        "page_title": f"Редактирование заявки {edit_order.number}" if edit_order else "Новая заявка на отгрузку",
+        "page_subtitle": (
+            "Измените параметры и позиции заявки. После сохранения она вернется в подготовку."
+            if edit_returns_to_draft
+            else (
+                "Измените параметры и позиции заявки. После сохранения она останется на проверке у менеджера."
+                if edit_order
+                else "Создайте заявку и отправьте в работу менеджеру/складу."
+            )
+        ),
+    }
+    if getattr(request, "method", "") == "POST":
+        context["partial_box_splits_json"] = shipping_views._partial_box_splits_json_from_request(request)
+    elif edit_order is not None:
+        context["partial_box_splits_json"] = shipping_views._partial_box_splits_json_for_order(edit_order, stock_rows)
+    else:
+        context["partial_box_splits_json"] = "[]"
+    if edit_order is not None:
+        context["page_title"] = f"Редактирование заявки {shipping_views._display_shipping_number(edit_order.number)}"
+    return context
+
+
+def handle_shipping_create_request(
+    *,
+    request,
+    scope: str,
+    role: str | None,
+    client_agency,
+):
+    from . import views as shipping_views
+
+    agency_queryset = Agency.objects.filter(archived=False).order_by("agn_name")
+    selected_client = client_agency if scope == "client" else None
+    initial_data = {}
+    edit_flag = str(request.GET.get("edit") or request.POST.get("edit") or "").strip().lower() in {"1", "true", "yes"}
+    edit_order_id = str(request.GET.get("order") or request.POST.get("edit_order_id") or "").strip()
+    edit_order = None
+    if edit_order_id.isdigit() and (edit_flag or request.method == "POST"):
+        edit_order = get_object_or_404(
+            ShippingOrder.objects.select_related("agency", "created_by", "marketplace").prefetch_related("items", "reserves"),
+            pk=int(edit_order_id),
+        )
+        if scope == "client" and client_agency is not None and edit_order.agency_id != client_agency.id:
+            return HttpResponseForbidden("Доступ запрещен")
+        if not shipping_views._can_edit_order_form(scope, role, edit_order):
+            return HttpResponseForbidden("Редактирование заявки недоступно.")
+        selected_client = edit_order.agency
+        initial_data["agency"] = edit_order.agency
+    if scope == "staff":
+        client_id = str(request.GET.get("client") or request.POST.get("client") or "").strip()
+        if client_id.isdigit():
+            selected = agency_queryset.filter(id=int(client_id)).first()
+            if selected:
+                initial_data["agency"] = selected
+                selected_client = selected
+    if edit_order is not None:
+        selected_client = edit_order.agency
+        initial_data["agency"] = edit_order.agency
+    form = shipping_views.ShippingOrderForm(
+        request.POST or None,
+        request.FILES or None,
+        instance=edit_order,
+        initial=initial_data,
+        agency_queryset=agency_queryset,
+        locked_agency=client_agency if scope == "client" else None,
+    )
+    parse_errors: list[str] = []
+    stock_rows: list[dict] = []
+    if selected_client is not None:
+        stock_rows = shipping_views._shipping_stock_picker_rows(selected_client, exclude_order=edit_order)
+    if request.method == "POST":
+        stock_rows = shipping_views._with_selected_boxes(stock_rows, shipping_views._selected_box_values_from_request(request))
+    elif edit_order is not None:
+        stock_rows = shipping_views._with_selected_boxes(stock_rows, shipping_views._selected_box_values_for_order(edit_order, stock_rows))
+    else:
+        stock_rows = shipping_views._with_selected_boxes(stock_rows)
+    if request.method == "POST":
+        if form.is_valid():
+            order_agency = client_agency if (scope == "client" and client_agency is not None) else form.cleaned_data.get("agency")
+            stock_rows = shipping_views._shipping_stock_picker_rows(order_agency, exclude_order=edit_order)
+            selected_rows, parse_errors = shipping_views._parse_selected_stock_items(request, stock_rows, multiple=True)
+            _expanded_rows, selected_box_count, selection_errors = shipping_views._selected_stock_rows_with_boxes(
+                request,
+                stock_rows,
+                multiple=True,
+            )
+            selected_box_count += shipping_views._partial_box_count_from_request(request)
+            if selection_errors:
+                parse_errors = selection_errors
+            stock_rows = shipping_views._with_selected_boxes(stock_rows, shipping_views._selected_box_values_from_request(request))
+        else:
+            selected_rows = []
+            selected_box_count = 0
+        if form.is_valid() and not parse_errors:
+            client_returns_submitted_to_draft = (
+                edit_order is not None
+                and scope == "client"
+                and edit_order.status == ShippingOrder.STATUS_SUBMITTED
+            )
+            try:
+                with transaction.atomic():
+                    order = form.save(commit=False)
+                    order.agency = client_agency if (scope == "client" and client_agency is not None) else order_agency
+                    if order.eta_at is not None:
+                        planned_eta = order.eta_at
+                        if timezone.is_naive(planned_eta):
+                            planned_eta = timezone.make_aware(planned_eta, timezone.get_current_timezone())
+                            order.eta_at = planned_eta
+                        order.planned_ship_date = timezone.localtime(planned_eta).date()
+                    else:
+                        order.planned_ship_date = None
+                    if edit_order is not None:
+                        order.number = edit_order.number
+                        order.created_by = edit_order.created_by
+                        if client_returns_submitted_to_draft:
+                            return_order_to_draft(order, request.user)
+                            order.status = ShippingOrder.STATUS_DRAFT
+                            order.reserved_at = None
+                        else:
+                            order.status = edit_order.status
+                        order.expected_boxes = int(max(selected_box_count, 0))
+                        order.save()
+                        order.items.all().delete()
+                        for row in selected_rows:
+                            ShippingOrderItem.objects.create(order=order, **row)
+                        if order.status == ShippingOrder.STATUS_SUBMITTED:
+                            reserve_order(
+                                order,
+                                request.user,
+                                target_status=ShippingOrder.STATUS_SUBMITTED,
+                                log_description="Резерв обновлен после редактирования заявки менеджером",
+                            )
+                            ensure_manager_review_task(order, request.user)
+                        uploaded_documents = shipping_views._save_shipping_attachments(order, request)
+                        shipping_views._log_update(
+                            order,
+                            request,
+                            (
+                                "Заявка возвращена в подготовку и отредактирована клиентом"
+                                if client_returns_submitted_to_draft
+                                else "Заявка отредактирована менеджером"
+                            ),
+                            action="update",
+                            extra={
+                                "documents": shipping_views._shipping_attachment_names(order),
+                                "uploaded_documents": uploaded_documents,
+                                "edit_mode": True,
+                                "returned_to_draft": client_returns_submitted_to_draft,
+                            },
+                        )
+                    else:
+                        order.number = next_shipping_number()
+                        order.created_by = request.user
+                        order.status = (
+                            ShippingOrder.STATUS_DRAFT
+                            if request.POST.get("action") == "save_draft"
+                            else ShippingOrder.STATUS_SUBMITTED
+                        )
+                        order.expected_boxes = int(max(selected_box_count, 0))
+                        order.save()
+                        for row in selected_rows:
+                            ShippingOrderItem.objects.create(order=order, **row)
+                        if order.status == ShippingOrder.STATUS_SUBMITTED:
+                            reserve_order(
+                                order,
+                                request.user,
+                                target_status=ShippingOrder.STATUS_SUBMITTED,
+                                log_description="Резерв выполнен автоматически при отправке клиентом",
+                            )
+                        uploaded_documents = shipping_views._save_shipping_attachments(order, request)
+                        log_order_action(
+                            action="create",
+                            order_id=order.number,
+                            order_type="shipping",
+                            user=request.user,
+                            agency=order.agency,
+                            description="Создана заявка на отгрузку",
+                            payload=order_payload(
+                                order,
+                                extra={
+                                    "documents": shipping_views._shipping_attachment_names(order),
+                                    "uploaded_documents": uploaded_documents,
+                                },
+                            ),
+                        )
+                        if order.status == ShippingOrder.STATUS_SUBMITTED:
+                            ensure_manager_review_task(order, request.user)
+                if edit_order is not None:
+                    if client_returns_submitted_to_draft:
+                        messages.success(request, f"Заявка {order.number} возвращена в подготовку.")
+                    else:
+                        messages.success(request, f"Заявка {order.number} обновлена.")
+                else:
+                    messages.success(request, f"Заявка {order.number} создана.")
+                return redirect("shipping:detail", pk=order.pk)
+            except ValidationError as exc:
+                parse_errors.extend(exc.messages)
+            except Exception as exc:
+                logger.exception("Failed to save shipping order form")
+                parse_errors.append(f"Не удалось сохранить заявку: {exc}")
+
+    context = build_shipping_create_page_context(
+        form=form,
+        stock_rows=stock_rows,
+        parse_errors=parse_errors,
+        selected_client=selected_client,
+        scope=scope,
+        role=role,
+        edit_order=edit_order,
+        request=request,
+    )
+    return render(request, "shipping/form.html", context)
+
+
+def handle_shipping_dispatch_act_request(*, request, pk: int):
+    from . import dispatch as shipping_dispatch
+    from . import selectors as shipping_selectors
+    from . import views as shipping_views
+
+    scope, role, client_agency = shipping_views._request_scope(request)
+    if scope != "staff":
+        return HttpResponseForbidden("Доступ запрещен")
+    order = get_object_or_404(
+        ShippingOrder.objects.select_related("agency", "created_by", "marketplace").prefetch_related("items", "reserves"),
+        pk=pk,
+    )
+    if not shipping_views._can_access_order(scope, client_agency, order):
+        return HttpResponseForbidden("Доступ запрещен")
+    if order.status not in {
+        ShippingOrder.STATUS_PACKED,
+        ShippingOrder.STATUS_SHIPPED,
+        ShippingOrder.STATUS_PARTIAL,
+    }:
+        return redirect("shipping:detail", pk=order.pk)
+    context = shipping_selectors.build_shipping_dispatch_context(
+        order,
+        role=role,
+        sign_status=request.GET.get("signed") or "",
+        sign_error=request.GET.get("error") or "",
+    )
+    return render(request, "shipping/dispatch_act.html", context)
+
+
+def handle_shipping_dispatch_sign_logistician_request(*, request, pk: int):
+    from . import dispatch as shipping_dispatch
+    from . import views as shipping_views
+
+    if request.method != "POST":
+        return HttpResponseForbidden("Доступ запрещен")
+    scope, role, client_agency = shipping_views._request_scope(request)
+    if scope != "staff" or not shipping_views._is_logistician_role(role):
+        return HttpResponseForbidden("Доступ запрещен")
+    order = get_object_or_404(
+        ShippingOrder.objects.select_related("agency", "created_by", "marketplace").prefetch_related("items", "reserves"),
+        pk=pk,
+    )
+    if not shipping_views._can_access_order(scope, client_agency, order):
+        return HttpResponseForbidden("Доступ запрещен")
+    packing_summary = shipping_views._shipping_packing_summary(order)
+    dispatch_stage = shipping_dispatch.shipping_dispatch_stage(order, packing_summary=packing_summary)
+    try:
+        shipping_dispatch.sign_dispatch_act_logistician(
+            order,
+            request.user,
+            dispatch_stage=dispatch_stage,
+            packing_summary=packing_summary,
+        )
+        messages.success(request, "Акт отгрузки подписан логистом.")
+        return redirect(f"{reverse('shipping:dispatch-act', args=[order.pk])}?signed=logistician")
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+        return redirect(f"{reverse('shipping:dispatch-act', args=[order.pk])}?error=logistician")
+
+
+def handle_shipping_dispatch_sign_manager_request(*, request, pk: int):
+    from . import dispatch as shipping_dispatch
+    from . import views as shipping_views
+
+    if request.method != "POST":
+        return HttpResponseForbidden("Доступ запрещен")
+    scope, role, client_agency = shipping_views._request_scope(request)
+    if scope != "staff" or not shipping_views._is_manager_role(role):
+        return HttpResponseForbidden("Доступ запрещен")
+    order = get_object_or_404(
+        ShippingOrder.objects.select_related("agency", "created_by", "marketplace").prefetch_related("items", "reserves"),
+        pk=pk,
+    )
+    if not shipping_views._can_access_order(scope, client_agency, order):
+        return HttpResponseForbidden("Доступ запрещен")
+    packing_summary = shipping_views._shipping_packing_summary(order)
+    dispatch_stage = shipping_dispatch.shipping_dispatch_stage(order, packing_summary=packing_summary)
+    try:
+        shipping_dispatch.sign_dispatch_act_manager(
+            order,
+            request.user,
+            dispatch_stage=dispatch_stage,
+            packing_summary=packing_summary,
+        )
+        messages.success(request, "Акт отгрузки подписан менеджером и отправлен клиенту.")
+        return redirect(f"{reverse('shipping:dispatch-act', args=[order.pk])}?signed=manager")
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+        return redirect(f"{reverse('shipping:dispatch-act', args=[order.pk])}?error=manager")
+
+
+def download_shipping_attachment(*, request, pk: int, attachment_id: int):
+    from . import views as shipping_views
+    from .models import ShippingOrderAttachment
+
+    scope, role, client_agency = shipping_views._request_scope(request)
+    order = get_object_or_404(ShippingOrder.objects.select_related("agency"), pk=pk)
+    if not shipping_views._can_access_order(scope, client_agency, order):
+        return HttpResponseForbidden("Доступ запрещен")
+    attachment = get_object_or_404(
+        ShippingOrderAttachment.objects.select_related("order"),
+        pk=attachment_id,
+        order=order,
+    )
+    if attachment.is_expired or not attachment.file:
+        raise Http404("Файл недоступен")
+    return FileResponse(
+        attachment.file.open("rb"),
+        as_attachment=True,
+        filename=attachment.filename,
+    )
+
+
+def handle_shipping_documents_request(*, request, pk: int):
+    from . import transport_note as shipping_transport_note
+    from . import views as shipping_views
+
+    scope, role, client_agency = shipping_views._request_scope(request)
+    order = get_object_or_404(
+        ShippingOrder.objects.select_related("agency", "created_by", "marketplace").prefetch_related("items"),
+        pk=pk,
+    )
+    if not shipping_views._can_access_order(scope, client_agency, order):
+        return HttpResponseForbidden("Доступ запрещен")
+    if not shipping_transport_note.can_access_transport_note(order, scope, role):
+        return HttpResponseForbidden("Доступ запрещен")
+    note = shipping_transport_note.get_or_create_transport_note(order)
+    form = shipping_views.ShippingTransportNoteForm(request.POST or None, instance=note)
+    if request.method == "POST":
+        if form.is_valid():
+            note = form.save()
+            log_order_action(
+                action="update",
+                order_id=order.number,
+                order_type="shipping",
+                user=request.user if request.user.is_authenticated else None,
+                agency=order.agency,
+                description="Обновлена транспортная накладная",
+                payload=order_payload(
+                    order,
+                    extra={
+                        "act": "shipping_transport_note",
+                        "transport_note_id": note.pk,
+                        "transport_note_number": note.document_number,
+                    },
+                ),
+            )
+            messages.success(request, "Транспортная накладная сохранена.")
+            return redirect("shipping:documents", pk=order.pk)
+        messages.error(request, "Проверьте поля транспортной накладной.")
+    order.display_number = shipping_views._display_shipping_number(order.number)
+    context = {
+        "order": order,
+        "form": form,
+        "note": form.instance,
+        "cabinet_url": resolve_cabinet_url(role),
+        "scope": scope,
+        "role": role,
+        "selected_client": order.agency,
+        "detail_url": reverse("shipping:detail", args=[order.pk]),
+        "preview": shipping_transport_note.build_transport_note_preview_context(order, form.instance),
+        "pdf_url": reverse("shipping:transport-note-pdf", args=[order.pk]),
+        "docx_url": reverse("shipping:transport-note-docx", args=[order.pk]),
+        "docx_open_url": f'{reverse("shipping:transport-note-docx", args=[order.pk])}?inline=1',
+        "return_act_url": reverse("shipping:return-act-doc", args=[order.pk]),
+        "return_act_open_url": f'{reverse("shipping:return-act-doc", args=[order.pk])}?inline=1',
+    }
+    return render(request, "shipping/transport_note.html", context)
+
+
+def build_shipping_transport_note_pdf_response(*, request, pk: int):
+    from . import transport_note as shipping_transport_note
+    from . import views as shipping_views
+
+    scope, role, client_agency = shipping_views._request_scope(request)
+    order = get_object_or_404(
+        ShippingOrder.objects.select_related("agency", "created_by", "marketplace").prefetch_related("items"),
+        pk=pk,
+    )
+    if not shipping_views._can_access_order(scope, client_agency, order):
+        return HttpResponseForbidden("Доступ запрещен")
+    if not shipping_transport_note.can_access_transport_note(order, scope, role):
+        return HttpResponseForbidden("Доступ запрещен")
+    note = shipping_transport_note.get_or_create_transport_note(order)
+    pdf_bytes = shipping_transport_note.render_transport_note_pdf(order, note)
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="{shipping_transport_note.transport_note_filename(order, note)}"'
+    response["X-Frame-Options"] = "SAMEORIGIN"
+    return response
+
+
+def build_shipping_transport_note_docx_response(*, request, pk: int):
+    from . import transport_note as shipping_transport_note
+    from . import views as shipping_views
+
+    scope, role, client_agency = shipping_views._request_scope(request)
+    order = get_object_or_404(
+        ShippingOrder.objects.select_related("agency", "created_by", "marketplace").prefetch_related("items"),
+        pk=pk,
+    )
+    if not shipping_views._can_access_order(scope, client_agency, order):
+        return HttpResponseForbidden("Доступ запрещен")
+    if not shipping_transport_note.can_access_transport_note(order, scope, role):
+        return HttpResponseForbidden("Доступ запрещен")
+    note = shipping_transport_note.get_or_create_transport_note(order)
+    docx_bytes = shipping_transport_note.render_transport_note_docx(order, note)
+    response = HttpResponse(
+        docx_bytes,
+        content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+    disposition = "inline" if request.GET.get("inline") in {"1", "true", "yes"} else "attachment"
+    response["Content-Disposition"] = f'{disposition}; filename="{shipping_transport_note.transport_note_docx_filename(order, note)}"'
+    return response
+
+
+def build_shipping_return_act_response(*, request, pk: int):
+    from . import return_act as shipping_return_act
+    from . import transport_note as shipping_transport_note
+    from . import views as shipping_views
+
+    scope, role, client_agency = shipping_views._request_scope(request)
+    order = get_object_or_404(
+        ShippingOrder.objects.select_related("agency", "created_by", "marketplace").prefetch_related("items"),
+        pk=pk,
+    )
+    if not shipping_views._can_access_order(scope, client_agency, order):
+        return HttpResponseForbidden("Доступ запрещен")
+    if not shipping_transport_note.can_access_transport_note(order, scope, role):
+        return HttpResponseForbidden("Доступ запрещен")
+    doc_bytes = shipping_return_act.render_return_act_doc(order)
+    response = HttpResponse(
+        doc_bytes,
+        content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+    disposition = "inline" if request.GET.get("inline") in {"1", "true", "yes"} else "attachment"
+    response["Content-Disposition"] = f'{disposition}; filename="{shipping_return_act.return_act_doc_filename(order)}"'
+    return response
+
+
+def handle_shipping_packing_request(*, request, pk: int):
+    from . import selectors as shipping_selectors
+    from . import views as shipping_views
+
+    scope, role, client_agency = shipping_views._request_scope(request)
+    if scope != "staff" or not shipping_views._is_storekeeper_role(role):
+        return HttpResponseForbidden("Доступ запрещен")
+    order = get_object_or_404(
+        ShippingOrder.objects.select_related("agency", "marketplace"),
+        pk=pk,
+    )
+    if not shipping_views._can_storekeeper_manage_packing(scope, role, order):
+        return HttpResponseForbidden("Доступ запрещен")
+    loose_state = shipping_views._shipping_loose_packing_initial_state(order)
+    if loose_state["loose_items"]:
+        if request.method == "POST":
+            messages.error(request, "Сначала упакуйте товар без короба в короба, затем продолжите паллетизацию.")
+        return redirect("shipping:packing-loose", pk=order.pk)
+    packing_state = shipping_views._shipping_packing_initial_state(order)
+    if request.method == "GET" and packing_state["packing_summary"] and shipping_views._shipping_delivered_boxes(order):
+        return HttpResponseForbidden("Доступ запрещен")
+    if not packing_state["delivered_boxes"]:
+        messages.error(request, "Нет доставленных в OTG коробов для раскладки по паллетам.")
+        return redirect("shipping:detail", pk=order.pk)
+    if request.method == "POST":
+        try:
+            boxes_state = json.loads(request.POST.get("boxes_json") or "[]")
+            pallets_state = json.loads(request.POST.get("pallets_json") or "[]")
+        except json.JSONDecodeError:
+            messages.error(request, "Не удалось прочитать раскладку коробов по паллетам.")
+        else:
+            result = shipping_views.save_shipping_packing(
+                order,
+                boxes_state=boxes_state,
+                pallets_state=pallets_state,
+                delivered_boxes=packing_state["delivered_boxes"],
+                initial_boxes=packing_state["initial_boxes"],
+                user=request.user,
+            )
+            if result["saved"]:
+                messages.success(request, "Раскладка коробов по новым паллетам сохранена.")
+                return redirect("shipping:packing-slips", pk=order.pk)
+            for error in result["errors"]:
+                messages.error(request, error)
+    order.display_number = shipping_views._display_shipping_number(order.number)
+    context = {
+        "order": order,
+        "box_rows": packing_state["initial_boxes"],
+        "boxes_data": packing_state["initial_boxes"],
+        "pallets_data": packing_state["initial_pallets"],
+        "packing_summary": packing_state["packing_summary"],
+        "cabinet_url": resolve_cabinet_url(role),
+        "scope": scope,
+        "role": role,
+        "selected_client": order.agency,
+        "detail_url": f"/shipping/{order.pk}/",
+        "client_label": order.agency.agn_name or "-",
+        "status_label": shipping_selectors.shipping_ui_status_label(order),
+    }
+    context.update(_shipping_print_agent_context(request=request, order_pk=order.pk))
+    return render(request, "shipping/packing.html", context)
+
+
+def handle_shipping_loose_packing_request(*, request, pk: int):
+    from . import selectors as shipping_selectors
+    from . import views as shipping_views
+
+    scope, role, client_agency = shipping_views._request_scope(request)
+    if scope != "staff" or not shipping_views._is_storekeeper_role(role):
+        return HttpResponseForbidden("Доступ запрещен")
+    order = get_object_or_404(
+        ShippingOrder.objects.select_related("agency", "marketplace"),
+        pk=pk,
+    )
+    if not shipping_views._can_storekeeper_manage_packing(scope, role, order):
+        return HttpResponseForbidden("Доступ запрещен")
+
+    loose_state = shipping_views._shipping_loose_packing_initial_state(order)
+    submitted_boxes_state = []
+    submitted_pallets_state = []
+    if not loose_state["loose_items"]:
+        return redirect("shipping:packing", pk=order.pk)
+    if request.method == "POST":
+        try:
+            submitted_boxes_state = json.loads(request.POST.get("boxes_json") or "[]")
+            submitted_pallets_state = json.loads(request.POST.get("pallets_json") or "[]")
+        except json.JSONDecodeError:
+            messages.error(request, "Не удалось прочитать упаковку товара без короба.")
+        else:
+            result = shipping_views.save_shipping_loose_packing(
+                order,
+                boxes_state=submitted_boxes_state,
+                pallets_state=submitted_pallets_state,
+                loose_items=loose_state["loose_items"],
+                user=request.user,
+            )
+            if result["saved"]:
+                messages.success(request, "Товар без короба упакован в короба. Можно продолжить паллетизацию.")
+                return redirect("shipping:packing", pk=order.pk)
+            for error in result["errors"]:
+                messages.error(request, error)
+
+    order.display_number = shipping_views._display_shipping_number(order.number)
+    context = {
+        "order": order,
+        "loose_items": loose_state["loose_items"],
+        "existing_box_codes": loose_state["existing_box_codes"],
+        "box_code_base": loose_state["box_code_base"],
+        "container_code_url": f"/shipping/{order.pk}/packing/loose/container-code/",
+        "boxes_data": submitted_boxes_state,
+        "pallets_data": submitted_pallets_state,
+        "cabinet_url": resolve_cabinet_url(role),
+        "scope": scope,
+        "role": role,
+        "selected_client": order.agency,
+        "detail_url": f"/shipping/{order.pk}/",
+        "packing_url": f"/shipping/{order.pk}/packing/",
+        "client_label": order.agency.agn_name or "-",
+        "status_label": shipping_selectors.shipping_ui_status_label(order),
+    }
+    return render(request, "shipping/loose_packing.html", context)
+
+
+def handle_shipping_packing_slips_request(*, request, pk: int):
+    from . import selectors as shipping_selectors
+    from . import views as shipping_views
+
+    scope, role, client_agency = shipping_views._request_scope(request)
+    if scope != "staff" or not shipping_views._is_storekeeper_role(role):
+        return HttpResponseForbidden("Доступ запрещен")
+    order = get_object_or_404(
+        ShippingOrder.objects.select_related("agency", "marketplace"),
+        pk=pk,
+    )
+    packing_summary = shipping_views._shipping_packing_summary(order)
+    if not packing_summary:
+        messages.error(request, "Упаковочные листы доступны только после завершения паллетизации.")
+        return redirect("shipping:packing", pk=order.pk)
+    print_status_payload = shipping_views.build_print_status_snapshot()
+    order.display_number = shipping_views._display_shipping_number(order.number)
+    context = {
+        "order": order,
+        "packing_summary": packing_summary,
+        "packing_slips_data": shipping_views.shipping_packing_slips_data(order, packing_summary),
+        "cabinet_url": resolve_cabinet_url(role),
+        "scope": scope,
+        "role": role,
+        "selected_client": order.agency,
+        "detail_url": f"/shipping/{order.pk}/",
+        "packing_url": f"/shipping/{order.pk}/packing/",
+        "client_label": order.agency.agn_name or "-",
+        "status_label": shipping_selectors.shipping_ui_status_label(order),
+        "print_status_payload": print_status_payload,
+    }
+    context.update(_shipping_print_agent_context(request=request, order_pk=order.pk))
+    context.update(print_status_payload)
+    return render(request, "shipping/packing_slips.html", context)
+
+
+def handle_shipping_packing_slips_status_request(*, request, pk: int):
+    from . import views as shipping_views
+
+    scope, role, client_agency = shipping_views._request_scope(request)
+    if scope != "staff" or not shipping_views._is_storekeeper_role(role):
+        return HttpResponseForbidden("Доступ запрещен")
+    order = get_object_or_404(
+        ShippingOrder.objects.select_related("agency", "marketplace"),
+        pk=pk,
+    )
+    if not shipping_views._shipping_packing_summary(order):
+        return JsonResponse({"ok": False, "error": "packing_not_ready"}, status=400)
+    refresh_message = ""
+    if request.method == "POST":
+        payload, refresh_message = shipping_views.refresh_print_agent_printers()
+    else:
+        payload = shipping_views.build_print_status_snapshot()
+    return JsonResponse({"ok": True, **payload, "refresh_message": refresh_message})
+
+
+def _warehouse_trip_number_for_shipping(order: ShippingOrder) -> str:
+    from .dispatch import shipping_dispatch_trip_link
+
+    trip_link = shipping_dispatch_trip_link(order)
+    trip = trip_link.trip if trip_link else None
+    return str(getattr(trip, "number", "") or "").strip()
+
+
+def _warehouse_shipping_snapshots_for_order(
+    order: ShippingOrder,
+    *,
+    state_codes: list[str] | tuple[str, ...] | None = None,
+) -> list[WarehouseStockSnapshot]:
+    qs = WarehouseStockSnapshot.objects.select_related("active_operation", "last_event").filter(
+        agency=order.agency,
+        is_archived=False,
+        last_event__stock_context_type="shipping",
+        last_event__stock_context_id=order.number,
+    )
+    if state_codes:
+        qs = qs.filter(warehouse_state_code__in=[str(code or "").strip() for code in state_codes if str(code or "").strip()])
+    return list(qs.order_by("id"))
+
+
+def _ensure_warehouse_loaded_for_shipping(
+    order: ShippingOrder,
+    *,
+    trip_number: str,
+    user=None,
+) -> bool:
+    allowed_states = {
+        WarehouseStateCode.READY_FOR_LOADING.value,
+        WarehouseStateCode.ASSIGNED_TO_TRIP.value,
+        WarehouseStateCode.LOADING_IN_PROGRESS.value,
+        WarehouseStateCode.LOADED_TO_VEHICLE.value,
+    }
+    snapshots = _warehouse_shipping_snapshots_for_order(order, state_codes=tuple(allowed_states))
+    if not snapshots:
+        return False
+
+    for snapshot in snapshots:
+        state_code = str(snapshot.warehouse_state_code or "").strip()
+        if state_code not in allowed_states:
+            return False
+        current_trip = str(snapshot.current_trip_id or "").strip()
+        if current_trip and current_trip != trip_number:
+            return False
+
+    if any(
+        str(snapshot.warehouse_state_code or "").strip() == WarehouseStateCode.READY_FOR_LOADING.value
+        for snapshot in snapshots
+    ):
+        WarehouseWritePathService.assign_to_trip(
+            agency=order.agency,
+            order_id=order.number,
+            trip_id=trip_number,
+            assigned_by=user,
+        )
+        snapshots = _warehouse_shipping_snapshots_for_order(order, state_codes=tuple(allowed_states))
+
+    if any(
+        str(snapshot.warehouse_state_code or "").strip() == WarehouseStateCode.ASSIGNED_TO_TRIP.value
+        for snapshot in snapshots
+    ):
+        loading = WarehouseWritePathService.start_loading(
+            agency=order.agency,
+            order_id=order.number,
+            trip_id=trip_number,
+            started_by=user,
+        )
+        snapshots = _warehouse_shipping_snapshots_for_order(order, state_codes=tuple(allowed_states))
+        if any(
+            str(snapshot.warehouse_state_code or "").strip() == WarehouseStateCode.LOADING_IN_PROGRESS.value
+            for snapshot in snapshots
+        ):
+            WarehouseWritePathService.complete_loading(operation=loading, performed_by=user)
+            snapshots = _warehouse_shipping_snapshots_for_order(order, state_codes=tuple(allowed_states))
+
+    loading_ops = []
+    for snapshot in snapshots:
+        if str(snapshot.warehouse_state_code or "").strip() != WarehouseStateCode.LOADING_IN_PROGRESS.value:
+            continue
+        operation = getattr(snapshot, "active_operation", None)
+        if (
+            operation is not None
+            and str(getattr(operation, "operation_type", "") or "").strip() == "load_to_vehicle"
+            and getattr(operation, "status", "") != "done"
+        ):
+            loading_ops.append(operation)
+    for operation in {op.id: op for op in loading_ops}.values():
+        WarehouseWritePathService.complete_loading(operation=operation, performed_by=user)
+
+    loaded_snapshots = _warehouse_shipping_snapshots_for_order(
+        order,
+        state_codes=[WarehouseStateCode.LOADED_TO_VEHICLE.value],
+    )
+    return bool(loaded_snapshots)
+
+
+def _can_ship_via_warehouse_write_path(
+    order: ShippingOrder,
+    *,
+    shipped_qty_by_item: dict[int, int],
+    user=None,
+) -> str:
+    trip_number = _warehouse_trip_number_for_shipping(order)
+    if not trip_number:
+        return ""
+
+    for item in order.items.order_by("id"):
+        shipped_qty = int(shipped_qty_by_item.get(item.id, 0) or 0)
+        reserved_qty = max(int(item.qty_reserved or 0), 0)
+        if shipped_qty != reserved_qty:
+            return ""
+
+    has_loaded_snapshots = WarehouseStockSnapshot.objects.filter(
+        agency=order.agency,
+        warehouse_state_code=WarehouseStateCode.LOADED_TO_VEHICLE.value,
+        current_trip_id=trip_number,
+        is_archived=False,
+    ).exists()
+    if not has_loaded_snapshots:
+        has_loaded_snapshots = _ensure_warehouse_loaded_for_shipping(
+            order,
+            trip_number=trip_number,
+            user=user,
+        )
+    if not has_loaded_snapshots:
+        return ""
+    return trip_number
+
+
+def _ship_reserved_order_without_trip(order: ShippingOrder) -> None:
+    snapshots = _warehouse_shipping_snapshots_for_order(
+        order,
+        state_codes=[
+            WarehouseStateCode.IN_OTG.value,
+            WarehouseStateCode.PALLETIZING.value,
+            WarehouseStateCode.READY_FOR_LOADING.value,
+            WarehouseStateCode.ASSIGNED_TO_TRIP.value,
+            WarehouseStateCode.LOADING_IN_PROGRESS.value,
+            WarehouseStateCode.LOADED_TO_VEHICLE.value,
+        ],
+    )
+    if not snapshots:
+        snapshots = list(
+            WarehouseStockSnapshot.objects.select_for_update()
+            .filter(
+                agency=order.agency,
+                shipping_reserved_qty__gt=0,
+                is_archived=False,
+            )
+            .order_by("id")
+        )
+        snapshots = [
+            snapshot
+            for snapshot in snapshots
+            if WarehouseWritePathService._snapshot_matches_shipping_context(snapshot, order.number)
+        ]
+    if not snapshots:
+        raise ValidationError(
+            "Для прямой отгрузки без рейса не найден зарезервированный товар в складском контуре."
+        )
+
+    for snapshot in snapshots:
+        shipped_qty = WarehouseWritePathService._shipping_snapshot_flow_qty(snapshot)
+        if shipped_qty <= 0:
+            continue
+        remaining_qty = max(int(snapshot.qty or 0) - shipped_qty, 0)
+        snapshot.qty = remaining_qty
+        snapshot.shipping_reserved_qty = 0
+        snapshot.available_qty = max(
+            remaining_qty
+            - int(snapshot.processing_reserved_qty or 0)
+            - int(snapshot.shipping_reserved_qty or 0),
+            0,
+        )
+        if remaining_qty <= 0:
+            snapshot.warehouse_state_code = WarehouseStateCode.SHIPPED.value
+            snapshot.is_archived = True
+        elif int(snapshot.processing_reserved_qty or 0) > 0:
+            snapshot.warehouse_state_code = WarehouseStateCode.RESERVED_FOR_PROCESSING.value
+            snapshot.is_archived = False
+        elif str(snapshot.zone_code or "").strip().upper() == "OTG":
+            snapshot.warehouse_state_code = WarehouseStateCode.IN_OTG.value
+            snapshot.is_archived = False
+        else:
+            snapshot.warehouse_state_code = WarehouseStateCode.STORED.value
+            snapshot.is_archived = False
+        snapshot.save(
+            update_fields=[
+                "qty",
+                "shipping_reserved_qty",
+                "available_qty",
+                "warehouse_state_code",
+                "is_archived",
+                "updated_at",
+            ]
+        )
+
+
+@transaction.atomic
+def ship_order(order: ShippingOrder, user=None, *, shipped_qty_by_item: dict[int, int] | None = None) -> None:
+    if order.is_closed():
+        raise ValidationError("Нельзя отгрузить закрытую заявку.")
+    items = list(order.items.order_by("id"))
+    if not items:
+        raise ValidationError("В заявке нет позиций для отгрузки.")
+
+    overrides = shipped_qty_by_item or {}
+    normalized_shipped_qty: dict[int, int] = {}
+    for item in items:
+        raw_qty = overrides.get(item.id)
+        if raw_qty is None:
+            raw_qty = int(item.qty_reserved or item.qty_requested or 0)
+        qty = int(raw_qty or 0)
+        if qty < 0:
+            raise ValidationError("Количество отгрузки не может быть отрицательным.")
+        if qty > int(item.qty_requested or 0):
+            raise ValidationError(
+                f"{item.sku_code}/{item.size or '-'}: отгрузка больше запрошенного количества."
+            )
+        normalized_shipped_qty[item.id] = qty
+
+    warehouse_trip_number = _can_ship_via_warehouse_write_path(
+        order,
+        shipped_qty_by_item=normalized_shipped_qty,
+        user=user,
+    )
+    if warehouse_trip_number:
+        WarehouseWritePathService.ship_order(
+            agency=order.agency,
+            order_id=order.number,
+            trip_id=warehouse_trip_number,
+            performed_by=user,
+        )
+    else:
+        can_ship_directly = all(
+            int(normalized_shipped_qty.get(item.id, 0) or 0) == max(int(item.qty_reserved or 0), 0)
+            for item in items
+        )
+        if not can_ship_directly:
+            raise ValidationError(
+                "Отгрузка должна быть подтверждена через складской контур: товар должен быть загружен в рейс в центре истины."
+            )
+        has_order_reserves = WarehouseReserve.objects.filter(
+            agency=order.agency,
+            reserve_type=WarehouseReserve.TYPE_SHIPPING,
+            context_type="shipping",
+            context_id=order.number,
+        ).exclude(
+            status__in=[
+                WarehouseReserve.STATUS_RELEASED,
+                WarehouseReserve.STATUS_CANCELED,
+            ]
+        ).exists()
+        if has_order_reserves:
+            _ship_reserved_order_without_trip(order)
+
+    shipped_items: list[dict] = []
+    for item in items:
+        qty = int(normalized_shipped_qty.get(item.id, 0) or 0)
+        item.qty_shipped = qty
+        item.qty_reserved = max(int(item.qty_reserved or 0) - qty, 0)
+        item.save(update_fields=["qty_shipped", "qty_reserved", "updated_at"])
+        shipped_items.append(
+            {
+                "sku": item.sku_code,
+                "size": item.size,
+                "goods_type": item.goods_type,
+                "barcode": item.barcode,
+                "qty": qty,
+            }
+        )
+
+    WarehouseWritePathService.replace_shipping_reserves(
+        agency=order.agency,
+        order_id=order.number,
+        items=[],
+        created_by=user if getattr(user, "is_authenticated", False) else None,
+        source_document_type="shipping_order",
+        source_document_id=order.number,
+    )
+    order.status = (
+        ShippingOrder.STATUS_SHIPPED
+        if all(int(item.qty_shipped or 0) >= int(item.qty_requested or 0) for item in items)
+        else ShippingOrder.STATUS_PARTIAL
+    )
+    order.shipped_at = timezone.now()
+    order.save(update_fields=["status", "shipped_at", "updated_at"])
+
+    log_stock_move(
+        action="update",
+        user=user if getattr(user, "is_authenticated", False) else None,
+        agency=order.agency,
+        description=f"Отгрузка {order.number}: списание товара со склада",
+        snapshot={"shipping_order": order.number, "items": shipped_items},
+    )
+    _log_order(
+        order,
+        action="status",
+        user=user,
+        description="Заявка отгружена",
+        extra={"shipping_state": order.status, "shipped_items": shipped_items},
+    )

@@ -1,0 +1,11 @@
+{
+  "default": {
+    "enabled": true,
+    "port": "COM7",
+    "baud": 9600,
+    "eol": "Cr",
+    "idle_ms": 200
+  },
+  "updated_at": "2026-08-22T06:58:16.232843+00:00",
+  "updated_by": "processing_worker2"
+}

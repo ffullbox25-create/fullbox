@@ -1,0 +1,20 @@
+{% extends "accountant/_base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block content %}
+<div>
+  <div class="muted" style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em">{{ page_sub }}</div>
+  <h1 class="page-title" style="margin-top:4px">{{ page_title }}</h1>
+</div>
+<div class="card">
+  <p style="margin:0;font-size:14px;font-weight:600;line-height:1.55">{{ page_description }}</p>
+  <div class="actions-row" style="margin-top:16px">
+    {% if bridge_url %}
+      <a class="btn primary" href="{{ bridge_url }}">{{ bridge_label|default:"Открыть реестр" }}</a>
+    {% endif %}
+    {% for href, label in related_links %}
+      <a class="btn" href="{{ href }}">{{ label }}</a>
+    {% endfor %}
+    <a class="btn ghost" href="/accountant/">← К обзору</a>
+  </div>
+</div>
+{% endblock %}

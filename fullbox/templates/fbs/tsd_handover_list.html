@@ -1,0 +1,307 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Отгрузки FBS{% endblock %}
+{% block workspace_page_class %}handover-workspace-page handover-workspace-v3 handover-workspace-v5{% endblock %}
+
+{% block workspace_body %}
+  <style>
+    .tsd-page-controller-shell.handover-workspace-v5 [data-handover-bulk-print] input[type="checkbox"]{width:16px!important;height:16px!important;min-width:16px!important;min-height:16px!important;margin:0!important;padding:0!important;border-radius:3px}
+    .tsd-page-controller-shell.handover-workspace-v5 [data-handover-bulk-print] .handover-v3-table th:first-child,.tsd-page-controller-shell.handover-workspace-v5 [data-handover-bulk-print] .handover-v3-table td:first-child{width:30px;min-width:30px;max-width:30px;padding:4px;text-align:center}
+    /* Readable desktop density: larger type without taller shipment rows. */
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v3-head p{font-size:13px;line-height:1.25}
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v3-counters span{font-size:11px}
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v3-filters{padding:7px 0}
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v3-filters label{gap:2px;font-size:11px}
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v3-filters input,
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v3-filters select{font-size:13px;line-height:1.1}
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v5-journal-tools form,
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v5-journal-tools label{font-size:11px}
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v5-journal-tools select{font-size:13px;line-height:1.1}
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v3-table{font-size:14px;line-height:1.15;font-variant-numeric:tabular-nums}
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v3-table th,
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v3-table td{padding:4px 8px}
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v3-table td{font-size:14px;font-weight:500}
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v3-table th{font-size:11px;line-height:1.1}
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v3-table td>small{margin-top:1px;color:#55575c;font-size:11px;line-height:1.1}
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v3-id{font-size:15px;line-height:1.1}
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v3-number strong{font-size:15px}
+    .tsd-page-controller-shell.handover-workspace-v5 .handover-v3-table .status{font-size:12px;line-height:1.1}
+    .controller-queue-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.controller-queue-tabs a{padding:10px 14px;border:1px solid #ddd;border-radius:9px;background:#fff;color:#303030;text-decoration:none}.controller-queue-tabs a[aria-current=page]{background:#fff0d7;border-color:#f89000;font-weight:800}.controller-queue-tabs .controller-tab-checked[aria-current=page]{background:#fff7df;border-color:#d99c00}.controller-queue-tabs .controller-tab-ready[aria-current=page]{background:#edf8ef;border-color:#3f8a55}.controller-queue-tabs .controller-tab-transit[aria-current=page]{background:#eef5ff;border-color:#4b76a8}.controller-queue-tabs .controller-tab-accepted[aria-current=page]{background:#e5f5eb;border-color:#216e43}.controller-stage-legend{display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 14px}.controller-stage-pill{display:inline-flex;align-items:center;width:max-content;padding:5px 9px;border:1px solid transparent;border-radius:999px;font-size:12px;font-weight:800}.controller-stage-pill-checked{background:#fff4cc;border-color:#d99c00;color:#765300}.controller-stage-pill-ready{background:#e9f7ec;border-color:#3f8a55;color:#245c35}.controller-stage-pill-transit{background:#eaf3ff;border-color:#4b76a8;color:#2b5688}.controller-stage-pill-accepted{background:#dff3e6;border-color:#216e43;color:#185332}.controller-stage-pill-problem{background:#fff0ed;border-color:#bb4b38;color:#8c2f20}.controller-stage-pill-checking,.controller-stage-pill-new,.controller-stage-pill-archived{background:#f4f1ed;border-color:#aaa39b;color:#555}.controller-queue-search{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.controller-queue-search label{display:grid;gap:5px}.controller-queue-search input,.controller-queue-search select{min-height:40px}.controller-queue-search input[name="q"]{min-width:250px}.controller-queue-search input[type="date"]{min-width:150px}.controller-queue-search select{min-width:150px}.controller-select-all{display:flex;gap:8px;align-items:center;padding:12px}.controller-shipment-list{display:grid;gap:10px}.controller-shipment-row{display:grid;grid-template-columns:24px minmax(180px,1fr) minmax(200px,1.25fr) minmax(150px,190px);gap:16px;align-items:center;padding:16px;background:#fff;border:1px solid #e4ded6;border-left-width:5px;border-radius:12px;color:#303030}.controller-shipment-row.controller-stage-checked{background:#fffaf0;border-color:#d99c00}.controller-shipment-row.controller-stage-ready{background:#f3faf4;border-color:#3f8a55}.controller-shipment-row.controller-stage-transit{background:#f2f7fd;border-color:#4b76a8}.controller-shipment-row.controller-stage-accepted{background:#edf8f1;border-color:#216e43}.controller-shipment-row.controller-stage-problem{background:#fff5f2;border-color:#bb4b38}.controller-shipment-row>div{min-width:0}.controller-shipment-identity{display:grid;gap:5px}.controller-shipment-identity small,.controller-shipment-next small{font-size:12px;color:#666;overflow-wrap:anywhere}.controller-shipment-next p{margin:6px 0;line-height:1.4}.controller-shipment-row .button{white-space:normal;min-height:44px;text-align:center}.controller-shipment-select{display:flex;align-items:center}
+    .controller-error-notice{margin-top:8px;padding:10px 12px;border:2px solid #bb4b38;border-radius:9px;background:#ffe8e3;color:#8c2f20}.controller-error-notice>strong{display:block;font-size:14px}.controller-error-notice ul{margin:7px 0 0;padding-left:18px}.controller-error-notice li{margin-top:5px;font-size:12px;line-height:1.35}.controller-error-notice li strong,.controller-error-notice li span{display:block}.controller-error-notice li span{margin-top:2px}
+    .tsd-page-controller-shell.handover-workspace-v5 .controller-queue-search{display:flex;flex-direction:row;gap:10px;align-items:flex-end}.tsd-page-controller-shell.handover-workspace-v5 .controller-queue-search>.button{width:auto;flex:0 0 auto;font-size:14px;min-height:40px}.tsd-page-controller-shell.handover-workspace-v5 .controller-shipment-row>.button{font-size:14px;min-height:44px}.controller-shipment-identity a{color:#a84800;text-decoration:none;font-size:15px}.controller-shipment-identity a:hover{text-decoration:underline}
+    @media(max-width:760px){.controller-shipment-row{grid-template-columns:24px minmax(0,1fr);gap:10px}.controller-shipment-next,.controller-shipment-row>.button{grid-column:2}.controller-queue-tabs a{padding:10px;font-size:13px}}
+
+    .handover-workspace-v5 .handover-v3-counters { display:flex; flex-wrap:wrap; }
+    .handover-workspace-v5 .handover-v3-counters a { flex:1 1 120px; }
+    .handover-workspace-v5 .handover-v3-table td { padding:7px 8px; vertical-align:top; }
+    .handover-workspace-v5 .handover-v3-table td small { line-height:1.35; }
+    .handover-workspace-v5 .handover-v3-table .controller-stage-pill { white-space:normal; width:auto; }
+    .handover-workspace-v5 .handover-v3-table td:nth-last-child(2) { min-width:170px; max-width:270px; }
+    .handover-workspace-v5 .desktop-printer-source{display:block;margin-top:3px;color:#24613a;font-size:11px;font-weight:700;line-height:1.2}
+  </style>
+  <section class="handover-v3-head">
+    <div>
+      <span class="section-kicker">FBS · Контроль отправки</span>
+      <h2>Отгрузки</h2>
+      <p>Поставки WB и Ozon: состав, короба, проверка и движение до приемки.</p>
+    </div>
+    {% if request_role != 'fbs_controller' %}<div class="handover-v5-actions">
+      <a class="button button-secondary" href="{% url 'fbs:tsd_handover_reports' %}">Отчеты</a>
+      <a class="button button-secondary" href="{% url 'fbs:tsd_handover_reports' %}?report=orders">Документы и реестры</a>
+      <details class="handover-create-panel handover-create-panel-v3">
+        <summary>Создать отгрузку Ozon</summary>
+        <form class="scan-form handover-create-form" method="post">
+          {% csrf_token %}
+          <label for="handover-profile">Кабинет Ozon<select id="handover-profile" name="profile_id" required>{% for profile in profiles %}<option value="{{ profile.id }}">{{ profile.agency }} · {{ profile.get_marketplace_display }}</option>{% endfor %}</select></label>
+          <label for="supply-id">Номер отправления<input id="supply-id" name="external_supply_id" autocomplete="off"></label>
+          <button class="button button-primary" type="submit"{% if not profiles %} disabled{% endif %}>Создать</button>
+          <small>Поставка WB создается автоматически после проверки первого заказа.</small>
+        </form>
+      </details>
+    </div>{% endif %}
+  </section>
+
+  {% if request_role == 'fbs_controller' %}
+  <nav class="controller-queue-tabs" aria-label="Рабочая очередь отгрузок">{% for tab in controller_queue_tabs %}<a class="controller-tab-{{ tab.key }}" href="{{ tab.url }}"{% if tab.selected %} aria-current="page"{% endif %}>{{ tab.label }} <strong>{{ tab.count }}</strong></a>{% endfor %}</nav>
+  <div class="controller-stage-legend" aria-label="Цвета этапов"><span class="controller-stage-pill controller-stage-pill-checked">Проверено</span><span class="controller-stage-pill controller-stage-pill-ready">Готово к отгрузке</span><span class="controller-stage-pill controller-stage-pill-transit">В пути</span><span class="controller-stage-pill controller-stage-pill-accepted">Принято маркетплейсом</span></div>
+  <form method="get" class="controller-queue-search" aria-label="Поиск и фильтры отгрузок">
+    <input type="hidden" name="scope" value="all">
+    <label>Поиск<input name="q" value="{{ handover_search }}" placeholder="Номер поставки или клиент"></label>
+    <label>Клиент<select name="agency_id"><option value="">Все клиенты</option>{% for client in handover_clients %}<option value="{{ client.id }}"{% if client.handover_selected %} selected{% endif %}>{{ client }}</option>{% endfor %}</select></label>
+    <label>Площадка<select name="marketplace"><option value="">Все площадки</option>{% for value, label in handover_marketplace_choices %}<option value="{{ value }}"{% if handover_marketplace_filter == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label>Статус<select name="status"><option value="">Все статусы</option>{% for value, label in handover_status_choices %}<option value="{{ value }}"{% if handover_status_filter == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label>Искать по дате<select name="date_field">{% for value, label in handover_date_field_choices %}<option value="{{ value }}"{% if handover_date_field_filter == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label>С<input type="date" name="date_from" value="{{ handover_date_from_filter }}"></label>
+    <label>По<input type="date" name="date_to" value="{{ handover_date_to_filter }}"></label>
+    <button class="button button-primary" type="submit">Показать</button>
+    <a class="button button-secondary" href="{% url 'fbs:tsd_handover' %}?scope=all">Сбросить</a>
+  </form>
+  <p>{% if controller_queue_workstation %}{{ controller_queue_workstation.name }} · {% endif %}{{ controller_queue_label }}</p>
+  {% else %}
+  <section class="handover-v3-counters" aria-label="Состояние отгрузок">
+    <a href="{{ handover_counter_urls.active }}"><span>На складе</span><strong>{{ handover_totals.active }}</strong></a>
+    <a href="{{ handover_counter_urls.checked }}"><span>Проверено, ждёт ШК</span><strong>{{ handover_totals.checked }}</strong></a>
+    <a href="{{ handover_counter_urls.ready }}"><span>Готово к отгрузке</span><strong>{{ handover_totals.ready }}</strong></a>
+    <a href="{{ handover_counter_urls.transit }}"><span>В пути</span><strong>{{ handover_totals.dispatched }}</strong></a>
+    <a href="{{ handover_counter_urls.problem }}"><span>Ошибка до передачи</span><strong>{{ handover_totals.problem }}</strong></a>
+    <a href="{{ handover_counter_urls.accepted }}"><span>Принято площадкой</span><strong>{{ handover_totals.accepted }}</strong></a>
+    <a href="{{ handover_counter_urls.archived }}"><span>Архив</span><strong>{{ handover_totals.archived }}</strong></a>
+  </section>
+
+  {% endif %}
+
+  {% if handover_stale_batches %}
+    <section class="handover-stale-warning" role="status">
+      <strong>Отгрузки старше 4 дней без передачи</strong>
+      <div>{% for batch in handover_stale_batches %}<a href="{% url 'fbs:tsd_handover_detail' batch_id=batch.id %}">№{{ batch.id }} · {{ batch.external_supply_id|default:"ID ожидается" }} · {{ batch.profile.agency }}</a>{% endfor %}</div>
+    </section>
+  {% endif %}
+
+  {% if request_role != 'fbs_controller' %}<form class="handover-v3-filters" method="get">
+    <label for="handover-q">Поиск<input id="handover-q" name="q" value="{{ handover_search }}" placeholder="Номер поставки, клиент, склад"></label>
+    <label for="handover-client">Клиент<select id="handover-client" name="agency_id"><option value="">Все клиенты</option>{% for client in handover_clients %}<option value="{{ client.id }}"{% if client.handover_selected %} selected{% endif %}>{{ client }}</option>{% endfor %}</select></label>
+    <label for="handover-marketplace">Площадка<select id="handover-marketplace" name="marketplace"><option value="">Все площадки</option>{% for value, label in handover_marketplace_choices %}<option value="{{ value }}"{% if handover_marketplace_filter == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label for="handover-status">Статус<select id="handover-status" name="status"><option value="">Все статусы</option>{% for value, label in handover_status_choices %}<option value="{{ value }}"{% if handover_status_filter == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label for="handover-date-field">Дата<select id="handover-date-field" name="date_field">{% for value, label in handover_date_field_choices %}<option value="{{ value }}"{% if handover_date_field_filter == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label for="handover-date-from">С<input id="handover-date-from" type="date" name="date_from" value="{{ handover_date_from_filter }}"></label>
+    <label for="handover-date-to">По<input id="handover-date-to" type="date" name="date_to" value="{{ handover_date_to_filter }}"></label>
+    <div class="handover-v3-filter-actions"><button class="button button-primary" type="submit">Показать</button><a class="button button-secondary" href="{% url 'fbs:tsd_handover' %}">Сбросить</a></div>
+  </form>{% endif %}
+  {% if filter_error %}<div class="notice notice-error" role="alert">{{ filter_error }}</div>{% endif %}
+
+  <section class="handover-v3-journal" aria-labelledby="handover-journal-title">
+    <div class="handover-v3-journal-head">
+      <div><span class="section-kicker">Текущая выборка</span><h2 id="handover-journal-title">Журнал отгрузок</h2></div>
+      {% if request_role != 'fbs_controller' %}<div class="handover-v5-journal-tools">
+        <strong>{{ page_obj.paginator.count }}</strong>
+        <form method="get">
+          {% for key, value in request.GET.items %}{% if key != 'page_size' and key != 'page' %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+          <label for="handover-page-size">Строк<select id="handover-page-size" name="page_size" onchange="this.form.submit()">{% for size in handover_page_size_choices %}<option value="{{ size }}"{% if handover_page_size == size %} selected{% endif %}>{{ size }}</option>{% endfor %}</select></label>
+        </form>
+      </div>{% endif %}
+    </div>
+    <form method="post" data-handover-bulk-print data-submit-once>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="bulk_print_supply_labels">
+      <div class="handover-v5-journal-tools">
+        <strong>Массовая печать этикеток отгрузок</strong>
+        {% if handover_print_workstations %}
+          <label for="bulk-supply-printer">Принтер
+            <select id="bulk-supply-printer" name="workstation_id" required data-bulk-printer-select>
+              {% for workstation in handover_print_workstations %}<option value="{{ workstation.id }}" data-workstation-name="{{ workstation.name }}" data-server-printer="{{ workstation.printer_name }}"{% if controller_queue_workstation and controller_queue_workstation.id == workstation.id %} selected{% endif %}>{{ workstation.name }} · {{ workstation.printer_name }}</option>{% endfor %}
+            </select>
+            <small class="desktop-printer-source" data-desktop-printer-source hidden></small>
+          </label>
+          <button class="button button-primary button-medium" type="submit" data-bulk-print-submit disabled>Печать выбранных (<span data-bulk-print-count>0</span>)</button>
+        {% else %}
+          <span class="status status-problem">Нет настроенного принтера</span>
+        {% endif %}
+      </div>
+      {% if request_role == 'fbs_controller' %}
+      <label class="controller-select-all"><input type="checkbox" data-select-all-supply-labels> Выбрать доступные этикетки на этой странице</label>
+      <div class="controller-shipment-list">
+      {% for batch in batches %}
+        <article class="controller-shipment-row controller-stage-{{ batch.controller_stage_key }}" data-controller-shipment="{{ batch.id }}">
+          <label class="controller-shipment-select"><input type="checkbox" name="batch_ids" value="{{ batch.id }}" data-supply-label-checkbox aria-label="Выбрать отгрузку №{{ batch.id }} для печати"{% if not batch.supply_label_available or not handover_print_workstations or batch.supply_print_blocked %} disabled{% endif %}></label>
+          <div class="controller-shipment-identity"><a href="{% url 'fbs:tsd_handover_detail' batch_id=batch.id %}"><strong>Отгрузка №{{ batch.id }} · {{ batch.profile.get_marketplace_display }}</strong></a><span>{{ batch.profile.agency.short_name|default:batch.profile.agency.agn_name }}</span><small>{{ batch.external_supply_id|default:'Номер маркетплейса ожидается' }}</small><small>Создана: {{ batch.created_at|date:'d.m.Y H:i' }}</small>{% if batch.dispatched_at %}<small><strong>Передана: {{ batch.dispatched_at|date:'d.m.Y H:i' }}</strong>{% if batch.dispatched_by %} · {{ batch.dispatched_by.get_full_name|default:batch.dispatched_by.username }}{% endif %}</small>{% endif %}<small>Заказов: {{ batch.list_order_count }} · Коробов: {{ batch.box_count }}</small></div>
+          <div class="controller-shipment-next"><span class="controller-stage-pill controller-stage-pill-{{ batch.movement_stage.key }}">{{ batch.movement_stage.label }}</span><p>{{ batch.controller_hint }}</p>{% if batch.controller_errors %}<div class="controller-error-notice" role="alert"><strong>Ошибок: {{ batch.controller_error_count }}{% if batch.controller_error_quantity %} · Товаров: {{ batch.controller_error_quantity }} шт.{% endif %}</strong><ul>{% for issue in batch.controller_errors %}<li><strong>{{ issue.title }}{% if issue.quantity %} · {{ issue.quantity }} шт.{% endif %}</strong><span>{{ issue.reason }}</span></li>{% endfor %}</ul></div>{% endif %}{% if batch.supply_print_blocked %}<small>Печать: {{ batch.supply_print_block_reason }}</small>{% elif not batch.supply_label_available and not batch.controller_sent %}<small>Этикетка появится после обязательных подтверждений.</small>{% elif batch.profile.marketplace == 'ozon' and batch.supply_label_available %}<small>Доступна внутренняя этикетка: номер отгрузки, единицы, заказы и короба.</small>{% endif %}</div>
+          <a class="button {% if batch.controller_sent %}button-secondary{% else %}button-primary{% endif %}" href="{{ batch.controller_action_url }}">{{ batch.controller_action }}</a>
+        </article>
+      {% empty %}<p class="notice">В этой выборке отгрузок нет. <a href="?scope=all">Посмотреть все отгрузки</a></p>{% endfor %}
+      </div>
+      {% else %}
+      <div class="handover-v3-table-wrap">
+      <table class="handover-v3-table">
+        <thead>
+          <tr><th><label class="sr-only" for="select-all-supply-labels">Выбрать все готовые ШК поставок</label><input id="select-all-supply-labels" type="checkbox" data-select-all-supply-labels{% if not handover_print_workstations %} disabled{% endif %}></th><th>Дата создания</th><th>Отгрузка</th><th>Клиент</th><th>Площадка / склад</th><th>Этап движения</th>{% if request_role != 'fbs_controller' %}<th>Статус площадки</th>{% endif %}<th>Заказы</th>{% if request_role != 'fbs_controller' %}<th>Товары</th>{% endif %}<th>Короба</th><th>Контроль</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for batch in batches %}
+            <tr class="{% if batch.has_problem %}is-problem{% endif %}" data-row-href="{% url 'fbs:tsd_handover_detail' batch_id=batch.id %}" tabindex="0">
+              <td><label class="sr-only" for="supply-label-{{ batch.id }}">Выбрать отгрузку №{{ batch.id }}</label><input id="supply-label-{{ batch.id }}" type="checkbox" name="batch_ids" value="{{ batch.id }}" data-supply-label-checkbox{% if batch.supply_print_blocked %} title="{{ batch.supply_print_block_reason }}"{% endif %}{% if not batch.supply_label_available or not handover_print_workstations or batch.supply_print_blocked %} disabled{% endif %}></td>
+              <td><span class="text-nowrap">{{ batch.created_at|date:"d.m.Y H:i" }}</span></td>
+              <td><a class="handover-v3-id" href="{% url 'fbs:tsd_handover_detail' batch_id=batch.id %}">№{{ batch.id }}</a><small>{{ batch.external_supply_id|default:"ID ожидается" }}</small></td>
+              <td><strong>{{ batch.profile.agency.short_name|default:batch.profile.agency.agn_name }}</strong></td>
+              <td><strong>{{ batch.profile.get_marketplace_display }}</strong><small>Склад {{ batch.profile.external_warehouse_id|default:"не указан" }}</small></td>
+              <td><span class="controller-stage-pill controller-stage-pill-{{ batch.movement_stage.key }}">{{ batch.movement_stage.label }}</span></td>
+              {% if request_role != 'fbs_controller' %}<td><span class="status status-{{ batch.marketplace_state }}">{{ batch.get_marketplace_state_display }}</span></td>{% endif %}
+              <td class="handover-v3-number"><strong>{{ batch.list_order_count }}</strong></td>
+              {% if request_role != 'fbs_controller' %}<td class="handover-v3-number"><strong>{{ batch.list_unit_count }}</strong></td>{% endif %}
+              <td class="handover-v3-number"><strong>{{ batch.box_count }}</strong><small>{{ batch.scanned_box_count }} просканировано</small></td>
+              <td>
+                <small>{{ batch.controller_hint }}</small>
+                {% if batch.controller_errors %}<div class="controller-error-notice" role="alert"><strong>Ошибок: {{ batch.controller_error_count }}{% if batch.controller_error_quantity %} · Товаров: {{ batch.controller_error_quantity }} шт.{% endif %}</strong><ul>{% for issue in batch.controller_errors %}<li><strong>{{ issue.title }}{% if issue.quantity %} · {{ issue.quantity }} шт.{% endif %}</strong><span>{{ issue.reason }}</span></li>{% endfor %}</ul></div>{% endif %}
+                {% if batch.supply_print_blocked %}<details><summary>Ограничение печати</summary>{{ batch.supply_print_block_reason }}</details>{% endif %}
+              </td>
+              <td><a class="button button-secondary button-medium" href="{{ batch.controller_action_url }}">{{ batch.controller_action }}</a></td>
+            </tr>
+          {% empty %}<tr><td class="empty-row" colspan="{% if request_role == 'fbs_controller' %}10{% else %}12{% endif %}">Активных отгрузок нет.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
+    </form>
+    {% if page_obj.paginator.num_pages > 1 %}
+      <nav class="handover-v5-pagination" aria-label="Страницы журнала">
+        {% if page_obj.has_previous %}<a href="?{% if handover_query_without_page %}{{ handover_query_without_page }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Назад</a>{% endif %}
+        <span>Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a href="?{% if handover_query_without_page %}{{ handover_query_without_page }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Дальше</a>{% endif %}
+      </nav>
+    {% endif %}
+  </section>
+
+  <script>
+    (() => {
+      const isInteractive = (target) => Boolean(target.closest("a,button,input,select,textarea,label,form"));
+      document.querySelectorAll("[data-row-href]").forEach((row) => {
+        row.addEventListener("click", (event) => {
+          if (!isInteractive(event.target)) window.location.assign(row.dataset.rowHref);
+        });
+        row.addEventListener("keydown", (event) => {
+          if ((event.key === "Enter" || event.key === " ") && !isInteractive(event.target)) {
+            event.preventDefault();
+            window.location.assign(row.dataset.rowHref);
+          }
+        });
+      });
+      const bulkForm = document.querySelector("[data-handover-bulk-print]");
+      if (bulkForm) {
+        const printerSelect = bulkForm.querySelector("[data-bulk-printer-select]");
+        const printerSource = bulkForm.querySelector("[data-desktop-printer-source]");
+        const desktopPrinters = () => ({
+          label: String(
+            localStorage.getItem("fullbox_desktop_label_printer")
+            || localStorage.getItem("processing_label_printer")
+            || localStorage.getItem("label_printer")
+            || ""
+          ).trim(),
+          shipping: String(
+            localStorage.getItem("fullbox_desktop_shipping_printer")
+            || localStorage.getItem("shipping_packing_slip_printer")
+            || ""
+          ).trim(),
+        });
+        const restorePrinterOptions = () => {
+          if (!printerSelect) return;
+          Array.from(printerSelect.options).forEach((option) => {
+            const workstation = String(option.dataset.workstationName || "").trim();
+            const printer = String(option.dataset.serverPrinter || "").trim();
+            option.textContent = [workstation, printer].filter(Boolean).join(" · ");
+          });
+        };
+        const syncDesktopPrinter = () => {
+          restorePrinterOptions();
+          if (!printerSelect || !window.fullboxDesktop) {
+            if (printerSource) printerSource.hidden = true;
+            return;
+          }
+          const printers = desktopPrinters();
+          const printer = printers.shipping || printers.label;
+          if (!printer) {
+            if (printerSource) {
+              printerSource.hidden = false;
+              printerSource.textContent = "В Fullbox Desktop не выбран принтер отгрузки.";
+            }
+            return;
+          }
+          const option = printerSelect.selectedOptions[0];
+          if (option) {
+            const workstation = String(option.dataset.workstationName || "").trim();
+            option.textContent = [workstation, printer].filter(Boolean).join(" · ");
+          }
+          printerSelect.dataset.desktopPrinter = printer;
+          if (printerSource) {
+            printerSource.hidden = false;
+            printerSource.textContent = `Fullbox Desktop · ${printer}`;
+          }
+        };
+        const setDesktopField = (name, value) => {
+          let input = bulkForm.querySelector(`input[type="hidden"][name="${name}"]`);
+          if (!input) {
+            input = document.createElement("input");
+            input.type = "hidden";
+            input.name = name;
+            bulkForm.appendChild(input);
+          }
+          input.value = String(value || "");
+        };
+        const syncDesktopPrintTarget = () => {
+          if (!window.fullboxDesktop) return;
+          const workstation = window.fullboxDesktopWorkstation || {};
+          const workstationId = String(workstation.workstationId || workstation.agentId || "").trim();
+          const printers = desktopPrinters();
+          setDesktopField("fullbox_desktop", "1");
+          setDesktopField("desktop_workstation_id", workstationId);
+          setDesktopField("desktop_label_printer", printers.label);
+          setDesktopField("desktop_shipping_printer", printers.shipping);
+        };
+        const selectAll = bulkForm.querySelector("[data-select-all-supply-labels]");
+        const checkboxes = Array.from(bulkForm.querySelectorAll("[data-supply-label-checkbox]:not(:disabled)"));
+        const submit = bulkForm.querySelector("[data-bulk-print-submit]");
+        const count = bulkForm.querySelector("[data-bulk-print-count]");
+        const refreshBulkState = () => {
+          const selected = checkboxes.filter((checkbox) => checkbox.checked).length;
+          if (count) count.textContent = String(selected);
+          if (submit) submit.disabled = selected === 0;
+          if (selectAll) {
+            selectAll.checked = checkboxes.length > 0 && selected === checkboxes.length;
+            selectAll.indeterminate = selected > 0 && selected < checkboxes.length;
+          }
+        };
+        if (printerSelect) printerSelect.addEventListener("change", syncDesktopPrinter);
+        bulkForm.addEventListener("submit", syncDesktopPrintTarget, true);
+        window.addEventListener("focus", syncDesktopPrinter);
+        window.addEventListener("storage", syncDesktopPrinter);
+        document.addEventListener("pointerdown", syncDesktopPrinter, true);
+        syncDesktopPrinter();
+        window.setTimeout(syncDesktopPrinter, 250);
+        if (selectAll) selectAll.addEventListener("change", () => {
+          checkboxes.forEach((checkbox) => { checkbox.checked = selectAll.checked; });
+          refreshBulkState();
+        });
+        checkboxes.forEach((checkbox) => checkbox.addEventListener("change", refreshBulkState));
+        refreshBulkState();
+      }
+    })();
+  </script>
+{% endblock %}

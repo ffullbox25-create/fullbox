@@ -1,0 +1,31 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Возврат отборов{% endblock %}
+{% block page_class %}tsd-page-picker-tool{% endblock %}
+{% block page_title %}Возврат отборов{% endblock %}
+
+{% block content %}
+  <section class="picker-tool-list" aria-label="Задания возврата отбора">
+    {% for restock in restock_requests %}
+      <a class="picker-tool-card picker-tool-link" href="{% url 'fbs:tsd_pick_restock' request_id=restock.id %}">
+        <div class="picker-tool-card-head">
+          <strong>Задание #{{ restock.id }}</strong>
+          <span>{{ restock.get_status_display }}</span>
+        </div>
+        <dl class="picker-tool-grid">
+          <div><dt>Забрать</dt><dd>{% if restock.source_tote %}{{ restock.source_tote.name }} · {{ restock.source_tote.barcode }}{% else %}{{ restock.batch.workstation.name|default:"Стол не назначен" }}{% endif %}</dd></div>
+          <div><dt>Вернуть</dt><dd>{% if restock.quarantine_box %}Карантин · {{ restock.quarantine_box.pallet.cell.warehouse_location_label }} · {{ restock.quarantine_box.box_code }}{% else %}В короб этого клиента{% endif %}</dd></div>
+          <div><dt>Волна</dt><dd>#{{ restock.batch_id }}</dd></div>
+          <div><dt>Количество</dt><dd>{{ restock.returned_qty }} / {{ restock.planned_qty }} шт.</dd></div>
+          <div><dt>Исходных коробов</dt><dd>{{ restock.source_box_count }}</dd></div>
+          <div><dt>Причина</dt><dd>{{ restock.reason|default:restock.get_reason_code_display|default:"-" }}</dd></div>
+        </dl>
+      </a>
+    {% empty %}
+      <div class="picker-tool-empty">
+        <strong>Заданий на возврат нет</strong>
+        <p>Ошибочно отобранные товары появятся здесь отдельными заданиями.</p>
+      </div>
+    {% endfor %}
+  </section>
+{% endblock %}

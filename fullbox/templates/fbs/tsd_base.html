@@ -1,0 +1,211 @@
+{% load static fbs_workspace %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}FBS{% endblock %} · Фуллбокс</title>
+  <link rel="stylesheet" href="{% static 'fbs/tsd.css' %}?v=20260902-storekeeper-density-4&amp;workspace=11&amp;compact=3&amp;picker=3&amp;home=2&amp;shipments=5&amp;queue-groups=1&amp;restock-pickup=1&amp;stock-filter=1&amp;storekeeper-nav-density=1&amp;orders-marketplace-filter=1&amp;alerts=1&amp;completed-status=1">
+  <link rel="preload" href="{% static 'fbs/sounds/scan-success.wav' %}?v=20260813-1" as="audio" type="audio/wav">
+  <link rel="preload" href="{% static 'fbs/sounds/scan-forbidden.wav' %}?v=20260829-controller-retry-1" as="audio" type="audio/wav">
+  <script defer src="{% static 'fbs/tsd.js' %}?v=20260913-urovo-dt50-scan-recovery-1"></script>
+  <script defer src="{% static 'fbs/page_size_controls.js' %}?v=20260902-2"></script>
+  {% if request_role == 'storekeeper' %}<script defer src="{% static 'fbs/storekeeper_alerts.js' %}?v=20260915-one-hour-snooze-1"></script>{% endif %}
+  <style>
+    #fbs-desktop-update { position: relative; padding-right: 58px; }
+    #fbs-desktop-update[hidden] { display: none; }
+    .fbs-desktop-update-dismiss {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      border: 1px solid currentColor;
+      border-radius: 8px;
+      color: inherit;
+      background: rgba(255, 255, 255, 0.48);
+      font: 700 25px/30px Arial, sans-serif;
+      cursor: pointer;
+    }
+    .fbs-desktop-update-dismiss:hover,
+    .fbs-desktop-update-dismiss:focus-visible { background: rgba(255, 255, 255, 0.9); }
+  </style>
+</head>
+<body>
+  <main class="tsd-page {% block page_class %}{% endblock %}{% if request_role == 'picker' %} tsd-page-picker{% endif %}{% if request_role == 'fbs_controller' %} tsd-page-controller-shell{% endif %}{% if request_role == 'storekeeper' or request_role == 'fbs_controller' or request_role == 'head_manager' or request_role == 'director' or request_role == 'admin' or request_role == 'developer' %} tsd-page-desktop{% endif %}" data-scan-success-sound="{% static 'fbs/sounds/scan-success.wav' %}?v=20260813-1" data-scan-error-sound="{% static 'fbs/sounds/scan-forbidden.wav' %}?v=20260829-controller-retry-1"{% if request_role == 'fbs_controller' %} data-controller-shift-heartbeat-url="{% url 'fbs:controller_shift_heartbeat' %}" data-controller-shift-csrf="{{ csrf_token }}"{% endif %}>
+    <header class="tsd-header">
+      <div class="brand-row">
+        {% include "partials/fullbox_brand.html" %}
+        <span class="contour-label">{% if request_role == 'picker' %}FBS · Сборщик{% elif request_role == 'fbs_controller' %}FBS · Контролер{% else %}FBS{% endif %}</span>
+      </div>
+      <div class="header-copy">
+        <h1>{% block page_title %}{{ page_title }}{% endblock %}</h1>
+        {% if employee and not hide_employee_name %}<p>{{ employee.full_name }}</p>{% endif %}
+      </div>
+      {% if back_url or request_role == 'storekeeper' or request_role == 'picker' or request_role == 'fbs_controller' %}
+        <div class="tsd-header-actions">
+          {% if back_url %}<a class="back-link" href="{{ back_url }}">Назад</a>{% endif %}
+          {% if request_role == 'storekeeper' %}<a class="exit-link" href="{% url 'sklad:dashboard' %}">В кабинет</a>{% endif %}
+          {% if request_role == 'picker' or request_role == 'fbs_controller' %}
+            <button class="exit-link sound-test-link" type="button" data-sound-test aria-label="Проверить звук">Звук</button>
+            <a class="exit-link" href="/logout/">Выйти</a>
+          {% endif %}
+        </div>
+      {% endif %}
+    </header>
+
+    {% fbs_desktop_needs_update request as desktop_needs_update %}
+    {% if desktop_needs_update %}
+      <aside id="fbs-desktop-update" class="notice notice-warn" role="status" data-dismiss-key="fullbox.fbs.desktop-update.dismissed.v20260915">
+        <button class="fbs-desktop-update-dismiss" type="button" data-fbs-desktop-update-dismiss aria-label="Скрыть уведомление об обновлении" title="Скрыть">&times;</button>
+        <strong>Доступно обновление Fullbox Desktop для стабильной печати.</strong>
+        <p>На этом компьютере установлена старая версия. Завершите текущую печать,
+          закройте Desktop и установите обновление.
+          <a href="{% static 'downloads/desktop/Fullbox-Desktop.exe' %}" download>Скачать Fullbox Desktop</a>
+        </p>
+      </aside>
+      <script>
+        (() => {
+          const notice = document.getElementById("fbs-desktop-update");
+          if (!notice) return;
+          const storageKey = notice.dataset.dismissKey;
+          try {
+            if (window.localStorage.getItem(storageKey) === "1") {
+              notice.hidden = true;
+              return;
+            }
+          } catch (error) {
+            // The close button still works for the current page if storage is unavailable.
+          }
+          notice.querySelector("[data-fbs-desktop-update-dismiss]")?.addEventListener("click", () => {
+            notice.hidden = true;
+            try {
+              window.localStorage.setItem(storageKey, "1");
+            } catch (error) {
+              // Ignore restricted storage in embedded or private browsers.
+            }
+          });
+        })();
+      </script>
+    {% endif %}
+
+    {% if request_role == 'fbs_controller' %}
+      <nav class="operator-nav controller-nav" aria-label="Разделы FBS контролера">
+        <a class="{% if operator_section == 'controller' %}is-active{% endif %}" href="{% url 'fbs:controller_home' %}">Сборка заказов</a>
+        <a class="{% if operator_section == 'handover' %}is-active{% endif %}" href="{% url 'fbs:tsd_handover' %}">Отгрузки</a>
+        {% if pick_restock_open_count %}<a class="{% if operator_section == 'pick_restocks' %}is-active{% endif %}" href="{% url 'fbs:controller_pick_restocks' %}">Возврат отбора <span class="count">{{ pick_restock_open_count }}</span></a>{% endif %}
+      </nav>
+    {% endif %}
+
+    {% block storekeeper_nav %}{% if request_role == 'storekeeper' or request_role == 'head_manager' or request_role == 'director' or request_role == 'admin' or request_role == 'developer' %}
+        <nav class="operator-nav" aria-label="Разделы FBS кладовщика">
+          <a class="{% if operator_section == 'handover' or operator_section == 'handover_reports' %}is-active{% endif %}" href="{% url 'fbs:tsd_handover' %}">Отгрузки</a>
+          <a class="{% if operator_section == 'queue' %}is-active{% endif %}" href="{% url 'fbs:operator_queue' %}">Очередь</a>
+          <a class="{% if operator_section == 'waves' %}is-active{% endif %}" href="{% url 'fbs:operator_waves' %}">Волны</a>
+          <a class="{% if operator_section == 'orders' %}is-active{% endif %}" href="{% url 'fbs:operator_orders' %}">Заказы</a>
+          <a class="{% if operator_section == 'stock' %}is-active{% endif %}" href="{% url 'fbs:tsd_storekeeper_stock' %}">Остатки</a>
+          <a class="{% if operator_section == 'movements' %}is-active{% endif %}" href="{% url 'fbs:operator_movements' %}">Перемещения</a>
+          <details class="operator-nav-more"{% if operator_section == 'overview' or operator_section == 'demand' or operator_section == 'labels' or operator_section == 'reports' or operator_section == 'inventory' or operator_section == 'problems' or operator_section == 'readiness' or operator_section == 'clients' or operator_section == 'metadata' or operator_section == 'stock_history' %} open{% endif %}>
+            <summary class="{% if operator_section == 'overview' or operator_section == 'demand' or operator_section == 'labels' or operator_section == 'reports' or operator_section == 'inventory' or operator_section == 'problems' or operator_section == 'readiness' or operator_section == 'clients' or operator_section == 'metadata' or operator_section == 'stock_history' %}is-active{% endif %}">Ещё</summary>
+            <div class="operator-nav-more-menu">
+              <a class="{% if operator_section == 'overview' %}is-active{% endif %}" href="{% url 'fbs:tsd_storekeeper' %}">Обзор</a>
+              <a class="{% if operator_section == 'demand' %}is-active{% endif %}" href="{% url 'fbs:tsd_demand' %}">Подсорт</a>
+              <a class="{% if operator_section == 'labels' %}is-active{% endif %}" href="{% url 'fbs:tsd_labels' %}">Этикетки</a>
+              <a class="{% if operator_section == 'reports' %}is-active{% endif %}" href="{% url 'fbs:operator_order_reports' %}">Отчёты</a>
+              <a class="{% if operator_section == 'inventory' %}is-active{% endif %}" href="{% url 'fbs:tsd_inventory' %}">Инвентаризация</a>
+              <a class="{% if operator_section == 'problems' %}is-active{% endif %}" href="{% url 'fbs:operator_problems' %}">Проблемы</a>
+              <a class="{% if operator_section == 'readiness' %}is-active{% endif %}" href="{% url 'fbs:operator_readiness' %}">Диагностика</a>
+              <a class="{% if operator_section == 'clients' %}is-active{% endif %}" href="{% url 'fbs:operator_clients' %}">Клиенты</a>
+              <a class="{% if operator_section == 'metadata' %}is-active{% endif %}" href="{% url 'fbs:metadata_control' %}">КИЗ и сроки</a>
+              <a class="{% if operator_section == 'stock_history' %}is-active{% endif %}" href="{% url 'fbs:operator_stock_history' %}">История товара</a>
+            </div>
+          </details>
+        </nav>
+      {% endif %}{% endblock %}
+
+    {% if not warehouse_writes_enabled %}
+      <div class="notice notice-warn" role="status">Операции FBS временно отключены</div>
+    {% endif %}
+    {% if error %}
+      <div class="notice notice-error" role="alert">{{ error }}</div>
+    {% endif %}
+    {% if ok_message %}
+      <div class="notice notice-ok" role="status">{{ ok_message }}</div>
+    {% endif %}
+    {% for message in messages %}
+      <div class="notice {% if 'error' in message.tags %}notice-error{% elif 'warning' in message.tags %}notice-warn{% else %}notice-ok{% endif %}" role="status">{{ message }}</div>
+    {% endfor %}
+
+    {% if request_role == 'storekeeper' %}
+      <div
+        id="fbs-storekeeper-alert-control"
+        class="fbs-alert-control"
+        data-alert-url="{% url 'fbs:tsd_storekeeper_alerts' %}"
+        data-csrf-token="{{ csrf_token }}"
+        hidden
+      >
+        <button class="fbs-alert-launcher" type="button" data-fbs-alert-open>
+          <span>Контроль FBS</span>
+          <strong data-fbs-alert-count>0</strong>
+        </button>
+        <div class="fbs-alert-backdrop" data-fbs-alert-backdrop hidden>
+          <section class="fbs-alert-modal" role="dialog" aria-modal="true" aria-labelledby="fbs-alert-title">
+            <header>
+              <div>
+                <span class="section-kicker">Обязательный контроль</span>
+                <h2 id="fbs-alert-title">Срочные действия по FBS</h2>
+                <p data-fbs-alert-summary>Проверяем заказы…</p>
+              </div>
+              <button class="fbs-alert-close" type="button" data-fbs-alert-close hidden>Закрыть</button>
+            </header>
+            <div class="fbs-alert-groups" data-fbs-alert-groups></div>
+            <footer>
+              <small>После подтверждения одной задачи окно не блокирует работу. Остальные задачи будут выданы повторно через 1 час. Взятая, но не устранённая проблема напомнит о себе через 4 часа.</small>
+            </footer>
+          </section>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if inventory_assignment_count and not hide_inventory_assignment_link %}
+      <a class="button button-secondary" href="{% url 'fbs:tsd_inventory' %}">Мне на проверку: {{ inventory_assignment_count }}</a>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  {% include "ai_support/_report_button.html" with ai_support_zone="FBS" %}
+  {% if request_role == 'storekeeper' %}
+    <script>
+      (() => {
+        const alertControl = document.getElementById("fbs-storekeeper-alert-control");
+        const alertLauncher = alertControl?.querySelector("[data-fbs-alert-open]");
+        const supportLauncher = document.getElementById("ai-support-launch");
+        if (!alertControl || !alertLauncher || !supportLauncher) return;
+
+        const defaultBottom = supportLauncher.style.bottom;
+        let layoutFrame = 0;
+        const syncFloatingControls = () => {
+          window.cancelAnimationFrame(layoutFrame);
+          layoutFrame = window.requestAnimationFrame(() => {
+            if (alertControl.hidden) {
+              supportLauncher.style.bottom = defaultBottom;
+              return;
+            }
+            const alertBounds = alertLauncher.getBoundingClientRect();
+            if (!alertBounds.height) return;
+            const safeBottom = Math.ceil(window.innerHeight - alertBounds.top + 10);
+            supportLauncher.style.bottom = `${safeBottom}px`;
+          });
+        };
+
+        new MutationObserver(syncFloatingControls).observe(alertControl, {
+          attributes: true,
+          attributeFilter: ["hidden"],
+        });
+        window.addEventListener("resize", syncFloatingControls, { passive: true });
+        syncFloatingControls();
+      })();
+    </script>
+  {% endif %}
+</body>
+</html>

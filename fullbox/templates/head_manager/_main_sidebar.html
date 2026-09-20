@@ -1,0 +1,93 @@
+{% include "todo/_unread_nav_styles.html" %}
+<aside class="side">
+  <div class="brand">
+    {% include "partials/fullbox_brand.html" %}
+  </div>
+
+  <div class="profile">
+    <div class="profile-label">Кабинет</div>
+    <div class="profile-name">
+      Начальник склада<br>
+      {{ user_display_name|default:request.user.get_full_name|default:request.user.username }}
+    </div>
+  </div>
+
+  <nav class="nav" aria-label="Навигация начальника склада">
+    <div class="nav-section">
+      <div class="nav-heading">Главное</div>
+      <a class="nav-link{% if active == 'dashboard' %} primary{% endif %}" href="/head-manager/">
+        <span class="nav-icon">⌂</span><span class="nav-title">Главная</span>
+      </a>
+      <a class="nav-link{% if active == 'requests' or active == 'fbs' %} primary{% endif %}" href="/head-manager/requests/">
+        <span class="nav-icon">▤</span><span class="nav-title">Заявки</span>
+      </a>
+      <div class="nav-submenu">
+        <a href="/head-manager/fbs/">FBS</a>
+        <a href="/head-manager/reports/employees/fbs-productivity/">Отчёт FBS за день</a>
+      </div>
+      <a class="nav-link" href="/head-manager/fbs-new/">
+        <span class="nav-icon">N</span><span class="nav-title">FBS-NEW</span>
+      </a>
+      <a class="nav-link{% if active == 'reports' %} primary{% endif %}" href="/head-manager/reports/">
+        <span class="nav-icon">⇅</span><span class="nav-title">Отчеты</span>
+      </a>
+      <a class="nav-link{% if active == 'marking_report' %} primary{% endif %}" href="/marking/report/">
+        <span class="nav-icon">⌁</span><span class="nav-title">Отчёт ЧЗ</span>
+      </a>
+      <a class="nav-link{% if active == 'stock' %} primary{% endif %}" href="/head-manager/stock-editor/">
+        <span class="nav-icon">▣</span><span class="nav-title">Редактор складских остатков</span>
+      </a>
+      <a class="nav-link{% if active == 'goods' %} primary{% endif %}" href="/head-manager/goods/">
+        <span class="nav-icon">◫</span><span class="nav-title">Товары</span>
+      </a>
+      <a class="nav-link{% if active == 'inventory' %} primary{% endif %}" href="/inventory/">
+        <span class="nav-icon">☷</span><span class="nav-title">Инвентаризации</span>
+      </a>
+      <a class="nav-link{% if todo_unread_count %} todo-unread-attention{% endif %}" href="/todo/">
+        <span class="nav-icon">☑</span><span class="nav-title">Задачи</span>{% if todo_unread_count %}<span class="todo-unread-badge">{{ todo_unread_count }}</span>{% endif %}
+      </a>
+      <details class="nav-drilldown">
+        <summary class="nav-link{% if active == 'references' %} primary{% endif %}">
+          <span class="nav-icon">◇</span><span class="nav-title">Справочники</span>
+        </summary>
+        <div class="nav-submenu">
+          <a href="/head-manager/clients/">Клиенты</a>
+          <a href="/head-manager/marking-search/">Поиск ЧЗ</a>
+          <a href="/employees/">Сотрудники</a>
+          <a href="/sku/?view=table">Номенклатура</a>
+          <a href="/head-manager/marketplace-warehouses/">Склады МП</a>
+          <a href="/head-manager/own-companies/">Наши компании</a>
+          <a href="/head-manager/carriers/">Перевозчики</a>
+        </div>
+      </details>
+      <a class="nav-link{% if active == 'inspection' %} primary{% endif %}" href="/head-manager/inspection/">
+        <span class="nav-icon">◎</span><span class="nav-title">Инспекционный сервис</span>
+      </a>
+      <a class="nav-link{% if active == 'revisor' %} primary{% endif %}" href="/revisor/">
+        <span class="nav-icon">◉</span><span class="nav-title">Ревизор</span>
+      </a>
+      <details class="nav-drilldown">
+        <summary class="nav-link{% if active == 'settings' %} primary{% endif %}">
+          <span class="nav-icon">⚙</span><span class="nav-title">Настройки</span>
+        </summary>
+        <div class="nav-submenu">
+          <a href="/head-manager/settings/warehouse-locations/">Места PR/OTG</a>
+          <a href="/head-manager/fbs/settings/">Настройки FBS</a>
+          <a href="/scanner-settings/">Настройка сканеров</a>
+          <a href="/labels/settings/">Этикетки и принтеры</a>
+          <a href="/orders/processing/print-agent/guide/">Агент печати: скачать и проверить</a>
+          <a href="/team-manager/settings/">Настройки кабинета</a>
+        </div>
+      </details>
+    </div>
+  </nav>
+
+  <div class="sidebar-actions">
+    <button class="btn collapse-btn" id="sidebar-collapse" type="button" aria-expanded="true" title="Свернуть меню">
+      <span class="nav-icon">‹</span><span class="btn-label">Свернуть меню</span>
+    </button>
+    <a class="btn logout-btn" href="/logout/" title="Выход">
+      <span class="nav-icon">↩</span><span class="btn-label">Выход</span>
+    </a>
+  </div>
+</aside>

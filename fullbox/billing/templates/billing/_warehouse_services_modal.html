@@ -1,0 +1,678 @@
+<style>
+  .wsfm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: none;
+    place-items: center;
+    padding: 20px;
+    background: rgba(48, 48, 48, 0.52);
+  }
+  .wsfm-overlay.is-open { display: grid; }
+  .wsfm-dialog {
+    width: min(980px, 96vw);
+    max-height: min(860px, 92vh);
+    overflow: auto;
+    border: 1px solid rgba(48, 48, 48, 0.16);
+    border-radius: 8px;
+    background: #fff;
+    color: #303030;
+    box-shadow: 0 24px 64px rgba(48, 48, 48, 0.24);
+    font-family: Manrope, system-ui, sans-serif;
+  }
+  .wsfm-header,
+  .wsfm-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+  }
+  .wsfm-header { border-bottom: 1px solid rgba(48, 48, 48, 0.12); }
+  .wsfm-footer { border-top: 1px solid rgba(48, 48, 48, 0.12); }
+  .wsfm-title { margin: 0; font: 700 22px/1.25 "Bricolage Grotesque", Manrope, sans-serif; }
+  .wsfm-subtitle { margin: 4px 0 0; color: #6b6b6b; font-size: 13px; }
+  .wsfm-close {
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(48, 48, 48, 0.16);
+    border-radius: 50%;
+    background: #fff;
+    color: #303030;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .wsfm-body { padding: 16px 18px; }
+  .wsfm-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border: 1px solid rgba(248, 144, 0, 0.3);
+    background: rgba(248, 144, 0, 0.08);
+  }
+  .wsfm-summary-item { padding: 12px 14px; border-right: 1px solid rgba(248, 144, 0, 0.22); }
+  .wsfm-summary-item:last-child { border-right: 0; }
+  .wsfm-summary-label { color: #6b6b6b; font-size: 12px; }
+  .wsfm-summary-value { margin-top: 2px; font-size: 20px; font-weight: 800; }
+  .wsfm-hint { margin: 12px 0; color: #5d5d5d; font-size: 13px; }
+  .wsfm-auto-summary {
+    margin: 12px 0;
+    padding: 11px 13px;
+    border: 1px solid rgba(248, 144, 0, 0.32);
+    border-radius: 6px;
+    background: rgba(248, 144, 0, 0.09);
+    color: #303030;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .wsfm-auto-summary[hidden] { display: none; }
+  .wsfm-auto-summary strong { display: block; margin-bottom: 3px; }
+  .wsfm-auto-warning { margin-top: 6px; color: #9f2f2f; font-weight: 700; }
+  .wsfm-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 2fr) 120px 120px 72px 38px;
+    gap: 8px;
+    padding: 12px 0;
+    border-top: 1px solid rgba(48, 48, 48, 0.12);
+    align-items: end;
+  }
+  .wsfm-row:first-child { border-top: 0; }
+  .wsfm-row.is-automatic { background: rgba(248, 144, 0, 0.045); }
+  .wsfm-row.is-unlisted {
+    margin: 8px 0;
+    padding: 12px;
+    border: 1px solid rgba(248, 104, 0, 0.3);
+    background: rgba(248, 144, 0, 0.07);
+  }
+  .wsfm-field { display: grid; gap: 5px; min-width: 0; color: #666; font-size: 12px; }
+  .wsfm-field input,
+  .wsfm-field select {
+    width: 100%;
+    min-width: 0;
+    height: 38px;
+    border: 1px solid rgba(48, 48, 48, 0.2);
+    border-radius: 6px;
+    padding: 7px 9px;
+    background: #fff;
+    color: #303030;
+    font: 500 13px/1.2 Manrope, sans-serif;
+  }
+  .wsfm-unit {
+    min-height: 38px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(48, 48, 48, 0.12);
+    border-radius: 6px;
+    background: #f6f6f3;
+    color: #303030;
+    font-weight: 700;
+  }
+  .wsfm-remove {
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(180, 52, 52, 0.2);
+    border-radius: 6px;
+    background: #fff4f2;
+    color: #9f2f2f;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  .wsfm-auto-mark {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(248, 144, 0, 0.28);
+    border-radius: 6px;
+    background: rgba(248, 144, 0, 0.12);
+    color: #8a5200;
+    font-weight: 800;
+  }
+  .wsfm-auto-label { color: #8a5200; font-size: 11px; font-weight: 800; }
+  .wsfm-details {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr 190px;
+    gap: 8px;
+  }
+  .wsfm-actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .wsfm-unlisted-note {
+    grid-column: 1 / -1;
+    color: #9b3f00;
+    font-size: 12px;
+    font-weight: 750;
+  }
+  .wsfm-status { min-height: 20px; margin-top: 10px; color: #4f4f4f; font-size: 13px; }
+  .wsfm-status.is-error { color: #a52828; font-weight: 700; }
+  .wsfm-btn {
+    min-height: 40px;
+    border: 1px solid rgba(48, 48, 48, 0.16);
+    border-radius: 6px;
+    padding: 9px 14px;
+    background: #fff;
+    color: #303030;
+    font: 700 13px/1 Manrope, sans-serif;
+    cursor: pointer;
+  }
+  .wsfm-btn.primary { border-color: #f89000; background: #f89000; color: #303030; }
+  .wsfm-btn:disabled { cursor: wait; opacity: 0.6; }
+  @media (max-width: 760px) {
+    .wsfm-overlay { padding: 8px; }
+    .wsfm-dialog { max-height: 96vh; }
+    .wsfm-summary { grid-template-columns: 1fr; }
+    .wsfm-summary-item { border-right: 0; border-bottom: 1px solid rgba(248, 144, 0, 0.22); }
+    .wsfm-summary-item:last-child { border-bottom: 0; }
+    .wsfm-row { grid-template-columns: 1fr 1fr; }
+    .wsfm-field.service { grid-column: 1 / -1; }
+    .wsfm-unit { align-self: end; }
+    .wsfm-details { grid-template-columns: 1fr; }
+    .wsfm-footer { align-items: stretch; flex-direction: column-reverse; }
+  }
+</style>
+
+<div
+  class="wsfm-overlay"
+  id="warehouse-services-modal"
+  data-order-type="{{ wsfm_order_type }}"
+  data-order-id="{{ wsfm_order_id }}"
+  data-client-id="{{ wsfm_client_id }}"
+  data-source="{{ wsfm_source|default:'receiving_manual' }}"
+  aria-hidden="true"
+>
+  <section class="wsfm-dialog" role="dialog" aria-modal="true" aria-labelledby="warehouse-services-modal-title">
+    <header class="wsfm-header">
+      <div>
+        <h2 class="wsfm-title" id="warehouse-services-modal-title">{{ wsfm_title|default:"Фактически оказанные услуги" }}</h2>
+        <p class="wsfm-subtitle" id="wsfm-subtitle">Выберите выполненные услуги и укажите фактическое количество.</p>
+      </div>
+      <button type="button" class="wsfm-close" id="wsfm-close" aria-label="Закрыть" title="Закрыть">×</button>
+    </header>
+    <div class="wsfm-body">
+      <div class="wsfm-summary">
+        <div class="wsfm-summary-item"><div class="wsfm-summary-label" id="wsfm-summary-items-label">{{ wsfm_items_label|default:"Принято товара" }}</div><div class="wsfm-summary-value" id="wsfm-summary-items">0 шт.</div></div>
+        <div class="wsfm-summary-item"><div class="wsfm-summary-label">Коробов</div><div class="wsfm-summary-value" id="wsfm-summary-boxes">0</div></div>
+        <div class="wsfm-summary-item"><div class="wsfm-summary-label">Паллет</div><div class="wsfm-summary-value" id="wsfm-summary-pallets">0</div></div>
+      </div>
+      <p class="wsfm-hint">Добавьте все выполненные услуги. При отличии плана от факта обязательно укажите причину.</p>
+      <div class="wsfm-auto-summary" id="wsfm-auto-summary" hidden></div>
+      <div id="wsfm-rows"></div>
+      <div class="wsfm-actions">
+        <button type="button" class="wsfm-btn" id="wsfm-add">Добавить услугу</button>
+        <button type="button" class="wsfm-btn" id="wsfm-add-unlisted" hidden>Услуги нет в списке</button>
+      </div>
+      <div class="wsfm-status" id="wsfm-status" aria-live="polite"></div>
+    </div>
+    <footer class="wsfm-footer">
+      <button type="button" class="wsfm-btn" id="wsfm-cancel">{{ wsfm_cancel_label|default:"Вернуться к приемке" }}</button>
+      <button type="button" class="wsfm-btn primary" id="wsfm-submit">Сохранить услуги и завершить</button>
+    </footer>
+  </section>
+</div>
+
+<script>
+(function(){
+  var root = document.getElementById('warehouse-services-modal');
+  if (!root) return;
+  var rowsEl = document.getElementById('wsfm-rows');
+  var statusEl = document.getElementById('wsfm-status');
+  var autoSummaryEl = document.getElementById('wsfm-auto-summary');
+  var submitBtn = document.getElementById('wsfm-submit');
+  var addBtn = document.getElementById('wsfm-add');
+  var addUnlistedBtn = document.getElementById('wsfm-add-unlisted');
+  var orderType = root.getAttribute('data-order-type') || '';
+  var orderId = root.getAttribute('data-order-id') || '';
+  var clientId = root.getAttribute('data-client-id') || '';
+  var source = root.getAttribute('data-source') || 'receiving_manual';
+  var defaultTitle = document.getElementById('warehouse-services-modal-title').textContent;
+  var defaultItemsLabel = document.getElementById('wsfm-summary-items-label').textContent;
+  var catalog = [];
+  var lines = [];
+  var activeResolve = null;
+  var activeReject = null;
+  var deferredSave = false;
+  var preloadedCatalog = null;
+  var preloadedFacts = null;
+  var automaticServiceIds = [];
+  var automaticSummary = null;
+  var automaticWarnings = [];
+
+  function escapeHtml(value){
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  }
+  function csrfToken(){
+    var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+  function localDateTimeValue(){
+    var now = new Date();
+    var shifted = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+    return shifted.toISOString().slice(0, 16);
+  }
+  function setStatus(text, isError){
+    statusEl.textContent = text || '';
+    statusEl.classList.toggle('is-error', !!isError);
+  }
+  function serviceById(id){
+    return catalog.find(function(item){ return String(item.service_id) === String(id); }) || null;
+  }
+  function isAutomaticService(id){
+    return automaticServiceIds.indexOf(String(id)) !== -1;
+  }
+  function allowUnlisted(){
+    return ['receiving', 'receipt'].indexOf(String(orderType || '').toLowerCase()) !== -1;
+  }
+  function newCustomKey(){
+    return 'custom-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2, 10);
+  }
+  function optionHtml(selectedId, automaticLine){
+    return catalog.filter(function(item){
+      return automaticLine || !isAutomaticService(item.service_id);
+    }).map(function(item){
+      var selected = String(item.service_id) === String(selectedId) ? ' selected' : '';
+      return '<option value="'+escapeHtml(item.service_id)+'"'+selected+'>'+escapeHtml(item.name || item.code)+'</option>';
+    }).join('');
+  }
+  function manualDefaultService(){
+    return catalog.find(function(item){ return !isAutomaticService(item.service_id); }) || null;
+  }
+  function renderAutomaticSummary(){
+    if (!automaticSummary || ['shipping', 'ship', 'otg'].indexOf(String(orderType).toLowerCase()) === -1){
+      autoSummaryEl.hidden = true;
+      autoSummaryEl.innerHTML = '';
+      return;
+    }
+    var bands = (automaticSummary.box_bands || []).map(function(band){
+      return escapeHtml(band.label)+': '+escapeHtml(band.quantity || 0);
+    }).join('; ');
+    var warningHtml = automaticWarnings.map(function(message){
+      return '<div class="wsfm-auto-warning">'+escapeHtml(message)+'</div>';
+    }).join('');
+    autoSummaryEl.innerHTML = '<strong>Подбор рассчитан автоматически</strong>'+
+      'Коробов: '+escapeHtml(automaticSummary.total_boxes || 0)+' ('+bands+'). ' +
+      'Поштучно: '+escapeHtml(automaticSummary.piece_quantity || 0)+' шт.'+warningHtml;
+    autoSummaryEl.hidden = false;
+  }
+  function readRows(){
+    lines = Array.prototype.map.call(rowsEl.querySelectorAll('.wsfm-row'), function(row){
+      function value(field){
+        var input = row.querySelector('[data-field="'+field+'"]');
+        return input ? input.value : '';
+      }
+      var unlisted = row.getAttribute('data-unlisted') === '1';
+      return {
+        service_id: unlisted ? '' : value('service_id'),
+        custom_name: unlisted ? value('custom_name') : '',
+        custom_key: unlisted ? row.getAttribute('data-custom-key') || '' : '',
+        unit: unlisted ? value('unit') : '',
+        planned_quantity: value('planned_quantity'),
+        quantity: value('quantity'),
+        discrepancy_reason: value('discrepancy_reason'),
+        comment: value('comment'),
+        performed_at: value('performed_at') || localDateTimeValue(),
+        source: row.getAttribute('data-source') || source,
+        auto_quantity: row.getAttribute('data-auto-quantity') || '',
+        is_automatic: row.getAttribute('data-automatic') === '1',
+        is_unlisted: unlisted
+      };
+    });
+  }
+  function renderRows(){
+    addBtn.hidden = !catalog.length;
+    addUnlistedBtn.hidden = !allowUnlisted();
+    if (!catalog.length && !allowUnlisted()){
+      rowsEl.innerHTML = '<p class="wsfm-hint">Для этого раздела нет доступных услуг. Обратитесь к менеджеру или бухгалтеру.</p>';
+      return;
+    }
+    if (!lines.length){
+      var defaultService = manualDefaultService();
+      if (defaultService){
+        lines = [{service_id: defaultService.service_id, planned_quantity: '', quantity: '', discrepancy_reason: '', comment: '', performed_at: localDateTimeValue(), source: source, auto_quantity: '', is_automatic: false}];
+      }
+    }
+    if (!lines.length){
+      rowsEl.innerHTML = allowUnlisted()
+        ? '<p class="wsfm-hint">Выберите согласованную услугу или нажмите «Услуги нет в списке».</p>'
+        : '<p class="wsfm-hint">Фактический подбор пока не зафиксирован. После подбора складом количества появятся автоматически.</p>';
+      return;
+    }
+    rowsEl.innerHTML = lines.map(function(line, index){
+      var unlisted = !!line.is_unlisted;
+      var service = serviceById(line.service_id) || catalog[0] || {};
+      var automaticLine = !!line.is_automatic;
+      var planReadonly = automaticLine ? ' readonly' : '';
+      var disabled = automaticLine ? ' disabled' : '';
+      var automaticLabel = automaticLine ? '<span class="wsfm-auto-label">План рассчитан автоматически</span>' : '';
+      var removeControl = automaticLine
+        ? '<span class="wsfm-auto-mark" title="План рассчитан системой, факт подтверждает кладовщик">✓</span>'
+        : '<button type="button" class="wsfm-remove" data-remove="'+index+'" aria-label="Удалить услугу" title="Удалить">×</button>';
+      var serviceControl = unlisted
+        ? '<label class="wsfm-field service">Название новой услуги<input data-field="custom_name" type="text" maxlength="255" value="'+escapeHtml(line.custom_name || '')+'" placeholder="Что именно выполнено" required></label>'
+        : '<label class="wsfm-field service">Услуга<select data-field="service_id"'+disabled+'>'+optionHtml(line.service_id || service.service_id, automaticLine)+'</select>'+automaticLabel+'</label>';
+      var unitControl = unlisted
+        ? '<label class="wsfm-field">Ед.<input data-field="unit" type="text" maxlength="32" value="'+escapeHtml(line.unit || 'шт')+'" required></label>'
+        : '<div class="wsfm-field">Ед.<div class="wsfm-unit">'+escapeHtml(service.unit || 'шт')+'</div></div>';
+      return '<div class="wsfm-row'+(automaticLine ? ' is-automatic' : '')+(unlisted ? ' is-unlisted' : '')+'" data-index="'+index+'" data-source="'+escapeHtml(line.source || source)+'" data-auto-quantity="'+escapeHtml(line.auto_quantity || '')+'" data-automatic="'+(automaticLine ? '1' : '0')+'" data-unlisted="'+(unlisted ? '1' : '0')+'" data-custom-key="'+escapeHtml(line.custom_key || '')+'">'+
+        serviceControl+
+        '<label class="wsfm-field">План<input data-field="planned_quantity" type="number" min="0" step="0.001" inputmode="decimal" value="'+escapeHtml(line.planned_quantity)+'"'+planReadonly+'></label>'+
+        '<label class="wsfm-field">Факт<input data-field="quantity" type="number" min="0.001" step="0.001" inputmode="decimal" value="'+escapeHtml(line.quantity)+'" required></label>'+
+        unitControl+
+        removeControl+
+        '<div class="wsfm-details">'+
+          '<label class="wsfm-field">'+(unlisted ? 'Что выполнено / почему нет в списке' : 'Причина расхождения')+'<input data-field="discrepancy_reason" type="text" maxlength="255" value="'+escapeHtml(line.discrepancy_reason)+'" placeholder="'+(unlisted ? 'Обязательно для проверки менеджером' : 'Обязательно, если план не равен факту')+'"></label>'+
+          '<label class="wsfm-field">Комментарий<input data-field="comment" type="text" maxlength="255" value="'+escapeHtml(line.comment)+'" placeholder="Необязательно"></label>'+
+          '<label class="wsfm-field">Выполнено<input data-field="performed_at" type="datetime-local" value="'+escapeHtml(line.performed_at || localDateTimeValue())+'"></label>'+
+        '</div>'+
+        (unlisted ? '<div class="wsfm-unlisted-note">После сохранения услуга уйдет менеджеру на проверку. До сопоставления начисление клиенту не создается.</div>' : '')+
+      '</div>';
+    }).join('');
+  }
+  function lineFromFact(fact, automaticLine){
+    return {
+      service_id: fact.service_id,
+      custom_name: fact.custom_name || fact.name || '',
+      custom_key: fact.custom_key || '',
+      unit: fact.unit || 'шт',
+      planned_quantity: fact.planned_quantity || '',
+      quantity: fact.quantity || '',
+      discrepancy_reason: fact.discrepancy_reason || '',
+      comment: fact.comment || '',
+      performed_at: fact.performed_at_iso || localDateTimeValue(),
+      source: fact.source || source,
+      auto_quantity: fact.auto_quantity || '',
+      is_automatic: !!automaticLine,
+      is_unlisted: !!fact.is_unlisted
+    };
+  }
+  function applyLoadedFacts(data){
+    data = data || {};
+    automaticServiceIds = (data.automatic_service_ids || []).map(function(id){ return String(id); });
+    automaticSummary = data.automatic_summary || null;
+    automaticWarnings = data.automatic_warnings || [];
+    var savedAutomaticFacts = {};
+    (data.facts || []).forEach(function(fact){
+      if (isAutomaticService(fact.service_id) && fact.source === 'shipping_manual_confirmation'){
+        savedAutomaticFacts[String(fact.service_id)] = fact;
+      }
+    });
+    lines = (data.facts || []).filter(function(fact){
+      return !isAutomaticService(fact.service_id) && fact.source !== 'shipping_auto_pick';
+    }).map(function(fact){ return lineFromFact(fact, false); });
+    (data.automatic_facts || []).forEach(function(fact){
+      var saved = savedAutomaticFacts[String(fact.service_id)];
+      var displayed = Object.assign({}, fact, {quantity: '', source: source});
+      if (saved){
+        displayed = Object.assign({}, fact, {
+          quantity: saved.quantity,
+          discrepancy_reason: saved.discrepancy_reason,
+          comment: saved.comment,
+          performed_at_iso: saved.performed_at_iso,
+          source: saved.source,
+          auto_quantity: fact.auto_quantity || fact.quantity
+        });
+      }
+      lines.push(lineFromFact(displayed, true));
+    });
+    renderAutomaticSummary();
+  }
+  function validate(){
+    readRows();
+    var prepared = [];
+    var used = {};
+    for (var index = 0; index < lines.length; index += 1){
+      var line = lines[index];
+      var quantity = Number(line.quantity);
+      if (line.is_unlisted){
+        if (!(quantity > 0) && !String(line.custom_name || '').trim()) continue;
+        if (String(line.custom_name || '').trim().length < 3) throw new Error('Укажите понятное название новой услуги.');
+        if (!(quantity > 0)) throw new Error('Укажите фактическое количество новой услуги.');
+        if (!String(line.unit || '').trim()) throw new Error('Укажите единицу измерения новой услуги.');
+        if (!String(line.discrepancy_reason || '').trim()) throw new Error('Опишите, что выполнено и почему услуги нет в списке.');
+        var customIdentity = 'custom:'+String(line.custom_key || '');
+        if (used[customIdentity]) throw new Error('Одна и та же новая услуга указана дважды.');
+        used[customIdentity] = true;
+        prepared.push({
+          service_id: null,
+          custom_name: String(line.custom_name || '').trim(),
+          custom_key: line.custom_key || newCustomKey(),
+          planned_quantity: line.planned_quantity === '' ? null : line.planned_quantity,
+          quantity: line.quantity,
+          unit: String(line.unit || '').trim(),
+          discrepancy_reason: line.discrepancy_reason,
+          comment: line.comment,
+          performed_at: line.performed_at,
+          source: 'warehouse_unlisted'
+        });
+        continue;
+      }
+      if (line.is_automatic && !(quantity > 0)){
+        throw new Error('Укажите фактическое количество для рассчитанной услуги.');
+      }
+      if (!line.service_id || !(quantity > 0)) continue;
+      var serviceIdentity = 'service:'+String(line.service_id);
+      if (used[serviceIdentity]) throw new Error('Одна и та же услуга указана дважды.');
+      used[serviceIdentity] = true;
+      var planned = line.planned_quantity === '' ? null : Number(line.planned_quantity);
+      if (planned !== null && Math.abs(planned - quantity) > 0.000001 && !String(line.discrepancy_reason || '').trim()){
+        throw new Error('Укажите причину расхождения плана и факта.');
+      }
+      var service = serviceById(line.service_id);
+      prepared.push({
+        service_id: Number(line.service_id),
+        planned_quantity: planned === null ? null : line.planned_quantity,
+        quantity: line.quantity,
+        unit: service ? service.unit : '',
+        discrepancy_reason: line.discrepancy_reason,
+        comment: line.comment,
+        performed_at: line.performed_at,
+        source: line.source || source,
+        auto_quantity: line.auto_quantity || null
+      });
+    }
+    if (!prepared.length) throw new Error('Укажите хотя бы одну услугу и фактическое количество.');
+    return prepared;
+  }
+  function hide(){
+    root.classList.remove('is-open');
+    root.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    submitBtn.disabled = false;
+  }
+  function cancel(){
+    var reject = activeReject;
+    activeResolve = null;
+    activeReject = null;
+    hide();
+    if (reject) reject(new Error('cancelled'));
+  }
+  function loadData(){
+    catalog = [];
+    lines = [];
+    automaticServiceIds = [];
+    automaticSummary = null;
+    automaticWarnings = [];
+    renderAutomaticSummary();
+    renderRows();
+    if (Array.isArray(preloadedCatalog)){
+      catalog = preloadedCatalog;
+      lines = (Array.isArray(preloadedFacts) ? preloadedFacts : []).map(function(fact){ return lineFromFact(fact, false); });
+      renderRows();
+      setStatus(
+        catalog.length ? '' : (allowUnlisted() ? 'Согласованных услуг нет. Укажите выполненную услугу вручную.' : 'Нет согласованных услуг для этого раздела. Закрытие заблокировано.'),
+        !catalog.length && !allowUnlisted()
+      );
+      return Promise.resolve();
+    }
+    var catalogUrl = '/api/warehouse-billing/catalog/?client='+encodeURIComponent(clientId)+'&process='+encodeURIComponent(orderType)+'&order_id='+encodeURIComponent(orderId);
+    var factsUrl = '/api/warehouse-billing/facts/?client='+encodeURIComponent(clientId)+'&order_type='+encodeURIComponent(orderType)+'&order_id='+encodeURIComponent(orderId);
+    setStatus('Загружаю согласованные услуги...');
+    return Promise.all([
+      fetch(catalogUrl, {credentials: 'same-origin'}).then(function(response){ return response.json(); }),
+      fetch(factsUrl, {credentials: 'same-origin'}).then(function(response){ return response.json(); })
+    ]).then(function(result){
+      if (!result[0] || !result[0].ok) throw new Error((result[0] && result[0].error) || 'Не удалось загрузить список услуг.');
+      if (!result[1] || !result[1].ok) throw new Error((result[1] && result[1].error) || 'Не удалось загрузить факты услуг.');
+      catalog = (result[0].data && result[0].data.services) || [];
+      applyLoadedFacts((result[1] && result[1].data) || {});
+      renderRows();
+      setStatus(
+        catalog.length ? '' : (allowUnlisted() ? 'Согласованных услуг нет. Укажите выполненную услугу вручную.' : 'Нет согласованных услуг для этого раздела. Закрытие заблокировано.'),
+        !catalog.length && !allowUnlisted()
+      );
+    });
+  }
+  function saveAndResolve(){
+    var payloadLines;
+    try {
+      payloadLines = validate();
+    } catch (error) {
+      setStatus(error.message || 'Проверьте услуги.', true);
+      return;
+    }
+    if (deferredSave){
+      var deferredResolve = activeResolve;
+      activeResolve = null;
+      activeReject = null;
+      hide();
+      if (deferredResolve) deferredResolve({ok: true, deferred: true, lines: payloadLines});
+      return;
+    }
+    submitBtn.disabled = true;
+    setStatus('Сохраняю услуги...');
+    fetch('/api/warehouse-billing/facts/', {
+      method: 'PUT',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+      body: JSON.stringify({
+        client_id: Number(clientId),
+        order_type: orderType,
+        order_id: orderId,
+        lines: payloadLines
+      })
+    }).then(function(response){ return response.json(); }).then(function(data){
+      if (!data || !data.ok) throw new Error((data && data.error) || 'Не удалось сохранить услуги.');
+      var resolve = activeResolve;
+      activeResolve = null;
+      activeReject = null;
+      hide();
+      if (resolve) resolve(data);
+    }).catch(function(error){
+      submitBtn.disabled = false;
+      setStatus(error.message || 'Не удалось сохранить услуги.', true);
+    });
+  }
+
+  addBtn.addEventListener('click', function(){
+    readRows();
+    var defaultService = manualDefaultService();
+    if (!defaultService) return;
+    lines.push({service_id: defaultService.service_id, planned_quantity: '', quantity: '', discrepancy_reason: '', comment: '', performed_at: localDateTimeValue(), source: source, auto_quantity: '', is_automatic: false, is_unlisted: false});
+    renderRows();
+  });
+  addUnlistedBtn.addEventListener('click', function(){
+    if (!allowUnlisted()) return;
+    readRows();
+    lines.push({
+      service_id: '',
+      custom_name: '',
+      custom_key: newCustomKey(),
+      unit: 'шт',
+      planned_quantity: '',
+      quantity: '',
+      discrepancy_reason: '',
+      comment: '',
+      performed_at: localDateTimeValue(),
+      source: 'warehouse_unlisted',
+      auto_quantity: '',
+      is_automatic: false,
+      is_unlisted: true
+    });
+    renderRows();
+  });
+  rowsEl.addEventListener('click', function(event){
+    var button = event.target.closest('[data-remove]');
+    if (!button) return;
+    readRows();
+    lines.splice(Number(button.getAttribute('data-remove')), 1);
+    renderRows();
+  });
+  rowsEl.addEventListener('change', function(event){
+    if (!event.target.matches('[data-field="service_id"]')) return;
+    readRows();
+    renderRows();
+  });
+  document.getElementById('wsfm-submit').addEventListener('click', saveAndResolve);
+  document.getElementById('wsfm-close').addEventListener('click', cancel);
+  document.getElementById('wsfm-cancel').addEventListener('click', cancel);
+  document.addEventListener('keydown', function(event){
+    if (event.key === 'Escape' && root.classList.contains('is-open')) cancel();
+  });
+
+  var api = {
+    open: function(summary, options){
+      options = options || {};
+      orderType = String(options.orderType || options.order_type || root.getAttribute('data-order-type') || '');
+      orderId = String(options.orderId || options.order_id || root.getAttribute('data-order-id') || '');
+      clientId = String(options.clientId || options.client_id || root.getAttribute('data-client-id') || '');
+      source = String(options.source || root.getAttribute('data-source') || 'receiving_manual');
+      deferredSave = !!options.deferredSave;
+      preloadedCatalog = Array.isArray(options.catalog) ? options.catalog : null;
+      preloadedFacts = Array.isArray(options.facts) ? options.facts : null;
+      if (!clientId || !orderId || !orderType){
+        return Promise.reject(new Error('Не хватает данных заявки для сохранения услуг.'));
+      }
+      summary = summary || {};
+      var clientName = String(options.clientName || options.client_name || '').trim();
+      document.getElementById('warehouse-services-modal-title').textContent = options.title || defaultTitle;
+      document.getElementById('wsfm-subtitle').textContent = clientName
+        ? 'Клиент: '+clientName+'. Выберите выполненные услуги и укажите фактическое количество.'
+        : 'Выберите выполненные услуги и укажите фактическое количество.';
+      document.getElementById('wsfm-summary-items-label').textContent = options.itemsLabel || defaultItemsLabel;
+      document.getElementById('wsfm-summary-items').textContent = String(summary.items || 0)+' '+String(options.itemsUnit || 'шт.');
+      document.getElementById('wsfm-summary-boxes').textContent = String(summary.boxes || 0);
+      document.getElementById('wsfm-summary-pallets').textContent = String(summary.pallets || 0);
+      root.classList.add('is-open');
+      root.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      return new Promise(function(resolve, reject){
+        activeResolve = resolve;
+        activeReject = reject;
+        loadData().catch(function(error){
+          setStatus(error.message || 'Не удалось загрузить услуги.', true);
+        });
+      });
+    },
+    openSequence: function(targets, sequenceOptions){
+      var list = Array.isArray(targets) ? targets : [];
+      if (!list.length) return Promise.reject(new Error('В рейсе не найден клиент для сохранения услуг.'));
+      sequenceOptions = sequenceOptions || {};
+      var results = [];
+      return list.reduce(function(chain, target){
+        return chain.then(function(){
+          return api.open(
+            {items: target.items || 0, boxes: target.boxes || 0, pallets: target.pallets || 0},
+            {
+              clientId: target.clientId,
+              clientName: target.clientName,
+              orderType: target.orderType || 'logistics',
+              orderId: target.orderId,
+              source: target.source || 'logistics_manual',
+              title: 'Услуги рейса '+String(target.orderId || ''),
+              itemsLabel: 'Заявок / направлений',
+              itemsUnit: 'заяв.',
+              deferredSave: !!sequenceOptions.deferredSave,
+              catalog: target.catalog,
+              facts: target.facts
+            }
+          ).then(function(result){
+            results.push({clientId: target.clientId, result: result});
+            return results;
+          });
+        });
+      }, Promise.resolve()).then(function(){ return results; });
+    }
+  };
+  window.FullboxWarehouseServicesModal = api;
+})();
+</script>

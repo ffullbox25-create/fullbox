@@ -1,0 +1,63 @@
+{% extends "orders/receiving_tsd_base.html" %}
+{% block title %}Заявки на приемку{% endblock %}
+{% block content %}
+  <section class="page-heading">
+    <div>
+      <p class="eyebrow">Приемка по заявкам</p>
+      <h1>Заявки на приемку</h1>
+    </div>
+    <button class="button button-light" type="button" onclick="window.location.reload()">Обновить</button>
+  </section>
+
+  <section class="queue-list">
+    {% for row in rows %}
+      <article class="queue-card {% if row.is_mine %}is-mine{% elif not row.is_available %}is-busy{% endif %}">
+        <div class="queue-card-head">
+          <div>
+            <span class="status-chip">
+              {% if row.is_mine %}Моя заявка{% elif row.is_available %}Свободна{% else %}В работе{% endif %}
+            </span>
+            {% if row.receiving_mode == 'cz' %}<span class="status-chip status-cz">ЧЗ</span>{% endif %}
+            <span class="status-chip">→ {{ row.receiving_route_label }}</span>
+          </div>
+          <strong>№ {{ row.order_id }}</strong>
+        </div>
+        <h2>{{ row.client }}</h2>
+        {% if row.receiving_route == 'fbs' %}<p><strong>После приёмки: точное FBS-место</strong></p>{% endif %}
+        <div class="queue-counts">
+          <span><b>{{ row.accepted_qty }}</b> принято</span>
+          <span><b>{{ row.planned_qty }}</b> заявлено</span>
+        </div>
+        {% if row.owner_name and not row.is_mine %}<p class="muted">Исполнитель: {{ row.owner_name }}</p>{% endif %}
+        {% if row.is_mine %}
+          <a class="button button-primary" href="{% url 'orders-receiving-tsd-detail' row.order_id %}">Открыть заявку</a>
+        {% elif row.is_available %}
+          <form method="post" action="{% url 'orders-receiving-tsd-claim' row.order_id %}">
+            {% csrf_token %}
+            <label for="goods-type-{{ forloop.counter }}">Тип товара</label>
+            <select id="goods-type-{{ forloop.counter }}" class="scan-input" name="goods_type" required>
+              <option value="">Выберите тип товара</option>
+              {% for code, label in row.goods_type_choices %}
+                <option value="{{ code }}" {% if code == row.goods_type %}selected{% endif %}>{{ label }} — {{ code|upper }}</option>
+              {% endfor %}
+            </select>
+            <button class="button button-primary" type="submit">Взять в работу</button>
+          </form>
+        {% elif row.can_take_over %}
+          <form method="post" action="{% url 'orders-receiving-tsd-claim' row.order_id %}" onsubmit="return confirm('Заявка закреплена за {{ row.owner_name|escapejs }}. Взять её в работу?');">
+            {% csrf_token %}
+            <input type="hidden" name="take_over" value="1">
+            <button class="button button-primary" type="submit">Взять в работу</button>
+          </form>
+        {% else %}
+          <button class="button button-light" type="button" disabled>Недоступна</button>
+        {% endif %}
+      </article>
+    {% empty %}
+      <div class="empty-state">
+        <strong>Заявок для приемки сейчас нет</strong>
+        <p>Новые подтвержденные заявки появятся здесь автоматически.</p>
+      </div>
+    {% endfor %}
+  </section>
+{% endblock %}

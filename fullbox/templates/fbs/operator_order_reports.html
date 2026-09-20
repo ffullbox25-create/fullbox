@@ -1,0 +1,48 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}{{ report_title }}{% endblock %}
+{% block workspace_crumb %}<strong>Отчёты</strong><span>/</span><span>{{ report_title }}</span>{% endblock %}
+{% block workspace_actions %}<a class="button button-secondary" href="{% url 'fbs:operator_orders' %}">К заказам</a>{% endblock %}
+
+{% block workspace_body %}
+    <nav class="fbs-report-tabs" aria-label="Отчеты FBS">
+      {% for value, label in report_types.items %}<a class="{% if value == report_type %}is-active{% endif %}" href="?report={{ value }}&amp;agency={{ agency_filter|urlencode }}&amp;marketplace={{ marketplace_filter|urlencode }}&amp;date_from={{ date_from|urlencode }}&amp;date_to={{ date_to|urlencode }}">{{ label }}</a>{% endfor %}
+    </nav>
+
+    <section class="fbs-panel fbs-filters-panel">
+      <div class="fbs-panel-heading"><div><span class="section-kicker">Параметры</span><h2>Период и партнер</h2></div><a href="{% url 'fbs:operator_order_reports' %}?report={{ report_type }}">Очистить</a></div>
+      <form class="fbs-report-filters" method="get">
+        <input type="hidden" name="report" value="{{ report_type }}">
+        <label><span>Партнер</span><select name="agency"><option value="">Все партнеры</option>{% for agency in agencies %}<option value="{{ agency.id }}"{% if agency.id|stringformat:'s' == agency_filter %} selected{% endif %}>{{ agency }}</option>{% endfor %}</select></label>
+        <label><span>Маркетплейс</span><select name="marketplace"><option value="">Все площадки</option>{% for value, label in marketplace_choices %}<option value="{{ value }}"{% if value == marketplace_filter %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label><span>Получены Fullbox с</span><input type="date" name="date_from" value="{{ date_from }}"></label>
+        <label><span>Получены Fullbox по</span><input type="date" name="date_to" value="{{ date_to }}"></label>
+        <button class="button button-primary" type="submit">Сформировать</button>
+      </form>
+      <p class="text-muted">Период — дата получения заказа в Fullbox, не дата отгрузки. Статусы и итоги относятся к заказам, полученным в этот период. «Обновлён» — последнее изменение записи.</p>
+    </section>
+
+    <section class="fbs-kpi-strip fbs-report-kpis" aria-label="Сводка отчета">
+      <div><span>Всего заказов</span><strong>{{ total_summary.orders }}</strong></div>
+      <div><span>Всего товаров</span><strong>{{ total_summary.units }}</strong></div>
+      <div><span>Отгружено заказов</span><strong>{{ shipped_summary.orders }}</strong></div>
+      <div><span>Отгружено товаров</span><strong>{{ shipped_summary.units }}</strong></div>
+    </section>
+
+    <section class="fbs-panel fbs-orders-result">
+      <div class="fbs-panel-heading"><div><span class="section-kicker">Результат</span><h2>{{ report_title }}</h2></div><div class="fbs-table-count"><strong>{% if report_page %}{{ report_page.start_index }}–{{ report_page.end_index }} из {{ report_page.paginator.count }}{% else %}{{ rows|length }}{% endif %}</strong><span>строк</span></div></div>
+      <div class="operator-table-scroll operator-table-scroll-work">
+        {% if report_type == 'status' %}
+          <table class="operator-table fbs-report-table"><thead><tr><th>Внутренний статус</th><th>Заказов</th><th>Товаров</th><th>Доля</th></tr></thead><tbody>{% for row in rows %}<tr><td><span class="status status-{{ row.internal_status }}">{{ row.label }}</span></td><td><strong>{{ row.order_count }}</strong></td><td>{{ row.unit_count }}</td><td>{% widthratio row.order_count total_summary.orders 100 %}%</td></tr>{% empty %}<tr><td class="empty-row" colspan="4">Нет данных за выбранный период</td></tr>{% endfor %}</tbody></table>
+        {% elif report_type == 'count' %}
+          <table class="operator-table fbs-report-table"><thead><tr><th>Дата получения</th><th>Маркетплейс</th><th>Заказов</th><th>Товаров</th></tr></thead><tbody>{% for row in rows %}<tr><td><strong>{{ row.report_date|date:"d.m.Y" }}</strong></td><td>{{ row.marketplace_label }}</td><td><strong>{{ row.order_count }}</strong></td><td>{{ row.unit_count }}</td></tr>{% empty %}<tr><td class="empty-row" colspan="4">Нет данных за выбранный период</td></tr>{% endfor %}</tbody></table>
+        {% elif report_type == 'shipped' %}
+          <table class="operator-table fbs-report-table"><thead><tr><th>ID</th><th>Номер заказа</th><th>Партнер</th><th>Маркетплейс</th><th>Товаров</th><th>Статус</th><th>Обновлен</th></tr></thead><tbody>{% for order in rows %}<tr data-row-link="{% url 'fbs:operator_order_detail' order_id=order.id %}" tabindex="0"><td>{{ order.id }}</td><td><a class="table-main-link" href="{% url 'fbs:operator_order_detail' order_id=order.id %}">{{ order.external_order_id }}</a></td><td>{{ order.profile.agency }}</td><td>{{ order.profile.get_marketplace_display }}</td><td><strong>{{ order.report_unit_count }}</strong></td><td><span class="status status-{{ order.internal_status }}">{{ order.internal_status_label }}</span></td><td>{{ order.updated_at|date:"d.m.Y H:i:s" }}</td></tr>{% empty %}<tr><td class="empty-row" colspan="7">Отгруженных заказов нет</td></tr>{% endfor %}</tbody></table>
+        {% else %}
+          <table class="operator-table fbs-report-table"><thead><tr><th>Партнер</th><th>Маркетплейс</th><th>Артикул</th><th>Штрихкод</th><th>Товар</th><th>Заказов</th><th>Отгружено, шт.</th></tr></thead><tbody>{% for row in rows %}<tr><td>{{ row.order__profile__agency__agn_name }}</td><td>{{ row.marketplace_label }}</td><td><strong>{{ row.external_sku }}</strong></td><td><code>{{ row.barcode|default:"-" }}</code></td><td>{{ row.product_name|default:"Без названия" }}</td><td>{{ row.order_count }}</td><td><strong>{{ row.unit_count }}</strong></td></tr>{% empty %}<tr><td class="empty-row" colspan="7">Отгруженных товаров нет</td></tr>{% endfor %}</tbody></table>
+        {% endif %}
+      </div>
+    </section>
+
+{% if report_page.paginator.num_pages > 1 %}<nav class="operator-pagination" aria-label="Страницы отчёта">{% if report_page.has_previous %}<a class="button button-secondary" href="?report={{ report_type }}&amp;agency={{ agency_filter|urlencode }}&amp;marketplace={{ marketplace_filter|urlencode }}&amp;date_from={{ date_from|urlencode }}&amp;date_to={{ date_to|urlencode }}&amp;page={{ report_page.previous_page_number }}">Назад</a>{% endif %}<span>Страница {{ report_page.number }} из {{ report_page.paginator.num_pages }}</span>{% if report_page.has_next %}<a class="button button-secondary" href="?report={{ report_type }}&amp;agency={{ agency_filter|urlencode }}&amp;marketplace={{ marketplace_filter|urlencode }}&amp;date_from={{ date_from|urlencode }}&amp;date_to={{ date_to|urlencode }}&amp;page={{ report_page.next_page_number }}">Далее</a>{% endif %}</nav>{% endif %}
+{% endblock %}

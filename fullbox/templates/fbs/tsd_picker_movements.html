@@ -1,0 +1,49 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Перемещение{% endblock %}
+{% block page_class %}tsd-page-picker-home{% endblock %}
+{% block page_title %}Перемещение{% endblock %}
+
+{% block content %}
+  <section class="picker-home-menu" aria-label="Виды перемещения FBS">
+    <a class="picker-home-action picker-home-action-primary" href="{% url 'fbs:tsd_picker_move_box_cell' %}">
+      <span class="picker-home-number">1</span>
+      <span class="picker-home-copy">
+        <strong>Короб → ячейка</strong>
+        <small>Переместить 1 товар в PR</small>
+      </span>
+    </a>
+
+    <a class="picker-home-action" href="{% url 'fbs:tsd_picker_move_cell_cell' %}">
+      <span class="picker-home-number">2</span>
+      <span class="picker-home-copy">
+        <strong>Ячейка → ячейка</strong>
+        <small>Переместить 1 товар между PR-ячейками</small>
+      </span>
+    </a>
+
+    <a class="picker-home-action" href="{% url 'fbs:tsd_picker_move_box_box' %}">
+      <span class="picker-home-number">3</span>
+      <span class="picker-home-copy">
+        <strong>Короб → короб</strong>
+        <small>Переложить 1 товар</small>
+      </span>
+    </a>
+
+    <a class="picker-home-action" href="{% url 'fbs:tsd_picker_move_full_box' %}">
+      <span class="picker-home-number">4</span>
+      <span class="picker-home-copy">
+        <strong>Короб целиком → место</strong>
+        <small>Переместить весь короб в PR или ОТГ</small>
+      </span>
+    </a>
+
+    <a class="picker-home-action" href="{% url 'fbs:tsd_picker_move_pallet' %}">
+      <span class="picker-home-number">5</span>
+      <span class="picker-home-copy">
+        <strong>FBS-паллета → место</strong>
+        <small>Переместить паллету целиком</small>
+      </span>
+    </a>
+  </section>
+{% endblock %}

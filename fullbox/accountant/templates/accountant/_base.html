@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Кабинет бухгалтера{% endblock %} | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css?v=20260718-3" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css?v=20260718-3" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #303030;
+      --muted: #6b6f66;
+      --accent: #f89000;
+      --accent-strong: #f86800;
+      --accent-soft: rgba(248, 144, 0, 0.13);
+      --sun: #f8b800;
+      --sun-soft: #fff1cc;
+      --green: #f89000;
+      --green-strong: #f86800;
+      --green-soft: rgba(248, 144, 0, 0.13);
+      --orange: #f89000;
+      --orange-soft: rgba(248, 144, 0, 0.13);
+    }
+    .app { display:grid; grid-template-columns:250px minmax(0,1fr); min-height:100vh; }
+    .side {
+      background:rgba(255,253,248,0.92); border-right:1px solid var(--stroke); padding:18px 14px;
+      display:flex; flex-direction:column; gap:14px; position:sticky; top:0; height:100vh; overflow:auto;
+      backdrop-filter: blur(8px);
+    }
+    .brand {
+      display:flex; align-items:center; min-width:0; padding:2px 8px 4px;
+      font-family:"Bricolage Grotesque", "Manrope", system-ui, sans-serif;
+    }
+    .fullbox-brand-mark { display:inline-flex; align-items:center; min-width:0; }
+    .fullbox-brand-img { display:block; width:auto; height:42px; max-width:132px; object-fit:contain; }
+    .side-label { padding:0 8px; font-size:12px; font-weight:800; color:var(--muted); }
+    .nav { display:grid; gap:2px; }
+    .nav-item > a, .nav-group > button {
+      display:flex; justify-content:space-between; gap:8px; align-items:center;
+      width:100%; padding:9px 12px; border-radius:12px; font-size:13px; font-weight:700; color:var(--ink);
+      border:1px solid transparent; background:transparent; cursor:pointer; text-align:left; font:inherit;
+    }
+    .nav-item > a:hover, .nav-group > button:hover { background:var(--surface-2); }
+    .nav-item > a.active, .nav-group > button.active-group {
+      background:var(--accent-soft); color:var(--accent-strong);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+    .nav-group > button .chev {
+      font-size:10px; color:var(--muted); transition: transform .15s ease; flex:0 0 auto;
+    }
+    .nav-group.open > button .chev { transform: rotate(90deg); color:var(--accent-strong); }
+    .nav-children {
+      display:none; padding:2px 0 6px 10px; margin:0 0 4px; border-left:2px solid var(--stroke);
+      margin-left:12px; gap:2px;
+    }
+    .nav-group.open > .nav-children { display:grid; }
+    .nav-children a {
+      display:flex; justify-content:space-between; gap:6px; align-items:center;
+      padding:7px 10px; border-radius:10px; font-size:12px; font-weight:650; color:var(--ink);
+      border:1px solid transparent;
+    }
+    .nav-children a:hover { background:var(--surface-2); }
+    .nav-children a.active {
+      background:var(--accent-soft); color:var(--accent-strong);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+    .badge-count {
+      min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:var(--sun-soft);
+      color:#9a3412; font-size:10px; font-weight:900; display:inline-grid; place-items:center; flex:0 0 auto;
+    }
+    .main { padding:24px; display:grid; gap:16px; align-content:start; min-width:0; }
+    .field {
+      width:100%; border:1px solid var(--stroke); border-radius:12px; background:#fff;
+      color:var(--ink); padding:9px 12px; font:inherit; font-size:13px; outline:none;
+    }
+    .field:focus { border-color:rgba(248,144,0,0.55); box-shadow:0 0 0 3px var(--accent-soft); }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th {
+      text-align:left; padding:10px 12px; color:var(--muted); font-size:11px; font-weight:900;
+      text-transform:uppercase; letter-spacing:.03em; border-bottom:2px solid var(--stroke); background:var(--surface-2);
+    }
+    td { padding:11px 12px; border-bottom:1px solid var(--stroke); vertical-align:top; }
+    .badge {
+      display:inline-flex; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900;
+      background:var(--surface-2); color:var(--muted); border:1px solid var(--stroke);
+    }
+    .badge.green { background:var(--accent-soft); color:var(--accent-strong); border-color:transparent; }
+    .badge.orange { background:var(--sun-soft); color:#9a3412; border-color:transparent; }
+    .badge.red { background:var(--danger-soft); color:var(--danger); border-color:transparent; }
+    .badge.blue { background:var(--accent-soft); color:var(--accent-strong); border-color:transparent; }
+    .warn-box {
+      background:var(--sun-soft); border:1px solid rgba(242,183,71,0.45); border-radius:12px;
+      padding:12px 14px; color:#9a3412; font-size:13px; font-weight:700;
+    }
+    .err-box {
+      background:var(--danger-soft); border:1px solid rgba(212,84,60,0.28); border-radius:12px;
+      padding:12px 14px; color:var(--danger); font-size:13px; font-weight:700;
+    }
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+    .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+    label.lbl {
+      display:block; font-size:11px; font-weight:800; color:var(--muted);
+      margin-bottom:4px; text-transform:uppercase; letter-spacing:.03em;
+    }
+    .side-footer { margin-top:auto; padding-top:8px; }
+    .kpi-card .kpi-val { font-size:28px; font-weight:900; margin-top:6px; line-height:1.1; }
+    .kpi-card .kpi-hint { font-size:12px; color:var(--muted); margin-top:4px; font-weight:600; }
+    .kpi-card.tone-danger .kpi-val { color:var(--danger); }
+    .attention-row {
+      display:flex; justify-content:space-between; gap:12px; align-items:center;
+      padding:10px 0; border-bottom:1px solid var(--stroke); font-size:13px; font-weight:700;
+    }
+    .attention-row:last-child { border-bottom:0; }
+    .quick-start { display:grid; gap:8px; }
+    .quick-start li { font-size:13px; font-weight:600; line-height:1.45; }
+    .actions-row { display:flex; gap:8px; flex-wrap:wrap; }
+    @media (max-width:1100px) {
+      .grid-4 { grid-template-columns:1fr 1fr; }
+    }
+    @media (max-width:960px) {
+      .app { grid-template-columns:1fr; }
+      .side { position:relative; height:auto; max-height:none; }
+      .grid-2, .grid-3, .grid-4 { grid-template-columns:1fr; }
+    }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="lk-theme">
+<div class="app">
+  <aside class="side">
+    <div class="brand">{% include "partials/fullbox_brand.html" %}</div>
+    <div class="side-label">Кабинет бухгалтера</div>
+    <nav class="nav" id="accountant-nav">
+      {% for group in accountant_menu %}
+        {% if group.has_children %}
+          <div class="nav-group {% if group.open %}open{% endif %}" data-menu-key="{{ group.key }}">
+            <button type="button" class="nav-group-toggle {% if group.active %}active-group{% endif %}" aria-expanded="{% if group.open %}true{% else %}false{% endif %}">
+              <span>{{ group.title }}</span>
+              <span style="display:inline-flex;gap:6px;align-items:center">
+                {% if group.counter %}<span class="badge-count">{{ group.counter }}</span>{% endif %}
+                <span class="chev">▶</span>
+              </span>
+            </button>
+            <div class="nav-children">
+              {% for child in group.children %}
+                <a href="{{ child.href }}" class="{% if child.active %}active{% endif %}">
+                  <span>{{ child.title }}</span>
+                  {% if child.counter %}<span class="badge-count">{{ child.counter }}</span>{% endif %}
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+        {% else %}
+          <div class="nav-item">
+            <a href="{{ group.href }}" class="{% if group.active %}active{% endif %}">{{ group.title }}</a>
+          </div>
+        {% endif %}
+      {% empty %}
+        <div class="nav-item"><a href="/accountant/" class="active">Обзор</a></div>
+      {% endfor %}
+    </nav>
+    <div class="side-footer">
+      <a class="btn ghost" href="/logout/">↗ Выход</a>
+    </div>
+  </aside>
+  <main class="main">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+<script>
+(function () {
+  var KEY = "accountant_menu_open_v1";
+  var nav = document.getElementById("accountant-nav");
+  if (!nav) return;
+  var stored = {};
+  try { stored = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { stored = {}; }
+  nav.querySelectorAll(".nav-group").forEach(function (group) {
+    var key = group.getAttribute("data-menu-key");
+    if (key && Object.prototype.hasOwnProperty.call(stored, key)) {
+      if (stored[key]) group.classList.add("open");
+      else if (!group.querySelector(".nav-children a.active")) group.classList.remove("open");
+    }
+    var btn = group.querySelector(".nav-group-toggle");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      group.classList.toggle("open");
+      btn.setAttribute("aria-expanded", group.classList.contains("open") ? "true" : "false");
+      try {
+        var map = JSON.parse(localStorage.getItem(KEY) || "{}") || {};
+        map[key] = group.classList.contains("open");
+        localStorage.setItem(KEY, JSON.stringify(map));
+      } catch (e) {}
+    });
+  });
+})();
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,97 @@
+{% extends "teammanager/_base.html" %}
+{% load billing_tags %}
+
+{% block title %}Задолженность — Биллинг{% endblock %}
+
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.summary-strip { display:flex; gap:12px; flex-wrap:wrap; }
+.stat-pill { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:12px 18px; min-width:120px; }
+.stat-pill .sp-label { font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; }
+.stat-pill .sp-value { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:20px; font-weight:900; margin-top:2px; }
+.stat-pill.warn .sp-value { color:var(--red); }
+.filter-card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.field { border:1px solid var(--line); border-radius:10px; background:#fff; padding:9px 12px; font:inherit; font-size:13px; }
+.table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:920px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:2px solid var(--line); }
+td { padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+.row-main { font-weight:800; }
+.row-sub { color:var(--muted); font-size:11px; margin-top:2px; }
+.money { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-weight:800; }
+.badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900; }
+.badge.red { background:#fff0f0; color:var(--red); }
+.badge.orange { background:var(--orange-soft); color:#b45309; }
+.badge.gray { background:var(--surface-2); color:var(--muted); }
+{% endblock %}
+
+{% block content %}
+{% include "billing/_billing_nav.html" %}
+
+<div>
+  <h1 class="page-title">Задолженность</h1>
+  <div class="page-sub">Открытый долг по счетам портфеля. Просрочка — срок оплаты истёк.</div>
+</div>
+
+<div class="summary-strip">
+  <div class="stat-pill"><div class="sp-label">Открытых счетов</div><div class="sp-value">{{ debt_open_count }}</div></div>
+  <div class="stat-pill"><div class="sp-label">Открытый долг</div><div class="sp-value">{{ debt_open_total|money_fmt }}</div></div>
+  <div class="stat-pill warn"><div class="sp-label">Просрочено</div><div class="sp-value">{{ debt_overdue_count }}</div></div>
+  <div class="stat-pill warn"><div class="sp-label">Сумма просрочки</div><div class="sp-value">{{ debt_overdue_total|money_fmt }}</div></div>
+</div>
+
+<form class="filter-card" method="get">
+  <select class="field" name="client">
+    <option value="">Все клиенты</option>
+    {% for c in debt_clients %}
+      <option value="{{ c.id }}" {% if filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn primary" type="submit">Найти</button>
+  <a class="btn" href="/team-manager/billing/promises/">Обещания оплаты</a>
+</form>
+
+<div class="table-card">
+  <table>
+    <thead>
+      <tr>
+        <th>Клиент</th>
+        <th>Счёт</th>
+        <th>Срок</th>
+        <th>Долг</th>
+        <th>Статус</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in debt_rows %}
+        {% with inv=row.invoice %}
+        <tr>
+          <td>{{ inv.client.short_name|default:inv.client.agn_name|truncatechars:28 }}</td>
+          <td>
+            <div class="row-main">{{ inv.number }}</div>
+            <div class="row-sub">{{ inv.get_status_display }} · всего {{ inv.total_amount|money_fmt }}</div>
+          </td>
+          <td>
+            {% if inv.due_date %}{{ inv.due_date|date:"d.m.Y" }}{% else %}—{% endif %}
+            {% if row.is_overdue %}<div class="row-sub">{{ row.days_overdue }} дн.</div>{% endif %}
+          </td>
+          <td><span class="money">{{ inv.debt_amount|money_fmt }}</span></td>
+          <td>
+            {% if row.is_overdue %}<span class="badge red">Просрочен</span>
+            {% else %}<span class="badge orange">Открыт</span>{% endif %}
+          </td>
+          <td style="white-space:nowrap">
+            <a class="btn" href="/team-manager/billing/invoices/{{ inv.id }}/" style="font-size:11px;padding:5px 8px">Счёт</a>
+            <a class="btn" href="/team-manager/billing/clients/{{ inv.client_id }}/" style="font-size:11px;padding:5px 8px">Клиент</a>
+          </td>
+        </tr>
+        {% endwith %}
+      {% empty %}
+        <tr><td colspan="6" style="padding:36px;text-align:center;color:var(--muted);font-weight:700">Открытой задолженности нет</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

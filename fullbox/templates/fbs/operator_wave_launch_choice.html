@@ -1,0 +1,79 @@
+<dialog open class="wave-launch-dialog" data-wave-launch-dialog aria-labelledby="wave-launch-title">
+  <div class="wave-launch-dialog__head">
+    <div><span class="section-kicker">Запуск волны</span><h2 id="wave-launch-title">Куда направить заказы?</h2></div>
+    <a class="button button-secondary button-compact" href="{{ wave_launch_choice.cancel_url }}" aria-label="Закрыть окно выбора волны">Закрыть</a>
+  </div>
+  <p>Выбрано заказов: <strong>{{ wave_launch_choice.order_count }}</strong> · товаров: <strong>{{ wave_launch_choice.unit_count }} шт.</strong></p>
+  {% if wave_launch_choice.error %}<p class="wave-launch-dialog__error" role="alert">{{ wave_launch_choice.error }}</p>{% endif %}
+  <form method="post" action="{% url 'fbs:operator_confirm_wave' %}" data-submit-once data-wave-launch-confirm>
+    {% csrf_token %}
+    <input type="hidden" name="return_to" value="queue">
+    <input type="hidden" name="submit_mode" value="selected">
+    <input type="hidden" name="agency" value="{{ wave_launch_choice.agency_id }}">
+    <input type="hidden" name="queue_limit" value="{{ wave_launch_choice.queue_limit }}">
+    {% for order_id in wave_launch_choice.selected_order_ids %}<input type="hidden" name="order_ids" value="{{ order_id }}">{% endfor %}
+    <label class="wave-launch-option">
+      <input type="radio" name="wave_action" value="new" checked>
+      <span><strong>Создать новую волну</strong><small>Выбранные заказы пойдут отдельно. Существующие волны не изменятся.</small></span>
+    </label>
+    <p class="wave-launch-dialog__hint">До 100 заказов и 100 шт. в волне. Если выбор больше или содержит разные кабинеты клиента — создадутся отдельные волны.</p>
+    <label class="wave-launch-option{% if not wave_launch_choice.destinations %} wave-launch-option--disabled{% endif %}">
+      <input type="radio" name="wave_action" value="existing" {% if not wave_launch_choice.destinations %}disabled{% endif %}>
+      <span><strong>Добавить в существующую</strong><small>Выберите незапущенную волну того же кабинета клиента.</small></span>
+    </label>
+    {% if wave_launch_choice.destinations %}
+      <label class="wave-launch-destination">Волна для добавления
+        <select name="target_batch_id" data-wave-launch-target>
+          <option value="">Выберите волну</option>
+          {% for wave in wave_launch_choice.destinations %}<option value="{{ wave.id }}">№{{ wave.id }} · {{ wave.created_at|date:"d.m H:i" }} · заказов: {{ wave.orders }}, шт.: {{ wave.units }} · свободно: {{ wave.free_orders }} зак. / {{ wave.free_units }} шт.</option>{% endfor %}
+        </select>
+      </label>
+      <p class="wave-launch-dialog__hint">Показаны волны, в которые помещается весь выбор. Если волну возьмут в работу или места станет меньше, добавление будет остановлено.</p>
+    {% elif wave_launch_choice.multiple_profiles %}
+      <p class="wave-launch-dialog__hint">Выбраны разные кабинеты клиента. Для добавления в одну волну оставьте заказы одного кабинета.</p>
+    {% else %}
+      <p class="wave-launch-dialog__hint">Нет подходящих незапущенных волн со свободным местом для всего выбора. Можно создать новую волну.</p>
+    {% endif %}
+    <div class="wave-launch-dialog__actions">
+      <a class="button button-secondary" href="{{ wave_launch_choice.cancel_url }}">Отмена</a>
+      <button class="button button-primary" type="submit" data-wave-launch-confirm-button>Создать новую волну</button>
+    </div>
+  </form>
+</dialog>
+<style>
+  .wave-launch-dialog{position:fixed;inset:0;width:min(680px,calc(100vw - 32px));max-height:calc(100dvh - 32px);margin:auto;overflow:auto;padding:22px;border:1px solid #ddd4c8;border-radius:12px;background:#fffdf9;color:#303030;box-shadow:0 20px 60px #302e2b33;z-index:1200}
+  .wave-launch-dialog::backdrop{background:#26232088}
+  .wave-launch-dialog__head,.wave-launch-dialog__actions{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .wave-launch-dialog .wave-launch-dialog__head .button,.wave-launch-dialog .wave-launch-dialog__actions .button{width:auto;min-width:0;flex:none}
+  .wave-launch-dialog__head>div{flex:1;min-width:0}
+  .wave-launch-dialog h2{font-size:23px;margin:4px 0 0}
+  .wave-launch-option{display:flex;align-items:flex-start;gap:12px;padding:16px;margin-top:14px;border:1px solid #ddd4c8;border-radius:10px;cursor:pointer;background:white}
+  .wave-launch-option:has(input:checked){border-color:#e8a026;background:#fff5da}
+  .wave-launch-option input{width:18px;height:18px;flex:none;margin-top:2px;accent-color:#d48a10}
+  .wave-launch-option strong,.wave-launch-option small{display:block}
+  .wave-launch-option small{margin-top:5px;line-height:1.45;color:#6f6b63}
+  .wave-launch-option--disabled{opacity:.6;cursor:default}
+  .wave-launch-dialog__hint{font-size:13px;color:#777168;line-height:1.5;margin:8px 0 14px}
+  .wave-launch-destination{display:block;font-size:14px;margin-top:14px}
+  .wave-launch-destination select{display:block;width:100%;min-width:0;min-height:42px;margin-top:6px;padding:8px;border:1px solid #ddd4c8;border-radius:8px;background:white;color:#303030}
+  .wave-launch-dialog__error{padding:12px;border:1px solid #efb4a9;border-radius:8px;background:#fff0ec;color:#a32c22}
+  .wave-launch-dialog__actions{justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+  @media(max-width:500px){.wave-launch-dialog{padding:16px}.wave-launch-dialog h2{font-size:20px}.wave-launch-dialog__head{align-items:flex-start}}
+</style>
+<script>
+  (() => {
+    const dialog = document.querySelector('[data-wave-launch-dialog]');
+    if (!dialog) return;
+    const form = dialog.querySelector('[data-wave-launch-confirm]');
+    const target = form.querySelector('[data-wave-launch-target]');
+    const button = form.querySelector('[data-wave-launch-confirm-button]');
+    const updateMode = () => {
+      const existing = form.querySelector('[name="wave_action"]:checked')?.value === 'existing';
+      if (target) { target.disabled = !existing; target.required = existing; }
+      button.textContent = existing ? 'Добавить в выбранную волну' : 'Создать новую волну';
+    };
+    form.addEventListener('change', updateMode);
+    updateMode();
+    if (typeof dialog.showModal === 'function') { dialog.close(); dialog.showModal(); }
+  })();
+</script>

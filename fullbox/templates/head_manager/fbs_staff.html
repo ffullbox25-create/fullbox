@@ -1,0 +1,98 @@
+{% extends "head_manager/fbs_base.html" %}
+
+{% block title %}{% if is_controllers %}FBS-контролёры{% else %}Сборщики FBS{% endif %}{% endblock %}
+
+{% block head_extra %}
+  <style>
+    .staff-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+    .staff-policy { display: grid; gap: 8px; min-width: 250px; }
+    .staff-policy label { display: flex; align-items: flex-start; gap: 8px; color: var(--ink); }
+    .staff-policy input[type="checkbox"] { width: 18px; min-height: 18px; flex: 0 0 auto; accent-color: var(--accent); }
+    .wave-list { display: grid; gap: 5px; min-width: 240px; }
+    .wave-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <header class="topbar">
+    <div>
+      <h1>{% if is_controllers %}FBS-контролёры{% else %}Сборщики FBS{% endif %}</h1>
+      <p class="subtitle">Сотрудники, текущие волны и результат за сегодня.</p>
+    </div>
+    <div class="topbar-actions">
+      <a class="btn" href="/head-manager/fbs/">Обзор FBS</a>
+      <a class="btn{% if is_controllers %} primary{% endif %}" href="/head-manager/fbs/controllers/">FBS-контролёры</a>
+      <a class="btn{% if not is_controllers %} primary{% endif %}" href="/head-manager/fbs/pickers/">Сборщики</a>
+      <a class="btn" href="/head-manager/fbs/settings/">Настройки FBS</a>
+    </div>
+  </header>
+
+  {% if is_controllers %}
+    <div class="notice warning">
+      Ускоренный контроль действует только для WB и только у отмеченного контролёра. ШК заказа, КИЗ/ЧЗ, официальный статус marketplace и состав поставки остаются обязательными. При любой ошибке заказ не отправляется автоматически.
+    </div>
+  {% endif %}
+
+  <section class="metrics" aria-label="Сводка сотрудников FBS">
+    <div class="metric"><span>Всего сотрудников</span><strong>{{ summary.total }}</strong></div>
+    <div class="metric"><span>Активны</span><strong>{{ summary.active }}</strong></div>
+    <div class="metric"><span>Текущих волн</span><strong>{{ summary.current_waves }}</strong></div>
+    <div class="metric"><span>Завершено сегодня</span><strong>{{ summary.completed_waves }}</strong></div>
+    {% if is_controllers %}<div class="metric"><span>Ускоренный WB</span><strong>{{ summary.fast_wb }}</strong></div>{% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>{% if is_controllers %}Контроль заказов и волн{% else %}Отбор заказов по волнам{% endif %}</h2>
+        <p class="muted">Настройки применяются персонально и не меняют процесс других сотрудников.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Сотрудник</th>
+            <th>Статус</th>
+            <th>Текущие волны</th>
+            <th>За сегодня</th>
+            {% if is_controllers %}<th>Повторная проверка WB</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td class="wide">
+                <strong>{{ row.employee.full_name }}</strong>
+                <div class="muted">{% if row.employee.user %}{{ row.employee.user.get_username }}{% else %}Нет учётной записи{% endif %}</div>
+              </td>
+              <td><span class="pill {% if row.employee.is_active %}success{% else %}neutral{% endif %}">{% if row.employee.is_active %}Активен{% else %}Неактивен{% endif %}</span></td>
+              <td>
+                <div class="wave-list">
+                  {% for wave in row.current_waves %}
+                    <div class="wave-row"><strong>#{{ wave.id }}</strong><span>{{ wave.agency }}</span><span class="pill info">{{ wave.get_status_display }}</span><span>{{ wave.picked_qty }}/{{ wave.planned_qty }} шт.</span></div>
+                  {% empty %}<span class="muted">Нет активных волн</span>{% endfor %}
+                </div>
+              </td>
+              <td><strong>{{ row.completed_waves }} волн</strong><div class="muted">{{ row.completed_units }} шт.</div></td>
+              {% if is_controllers %}
+                <td>
+                  {% if row.employee.is_active and row.employee.user %}
+                    <form class="staff-policy" method="post" action="/head-manager/fbs/controllers/{{ row.employee.id }}/policy/">
+                      {% csrf_token %}
+                      <label><input type="checkbox" name="skip_repeat_wb_label_scan" value="1"{% if row.fast_wb_enabled %} checked{% endif %}> Не повторять скан официальной этикетки заказа WB</label>
+                      <div class="muted">Первичный точный скан используется повторно. Все проверки КИЗ и marketplace выполняются в фоне.</div>
+                      <button class="btn small primary" type="submit">Сохранить</button>
+                    </form>
+                  {% else %}<span class="muted">Недоступно</span>{% endif %}
+                </td>
+              {% endif %}
+            </tr>
+          {% empty %}
+            <tr><td colspan="{% if is_controllers %}5{% else %}4{% endif %}" class="empty">Сотрудников этой роли нет.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

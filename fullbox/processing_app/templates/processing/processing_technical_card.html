@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Техническая карта на обработку товара</title>
+
+  <style>
+    @page { size: A4; margin: 10mm; }
+
+    :root{
+      --border:#000;
+      --thin: 1px;
+      --thick: 2px;
+      --gray:  #efefef;
+      --gray2: #e8e8e8;
+      --note:  #fff2cc;
+      --hi:    #fff2b3;
+      --font:    12px;
+      --font-sm: 11px;
+      --font-xs: 10px;
+    }
+
+    *{ box-sizing:border-box; }
+    *{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    body{ margin:0; font-family: Arial, Helvetica, sans-serif; color:#000; background:#ececec; }
+
+    .page{
+      max-width: calc(190mm + 180px + 24px);
+      margin: 10px auto 14px;
+      display:grid;
+      grid-template-columns: 180px 190mm;
+      gap: 24px;
+      align-items: start;
+    }
+    .toolbar{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      position: sticky;
+      top: 10px;
+    }
+    .btn{
+      border:1px solid #bdbdbd;
+      background:#fff;
+      color:#111;
+      text-decoration:none;
+      padding:8px 10px;
+      border-radius:6px;
+      font-size:13px;
+      font-weight:700;
+      cursor:pointer;
+    }
+    .btn.primary{ background:#f3d27a; border-color:#d6b45c; }
+    .blocks-panel{
+      margin-top: 10px;
+      border:1px solid #bdbdbd;
+      border-radius:6px;
+      background:#fff;
+      padding:8px;
+      font-size:12px;
+    }
+    .blocks-title{
+      font-weight:700;
+      margin-bottom:6px;
+    }
+    .blocks-list{
+      display:grid;
+      gap:4px;
+    }
+    .blocks-list label{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      line-height:1.25;
+    }
+    .blocks-list input[type="checkbox"]{
+      margin:0;
+    }
+    .blocks-list label.locked{
+      opacity: 0.85;
+    }
+    .optional-block[hidden]{
+      display:none;
+    }
+
+    .sheet{
+      width: 190mm;
+      min-height: 277mm;
+      margin: 0;
+      border: var(--thick) solid var(--border);
+      background:#fff;
+      overflow: hidden;
+    }
+
+    .titlebar{
+      padding: 4mm 0 2.5mm;
+      text-align:center;
+      font-size: 18px;
+      font-weight: 800;
+      border-bottom: var(--thick) solid var(--border);
+      line-height: 1;
+    }
+
+    table{ width:100%; border-collapse:collapse; table-layout:fixed; }
+    td,th{
+      border: var(--thin) solid var(--border);
+      padding: 2px 4px;
+      vertical-align: middle;
+      font-size: var(--font);
+      line-height: 1.08;
+      overflow: hidden;
+    }
+
+    .edge-l td:first-child, .edge-l th:first-child{ border-left: 0; }
+    .edge-r td:last-child, .edge-r th:last-child{ border-right: 0; }
+
+    .center{ text-align:center; }
+    .right{ text-align:right; }
+    .bold{ font-weight:700; }
+    .italic{ font-style: italic; }
+    .sm{ font-size: var(--font-sm); }
+    .xs{ font-size: var(--font-xs); }
+    .bg{ background: var(--gray); }
+    .bg2{ background: var(--gray2); }
+    .note{ background: var(--note); }
+    .hi{ background: var(--hi); }
+    .nowrap{ white-space:nowrap; }
+
+    .thick-top td, .thick-top th{ border-top: var(--thick) solid var(--border) !important; }
+    .thick-bottom td, .thick-bottom th{ border-bottom: var(--thick) solid var(--border) !important; }
+
+    .cb{
+      display:inline-block;
+      width: 11px;
+      height: 11px;
+      border: 1px solid #000;
+      vertical-align: -2px;
+      background:#fff;
+      position:relative;
+    }
+    .cb.checked::after{
+      content:"✓";
+      position:absolute;
+      left:0;
+      top:-5px;
+      width:100%;
+      text-align:center;
+      font-size:15px;
+      line-height:15px;
+      font-weight:900;
+    }
+
+    .uline{
+      display:block;
+      width:100%;
+      max-width:100%;
+      border-bottom: 1px solid #000;
+      height: 10px;
+    }
+    .uline.inline{
+      display:inline-block;
+      width: 22mm;
+      vertical-align: -2px;
+      margin-left: 4px;
+    }
+
+    .top{ border-bottom: var(--thick) solid var(--border); }
+    .top td{ border-top: 0; border-bottom: 0; padding: 0; }
+    .photoCell{ width: 52mm; border-right: var(--thick) solid var(--border); }
+    .photoBox{ height: 61mm; width: 100%; position: relative; overflow: hidden; background:#fff; }
+    .photoBox img{ width:100%; height:100%; object-fit: cover; display:block; }
+    .photoPlaceholder{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding: 6px; color:#444; font-size: var(--font-sm); background:#fff; }
+
+    .infoCell{ padding:0; }
+
+    .prodRow{ width:100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+    .prodRow td{ border:0; background: var(--gray2); padding: 4px 8px; height: 15mm; }
+    .prodLabel{ text-align:center; font-style: italic; font-weight:700; }
+    .prodValue{ text-align:center; font-weight:700; }
+    .prodValue .sub{ display:block; font-size: var(--font-sm); font-weight:700; }
+
+    .infoRows{ width:100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+    .infoRows td{ border:0; padding: 1px 8px; }
+    .infoRows tr{ height: 4.6mm; }
+    .value{ font-weight:700; background: var(--gray); overflow-wrap:anywhere; }
+    .rbox{ border-left: var(--thin) solid var(--border); padding-left: 8px; }
+
+    .rgrid{ width:100%; border-collapse:collapse; table-layout:fixed; }
+    .rgrid td{ border:0; padding: 0; font-size: var(--font); }
+    .rlabel{ font-weight:700; }
+    .rlineCell{ padding-left: 6px; }
+
+    .sizes th{ background: var(--gray2); font-weight:700; }
+    .sizes tr.header{ height: 6mm; }
+    .sizes tr.data, .sizes tr.blank{ height: 5mm; }
+    .no-top tr:first-child th, .no-top tr:first-child td{ border-top:0; }
+
+    .dense td, .dense th{ padding: 1px 3px; font-size: var(--font-sm); }
+
+    @media print {
+      body { background:#fff; }
+      .toolbar { display:none; }
+      .sheet { margin: 0 auto; }
+    }
+    @media (max-width: 1200px) {
+      .page{
+        grid-template-columns: 1fr;
+        max-width: 100%;
+        margin: 10px;
+      }
+      .toolbar{
+        position: static;
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+      .sheet{
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <div class="toolbar">
+      <button type="button" class="btn primary" id="print-tech-card">Печать</button>
+      <a class="btn" href="{{ card_page_url }}">К карте товара</a>
+      <a class="btn" href="{{ return_url }}">К обработке</a>
+      <a class="btn" href="{{ cabinet_url }}">В кабинет</a>
+      <div class="blocks-panel">
+        <div class="blocks-title">Условные блоки</div>
+        <div class="blocks-list">
+          <label{% if tech_checks.marking_block_visible %} class="locked"{% endif %}>
+            <input type="checkbox" class="block-toggle" data-block="marking"{% if tech_checks.marking_block_visible %} checked disabled{% endif %}>
+            Маркировка
+          </label>
+          <label{% if tech_checks.set_block_visible %} class="locked"{% endif %}>
+            <input type="checkbox" class="block-toggle" data-block="set"{% if tech_checks.set_block_visible %} checked disabled{% endif %}>
+            Сборка набора
+          </label>
+          <label{% if tech_checks.insert_block_visible %} class="locked"{% endif %}>
+            <input type="checkbox" class="block-toggle" data-block="insert"{% if tech_checks.insert_block_visible %} checked disabled{% endif %}>
+            Доп. вложение
+          </label>
+          <label{% if tech_checks.bubble_wrap_block_visible %} class="locked"{% endif %}>
+            <input type="checkbox" class="block-toggle" data-block="bubble_wrap"{% if tech_checks.bubble_wrap_block_visible %} checked disabled{% endif %}>
+            Упаковка в Бабл
+          </label>
+          <label{% if tech_checks.bag_replace_block_visible %} class="locked"{% endif %}>
+            <input type="checkbox" class="block-toggle" data-block="bag_replace"{% if tech_checks.bag_replace_block_visible %} checked disabled{% endif %}>
+            Замена пакета
+          </label>
+          <label{% if tech_checks.box_replace_block_visible %} class="locked"{% endif %}>
+            <input type="checkbox" class="block-toggle" data-block="box_replace"{% if tech_checks.box_replace_block_visible %} checked disabled{% endif %}>
+            Замена гофрокороба
+          </label>
+          <label{% if tech_checks.shrink_wrap_block_visible %} class="locked"{% endif %}>
+            <input type="checkbox" class="block-toggle" data-block="shrink_wrap"{% if tech_checks.shrink_wrap_block_visible %} checked disabled{% endif %}>
+            Термоусадка
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="sheet">
+    <div class="titlebar">Техническая карта на обработку товара</div>
+
+    <table class="top edge-l edge-r">
+      <colgroup>
+        <col style="width:52mm;">
+        <col style="width:138mm;">
+      </colgroup>
+      <tr>
+        <td class="photoCell">
+          <div class="photoBox">
+            {% if card.photo_url %}
+              <img src="{{ card.photo_url }}" alt="Фото товара" onload="document.getElementById('photoPh').style.display='none'">
+            {% endif %}
+            <div id="photoPh" class="photoPlaceholder"{% if card.photo_url %} style="display:none"{% endif %}>
+              Фото товара
+            </div>
+          </div>
+        </td>
+
+        <td class="infoCell">
+          <table class="prodRow" aria-label="Наименование товара">
+            <colgroup>
+              <col style="width:48mm;">
+              <col style="width:90mm;">
+            </colgroup>
+            <tr>
+              <td class="prodLabel">Наименование товара:</td>
+              <td class="prodValue">
+                {{ card.product_name|default:"-" }}
+                <span class="sub">
+                  {% if tech.wb_article %}WB: {{ tech.wb_article }}{% endif %}{% if tech.color %}, цвет: {{ tech.color }}{% endif %}
+                </span>
+              </td>
+            </tr>
+          </table>
+
+          <table class="infoRows" aria-label="Реквизиты товара">
+            <colgroup>
+              <col style="width:24mm;">
+              <col style="width:58mm;">
+              <col style="width:56mm;">
+            </colgroup>
+
+            <tr>
+              <td>Поставщик:</td>
+              <td class="value">{{ tech.supplier|default:"-" }}</td>
+              <td class="rbox">
+                <table class="rgrid">
+                  <colgroup>
+                    <col style="width:32mm;">
+                    <col style="width:auto;">
+                  </colgroup>
+                  <tr>
+                    <td class="rlabel right">Приобретение в 1С №:</td>
+                    <td class="rlineCell">{{ tech.purchase_1c_no|default:"-" }}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td>Бренд:</td>
+              <td class="value">{{ tech.brand|default:"-" }}</td>
+              <td class="rbox">
+                <table class="rgrid">
+                  <colgroup>
+                    <col style="width:16mm;">
+                    <col style="width:14mm;">
+                    <col style="width:8mm;">
+                    <col style="width:auto;">
+                  </colgroup>
+                  <tr>
+                    <td class="rlabel">ФБЦБ-</td>
+                    <td>{{ tech.purchase_1c_no|default:"-" }}</td>
+                    <td class="rlabel right">от:</td>
+                    <td class="rlineCell">{{ tech.purchase_1c_date|default:"-" }}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td>Предмет:</td>
+              <td class="value">{{ tech.subject|default:"-" }}</td>
+              <td class="rbox">
+                <table class="rgrid">
+                  <colgroup>
+                    <col style="width:16mm;">
+                    <col style="width:auto;">
+                  </colgroup>
+                  <tr>
+                    <td class="rlabel"></td>
+                    <td class="rlineCell"></td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td>Артикул:</td>
+              <td class="value">{{ tech.article|default:"-" }}</td>
+              <td class="rbox">
+                <table class="rgrid">
+                  <colgroup>
+                    <col style="width:16mm;">
+                    <col style="width:auto;">
+                  </colgroup>
+                  <tr>
+                    <td class="rlabel">Заказ №</td>
+                    <td class="rlineCell">{{ tech.order_no|default:"-" }}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td>Артикул ВБ:</td>
+              <td class="value">{{ tech.wb_article|default:"-" }}</td>
+              <td class="rbox"></td>
+            </tr>
+
+            <tr>
+              <td>Цвет:</td>
+              <td class="value">{{ tech.color|default:"-" }}</td>
+              <td class="rbox"></td>
+            </tr>
+
+            <tr>
+              <td>Состав:</td>
+              <td class="value">{{ tech.composition|default:"-" }}</td>
+              <td class="rbox"></td>
+            </tr>
+
+            <tr>
+              <td>Пол:</td>
+              <td class="value">{{ tech.gender|default:"-" }}</td>
+              <td class="rbox"></td>
+            </tr>
+
+            <tr>
+              <td>Сезон:</td>
+              <td class="value">{{ tech.season|default:"-" }}</td>
+              <td class="rbox"></td>
+            </tr>
+
+            <tr>
+              <td>Кол-во размеров:</td>
+              <td class="value">{{ tech.size_count|default:"0" }}</td>
+              <td class="rbox"></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <table class="sizes edge-l edge-r no-top">
+      <tr class="header">
+        <th style="width:14%;">№</th>
+        <th style="width:14%;">Размер</th>
+        <th style="width:14%;">Баркод</th>
+        <th style="width:14.5%;">Пересчет</th>
+        <th style="width:14.5%;">Обработка</th>
+        <th style="width:14.5%;">Раскоробка</th>
+        <th style="width:14.5%;">Брак</th>
+      </tr>
+
+      {% for row in tech_table_rows %}
+        <tr class="data">
+          <td class="center{% if forloop.first %} hi bold{% endif %}">{{ row.number }}</td>
+          <td class="{% if row.size %}hi bold{% endif %}">{{ row.size }}</td>
+          <td class="{% if row.barcode %}hi bold{% endif %} center">{{ row.barcode }}</td>
+          <td></td><td></td><td></td><td></td>
+        </tr>
+      {% endfor %}
+    </table>
+
+    <table class="dense edge-l edge-r no-top">
+      <colgroup>
+        <col style="width:16%;">
+        <col style="width:14%;">
+        <col style="width:14%;">
+        <col style="width:14%;">
+        <col style="width:14%;">
+        <col style="width:16%;">
+        <col style="width:6%;">
+        <col style="width:6%;">
+      </colgroup>
+
+      <tr>
+        <td class="italic bold center">Замер товара в<br>упаковке:</td>
+        <td class="italic bold center">Вес (грамм)</td>
+        <td class="italic bold center">Ширина (см)</td>
+        <td class="italic bold center">Высота (см)</td>
+        <td class="italic bold center">Глубина (см)</td>
+
+        <td class="bold center" rowspan="2">Удаление<br>бирки</td>
+        <td class="italic bold center">Да<br><span class="cb{% if tech_checks.remove_tag_yes %} checked{% endif %}"></span></td>
+        <td class="italic bold center">Нет<br><span class="cb{% if tech_checks.remove_tag_no %} checked{% endif %}"></span></td>
+      </tr>
+
+      <tr>
+        <td class="italic bold center">Проверка на<br>брак</td>
+        <td class="italic bold center">0% <span class="cb{% if tech_checks.defect_0 %} checked{% endif %}"></span></td>
+        <td class="italic bold center">10% <span class="cb{% if tech_checks.defect_10 %} checked{% endif %}"></span></td>
+        <td class="italic bold center">20% <span class="cb{% if tech_checks.defect_20 %} checked{% endif %}"></span></td>
+        <td class="italic bold center">100% <span class="cb{% if tech_checks.defect_100 %} checked{% endif %}"></span></td>
+
+        <td class="italic bold center">Кол-во</td>
+        <td>{{ tech.remove_tag_qty|default:"-" }}</td>
+      </tr>
+
+      <tr>
+        <td colspan="5" class="italic bold">
+          Обрезание ниток: <span class="nowrap">Кол-во</span> {{ tech.trim_threads_qty|default:"-" }}
+        </td>
+
+        <td class="bold center" rowspan="2">Скрепление<br>бирки</td>
+        <td class="italic bold center">Да<br><span class="cb{% if tech_checks.attach_tag_yes %} checked{% endif %}"></span></td>
+        <td class="italic bold center">Нет<br><span class="cb{% if tech_checks.attach_tag_no %} checked{% endif %}"></span></td>
+      </tr>
+
+      <tr>
+        <td colspan="5" class="italic bold">
+          Скрепление скотчем: <span class="nowrap">Кол-во</span> {{ tech.tape_qty|default:"-" }}
+        </td>
+
+        <td class="italic bold center">Кол-во</td>
+        <td>{{ tech.attach_tag_qty|default:"-" }}</td>
+      </tr>
+    </table>
+
+    <table class="dense edge-l edge-r no-top">
+      <colgroup>
+        <col style="width:16%;">
+        <col style="width:11%;">
+        <col style="width:11%;">
+        <col style="width:11%;">
+        <col style="width:12%;">
+        <col style="width:12%;">
+        <col style="width:27%;">
+      </colgroup>
+
+      <tbody class="optional-block" data-block="marking"{% if not tech_checks.marking_block_visible %} hidden{% endif %}>
+        <tr class="bg2 thick-top">
+          <td class="italic bold center">Маркировка</td>
+          <td class="italic bold center">1 Стикер</td>
+          <td class="italic bold center">2 Стикера</td>
+          <td class="italic bold center">3 Стикера</td>
+          <td class="italic bold center">Честный знак</td>
+          <td class="italic bold center">Информационный</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td class="bold">30*20 мм</td>
+          <td class="center"><span class="cb{% if tech_checks.marking_sticker_1 and tech_checks.marking_30_20 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_sticker_2 and tech_checks.marking_30_20 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_sticker_3 and tech_checks.marking_30_20 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_cz and tech_checks.marking_30_20 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_info and tech_checks.marking_30_20 %} checked{% endif %}"></span></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td class="bold">58*40 мм</td>
+          <td class="center"><span class="cb{% if tech_checks.marking_58x40_1 and tech_checks.marking_58_40 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_58x40_2 and tech_checks.marking_58_40 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_58x40_3 and tech_checks.marking_58_40 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_cz and tech_checks.marking_58_40 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_info and tech_checks.marking_58_40 %} checked{% endif %}"></span></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td class="bold">58*60 мм</td>
+          <td class="center"><span class="cb{% if tech_checks.marking_58x60_1 and tech_checks.marking_58_60 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_58x60_2 and tech_checks.marking_58_60 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_58x60_3 and tech_checks.marking_58_60 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_cz and tech_checks.marking_58_60 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_info and tech_checks.marking_58_60 %} checked{% endif %}"></span></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td class="bold">75*120 мм</td>
+          <td class="center"><span class="cb{% if tech_checks.marking_75x120_1 and tech_checks.marking_75_120 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_75x120_2 and tech_checks.marking_75_120 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_75x120_3 and tech_checks.marking_75_120 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_cz and tech_checks.marking_75_120 %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.marking_info and tech_checks.marking_75_120 %} checked{% endif %}"></span></td>
+          <td></td>
+        </tr>
+      </tbody>
+
+      <tbody class="optional-block" data-block="set"{% if not tech_checks.set_block_visible %} hidden{% endif %}>
+        <tr class="thick-top">
+          <td rowspan="2" class="bold">Сборка набора:</td>
+          <td class="italic bold center">Да</td>
+          <td class="italic bold center">Нет</td>
+          <td class="italic bold center xs">Кол-во ед. в наборе:</td>
+          <td rowspan="2" colspan="3" class="note italic bold center">
+            {% if tech_checks.pull_from_bag %}
+              Вытащить из мешка товар, наклеить Честный знак на пакет и упаковать в короб, можно миксовать товар в коробах в рамках направлений
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td class="center"><span class="cb{% if tech_checks.set_yes %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.set_no %} checked{% endif %}"></span></td>
+          <td>{{ tech.set_qty|default:"-" }}</td>
+        </tr>
+      </tbody>
+
+      <tbody class="optional-block" data-block="insert"{% if not tech_checks.insert_block_visible %} hidden{% endif %}>
+        <tr class="thick-top bg2">
+          <td rowspan="2" class="bold">Дополнительное<br>вложение:</td>
+          <td class="italic bold center">Да</td>
+          <td class="italic bold center">Нет</td>
+          <td class="italic bold center">Подарок</td>
+          <td class="italic bold center">Реклама</td>
+          <td class="italic bold center">Пакет</td>
+          <td class="italic bold center">Другое</td>
+        </tr>
+        <tr>
+          <td class="center"><span class="cb{% if tech_checks.insert_yes %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.insert_no %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb"></span></td>
+          <td class="center"><span class="cb"></span></td>
+          <td class="center"><span class="cb"></span></td>
+          <td>{{ tech.insert_types_text|default:"-" }}</td>
+        </tr>
+      </tbody>
+
+      <tbody class="optional-block" data-block="bubble_wrap"{% if not tech_checks.bubble_wrap_block_visible %} hidden{% endif %}>
+        <tr class="thick-top bg2">
+          <td rowspan="2" class="bold">Упаковка в Бабл<br>пленку:</td>
+          <td class="italic bold center">Да</td>
+          <td class="italic bold center">Нет</td>
+          <td class="italic bold center" colspan="2">Тип пакета</td>
+          <td class="italic bold center">Размер</td>
+          <td class="italic bold center">Кол-во</td>
+        </tr>
+        <tr>
+          <td class="center"><span class="cb{% if tech_checks.bubble_wrap_yes %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.bubble_wrap_no %} checked{% endif %}"></span></td>
+          <td colspan="2">{{ tech.bubble_wrap_type|default:"-" }}</td>
+          <td>{{ tech.bubble_wrap_size|default:"-" }}</td>
+          <td>{{ tech.bubble_wrap_qty|default:"-" }}</td>
+        </tr>
+        <tr class="bg">
+          <td colspan="3" class="italic bold right">Бабл закупался:</td>
+          <td colspan="2" class="center">Клиентом <span class="cb{% if tech_checks.bubble_wrap_supply_client %} checked{% endif %}"></span></td>
+          <td colspan="2" class="center">Запас Фуллбокс <span class="cb{% if tech_checks.bubble_wrap_supply_fullbox %} checked{% endif %}"></span></td>
+        </tr>
+      </tbody>
+
+      <tbody class="optional-block" data-block="bag_replace"{% if not tech_checks.bag_replace_block_visible %} hidden{% endif %}>
+        <tr class="thick-top bg2">
+          <td rowspan="2" class="bold">Замена пакета:</td>
+          <td class="italic bold center">Да</td>
+          <td class="italic bold center">Нет</td>
+          <td class="italic bold center" colspan="2">Тип пакета</td>
+          <td class="italic bold center">Размер</td>
+          <td class="italic bold center">Кол-во</td>
+        </tr>
+        <tr>
+          <td class="center"><span class="cb{% if tech_checks.bag_replace_yes %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.bag_replace_no %} checked{% endif %}"></span></td>
+          <td colspan="2">{{ tech.bag_replace_type|default:"-" }}</td>
+          <td>{{ tech.bag_replace_size|default:"-" }}</td>
+          <td>{{ tech.bag_replace_qty|default:"-" }}</td>
+        </tr>
+        <tr class="bg">
+          <td colspan="3" class="italic bold right">Пакет закупался:</td>
+          <td colspan="2" class="center">Клиентом <span class="cb{% if tech_checks.bag_replace_supply_client %} checked{% endif %}"></span></td>
+          <td colspan="2" class="center">Запас Фуллбокс <span class="cb{% if tech_checks.bag_replace_supply_fullbox %} checked{% endif %}"></span></td>
+        </tr>
+      </tbody>
+
+      <tbody class="optional-block" data-block="box_replace"{% if not tech_checks.box_replace_block_visible %} hidden{% endif %}>
+        <tr class="thick-top bg2">
+          <td rowspan="2" class="bold">Замена<br>Гофрокороба:</td>
+          <td class="italic bold center">Да</td>
+          <td class="italic bold center">Нет</td>
+          <td class="italic bold center" colspan="2">Тип короба</td>
+          <td class="italic bold center">Размер</td>
+          <td class="italic bold center">Кол-во</td>
+        </tr>
+        <tr>
+          <td class="center"><span class="cb{% if tech_checks.box_replace_yes %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.box_replace_no %} checked{% endif %}"></span></td>
+          <td colspan="2">{{ tech.box_replace_type|default:"-" }}</td>
+          <td>{{ tech.box_replace_size|default:"-" }}</td>
+          <td>{{ tech.box_replace_qty|default:"-" }}</td>
+        </tr>
+        <tr class="bg">
+          <td colspan="3" class="italic bold right">Гофрокороб закупался:</td>
+          <td colspan="2" class="center">Клиентом <span class="cb{% if tech_checks.box_replace_supply_client %} checked{% endif %}"></span></td>
+          <td colspan="2" class="center">Запас Фуллбокс <span class="cb{% if tech_checks.box_replace_supply_fullbox %} checked{% endif %}"></span></td>
+        </tr>
+      </tbody>
+
+      <tbody class="optional-block" data-block="shrink_wrap"{% if not tech_checks.shrink_wrap_block_visible %} hidden{% endif %}>
+        <tr class="thick-top bg2">
+          <td rowspan="2" class="bold">Термоусадочная<br>упаковка:</td>
+          <td class="italic bold center">Да</td>
+          <td class="italic bold center">Нет</td>
+          <td class="italic bold center" colspan="2">Вид пленки</td>
+          <td class="italic bold center">Размер</td>
+          <td class="italic bold center">Кол-во</td>
+        </tr>
+        <tr>
+          <td class="center"><span class="cb{% if tech_checks.shrink_wrap_yes %} checked{% endif %}"></span></td>
+          <td class="center"><span class="cb{% if tech_checks.shrink_wrap_no %} checked{% endif %}"></span></td>
+          <td colspan="2">{{ tech.shrink_wrap_type|default:"-" }}</td>
+          <td>{{ tech.shrink_wrap_size|default:"-" }}</td>
+          <td>{{ tech.shrink_wrap_qty|default:"-" }}</td>
+        </tr>
+      </tbody>
+
+      <tr class="thick-top">
+        <td rowspan="2" class="bold center">Раскоробовка</td>
+        <td class="bold">Дата</td>
+        <td class="bold">Размер короба</td>
+        <td class="bold">Кратность</td>
+        <td class="bold">Кол-во коробов</td>
+        <td class="bold">Кол-во паллет</td>
+        <td class="bold">Зона хранения</td>
+      </tr>
+      <tr>
+        <td>{{ tech.receive_date|default:"-" }}</td>
+        <td></td>
+        <td></td>
+        <td>{{ tech.wholesale_places_qty|default:"-" }}</td>
+        <td></td>
+        <td>{{ tech.warehouse_unpacking|default:"-" }}</td>
+      </tr>
+
+      <tr class="thick-top bg2">
+        <td class="bold right" colspan="2">Исполнители:</td>
+        <td class="bold">Дата Начала</td>
+        <td class="bold">Дата окончания</td>
+        <td class="bold" colspan="1">Дата приема заказа</td>
+        <td class="bold" colspan="2">Ответственный</td>
+      </tr>
+
+      <tr>
+        <td class="italic bold right" colspan="2">Менеджер проекта:</td>
+        <td>{{ tech.start_date|default:"-" }}</td>
+        <td>{{ tech.end_date|default:"-" }}</td>
+        <td>{{ tech.receive_date|default:"-" }}</td>
+        <td colspan="2" class="bold">{{ tech.project_manager|default:tech.responsible_name|default:"-" }}</td>
+      </tr>
+      <tr>
+        <td class="italic bold right" colspan="2">Склад приемка:</td>
+        <td colspan="3">{{ tech.warehouse_receiving|default:"-" }}</td>
+        <td colspan="2"></td>
+      </tr>
+      <tr>
+        <td class="italic bold right" colspan="2">Склад упаковка:</td>
+        <td colspan="3">{{ tech.warehouse_packing|default:"-" }}</td>
+        <td colspan="2"></td>
+      </tr>
+      <tr>
+        <td class="italic bold right" colspan="2">Склад Раскоробовка:</td>
+        <td colspan="5">{{ tech.warehouse_unpacking|default:"-" }}</td>
+      </tr>
+      <tr>
+        <td class="italic bold right" colspan="2">Количество оптовых мест:</td>
+        <td colspan="5">{{ tech.wholesale_places_qty|default:"-" }}</td>
+      </tr>
+
+      <tr class="thick-top">
+        <td class="italic bold right">Счет №:</td>
+        <td>{{ tech.invoice_no|default:"-" }}</td>
+        <td class="italic bold">Дата выставления</td>
+        <td class="italic bold">Дата оплаты</td>
+        <td class="italic bold" colspan="2">Бухгалтер:</td>
+        <td class="italic bold center">В архив</td>
+      </tr>
+      <tr class="thick-bottom">
+        <td></td>
+        <td>{{ tech.invoice_no|default:"-" }}</td>
+        <td>{{ tech.invoice_date|default:"-" }}</td>
+        <td>{{ tech.payment_date|default:"-" }}</td>
+        <td colspan="2">{{ tech.accountant|default:"-" }}</td>
+        <td class="italic bold">{{ tech.archive_date|default:"(дата)" }}</td>
+      </tr>
+
+    </table>
+
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const printBtn = document.getElementById('print-tech-card');
+      if (printBtn) {
+        printBtn.addEventListener('click', () => window.print());
+      }
+
+      const setBlockVisible = (blockKey, isVisible) => {
+        const sections = document.querySelectorAll(`.optional-block[data-block="${blockKey}"]`);
+        sections.forEach((section) => {
+          if (isVisible) {
+            section.removeAttribute('hidden');
+          } else {
+            section.setAttribute('hidden', '');
+          }
+        });
+      };
+
+      const toggles = document.querySelectorAll('.block-toggle[data-block]');
+      toggles.forEach((toggle) => {
+        const blockKey = toggle.getAttribute('data-block');
+        if (!blockKey) {
+          return;
+        }
+        setBlockVisible(blockKey, !!toggle.checked);
+        if (toggle.disabled) {
+          return;
+        }
+        toggle.addEventListener('change', () => {
+          setBlockVisible(blockKey, !!toggle.checked);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
+

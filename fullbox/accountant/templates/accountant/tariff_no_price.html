@@ -1,0 +1,34 @@
+{% extends "accountant/_base.html" %}
+{% block title %}Услуги без цены{% endblock %}
+{% block content %}
+<div>
+  <h1 class="page-title">Услуги без цены</h1>
+  <div class="page-sub">Позиции черновиков тарифов с нулевой ценой.</div>
+</div>
+<div class="card" style="overflow:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Клиент</th>
+        <th>Тариф</th>
+        <th>Услуга</th>
+        <th>Категория</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in zero_price_items %}
+      <tr>
+        <td>{{ item.tariff_version.client.short_name|default:item.tariff_version.client.agn_name }}</td>
+        <td>#{{ item.tariff_version_id }} · {{ item.tariff_version.get_status_display }}</td>
+        <td>{{ item.service_name }}</td>
+        <td>{% if item.category %}{{ item.category.name }}{% else %}—{% endif %}</td>
+        <td><a class="btn" href="{% url 'accountant-tariff-detail' item.tariff_version_id %}">Открыть</a></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="muted">Нет позиций с нулевой ценой в черновиках</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

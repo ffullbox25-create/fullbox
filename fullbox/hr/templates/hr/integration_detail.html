@@ -1,0 +1,93 @@
+{% extends "hr/base.html" %}
+
+{% block title %}{{ integration.name }}{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <div class="breadcrumbs">
+        <a href="{% url 'hr:dashboard' %}">Отдел кадров</a><span>›</span>
+        <a href="{% url 'hr:integrations' %}">Интеграции</a><span>›</span>
+        <span>{{ integration.name }}</span>
+      </div>
+      <h1 style="margin-top: 8px;">{{ integration.name }}</h1>
+      <div class="muted" style="margin-top: 6px; font-weight: 700;">{{ integration.summary }}</div>
+    </div>
+    <div class="actions">
+      <a class="btn" href="{% url 'hr:integrations' %}">Все площадки</a>
+      <a class="btn primary" href="{{ integration.documentation_url }}" target="_blank" rel="noopener">Документация API</a>
+    </div>
+  </div>
+
+  <section class="detail-layout">
+    <div class="stack">
+      <div class="panel">
+        <div class="connection-state">
+          <div class="platform-logo {{ integration.tone }}">{{ integration.short_name }}</div>
+          <div>
+            <div class="kpi-title">Состояние подключения</div>
+            <h2 style="margin: 3px 0 4px;">
+              {% if integration.credentials_ready %}Ключи добавлены{% else %}Подключение не настроено{% endif %}
+            </h2>
+            <div class="muted" style="font-size: 12px; font-weight: 700;">
+              {% if integration.credentials_ready %}
+                Можно переходить к авторизации и тестовой синхронизации.
+              {% else %}
+                Добавьте обязательные параметры в защищённые настройки сервера.
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Что будет доступно</h2>
+        <ul class="check-list">
+          {% for capability in integration.capabilities %}<li>{{ capability }}</li>{% endfor %}
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h2>Порядок подключения</h2>
+        <ol class="step-list">
+          {% for step in integration.setup_steps %}<li>{{ step }}</li>{% endfor %}
+        </ol>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="panel">
+        <h2>Параметры подключения</h2>
+        <div class="muted" style="margin-bottom: 12px; font-size: 12px; line-height: 1.5;">Значения задаются администратором на сервере и не отображаются в личном кабинете.</div>
+        <ul class="settings-list">
+          {% for setting_name in integration.required_settings %}
+            <li>
+              <code>{{ setting_name }}</code>
+              <span>{% if integration.credentials_ready %}Параметр добавлен{% else %}Ожидает настройки{% endif %}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h2>Способ обмена</h2>
+        <table>
+          <tbody>
+            <tr><td class="muted">Авторизация</td><td><strong>{{ integration.connection_type }}</strong></td></tr>
+            <tr><td class="muted">Получение откликов</td><td><strong>{{ integration.sync_mode }}</strong></td></tr>
+            <tr><td class="muted">Хранение секретов</td><td><strong>Только на сервере</strong></td></tr>
+            <tr><td class="muted">Синхронизация</td><td><strong>Не запущена</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout-icon">→</div>
+        <div>
+          <strong>Следующий этап</strong>
+          После получения доступа реализуется авторизация, обработчик событий и тестовая загрузка одной вакансии без автоматической отправки сообщений кандидатам.
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}

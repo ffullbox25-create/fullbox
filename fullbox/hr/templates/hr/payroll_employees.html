@@ -1,0 +1,39 @@
+{% extends "hr/base.html" %}
+
+{% block title %}Карточки и ставки{% endblock %}
+
+{% block content %}
+  <header class="page-head">
+    <div>
+      <div class="breadcrumbs"><a href="{% url 'hr:monthly-payroll-report' %}">Месячный отчёт</a><span>›</span><span>Карточки и ставки</span></div>
+      <h1>Карточки и ставки</h1>
+      <div class="muted">Заполнено {{ complete_count }} из {{ rows|length }} активных сотрудников.</div>
+    </div>
+    <a class="btn" href="/employees/new/">Создать сотрудника</a>
+  </header>
+
+  <section class="panel">
+    <div class="callout"><div class="callout-icon">i</div><div><strong>Что требуется для полного отчёта</strong>У каждого активного сотрудника должны быть отдел, должность и хотя бы одна действующая ставка.</div></div>
+  </section>
+
+  <section class="panel">
+    <div class="compact-table-wrap">
+      <table>
+        <thead><tr><th>Сотрудник</th><th>Отдел</th><th>Должность</th><th>Табельный №</th><th>Ставка</th><th>Полнота</th><th></th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td><strong>{{ row.employee.full_name }}</strong></td>
+              <td>{% if row.profile %}{{ row.profile.department.name }}{% else %}—{% endif %}</td>
+              <td>{% if row.profile %}{{ row.profile.position|default:"—" }}{% else %}—{% endif %}</td>
+              <td>{% if row.profile %}{{ row.profile.personnel_number|default:"—" }}{% else %}—{% endif %}</td>
+              <td>{% if row.latest_rate %}с {{ row.latest_rate.effective_from|date:"d.m.Y" }}{% else %}—{% endif %}</td>
+              <td><span class="status {% if row.is_complete %}ok{% else %}off{% endif %}">{% if row.is_complete %}Готово{% else %}Нужно заполнить{% endif %}</span></td>
+              <td><a class="row-link" href="{% url 'hr:payroll-employee-detail' row.employee.pk %}">Открыть</a></td>
+            </tr>
+          {% empty %}<tr><td colspan="7" class="empty-state">Нет активных сотрудников.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

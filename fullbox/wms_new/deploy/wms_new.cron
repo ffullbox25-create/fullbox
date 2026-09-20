@@ -1,0 +1,1 @@
+*/5 * * * * /usr/bin/flock -n /tmp/fullbox-wms-new-sync.lock /bin/sh -c 'cd /opt/fullbox/fullbox && /opt/fullbox/.venv/bin/python manage.py sync_wms_new --scope all >> /opt/fullbox/logs/wms_new_sync.log 2>&1'

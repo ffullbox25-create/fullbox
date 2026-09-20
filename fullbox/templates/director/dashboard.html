@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Панель директора | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/director/director-dashboard.css" rel="stylesheet">
+</head>
+<body class="director-body">
+  <div class="dir-app" id="js-dir-app">
+    {% include "director/partials/_sidebar.html" %}
+
+    <div class="dir-main">
+      {% include "director/partials/_topbar.html" %}
+
+      <div class="dir-content">
+        {% include "director/partials/_integration_bar.html" %}
+        {% include "director/partials/_kpi_grid.html" %}
+
+        <section class="dir-row-65" aria-label="Финансовая динамика">
+          {% include "director/partials/_revenue_chart.html" %}
+          {% include "director/partials/_monthly_plan.html" %}
+        </section>
+
+        {% include "director/partials/_attention_list.html" %}
+
+        <section class="dir-row-2" aria-label="Операционная ситуация">
+          {% include "director/partials/_operations_funnel.html" %}
+          {% include "director/partials/_warehouse_load.html" %}
+        </section>
+
+        {% include "director/partials/_clients_block.html" %}
+        {% include "director/partials/_employees_events.html" %}
+      </div>
+    </div>
+  </div>
+
+  {% include "director/partials/_detail_drawer.html" %}
+
+  <script>
+  (function(){
+    var app = document.getElementById('js-dir-app');
+    var collapseBtn = document.getElementById('js-dir-collapse');
+    var menuBtn = document.getElementById('js-dir-menu');
+    var drawer = document.getElementById('js-dir-drawer');
+    var backdrop = document.getElementById('js-dir-drawer-backdrop');
+    var closeBtn = document.getElementById('js-dir-drawer-close');
+
+    if (collapseBtn) {
+      collapseBtn.addEventListener('click', function(){
+        app.classList.toggle('is-collapsed');
+        collapseBtn.textContent = app.classList.contains('is-collapsed') ? '›' : '‹';
+      });
+    }
+    if (menuBtn) {
+      menuBtn.addEventListener('click', function(){
+        app.classList.toggle('menu-open');
+      });
+    }
+
+    function openDrawer(btn){
+      document.getElementById('js-drawer-label').textContent = btn.getAttribute('data-kpi-label') || '';
+      document.getElementById('js-drawer-value').textContent = btn.getAttribute('data-kpi-value') || '';
+      document.getElementById('js-drawer-delta').textContent = btn.getAttribute('data-kpi-delta') || '';
+      document.getElementById('js-drawer-extra').textContent = btn.getAttribute('data-kpi-extra') || '';
+      document.getElementById('js-drawer-formula').textContent = btn.getAttribute('data-kpi-formula') || '';
+      document.getElementById('js-drawer-source').textContent = btn.getAttribute('data-kpi-source') || '';
+      document.getElementById('js-drawer-updated').textContent = btn.getAttribute('data-kpi-updated') || '';
+      drawer.classList.add('is-open');
+      drawer.setAttribute('aria-hidden', 'false');
+      backdrop.hidden = false;
+      backdrop.classList.add('is-open');
+    }
+    function closeDrawer(){
+      drawer.classList.remove('is-open');
+      drawer.setAttribute('aria-hidden', 'true');
+      backdrop.classList.remove('is-open');
+      backdrop.hidden = true;
+    }
+    document.querySelectorAll('.dir-kpi').forEach(function(btn){
+      btn.addEventListener('click', function(){ openDrawer(btn); });
+    });
+    if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+    if (backdrop) backdrop.addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape') closeDrawer();
+    });
+
+    var refresh = document.getElementById('js-dir-refresh');
+    if (refresh) {
+      refresh.addEventListener('click', function(){ window.location.reload(); });
+    }
+  })();
+  </script>
+</body>
+</html>

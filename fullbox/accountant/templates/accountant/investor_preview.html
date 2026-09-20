@@ -1,0 +1,69 @@
+{% extends "accountant/_base.html" %}
+
+{% block title %}Личный кабинет инвестора · эмуляция{% endblock %}
+
+{% block extra_css %}
+<style>
+  .preview-note { display:flex; justify-content:space-between; gap:16px; align-items:center; }
+  .metric-card { min-height:142px; }
+  .metric-label { color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.03em; }
+  .metric-value { margin-top:10px; font-size:30px; font-weight:900; line-height:1; }
+  .metric-hint { margin-top:10px; color:var(--muted); font-size:12px; font-weight:700; }
+  .chart-list, .mix-list { display:grid; gap:14px; }
+  .chart-row { display:grid; grid-template-columns:92px 1fr 100px; gap:12px; align-items:center; font-size:13px; font-weight:750; }
+  .bar { height:12px; overflow:hidden; border-radius:999px; background:var(--surface-2); border:1px solid var(--stroke); }
+  .bar > span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg, var(--accent), var(--sun)); }
+  .mix-item { display:grid; grid-template-columns:1fr auto; gap:8px 16px; font-size:13px; font-weight:800; }
+  .mix-item .bar { grid-column:1 / -1; }
+  .panel-title { margin:0 0 18px; font-family:"Bricolage Grotesque", "Manrope", sans-serif; font-size:20px; }
+  @media (max-width:720px) { .preview-note { align-items:flex-start; flex-direction:column; } .chart-row { grid-template-columns:72px 1fr 72px; gap:8px; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<section>
+  <div class="eyebrow">ЭМУЛЯЦИЯ · НОВЫЙ КОНТУР</div>
+  <h1 style="margin:4px 0 6px">Личный кабинет инвестора</h1>
+  <p class="muted" style="margin:0">Предпросмотр структуры для контроля финансовых показателей Fullbox.</p>
+</section>
+
+<section class="card preview-note">
+  <div>
+    <strong>Демонстрационные показатели</strong>
+    <div class="muted" style="margin-top:4px;font-size:13px">Данные на этом экране не участвуют в биллинге и не изменяют клиентов, тарифы, счета или склад.</div>
+  </div>
+  <span class="badge orange">Только просмотр</span>
+</section>
+
+<section class="grid-4">
+  <article class="card metric-card"><div class="metric-label">Выручка за месяц</div><div class="metric-value">4,8 млн ₽</div><div class="metric-hint">+8,4% к прошлому месяцу</div></article>
+  <article class="card metric-card"><div class="metric-label">Валовая маржа</div><div class="metric-value">31,6%</div><div class="metric-hint">Целевой диапазон: 30–35%</div></article>
+  <article class="card metric-card"><div class="metric-label">Активные клиенты</div><div class="metric-value">128</div><div class="metric-hint">12 новых за квартал</div></article>
+  <article class="card metric-card"><div class="metric-label">Резерв ликвидности</div><div class="metric-value">2,4 мес.</div><div class="metric-hint">Расчётный ориентир</div></article>
+</section>
+
+<section class="grid-2">
+  <article class="card">
+    <h2 class="panel-title">Динамика выручки</h2>
+    <div class="chart-list">
+      <div class="chart-row"><span>Май</span><div class="bar"><span style="width:72%"></span></div><strong>3,7 млн ₽</strong></div>
+      <div class="chart-row"><span>Июнь</span><div class="bar"><span style="width:84%"></span></div><strong>4,2 млн ₽</strong></div>
+      <div class="chart-row"><span>Июль</span><div class="bar"><span style="width:96%"></span></div><strong>4,8 млн ₽</strong></div>
+    </div>
+  </article>
+  <article class="card">
+    <h2 class="panel-title">Структура выручки</h2>
+    <div class="mix-list">
+      <div class="mix-item"><span>Складское хранение</span><strong>42%</strong><div class="bar"><span style="width:42%"></span></div></div>
+      <div class="mix-item"><span>Фулфилмент-услуги</span><strong>37%</strong><div class="bar"><span style="width:37%"></span></div></div>
+      <div class="mix-item"><span>Логистика</span><strong>21%</strong><div class="bar"><span style="width:21%"></span></div></div>
+    </div>
+  </article>
+</section>
+
+<section class="card">
+  <h2 class="panel-title">Управление тарифами новых клиентов</h2>
+  <p class="muted" style="margin:0 0 14px">При создании нового клиента система создаёт черновик со всеми активными строками стандартного прайса. Бухгалтер может изменить название, цену, минимум, активность и комментарий каждой услуги, добавить индивидуальную услугу и только затем опубликовать тариф.</p>
+  <a class="btn primary" href="/accountant/tariffs/">Открыть тарифы клиентов</a>
+</section>
+{% endblock %}

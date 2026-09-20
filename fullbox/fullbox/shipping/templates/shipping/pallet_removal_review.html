@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Согласование изъятия паллеты | FULLBOX</title>
+  <style>
+    :root{--bg:#f4f1ea;--card:#fff;--stroke:rgba(31,35,40,.14);--text:#1f2328;--muted:#6b7280;--gold:#d6a91f;--danger:#d14343;--success:#1f9d55}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:inherit}.wrap{min-height:100vh;padding:24px;display:grid;place-items:start center}.card{width:min(1120px,100%);background:var(--card);border:1px solid var(--stroke);border-radius:18px;box-shadow:0 18px 40px rgba(15,23,42,.14);padding:22px;display:grid;gap:18px}.head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}.eyebrow{display:inline-flex;padding:5px 10px;border-radius:999px;background:rgba(209,67,67,.12);color:#991b1b;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.8px}.title{font-size:28px;font-weight:700;margin:8px 0 4px}.muted{color:var(--muted)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.panel{border:1px solid var(--stroke);border-radius:14px;padding:14px;background:#fff}.label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px}.value{font-weight:700;word-break:break-word}.reason{white-space:pre-wrap;line-height:1.45}.boxes{max-height:360px;overflow:auto;border:1px solid var(--stroke);border-radius:12px}.box-row{display:grid;grid-template-columns:minmax(160px,1fr) 90px minmax(180px,1.2fr);gap:10px;padding:10px 12px;border-bottom:1px solid var(--stroke);align-items:start}.box-row:last-child{border-bottom:none}.box-row.head-row{position:sticky;top:0;background:#f8f4e8;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.8px;font-weight:700}.actions{display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap}.btn{border:1px solid var(--stroke);border-radius:12px;padding:12px 18px;background:#fff;color:var(--text);font-weight:700;cursor:pointer;text-decoration:none}.btn.primary{border-color:transparent;background:linear-gradient(120deg,var(--gold),#f6d978)}.btn.danger{border-color:rgba(209,67,67,.35);background:rgba(209,67,67,.1);color:#991b1b}.notice,.error{border-radius:12px;padding:10px 12px}.notice{border:1px solid rgba(31,157,85,.35);background:rgba(31,157,85,.12);color:#166534}.error{border:1px solid rgba(209,67,67,.35);background:rgba(209,67,67,.12);color:#7f1d1d}@media(max-width:760px){.grid{grid-template-columns:1fr}.box-row{grid-template-columns:1fr}.actions{justify-content:stretch}.btn{width:100%;text-align:center}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="{% if message.tags == 'error' %}error{% else %}notice{% endif %}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+      <div class="head">
+        <div>
+          <span class="eyebrow">Срочно</span>
+          <h1 class="title">Согласование изъятия паллеты</h1>
+          <div class="muted">Заявка {{ order.display_number|default:order.number }} · {{ order.agency.agn_name|default:"-" }}</div>
+        </div>
+        <a class="btn" href="{{ detail_url }}">К заявке</a>
+      </div>
+
+      {% if pending_removal %}
+        <div class="grid">
+          <div class="panel">
+            <div class="label">Паллета</div>
+            <div class="value">{{ pending_removal.pallet_label|default:pending_removal.pallet_code }}</div>
+          </div>
+          <div class="panel">
+            <div class="label">Состав</div>
+            <div class="value">{{ pending_removal.box_count|default:"0" }} коробов · {{ pending_removal.qty|default:"0" }} шт.</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="label">Причина отмены</div>
+          <div class="reason">{{ pending_removal.reason|default:"-" }}</div>
+        </div>
+        <div>
+          <div class="label">Короба паллеты</div>
+          <div class="boxes">
+            <div class="box-row head-row">
+              <div>Короб</div>
+              <div>Кол-во</div>
+              <div>Состав</div>
+            </div>
+            {% for box in pending_removal.boxes %}
+              <div class="box-row">
+                <div class="value">{{ box.code }}</div>
+                <div>{{ box.qty }}</div>
+                <div class="muted">{{ box.barcode_preview|default:"-" }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+        <form method="post" class="actions">
+          {% csrf_token %}
+          <button class="btn danger" type="submit" name="decision" value="rejected">Отказать</button>
+          <button class="btn primary" type="submit" name="decision" value="approved">Подтвердить изъятие</button>
+        </form>
+      {% else %}
+        <div class="notice">Открытого запроса на изъятие паллеты по этой заявке нет.</div>
+        <div class="actions">
+          <a class="btn primary" href="{{ packing_url }}">К паллетизации</a>
+        </div>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>

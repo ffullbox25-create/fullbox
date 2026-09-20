@@ -1,0 +1,27 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Короб / паллета → место{% endblock %}
+{% block page_class %}tsd-page-picker-tool{% endblock %}
+{% block page_title %}Короб / паллета → место{% endblock %}
+
+{% block content %}
+  {% include "fbs/_tsd_picker_move_styles.html" %}
+  <section class="picker-move-card" aria-label="Перемещение FBS-короба или всей паллеты">
+    <p class="picker-move-hint" id="move-hint">
+      Один короб — в OS, PR или ОТГ. Вся паллета — только в точную ячейку OS.
+      Состав и резервы не изменяются.
+    </p>
+    <form method="post" class="picker-move-form" data-scan-sequence aria-describedby="move-hint">
+      {% csrf_token %}
+      <label>1. FBS-короб / паллета
+        <input name="box_scan" value="{{ selected_full_box }}" data-scan-field autocomplete="off" autocapitalize="characters" enterkeyhint="next" spellcheck="false" required placeholder="QR короба или паллеты">
+      </label>
+      <label>2. Новое место OS / PR / ОТГ
+        <input name="destination_location_scan" value="{{ selected_destination_location }}" data-scan-field autocomplete="off" autocapitalize="characters" enterkeyhint="done" spellcheck="false" required placeholder="QR точного места">
+      </label>
+      <button class="button button-primary" type="submit" name="move_scope" value="box">Переместить только короб</button>
+      <button class="button" type="submit" name="move_scope" value="pallet">Разместить всю паллету</button>
+    </form>
+  </section>
+  {% include "fbs/_tsd_picker_move_scan_script.html" %}
+{% endblock %}

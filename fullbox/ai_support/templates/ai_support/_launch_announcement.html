@@ -1,0 +1,26 @@
+<aside id="ai-support-company-notice" data-announcement-id="{{ announcement_id }}" style="position:fixed;left:16px;right:16px;bottom:16px;z-index:2147483000;max-width:920px;margin:auto;padding:16px 52px 16px 18px;border:1px solid #acd8d1;border-radius:16px;background:#f2fbf9;color:#15312d;box-shadow:0 14px 42px rgba(0,0,0,.22);font:14px/1.45 system-ui,-apple-system,'Segoe UI',sans-serif">
+  <button id="ai-support-company-notice-close" type="button" aria-label="Закрыть уведомление" style="position:absolute;right:12px;top:10px;width:32px;height:32px;border:0;border-radius:50%;background:#dcefeb;color:#15312d;font-size:21px;cursor:pointer">×</button>
+  <div style="font-size:17px;font-weight:800;margin-bottom:5px">Новая внутренняя ИИ‑поддержка</div>
+  <div>Сообщайте об ошибках 500, зависших страницах, неверных статусах и небольших сбоях. Укажите, где возникла ошибка, номер заявки или задания, что вы делали и какой результат ожидали. Агент сначала проверит всё в режиме чтения и не будет менять остатки или движения.</div>
+  <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px">
+    <a href="/ai-support/new/" style="display:inline-flex;align-items:center;min-height:38px;padding:8px 13px;border-radius:9px;background:#136f63;color:#fff;text-decoration:none;font-weight:800">Сообщить об ошибке</a>
+    <a href="/ai-support/" style="display:inline-flex;align-items:center;min-height:38px;padding:8px 13px;border:1px solid #9dcfc6;border-radius:9px;background:#fff;color:#15312d;text-decoration:none;font-weight:800">Как это работает</a>
+  </div>
+</aside>
+<script>
+  (() => {
+    const notice = document.getElementById("ai-support-company-notice");
+    if (!notice) return;
+    const storageKey = "fullbox-dismissed-" + notice.dataset.announcementId;
+    try {
+      if (window.localStorage.getItem(storageKey) === "1") {
+        notice.remove();
+        return;
+      }
+    } catch (error) {}
+    document.getElementById("ai-support-company-notice-close")?.addEventListener("click", () => {
+      try { window.localStorage.setItem(storageKey, "1"); } catch (error) {}
+      notice.remove();
+    });
+  })();
+</script>

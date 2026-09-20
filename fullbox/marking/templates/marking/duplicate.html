@@ -1,0 +1,1115 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Дублирование Честного знака | ФУЛЛБОКС</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5f5f3;
+      --surface: #ffffff;
+      --surface-2: #f8f8f6;
+      --ink: #303030;
+      --muted: #707070;
+      --accent: #f89000;
+      --accent-strong: #f86800;
+      --accent-soft: rgba(248, 144, 0, 0.13);
+      --stroke: rgba(28, 31, 26, 0.12);
+      --success: #247a4b;
+      --success-soft: rgba(36, 122, 75, 0.1);
+      --warning: #9a6500;
+      --warning-soft: rgba(248, 184, 0, 0.15);
+      --danger: #b83f35;
+      --danger-soft: rgba(184, 63, 53, 0.1);
+      --shadow: 0 8px 24px rgba(48, 48, 48, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Manrope", system-ui, sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input, select { font: inherit; }
+    .wrap { padding: 24px; }
+    .layout {
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      gap: 20px;
+      min-height: calc(100vh - 48px);
+    }
+    .side, .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+    .side {
+      display: grid;
+      align-content: start;
+      gap: 16px;
+      padding: 18px;
+      overflow: auto;
+    }
+    .fullbox-brand-img { display: block; width: 168px; max-width: 100%; height: auto; }
+    .profile, .nav-link {
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: var(--surface-2);
+    }
+    .profile { padding: 12px; font-weight: 700; }
+    .nav { display: grid; gap: 10px; }
+    .nav-link { display: grid; gap: 4px; padding: 12px; }
+    .nav-link.primary {
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+      border-color: rgba(248, 144, 0, 0.25);
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub { color: var(--muted); font-size: 12px; }
+    .logout {
+      display: block;
+      padding: 10px 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 700;
+    }
+    .content { min-width: 0; }
+    .panel { padding: 24px; }
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+    h1 {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+    .connection {
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .connection.ready { color: var(--success); background: var(--success-soft); }
+    .connection.offline { color: var(--warning); background: var(--warning-soft); }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 0.75fr);
+      gap: 18px;
+    }
+    .scan-stack, .preview-card {
+      min-width: 0;
+      padding: 18px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: var(--surface-2);
+    }
+    .scan-row { display: grid; gap: 7px; margin-bottom: 14px; }
+    .scan-row label { font-size: 13px; font-weight: 800; }
+    .scan-input, .select {
+      width: 100%;
+      height: 52px;
+      padding: 0 14px;
+      border: 2px solid rgba(248, 144, 0, 0.28);
+      border-radius: 8px;
+      background: #fff;
+      outline: none;
+    }
+    .scan-input:focus, .select:focus { border-color: var(--accent); }
+    .scan-input:disabled { color: var(--muted); background: #ececea; }
+    .step-note { color: var(--muted); font-size: 12px; }
+    .scanner-panel {
+      margin-top: 6px;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+      border: 1px solid rgba(248, 144, 0, 0.22);
+      border-radius: 8px;
+      background: rgba(248, 144, 0, 0.08);
+    }
+    .scanner-panel .scanner-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .scanner-status {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .scanner-status strong { color: var(--ink); }
+    .scanner-status.error strong { color: var(--danger); }
+    .scanner-status.success strong { color: var(--success); }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .button {
+      min-height: 46px;
+      padding: 0 17px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .button.primary { color: #fff; background: var(--accent); border-color: var(--accent); }
+    .button:disabled { cursor: not-allowed; opacity: 0.48; }
+    .message {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: #fff;
+      font-weight: 700;
+    }
+    .message.error { color: var(--danger); background: var(--danger-soft); border-color: rgba(184, 63, 53, 0.24); }
+    .message.success { color: var(--success); background: var(--success-soft); border-color: rgba(36, 122, 75, 0.24); }
+    .message.warning { color: var(--warning); background: var(--warning-soft); border-color: rgba(154, 101, 0, 0.24); }
+    .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 14px; }
+    .fact { min-width: 0; padding: 10px; border: 1px solid var(--stroke); border-radius: 8px; background: #fff; }
+    .fact-label { color: var(--muted); font-size: 10px; text-transform: uppercase; }
+    .fact-value { margin-top: 4px; overflow-wrap: anywhere; font-weight: 750; }
+    .preview-title { margin: 0 0 12px; font-size: 16px; }
+    .canvas-shell {
+      display: grid;
+      place-items: center;
+      min-height: 300px;
+      padding: 14px;
+      border: 1px dashed rgba(48, 48, 48, 0.24);
+      border-radius: 8px;
+      background: #e9e9e6;
+    }
+    #label-preview-image { display: block; width: min(100%, 580px); height: auto; background: #fff; box-shadow: 0 5px 18px rgba(0, 0, 0, 0.14); }
+    .label-placeholder { color: var(--muted); font-weight: 700; text-align: center; }
+    .print-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+    .print-setting { display: grid; gap: 6px; }
+    .print-setting label { font-size: 12px; font-weight: 800; }
+    [hidden] { display: none !important; }
+    @media (max-width: 1150px) {
+      .layout, .workspace { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .wrap { padding: 12px; }
+      .panel, .side { padding: 14px; }
+      .header { display: grid; }
+      .facts, .print-settings { grid-template-columns: 1fr; }
+      .button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        {% include "partials/fullbox_brand.html" %}
+        <div class="profile">
+          {% if duplicate_role == "processing_head" %}
+            Руководитель обработки<br>
+          {% else %}
+            Кабинет кладовщика<br>
+          {% endif %}
+          {% if request.user.employee_profile %}
+            {{ request.user.employee_profile.full_name }}
+          {% else %}
+            {{ request.user.get_full_name|default:request.user.username }}
+          {% endif %}
+        </div>
+        {% if duplicate_role == "processing_head" %}
+          <nav class="nav">
+            <a class="nav-link" href="/processing-head/">
+              <span class="nav-title">Кабинет обработки</span>
+              <span class="nav-sub">Рабочий стол руководителя</span>
+            </a>
+            <a class="nav-link" href="/marking/status/">
+              <span class="nav-title">Проверка Честного знака</span>
+              <span class="nav-sub">Статус кода в ГИС МТ</span>
+            </a>
+            <a class="nav-link primary" href="/marking/duplicate/">
+              <span class="nav-title">Дублирование Честного знака</span>
+              <span class="nav-sub">ШК товара и копия DataMatrix</span>
+            </a>
+          </nav>
+        {% else %}
+          {% include "sklad/_side_nav.html" with active_nav="marking-duplicate" %}
+        {% endif %}
+        <a class="logout" href="/logout/">Выход</a>
+      </aside>
+
+      <main class="content">
+        <section class="panel">
+          <div class="header">
+            <div>
+              <h1>Дублирование Честного знака</h1>
+              <div class="step-note">Один скан товара + один скан исходного DataMatrix = одна копия этикетки.</div>
+            </div>
+            {% if true_api_configured %}
+              <span class="connection ready">Статус ГИС МТ проверяется</span>
+            {% else %}
+              <span class="connection offline">Без онлайн-проверки ГИС МТ</span>
+            {% endif %}
+          </div>
+
+          <div class="workspace">
+            <div class="scan-stack">
+              <form id="scan-form">
+                {% csrf_token %}
+                <div class="scan-row">
+                  <label for="product-barcode">1. Штрихкод товара</label>
+                  <input class="scan-input" id="product-barcode" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only autofocus placeholder="Сканируйте ШК товара">
+                  <div class="step-note">ШК используется только для данных этикетки; учет ЧЗ, GTIN и привязка КИЗ к товару не проверяются.</div>
+                </div>
+                <div class="scan-row">
+                  <label for="matrix-code">2. DataMatrix Честного знака</label>
+                  <input class="scan-input" id="matrix-code" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only disabled placeholder="Сначала отсканируйте товар">
+                  <div class="step-note">Копируется тот же код целиком, включая криптохвост.</div>
+                </div>
+              </form>
+
+              <div class="scanner-panel" id="serial-panel">
+                <div class="scanner-line">
+                  <div class="scanner-status" id="serial-status">Сканер: <strong>подключение к агенту</strong></div>
+                  <button class="button" id="serial-connect" type="button">Резервный COM</button>
+                </div>
+                <div class="step-note" id="serial-note">Основной режим получает сканы через выбранный агент печати. Прямой COM используйте только если агент недоступен.</div>
+              </div>
+
+              <div class="message" id="message">Ожидание штрихкода товара.</div>
+              <div class="facts" id="facts" hidden>
+                <div class="fact"><div class="fact-label">Артикул</div><div class="fact-value" id="fact-sku"></div></div>
+                <div class="fact"><div class="fact-label">Товар</div><div class="fact-value" id="fact-name"></div></div>
+                <div class="fact"><div class="fact-label">ШК товара</div><div class="fact-value" id="fact-barcode"></div></div>
+                <div class="fact"><div class="fact-label">GTIN из DataMatrix</div><div class="fact-value" id="fact-gtin"></div></div>
+                <div class="fact"><div class="fact-label">Клиент</div><div class="fact-value" id="fact-agency"></div></div>
+                <div class="fact"><div class="fact-label">Код ЧЗ</div><div class="fact-value" id="fact-code"></div></div>
+              </div>
+
+              <div class="actions">
+                <button class="button" id="reset-button" type="button">Начать заново</button>
+              </div>
+            </div>
+
+            <div class="preview-card">
+              <h2 class="preview-title" id="preview-title">Этикетка по выбранному шаблону</h2>
+              <div class="canvas-shell">
+                <div class="label-placeholder" id="label-placeholder">Ожидание двух сканов</div>
+                <img id="label-preview-image" alt="Предпросмотр дубликата Честного знака" hidden>
+              </div>
+              <div class="print-settings">
+                <div class="print-setting">
+                  <label for="agent-select">Агент печати</label>
+                  <select class="select" id="agent-select"></select>
+                </div>
+                <div class="print-setting">
+                  <label for="printer-select">Принтер</label>
+                  <select class="select" id="printer-select"></select>
+                </div>
+              </div>
+              <div class="actions">
+                <button class="button primary" id="print-button" type="button" disabled>Напечатать одну копию</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  {{ print_agents|json_script:"print-agents" }}
+  <iframe id="labels-item-renderer" src="/labels/settings/?renderer=1" title="" aria-hidden="true" tabindex="-1" style="position:fixed;left:-10000px;top:-10000px;width:1920px;height:1080px;border:0;opacity:0;pointer-events:none;"></iframe>
+  <script>
+    const productInput = document.getElementById("product-barcode");
+    const matrixInput = document.getElementById("matrix-code");
+    const message = document.getElementById("message");
+    const facts = document.getElementById("facts");
+    const resetButton = document.getElementById("reset-button");
+    const printButton = document.getElementById("print-button");
+    const agentSelect = document.getElementById("agent-select");
+    const printerSelect = document.getElementById("printer-select");
+    const labelPreview = document.getElementById("label-preview-image");
+    const labelPlaceholder = document.getElementById("label-placeholder");
+    const previewTitle = document.getElementById("preview-title");
+    const labelRendererFrame = document.getElementById("labels-item-renderer");
+    const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+    const printAgents = JSON.parse(document.getElementById("print-agents").textContent || "[]");
+    const serialConnect = document.getElementById("serial-connect");
+    const serialStatus = document.getElementById("serial-status");
+
+    let productBarcode = "";
+    let validated = null;
+    let busy = false;
+    let productScanTimer = null;
+    let matrixScanTimer = null;
+    let serialPort = null;
+    let serialReader = null;
+    let serialBuffer = "";
+    let serialTimer = null;
+    let scannerAgentId = "";
+    let scannerAgentContextId = "";
+    let scannerAgentSinceId = 0;
+    let scannerAgentPollTimer = null;
+    let scannerAgentKeepaliveTimer = null;
+    let scannerAgentClaiming = false;
+    let desktopDirectAgentId = "";
+    const pendingLabelRenders = new Map();
+    const SCAN_IDLE_MS = 140;
+    const SERIAL_IDLE_MS = 170;
+    const SERIAL_BAUD_RATE = 9600;
+    const SERIAL_DEVICE_STORAGE_KEY = "fullbox_duplicate_scanner_usb";
+    const AGENT_EVENTS_URL = "/agent/events/poll/";
+    const AGENT_CONTEXT_CLAIM_URL = "/agent/contexts/claim/";
+    const AGENT_CONTEXT_RELEASE_URL = "/agent/contexts/release/";
+
+    function setMessage(text, tone = "") {
+      message.textContent = text;
+      message.className = `message${tone ? ` ${tone}` : ""}`;
+    }
+
+    function setSerialStatus(text, tone = "") {
+      serialStatus.className = `scanner-status${tone ? ` ${tone}` : ""}`;
+      serialStatus.innerHTML = `Сканер: <strong>${text}</strong>`;
+    }
+
+    function postAgentJson(url, payload, keepalive = false) {
+      return fetch(url, {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "X-CSRFToken": csrfToken},
+        credentials: "same-origin",
+        keepalive,
+        body: JSON.stringify(payload || {}),
+      });
+    }
+
+    function clearScannerAgentTimers() {
+      clearTimeout(scannerAgentPollTimer);
+      clearTimeout(scannerAgentKeepaliveTimer);
+      scannerAgentPollTimer = null;
+      scannerAgentKeepaliveTimer = null;
+    }
+
+    async function releaseScannerAgentContext(keepalive = false) {
+      const contextId = scannerAgentContextId;
+      clearScannerAgentTimers();
+      scannerAgentContextId = "";
+      scannerAgentId = "";
+      scannerAgentSinceId = 0;
+      if (!contextId) return;
+      try {
+        await postAgentJson(AGENT_CONTEXT_RELEASE_URL, {context_id: contextId}, keepalive);
+      } catch (error) {
+        // Context expires automatically if the page was closed abruptly.
+      }
+    }
+
+    function scheduleScannerAgentPoll(delay = 500) {
+      clearTimeout(scannerAgentPollTimer);
+      scannerAgentPollTimer = setTimeout(pollScannerAgentEvents, delay);
+    }
+
+    function scheduleScannerAgentKeepalive(delay = 10000) {
+      clearTimeout(scannerAgentKeepaliveTimer);
+      scannerAgentKeepaliveTimer = setTimeout(() => {
+        claimScannerAgentContext(true).catch(() => {});
+      }, delay);
+    }
+
+    async function pollScannerAgentEvents() {
+      if (!scannerAgentId || !scannerAgentContextId) return;
+      const params = new URLSearchParams({
+        since: String(scannerAgentSinceId || 0),
+        type: "scan",
+        context_id: scannerAgentContextId,
+      });
+      try {
+        const response = await fetch(`${AGENT_EVENTS_URL}?${params.toString()}`, {
+          credentials: "same-origin",
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error("События сканера недоступны");
+        (Array.isArray(data.events) ? data.events : []).forEach((event) => {
+          const eventId = Number(event && event.id) || 0;
+          scannerAgentSinceId = Math.max(scannerAgentSinceId, eventId);
+          const value = event && event.payload ? String(event.payload.value || "") : "";
+          if (value) routeSerialScan(value);
+        });
+      } catch (error) {
+        setSerialStatus("нет связи с агентом", "error");
+      } finally {
+        if (scannerAgentId && scannerAgentContextId) scheduleScannerAgentPoll();
+      }
+    }
+
+    async function claimScannerAgentContext(keepalive = false) {
+      const requestedAgentId = String(agentSelect.value || "").trim();
+      if (!requestedAgentId || scannerAgentClaiming) {
+        if (!requestedAgentId) {
+          setSerialStatus("выберите агент печати", "error");
+          serialConnect.disabled = false;
+          serialConnect.textContent = "Резервный COM";
+        }
+        return false;
+      }
+      const selectedAgent = printAgents.find((agent) => agent.id === requestedAgentId);
+      if (selectedAgent && selectedAgent.desktop_direct && window.fullboxDesktop) {
+        clearScannerAgentTimers();
+        scannerAgentId = "";
+        scannerAgentContextId = "";
+        scannerAgentSinceId = 0;
+        setSerialStatus("Fullbox Desktop · напрямую", "success");
+        serialConnect.disabled = true;
+        serialConnect.textContent = "Сканирование через Desktop";
+        return true;
+      }
+      scannerAgentClaiming = true;
+      try {
+        if (scannerAgentId && scannerAgentId !== requestedAgentId) {
+          await releaseScannerAgentContext();
+        }
+        const payload = {agent_id: requestedAgentId, force: false};
+        if (scannerAgentContextId) payload.context_id = scannerAgentContextId;
+        const response = await postAgentJson(AGENT_CONTEXT_CLAIM_URL, payload);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok === false) {
+          const busy = data && data.error === "busy";
+          throw new Error(busy ? "агент занят другим рабочим экраном" : "агент недоступен");
+        }
+        scannerAgentId = requestedAgentId;
+        scannerAgentContextId = String(data.context_id || scannerAgentContextId || "");
+        scannerAgentSinceId = Math.max(
+          scannerAgentSinceId,
+          Number(data.last_scan_event_id) || 0,
+        );
+        const label = agentSelect.options[agentSelect.selectedIndex]?.text || requestedAgentId;
+        setSerialStatus(`агент ${label} подключен`, "success");
+        serialConnect.disabled = true;
+        serialConnect.textContent = "Сканирование через агент";
+        scheduleScannerAgentPoll(100);
+        scheduleScannerAgentKeepalive();
+        return true;
+      } catch (error) {
+        setSerialStatus(error.message || "агент недоступен", "error");
+        serialConnect.disabled = false;
+        serialConnect.textContent = "Резервный COM";
+        return false;
+      } finally {
+        scannerAgentClaiming = false;
+      }
+    }
+
+    function serialPortIdentity(port) {
+      if (!port || typeof port.getInfo !== "function") return "";
+      const info = port.getInfo() || {};
+      const vendorId = Number(info.usbVendorId || 0);
+      const productId = Number(info.usbProductId || 0);
+      return vendorId && productId ? `${vendorId}:${productId}` : "";
+    }
+
+    function rememberSerialPort(port) {
+      const identity = serialPortIdentity(port);
+      if (identity) localStorage.setItem(SERIAL_DEVICE_STORAGE_KEY, identity);
+    }
+
+    function setFact(id, value) {
+      document.getElementById(id).textContent = value || "-";
+    }
+
+    function drawEmptyLabel() {
+      labelPreview.removeAttribute("src");
+      labelPreview.hidden = true;
+      labelPlaceholder.hidden = false;
+      previewTitle.textContent = "Этикетка по выбранному шаблону";
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (!labelRendererFrame || event.source !== labelRendererFrame.contentWindow) return;
+      const data = event.data || {};
+      if (data.type !== "fullbox:render-item-label-result") return;
+      const requestId = String(data.requestId || "");
+      const pending = pendingLabelRenders.get(requestId);
+      if (!pending) return;
+      pendingLabelRenders.delete(requestId);
+      window.clearTimeout(pending.timeoutId);
+      if (data.ok && data.image) {
+        pending.resolve(data.image);
+      } else {
+        pending.reject(new Error(data.error || "Шаблон этикетки не сформирован."));
+      }
+    });
+
+    function requestLabelImage(payload) {
+      return new Promise((resolve, reject) => {
+        if (!labelRendererFrame || !labelRendererFrame.contentWindow) {
+          reject(new Error("Модуль шаблонов этикеток недоступен."));
+          return;
+        }
+        const requestId = `duplicate-label-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        const timeoutId = window.setTimeout(() => {
+          pendingLabelRenders.delete(requestId);
+          reject(new Error("Модуль шаблонов не ответил. Обновите страницу."));
+        }, 15000);
+        pendingLabelRenders.set(requestId, {resolve, reject, timeoutId});
+        labelRendererFrame.contentWindow.postMessage({
+          type: "fullbox:render-item-label",
+          requestId,
+          payload,
+        }, window.location.origin);
+      });
+    }
+
+    async function renderLabel(data) {
+      const template = data.label_template || {};
+      const width = Number(template.width_mm) || 58;
+      const height = Number(template.height_mm) || 40;
+      const image = await requestLabelImage({
+        labelKey: template.label_key || "item_cz",
+        templateKey: template.template_key || "item_cz",
+        mode: "cz",
+        dims: {width, height},
+        data: {
+          barcode: String(data.barcode || "").trim(),
+          cz_code: String(data.matrix_code || "").trim(),
+          article: String(data.sku_code || "").trim(),
+          name: String(data.product_name || "").trim(),
+          size: String(data.size || "").trim(),
+          brand: String(data.brand || "").trim(),
+          subject: String(data.subject || "").trim(),
+          color: String(data.color || "").trim(),
+          composition: String(data.composition || "").trim(),
+          supplier: String(data.supplier || data.agency_name || "").trim(),
+          country: String(data.country || "").trim(),
+          manufacture_date: String(data.manufacture_date || "").trim(),
+          expiration_date: String(data.expiration_date || "").trim(),
+        },
+      });
+      labelPreview.src = image;
+      labelPreview.hidden = false;
+      labelPlaceholder.hidden = true;
+      previewTitle.textContent = `${template.title || "Товар ЧЗ"} · ${width}×${height} мм`;
+      return image;
+    }
+
+    function populateAgents() {
+      agentSelect.innerHTML = "";
+      if (!printAgents.length) {
+        agentSelect.add(new Option("Нет зарегистрированного агента", ""));
+        printerSelect.innerHTML = "";
+        printerSelect.add(new Option("Принтеры не найдены", ""));
+        return;
+      }
+      printAgents.forEach((agent) => {
+        const status = agent.desktop_direct
+          ? "Desktop · напрямую"
+          : (agent.is_online ? "онлайн" : "нет связи");
+        agentSelect.add(new Option(`${agent.label || agent.id} · ${status}`, agent.id));
+      });
+      const storedAgent = localStorage.getItem("labels_print_agent_id") || localStorage.getItem("fullbox_agent_id");
+      const storedChoice = storedAgent
+        ? printAgents.find((agent) => (
+          agent.id === storedAgent
+          || (Array.isArray(agent.aliases) && agent.aliases.includes(storedAgent))
+        ))
+        : null;
+      if (storedChoice) {
+        agentSelect.value = storedChoice.id;
+        localStorage.setItem("labels_print_agent_id", storedChoice.id);
+        localStorage.setItem("fullbox_agent_id", storedChoice.id);
+      }
+      populatePrinters();
+    }
+
+    async function initializePrintAgents() {
+      if (!window.fullboxDesktop || typeof window.fullboxDesktop.getStatus !== "function") {
+        populateAgents();
+        await claimScannerAgentContext(false);
+        return;
+      }
+      try {
+        const status = await window.fullboxDesktop.getStatus();
+        const workstation = window.fullboxDesktopWorkstation || {};
+        const workstationId = String(
+          status && (status.workstationId || status.agentId)
+          || workstation.workstationId
+          || workstation.agentId
+          || ""
+        ).trim();
+        const printers = Array.from(new Set(
+          (Array.isArray(status && status.printers) ? status.printers : [])
+            .map((printer) => String(printer || "").trim())
+            .filter(Boolean)
+        ));
+        if (!workstationId || !printers.length) {
+          throw new Error("Desktop не вернул рабочее место или принтеры.");
+        }
+        desktopDirectAgentId = `desktop:${workstationId}`;
+        const localNames = new Set(
+          [status && status.name, status && status.host, workstation.name, workstation.host]
+            .map((value) => String(value || "").trim().toLowerCase())
+            .filter(Boolean)
+        );
+        for (let index = printAgents.length - 1; index >= 0; index -= 1) {
+          const agent = printAgents[index] || {};
+          const aliases = Array.isArray(agent.aliases) ? agent.aliases : [];
+          const sameIdentity = agent.id === workstationId
+            || agent.id === desktopDirectAgentId
+            || aliases.includes(workstationId)
+            || aliases.includes(desktopDirectAgentId);
+          const sameComputer = localNames.has(String(agent.label || "").trim().toLowerCase());
+          if (sameIdentity || sameComputer) printAgents.splice(index, 1);
+        }
+        printAgents.unshift({
+          id: desktopDirectAgentId,
+          label: `Fullbox Desktop · ${String(status && status.name || workstationId).trim()}`,
+          printers,
+          is_online: true,
+          desktop_direct: true,
+          aliases: [workstationId],
+        });
+        localStorage.setItem("labels_print_agent_id", desktopDirectAgentId);
+        localStorage.setItem("fullbox_agent_id", desktopDirectAgentId);
+      } catch (error) {
+        desktopDirectAgentId = "";
+      }
+      populateAgents();
+      await claimScannerAgentContext(false);
+    }
+
+    function populatePrinters() {
+      const selected = printAgents.find((agent) => agent.id === agentSelect.value);
+      printerSelect.innerHTML = "";
+      const printers = selected && Array.isArray(selected.printers) ? selected.printers : [];
+      if (!printers.length) {
+        printerSelect.add(new Option("Принтеры не найдены", ""));
+        return;
+      }
+      printers.forEach((printer) => printerSelect.add(new Option(printer, printer)));
+      const stored = localStorage.getItem("processing_label_printer") || localStorage.getItem("label_printer");
+      if (stored && printers.includes(stored)) printerSelect.value = stored;
+    }
+
+    async function validatePair() {
+      if (busy || !productBarcode || !matrixInput.value) return;
+      busy = true;
+      printButton.disabled = true;
+      let shouldAutoPrint = false;
+      setMessage("Проверяю структуру DataMatrix...");
+      try {
+        const response = await fetch("/marking/duplicate/validate/", {
+          method: "POST",
+          headers: {"Content-Type": "application/json", "X-CSRFToken": csrfToken},
+          body: JSON.stringify({barcode: productBarcode, code: matrixInput.value}),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || "Проверка не пройдена.");
+        data.label_image = await renderLabel(data);
+        validated = data;
+        setFact("fact-sku", data.sku_code);
+        setFact("fact-name", data.product_name);
+        setFact("fact-barcode", data.barcode);
+        setFact("fact-gtin", data.gtin);
+        setFact("fact-agency", data.agency_name);
+        setFact("fact-code", data.code_masked);
+        facts.hidden = false;
+        printButton.disabled = !(agentSelect.value && printerSelect.value);
+        const selectedAgent = printAgents.find((agent) => agent.id === agentSelect.value);
+        shouldAutoPrint = Boolean(
+          agentSelect.value
+          && printerSelect.value
+          && selectedAgent
+          && (selectedAgent.is_online || selectedAgent.desktop_direct)
+        );
+        if (shouldAutoPrint) {
+          setMessage(
+            selectedAgent.desktop_direct
+              ? "Код подтвержден. Печатаю одну копию напрямую через Fullbox Desktop."
+              : "Код подтвержден. Автоматически отправляю одну копию на печать.",
+            "success",
+          );
+        } else if (selectedAgent && !selectedAgent.is_online) {
+          setMessage(
+            "Код принят. Агент сохранён, но сейчас нет связи. Перезапустите Fullbox Desktop или поставьте этикетку в очередь вручную.",
+            "warning",
+          );
+        } else {
+          setMessage("Код принят. Выберите агент печати и принтер для отправки этикетки.", "warning");
+        }
+      } catch (error) {
+        validated = null;
+        facts.hidden = true;
+        matrixInput.value = "";
+        matrixInput.focus();
+        setMessage(error.message || "Проверка не пройдена.", "error");
+      } finally {
+        busy = false;
+      }
+      if (shouldAutoPrint) queueDuplicatePrint();
+    }
+
+    function resetFlow() {
+      productBarcode = "";
+      validated = null;
+      clearTimeout(productScanTimer);
+      clearTimeout(matrixScanTimer);
+      productInput.disabled = false;
+      productInput.value = "";
+      matrixInput.value = "";
+      matrixInput.disabled = true;
+      matrixInput.placeholder = "Сначала отсканируйте товар";
+      printButton.disabled = true;
+      facts.hidden = true;
+      drawEmptyLabel();
+      setMessage("Ожидание штрихкода товара.");
+      productInput.focus();
+    }
+
+    function serialScanValue(value) {
+      return String(value || "").replace(/^[\r\n\t]+|[\r\n\t]+$/g, "");
+    }
+
+    function routeSerialScan(value) {
+      const scan = serialScanValue(value);
+      if (!scan) return;
+      if (!productInput.disabled) {
+        productInput.value = scan;
+        acceptProductScan();
+        return;
+      }
+      if (!matrixInput.disabled && !validated) {
+        matrixInput.value = scan;
+        acceptMatrixScan();
+        return;
+      }
+      setMessage("Сканер подключен. Для нового скана нажмите «Начать заново».", "warning");
+    }
+
+    function flushSerialScan() {
+      const scan = serialBuffer;
+      serialBuffer = "";
+      routeSerialScan(scan);
+    }
+
+    function scheduleSerialFlush() {
+      clearTimeout(serialTimer);
+      serialTimer = setTimeout(() => {
+        if (serialBuffer) flushSerialScan();
+      }, SERIAL_IDLE_MS);
+    }
+
+    function consumeSerialChunk(chunk) {
+      serialBuffer += chunk;
+      const delimiterPattern = /[\r\n\t]/;
+      let match = delimiterPattern.exec(serialBuffer);
+      while (match) {
+        const part = serialBuffer.slice(0, match.index);
+        serialBuffer = serialBuffer.slice(match.index + 1);
+        routeSerialScan(part);
+        match = delimiterPattern.exec(serialBuffer);
+      }
+      if (serialBuffer) scheduleSerialFlush();
+    }
+
+    async function closeSerialScanner() {
+      clearTimeout(serialTimer);
+      if (serialReader) {
+        try {
+          await serialReader.cancel();
+        } catch (error) {
+          // Closing scanner connection.
+        }
+        try {
+          serialReader.releaseLock();
+        } catch (error) {
+          // Reader can already be released by the browser.
+        }
+        serialReader = null;
+      }
+      if (serialPort) {
+        try {
+          await serialPort.close();
+        } catch (error) {
+          // Port can already be closed by the browser.
+        }
+        serialPort = null;
+      }
+      serialConnect.disabled = false;
+      serialConnect.textContent = "Выбрать COM-сканер";
+      setSerialStatus("не подключен");
+    }
+
+    async function readSerialScanner() {
+      const decoder = new TextDecoder();
+      try {
+        while (serialPort && serialPort.readable) {
+          serialReader = serialPort.readable.getReader();
+          try {
+            while (true) {
+              const result = await serialReader.read();
+              if (result.done) break;
+              if (result.value) consumeSerialChunk(decoder.decode(result.value, {stream: true}));
+            }
+          } finally {
+            try {
+              serialReader.releaseLock();
+            } catch (error) {
+              // Reader can already be released.
+            }
+            serialReader = null;
+          }
+        }
+      } catch (error) {
+        setSerialStatus(`ошибка: ${error.message}`, "error");
+      }
+    }
+
+    async function openSerialScanner(port) {
+      if (!("serial" in navigator)) {
+        serialConnect.disabled = true;
+        setSerialStatus("браузер не поддерживает COM", "error");
+        return;
+      }
+      try {
+        serialPort = port || await navigator.serial.requestPort();
+        await serialPort.open({
+          baudRate: SERIAL_BAUD_RATE,
+          dataBits: 8,
+          stopBits: 1,
+          parity: "none",
+        });
+        rememberSerialPort(serialPort);
+        serialConnect.disabled = false;
+        serialConnect.textContent = "Сменить COM-порт";
+        setSerialStatus("подключен", "success");
+        readSerialScanner();
+      } catch (error) {
+        await closeSerialScanner();
+        setSerialStatus(`ошибка: ${error.message}`, "error");
+      }
+    }
+
+    async function reconnectKnownSerialScanner() {
+      if (!("serial" in navigator)) {
+        serialConnect.disabled = true;
+        setSerialStatus("браузер не поддерживает COM", "error");
+        return;
+      }
+      try {
+        const ports = await navigator.serial.getPorts();
+        const remembered = localStorage.getItem(SERIAL_DEVICE_STORAGE_KEY) || "";
+        const rememberedPort = remembered
+          ? ports.find((port) => serialPortIdentity(port) === remembered)
+          : null;
+        if (rememberedPort) {
+          openSerialScanner(rememberedPort);
+          return;
+        }
+        serialConnect.disabled = false;
+        serialConnect.textContent = "Выбрать COM-сканер";
+        setSerialStatus(
+          ports.length ? "нужно выбрать порт сканера" : "выберите порт сканера",
+          "offline",
+        );
+      } catch (error) {
+        setSerialStatus(`ошибка: ${error.message}`, "error");
+      }
+    }
+
+    async function selectSerialScanner() {
+      if (!("serial" in navigator)) return;
+      await releaseScannerAgentContext();
+      if (serialPort) await closeSerialScanner();
+      try {
+        const port = await navigator.serial.requestPort();
+        await openSerialScanner(port);
+      } catch (error) {
+        if (error && error.name === "NotFoundError") {
+          setSerialStatus("порт не выбран", "offline");
+          return;
+        }
+        setSerialStatus(`ошибка: ${error.message}`, "error");
+      }
+    }
+
+    function isScanSubmitKey(event) {
+      return event.key === "Enter" || event.key === "Tab" || event.code === "NumpadEnter";
+    }
+
+    function normalizeScanForType(value) {
+      return String(value || "")
+        .trim()
+        .replace(/^\][A-Za-z0-9]{2}/, "")
+        .replace(/^(?:\{FNC1\}|\^FNC1)/i, "")
+        .replace(/\\u001d|\\x001d|\\x1d|_x001d_|\{FNC1\}|\^FNC1/gi, "\x1d")
+        .replace(/^\x1d+/, "")
+        .replace(/\((01|21)\)/g, "$1");
+    }
+
+    function isHonestSignScan(value) {
+      const code = normalizeScanForType(value);
+      return code.startsWith("01")
+        && code.length >= 18
+        && /^\d{14}$/.test(code.slice(2, 16))
+        && code.slice(16, 18) === "21";
+    }
+
+    function acceptProductScan() {
+      if (busy || productInput.disabled) return;
+      clearTimeout(productScanTimer);
+      const value = productInput.value.trim();
+      if (!value) return;
+      if (isHonestSignScan(value)) {
+        productInput.value = "";
+        productBarcode = "";
+        setMessage(
+          "В поле ШК товара отсканирован Честный знак. Сканируйте обычный штрихкод товара.",
+          "error",
+        );
+        productInput.focus();
+        return;
+      }
+      productBarcode = value;
+      productInput.disabled = true;
+      matrixInput.disabled = false;
+      matrixInput.placeholder = "Сканируйте исходный DataMatrix";
+      setMessage("Штрихкод товара принят. Отсканируйте DataMatrix Честного знака.");
+      matrixInput.focus();
+    }
+
+    function acceptMatrixScan() {
+      if (busy || matrixInput.disabled) return;
+      clearTimeout(matrixScanTimer);
+      const value = matrixInput.value.trim();
+      if (!value) return;
+      if (!isHonestSignScan(value)) {
+        matrixInput.value = "";
+        validated = null;
+        setMessage(
+          "В поле Честного знака отсканирован обычный штрихкод. Сканируйте DataMatrix Честного знака.",
+          "error",
+        );
+        matrixInput.focus();
+        return;
+      }
+      validatePair();
+    }
+
+    function scheduleProductScan() {
+      clearTimeout(productScanTimer);
+      if (productInput.value.trim().length < 6) return;
+      productScanTimer = setTimeout(acceptProductScan, SCAN_IDLE_MS);
+    }
+
+    function scheduleMatrixScan() {
+      clearTimeout(matrixScanTimer);
+      if (!matrixInput.value.trim()) return;
+      matrixScanTimer = setTimeout(acceptMatrixScan, SCAN_IDLE_MS);
+    }
+
+    productInput.addEventListener("keydown", (event) => {
+      if (!isScanSubmitKey(event)) return;
+      event.preventDefault();
+      acceptProductScan();
+    });
+
+    matrixInput.addEventListener("keydown", (event) => {
+      if (!isScanSubmitKey(event)) return;
+      event.preventDefault();
+      acceptMatrixScan();
+    });
+
+    productInput.addEventListener("input", scheduleProductScan);
+    matrixInput.addEventListener("input", scheduleMatrixScan);
+
+    serialConnect.addEventListener("click", selectSerialScanner);
+
+    if ("serial" in navigator) {
+      navigator.serial.addEventListener("disconnect", (event) => {
+        if (event.target === serialPort) closeSerialScanner();
+      });
+      reconnectKnownSerialScanner();
+    } else {
+      serialConnect.disabled = true;
+      setSerialStatus("браузер не поддерживает COM", "error");
+    }
+
+    document.getElementById("scan-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!productInput.disabled) {
+        acceptProductScan();
+      } else {
+        acceptMatrixScan();
+      }
+    });
+
+    agentSelect.addEventListener("change", () => {
+      localStorage.setItem("labels_print_agent_id", agentSelect.value);
+      localStorage.setItem("fullbox_agent_id", agentSelect.value);
+      populatePrinters();
+      printButton.disabled = !(validated && agentSelect.value && printerSelect.value);
+      releaseScannerAgentContext().then(() => claimScannerAgentContext(false));
+    });
+
+    printerSelect.addEventListener("change", () => {
+      localStorage.setItem("processing_label_printer", printerSelect.value);
+      localStorage.setItem("label_printer", printerSelect.value);
+      printButton.disabled = !(validated && agentSelect.value && printerSelect.value);
+    });
+
+    async function queueDuplicatePrint() {
+      if (busy || !validated) return;
+      busy = true;
+      printButton.disabled = true;
+      let printSuccessMessage = "";
+      setMessage("Ставлю одну этикетку в очередь печати...");
+      try {
+        const image = String(validated.label_image || "").split(",")[1] || "";
+        if (!image) throw new Error("Шаблон этикетки не сформирован. Отсканируйте товар повторно.");
+        const response = await fetch("/marking/duplicate/print/", {
+          method: "POST",
+          headers: {"Content-Type": "application/json", "X-CSRFToken": csrfToken},
+          body: JSON.stringify({
+            barcode: validated.barcode,
+            code: validated.matrix_code,
+            token: validated.token,
+            label_png_base64: image,
+            agent_id: agentSelect.value,
+            printer_name: printerSelect.value,
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || "Не удалось отправить этикетку.");
+        printSuccessMessage = data.message || "Этикетка поставлена в очередь печати.";
+      } catch (error) {
+        printButton.disabled = false;
+        setMessage(error.message || "Ошибка очереди печати.", "error");
+      } finally {
+        busy = false;
+      }
+      if (printSuccessMessage) {
+        resetFlow();
+        setMessage(`${printSuccessMessage} Сканируйте ШК следующего товара.`, "success");
+      }
+    }
+
+    printButton.addEventListener("click", queueDuplicatePrint);
+
+    resetButton.addEventListener("click", () => {
+      resetFlow();
+    });
+
+    drawEmptyLabel();
+    initializePrintAgents();
+    window.addEventListener("pagehide", () => {
+      releaseScannerAgentContext(true);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+"""Isolated pilot WMS domain."""

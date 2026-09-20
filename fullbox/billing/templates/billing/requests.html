@@ -1,0 +1,212 @@
+{% extends "teammanager/_base.html" %}
+{% load billing_tags %}
+
+{% block title %}Заявки к выставлению — Биллинг{% endblock %}
+
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.hint-box {
+  background: var(--accent-soft, #e8f3f0);
+  border: 1px solid rgba(14,107,91,.22);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.hint-box strong { color: var(--accent-strong, #0b5246); }
+.summary-strip { display:flex; gap:12px; flex-wrap:wrap; }
+.stat-pill {
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:12px 18px; min-width:120px;
+  text-decoration:none; color:inherit;
+}
+.stat-pill.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.stat-pill .sp-label { font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; }
+.stat-pill .sp-value { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:20px; font-weight:900; margin-top:2px; }
+.stat-pill .sp-value.green { color:var(--green-strong); }
+.stat-pill .sp-value.red { color:var(--red); }
+.tab-row { display:flex; gap:8px; flex-wrap:wrap; }
+.tab-link {
+  display:inline-flex; align-items:center; gap:8px;
+  min-height:36px; padding:7px 14px; border-radius:999px;
+  border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  font-size:13px; font-weight:700; text-decoration:none;
+}
+.tab-link.active { background: var(--accent-soft); border-color: rgba(14,107,91,.35); color: var(--accent-strong); }
+.tab-link .cnt {
+  min-width:20px; height:20px; padding:0 6px; border-radius:999px;
+  background:var(--surface-2); font-size:11px; font-weight:800;
+  display:inline-grid; place-items:center;
+}
+.filter-card {
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:12px;
+  display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+}
+.field { border:1px solid var(--line); border-radius:10px; background:#fff; padding:9px 12px; font:inherit; font-size:13px; }
+.table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:1000px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:2px solid var(--line); }
+td { padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+.row-main { font-weight:800; }
+.row-sub { color:var(--muted); font-size:11px; margin-top:2px; }
+.money { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-weight:800; }
+.badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900; }
+.badge.green { background:var(--green-soft); color:var(--green-strong); }
+.badge.orange { background:var(--orange-soft); color:#b45309; }
+.badge.red { background:#fff0f0; color:var(--red); }
+.badge.blue { background:#eff6ff; color:var(--blue); }
+.btn-external {
+  font-size:11px; padding:5px 10px; border:1px solid rgba(212,84,60,.35);
+  background:#fff5f2; color:var(--danger, #d4543c); border-radius:10px; cursor:pointer; font-weight:700;
+}
+.btn-external:hover { background:#ffe8e2; }
+.row-actions { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+{% endblock %}
+
+{% block content %}
+{% include "billing/_billing_nav.html" %}
+
+<div>
+  <h1 class="page-title">Заявки к выставлению</h1>
+  <div class="page-sub">Очередь для бухгалтера: что можно выставлять в Fullbox, а что не трогать.</div>
+</div>
+
+<div class="hint-box">
+  <strong>Выставляйте счета только из вкладки «Можно выставлять».</strong>
+  Если заявка тестовая или счета уже выставляли вне Fullbox — нажмите «Счета вне системы»:
+  биллинг помечается как отменённый, задача менеджера закрывается, склад не меняется.
+</div>
+
+<div class="summary-strip">
+  <a class="stat-pill {% if filter_tab == 'ready' %}active{% endif %}" href="?tab=ready{% if filter_client %}&amp;client={{ filter_client }}{% endif %}">
+    <div class="sp-label">Можно выставлять</div>
+    <div class="sp-value green">{{ requests_ready_count }}</div>
+  </a>
+  <a class="stat-pill {% if filter_tab == 'blocked' %}active{% endif %}" href="?tab=blocked{% if filter_client %}&amp;client={{ filter_client }}{% endif %}">
+    <div class="sp-label">С блокерами</div>
+    <div class="sp-value {% if requests_blocked_count %}red{% endif %}">{{ requests_blocked_count }}</div>
+  </a>
+</div>
+
+<div class="tab-row">
+  <a class="tab-link {% if filter_tab == 'ready' %}active{% endif %}" href="?tab=ready{% if filter_client %}&amp;client={{ filter_client }}{% endif %}">
+    Можно выставлять <span class="cnt">{{ requests_ready_count }}</span>
+  </a>
+  <a class="tab-link {% if filter_tab == 'blocked' %}active{% endif %}" href="?tab=blocked{% if filter_client %}&amp;client={{ filter_client }}{% endif %}">
+    С блокерами <span class="cnt">{{ requests_blocked_count }}</span>
+  </a>
+  <a class="tab-link {% if filter_tab == 'all' %}active{% endif %}" href="?tab=all{% if filter_client %}&amp;client={{ filter_client }}{% endif %}">
+    Все в очереди <span class="cnt">{{ requests_ready_count|add:requests_blocked_count }}</span>
+  </a>
+</div>
+
+<form class="filter-card" method="get">
+  <input type="hidden" name="tab" value="{{ filter_tab }}">
+  <select class="field" name="client">
+    <option value="">Все клиенты</option>
+    {% for c in request_clients %}
+      <option value="{{ c.id }}" {% if filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn primary" type="submit">Найти</button>
+</form>
+
+<div class="table-card">
+  <table>
+    <thead>
+      <tr>
+        <th>Заявка</th>
+        <th>Клиент</th>
+        <th>Статус биллинга</th>
+        <th>Начислений</th>
+        <th>Сумма</th>
+        <th>Договор / тариф</th>
+        <th>Готовность</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in request_rows %}
+        {% with app=row.application %}
+        <tr data-app-id="{{ app.id }}">
+          <td>
+            <a href="/team-manager/billing/applications/{{ app.id }}/" style="text-decoration:none;color:inherit">
+              <div class="row-main">№{{ app.application_id }}_{{ app.application_type|app_type_abbr }}</div>
+              <div class="row-sub">{{ app.get_application_type_display }}</div>
+            </a>
+          </td>
+          <td>{{ row.client.short_name|default:row.client.agn_name|truncatechars:28 }}</td>
+          <td><span class="badge {{ app.billing_status|billing_badge }}">{{ app.get_billing_status_display }}</span></td>
+          <td>
+            {{ row.charges_count }}
+            {% if row.unconfirmed %}<div class="row-sub">не подтв. {{ row.unconfirmed }}</div>{% endif %}
+            {% if row.missing_price %}<div class="row-sub">без цены {{ row.missing_price }}</div>{% endif %}
+          </td>
+          <td><span class="money">{{ row.total|money_fmt }}</span></td>
+          <td>
+            <div class="row-main" style="font-size:12px">{% if row.contract %}есть договор{% else %}—{% endif %}</div>
+            <div class="row-sub">{% if row.tariff %}тариф v{{ row.tariff.version_number }}{% else %}нет тарифа{% endif %}</div>
+          </td>
+          <td>
+            {% if row.ready %}
+              <span class="badge green">Можно выставлять</span>
+            {% else %}
+              <span class="badge orange">Не выставлять пока</span>
+              <div class="row-sub">{{ row.blockers|join:", " }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <div class="row-actions">
+              <a class="btn" href="/team-manager/billing/applications/{{ app.id }}/" style="font-size:11px;padding:5px 10px">Открыть</a>
+              {% if can_mark_billing_external %}
+                <button type="button" class="btn-external js-mark-external" data-app-id="{{ app.id }}">Счета вне системы</button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endwith %}
+      {% empty %}
+        <tr><td colspan="8" style="padding:36px;text-align:center;color:var(--muted);font-weight:700">Нет заявок в этой очереди</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if can_mark_billing_external %}
+<script>
+(function(){
+  function csrf(){ return (document.cookie.match(/csrftoken=([^;]+)/)||[])[1]||''; }
+  document.querySelectorAll('.js-mark-external').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var id = btn.getAttribute('data-app-id');
+      if(!id) return;
+      if(!confirm('Пометить заявку как «счета вне системы»?\n\nБиллинг будет отменён в Fullbox, задача менеджера закроется. Склад и статус отгрузки не изменятся.')) return;
+      var comment = window.prompt('Комментарий (необязательно):', 'Счета вне системы / тестовая заявка') || '';
+      btn.disabled = true;
+      fetch('/team-manager/billing/api/applications/'+id+'/mark-external/', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRFToken': csrf()},
+        body: JSON.stringify({comment: comment})
+      }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok, d:d}; }); })
+      .then(function(res){
+        if(!res.ok){
+          alert((res.d && (res.d.error || res.d.detail)) || 'Не удалось пометить заявку');
+          btn.disabled = false;
+          return;
+        }
+        var tr = btn.closest('tr');
+        if(tr) tr.remove();
+        window.location.reload();
+      }).catch(function(){
+        alert('Ошибка сети');
+        btn.disabled = false;
+      });
+    });
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

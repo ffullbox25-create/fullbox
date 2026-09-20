@@ -1,0 +1,482 @@
+import json
+from datetime import timedelta
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+
+from django.contrib.auth import get_user_model
+from django.template.loader import render_to_string
+from django.test import RequestFactory
+from django.test import TestCase
+from django.utils import timezone
+
+from agent.models import AgentCommand, DeviceAgent
+from processing_app.models import ProcessingPrintJob
+
+from labels.services import (
+    build_label_settings_context,
+    save_label_settings_request,
+    scanner_settings_apply_response,
+    scanner_test_response,
+)
+from labels.utils import (
+    LABEL_FIELDS,
+    build_print_status_snapshot,
+    get_effective_label_template,
+    load_available_printers_data,
+    load_label_settings,
+    load_print_agent_status,
+    save_print_agent_status,
+)
+
+
+class AvailablePrintersFromAgentTests(TestCase):
+    def test_load_available_printers_uses_active_agent_printers_without_json_sync(self):
+        DeviceAgent.objects.create(
+            agent_id="pc-001",
+            name="Warehouse-PC-01",
+            host="WH-01",
+            last_seen=timezone.now(),
+            meta={"printers": ["Zebra GK420d", "TSC TE200", "Zebra GK420d"]},
+        )
+
+        with TemporaryDirectory() as tmp_dir:
+            missing_path = Path(tmp_dir) / "available_printers.json"
+            with patch("labels.utils.available_printers_path", return_value=missing_path):
+                printers, meta = load_available_printers_data()
+
+        self.assertEqual(printers, ["Zebra GK420d", "TSC TE200"])
+        self.assertEqual(meta.get("source"), "agent")
+        self.assertEqual(meta.get("updated_by"), "Warehouse-PC-01")
+
+    def test_build_print_status_snapshot_reports_queue_and_printer_states(self):
+        DeviceAgent.objects.create(
+            agent_id="pc-001",
+            name="Warehouse-PC-01",
+            host="WH-01",
+            last_seen=timezone.now(),
+            meta={
+                "printers": ["Zebra GK420d", "Microsoft Print to PDF"],
+                "printer_details": [
+                    {
+                        "name": "Zebra GK420d",
+                        "is_default": True,
+                        "is_offline": False,
+                        "is_paused": False,
+                        "is_busy": False,
+                        "is_local": True,
+                        "is_network": False,
+                        "jobs": 0,
+                        "status": "",
+                    },
+                    {
+                        "name": "Microsoft Print to PDF",
+                        "is_default": False,
+                        "is_offline": False,
+                        "is_paused": False,
+                        "is_busy": True,
+                        "is_local": True,
+                        "is_network": False,
+                        "jobs": 1,
+                        "status": "busy",
+                    },
+                ],
+                "printer_details_updated_at": timezone.now().isoformat(),
+            },
+        )
+        ProcessingPrintJob.objects.create(
+            barcode="111",
+            label_png_base64="ZmFrZQ==",
+            printer_name="Zebra GK420d",
+            status=ProcessingPrintJob.STATUS_PENDING,
+        )
+        printing_job = ProcessingPrintJob.objects.create(
+            barcode="222",
+            label_png_base64="ZmFrZQ==",
+            printer_name="Microsoft Print to PDF",
+            status=ProcessingPrintJob.STATUS_PRINTING,
+        )
+        ProcessingPrintJob.objects.filter(pk=printing_job.pk).update(
+            updated_at=timezone.now() - timedelta(minutes=5)
+        )
+        ProcessingPrintJob.objects.create(
+            barcode="333",
+            label_png_base64="ZmFrZQ==",
+            printer_name="Zebra GK420d",
+            status=ProcessingPrintJob.STATUS_FAILED,
+            error="paper jam",
+        )
+
+        snapshot = build_print_status_snapshot()
+
+        self.assertEqual(snapshot["print_queue_pending"], 1)
+        self.assertEqual(snapshot["print_queue_printing"], 1)
+        self.assertEqual(snapshot["print_queue_failed"], 1)
+        self.assertEqual(snapshot["print_queue_stuck"], 1)
+        self.assertIn("зависшие задания", snapshot["print_status_line"].lower())
+
+        by_name = {item["name"]: item for item in snapshot["printer_statuses"]}
+        self.assertEqual(by_name["Zebra GK420d"]["state_key"], "ready")
+        self.assertEqual(by_name["Microsoft Print to PDF"]["state_key"], "busy")
+        self.assertTrue(by_name["Microsoft Print to PDF"]["is_virtual"])
+
+
+class LabelServiceTests(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def test_build_label_settings_context_contains_updated_pallet_size(self):
+        context = build_label_settings_context()
+
+        pallet = next((item for item in context["label_sizes"] if item.get("key") == "pallet"), None)
+        self.assertIsNotNone(pallet)
+        self.assertEqual(pallet["width_mm"], 58)
+        self.assertEqual(pallet["height_mm"], 60)
+
+    def test_label_settings_template_keeps_product_and_storage_groups_visible(self):
+        context = build_label_settings_context()
+        context.update(
+            {
+                "cabinet_url": "/team-manager/",
+                "return_url": "/team-manager/",
+                "workspace_role_label": "Сотрудник",
+                "return_label": "В кабинет",
+            }
+        )
+
+        html = render_to_string("labels/settings.html", context)
+
+        self.assertIn("Товарные этикетки", html)
+        self.assertIn("Складские этикетки", html)
+        self.assertIn('data-label-key="item_5860"', html)
+        self.assertIn('data-label-key="item_75120"', html)
+        self.assertIn('data-label-key="pallet"', html)
+        self.assertIn("item_5860: 'no-cz'", html)
+        self.assertIn("item_75120: 'no-cz'", html)
+        self.assertIn("item_cz: 'cz'", html)
+        self.assertIn("compact-printer-card", html)
+        self.assertIn("label-printer-quick", html)
+        self.assertIn("data-print-refresh", html)
+        self.assertIn("data-compact-status", html)
+        self.assertIn("data-preview-block", html)
+        self.assertIn("data-label-scale-badge", html)
+        self.assertIn('data-label-width="75"', html)
+        self.assertIn('data-label-height="120"', html)
+        self.assertIn("Math.min(2", html)
+
+    def test_label_settings_template_exposes_format_controls(self):
+        context = build_label_settings_context()
+        context.update(
+            {
+                "cabinet_url": "/team-manager/",
+                "return_url": "/team-manager/",
+            }
+        )
+        html = render_to_string("labels/settings.html", context)
+
+        self.assertIn('id="label-width-mm"', html)
+        self.assertIn('id="label-height-mm"', html)
+        self.assertIn("dimensions: readDimensions()", html)
+
+    def test_label_format_is_saved_and_exposed_to_renderer(self):
+        with TemporaryDirectory() as tmp_dir:
+            settings_path = Path(tmp_dir) / "label_settings.json"
+            with patch("labels.utils.label_settings_path", return_value=settings_path):
+                response = save_label_settings_request(
+                    body=json.dumps(
+                        {
+                            "key": "item_cz",
+                            "text": {},
+                            "fonts": {},
+                            "enabled": {},
+                            "dimensions": {"width_mm": 60, "height_mm": 50},
+                        }
+                    ).encode("utf-8")
+                )
+                stored = json.loads(settings_path.read_text(encoding="utf-8"))
+                template = get_effective_label_template("item_cz")
+                context = build_label_settings_context()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            stored["templates"]["item_cz"]["dimensions"],
+            {"width_mm": 60, "height_mm": 50},
+        )
+        self.assertEqual(template["width_mm"], 60)
+        self.assertEqual(template["height_mm"], 50)
+        context_template = next(
+            item for item in context["label_templates"] if item["key"] == "item_cz"
+        )
+        self.assertEqual(context_template["width_mm"], 60)
+        self.assertEqual(context_template["height_mm"], 50)
+
+    def test_label_format_rejects_invalid_dimensions(self):
+        response = save_label_settings_request(
+            body=json.dumps(
+                {
+                    "key": "item_cz",
+                    "dimensions": {"width_mm": 58, "height_mm": 0},
+                }
+            ).encode("utf-8")
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(json.loads(response.content)["error"], "invalid_dimensions")
+
+    def test_label_settings_template_keeps_gs1_matrix_readable(self):
+        context = build_label_settings_context()
+        context.update(
+            {
+                "cabinet_url": "/processing-head/",
+                "return_url": "/processing-head/",
+                "workspace_role_label": "Руководитель обработки",
+                "return_label": "В кабинет",
+            }
+        )
+
+        html = render_to_string("labels/settings.html", context)
+
+        self.assertIn('data-label-type="item_cz"', html)
+        self.assertIn('grid-row: 1 / span 4;', html)
+        self.assertIn("const size = Math.floor(rawSize * 0.98) || 64;", html)
+        self.assertIn("canvas.style.imageRendering = 'pixelated';", html)
+        self.assertIn("scale: 5,", html)
+        self.assertIn("padding: 2,", html)
+
+    def test_label_settings_template_supports_manufacture_and_expiration_fields(self):
+        context = build_label_settings_context()
+        context.update(
+            {
+                "cabinet_url": "/team-manager/",
+                "return_url": "/team-manager/",
+                "workspace_role_label": "Сотрудник",
+                "return_label": "В кабинет",
+            }
+        )
+
+        html = render_to_string("labels/settings.html", context)
+
+        self.assertIn("Дата изготовления", html)
+        self.assertIn("Срок годности", html)
+        self.assertIn('id="label-input-manufacture_date"', html)
+        self.assertIn('id="label-input-expiration_date"', html)
+        self.assertIn('id="label-input-manufacture_date" data-label-text type="text"', html)
+        self.assertIn('id="label-input-expiration_date" data-label-text type="text"', html)
+        self.assertIn('data-label-date-picker="manufacture_date" type="date"', html)
+        self.assertIn('data-label-date-picker="expiration_date" type="date"', html)
+        self.assertIn("ДД.ММ.ГГГГ или ММ.ГГГГ", html)
+        self.assertIn("Дата не будет напечатана", html)
+        self.assertIn("formatLabelDate", html)
+        self.assertIn("const savedText = settings.text || {};", html)
+        self.assertIn("labelDateFields.has(field)", html)
+        self.assertIn("(sourceValue || savedValue)", html)
+        self.assertIn('data-info="manufacture_date"', html)
+        self.assertIn('data-info="expiration_date"', html)
+
+    def test_save_label_settings_persists_manufacture_and_expiration_fields(self):
+        self.assertIn("manufacture_date", LABEL_FIELDS)
+        self.assertIn("expiration_date", LABEL_FIELDS)
+        with TemporaryDirectory() as tmp_dir:
+            settings_path = Path(tmp_dir) / "label_settings.json"
+            with patch("labels.utils.label_settings_path", return_value=settings_path):
+                settings_path.write_text(
+                    json.dumps(
+                        {
+                            "templates": {
+                                "item_cz": {
+                                    "text": {"cz_code": ""},
+                                    "fonts": {"cz_code": 1.7},
+                                    "enabled": {"cz_code": True},
+                                }
+                            }
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                response = save_label_settings_request(
+                    body=json.dumps(
+                        {
+                            "key": "item",
+                            "text": {
+                                "manufacture_date": "20.08.2026",
+                                "expiration_date": "08.2027",
+                            },
+                            "fonts": {
+                                "manufacture_date": 0.8,
+                                "expiration_date": 0.9,
+                            },
+                            "enabled": {
+                                "manufacture_date": True,
+                                "expiration_date": True,
+                            },
+                        }
+                    ).encode("utf-8")
+                )
+                stored = json.loads(settings_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(response.status_code, 200)
+        item_settings = stored["templates"]["item"]
+        self.assertEqual(item_settings["text"]["manufacture_date"], "20.08.2026")
+        self.assertEqual(item_settings["text"]["expiration_date"], "08.2027")
+        self.assertEqual(item_settings["fonts"]["manufacture_date"], 0.8)
+        self.assertTrue(item_settings["enabled"]["expiration_date"])
+        honest_sign_settings = stored["templates"]["item_cz"]
+        self.assertEqual(honest_sign_settings["text"]["manufacture_date"], "20.08.2026")
+        self.assertEqual(honest_sign_settings["fonts"]["expiration_date"], 0.9)
+        self.assertTrue(honest_sign_settings["enabled"]["manufacture_date"])
+        self.assertEqual(honest_sign_settings["fonts"]["cz_code"], 1.7)
+        self.assertTrue(honest_sign_settings["enabled"]["cz_code"])
+
+    def test_load_label_settings_uses_regular_product_fields_for_honest_sign(self):
+        with TemporaryDirectory() as tmp_dir:
+            settings_path = Path(tmp_dir) / "label_settings.json"
+            settings_path.write_text(
+                json.dumps(
+                    {
+                        "templates": {
+                            "item": {
+                                "text": {"manufacture_date": "", "expiration_date": ""},
+                                "fonts": {"article": 3, "manufacture_date": 2},
+                                "enabled": {
+                                    "article": True,
+                                    "manufacture_date": False,
+                                    "expiration_date": False,
+                                },
+                            },
+                            "item_cz": {
+                                "text": {"manufacture_date": "01.2026", "cz_code": ""},
+                                "fonts": {"article": 2, "manufacture_date": 1.8, "cz_code": 1.7},
+                                "enabled": {
+                                    "article": True,
+                                    "manufacture_date": True,
+                                    "expiration_date": True,
+                                    "cz_code": True,
+                                },
+                            },
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with patch("labels.utils.label_settings_path", return_value=settings_path):
+                loaded = load_label_settings()
+
+        honest_sign_settings = loaded["item_cz"]
+        self.assertFalse(honest_sign_settings["enabled"]["manufacture_date"])
+        self.assertFalse(honest_sign_settings["enabled"]["expiration_date"])
+        self.assertEqual(honest_sign_settings["fonts"]["article"], 3.0)
+        self.assertEqual(honest_sign_settings["fonts"]["manufacture_date"], 2.0)
+        self.assertEqual(honest_sign_settings["fonts"]["cz_code"], 1.7)
+        self.assertTrue(honest_sign_settings["enabled"]["cz_code"])
+
+    def test_save_honest_sign_template_updates_regular_product_fields(self):
+        with TemporaryDirectory() as tmp_dir:
+            settings_path = Path(tmp_dir) / "label_settings.json"
+            with patch("labels.utils.label_settings_path", return_value=settings_path):
+                settings_path.write_text(
+                    json.dumps(
+                        {
+                            "templates": {
+                                "item": {
+                                    "text": {"article": "OLD"},
+                                    "fonts": {"article": 2},
+                                    "enabled": {"article": True},
+                                },
+                                "item_cz": {
+                                    "text": {"cz_code": ""},
+                                    "fonts": {"cz_code": 1.7},
+                                    "enabled": {"cz_code": True},
+                                },
+                            }
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                response = save_label_settings_request(
+                    body=json.dumps(
+                        {
+                            "key": "item_cz",
+                            "text": {"article": "NEW", "cz_code": ""},
+                            "fonts": {"article": 3, "cz_code": 1.7},
+                            "enabled": {"article": True, "cz_code": True},
+                        }
+                    ).encode("utf-8")
+                )
+                stored = json.loads(settings_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(stored["templates"]["item"]["text"]["article"], "NEW")
+        self.assertEqual(stored["templates"]["item"]["fonts"]["article"], 3.0)
+        self.assertEqual(stored["templates"]["item_cz"]["fonts"]["cz_code"], 1.7)
+        self.assertTrue(stored["templates"]["item_cz"]["enabled"]["cz_code"])
+
+    def test_build_label_settings_context_exposes_online_agent_and_ports(self):
+        DeviceAgent.objects.create(
+            agent_id="pc-002",
+            name="Scanner-PC",
+            host="WH-02",
+            version="1.2.3",
+            last_seen=timezone.now(),
+            meta={"ports": ["COM3"], "com": {"enabled": True, "port": "COM3", "baud": 9600}},
+        )
+
+        context = build_label_settings_context()
+
+        self.assertEqual(context["scanner_ports"], ["COM3"])
+        self.assertEqual(context["scanner_agents"][0]["agent_id"], "pc-002")
+        self.assertTrue(context["scanner_agents"][0]["is_online"])
+
+    def test_scanner_settings_apply_response_creates_command_for_target_agent(self):
+        DeviceAgent.objects.create(agent_id="pc-003", last_seen=timezone.now())
+
+        response = scanner_settings_apply_response(
+            body=b'{"agent_id":"pc-003","settings":{"default":{"enabled":true,"port":"COM4","baud":115200,"eol":"LF","idle_ms":50}}}'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        command = AgentCommand.objects.get()
+        self.assertEqual(command.agent_id, "pc-003")
+        self.assertEqual(command.command, "scanner.config")
+        self.assertEqual(command.payload["port"], "COM4")
+
+    def test_scanner_test_response_requires_agent(self):
+        response = scanner_test_response(
+            body=b'{"settings":{"default":{"enabled":true,"port":"COM4","baud":115200,"eol":"LF","idle_ms":50}}}'
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+
+class PrintAgentStatusTests(TestCase):
+    def test_save_print_agent_status_throttles_repeated_heartbeat_writes(self):
+        with TemporaryDirectory() as tmp_dir:
+            status_path = Path(tmp_dir) / "print_agent_status.json"
+            started_at = timezone.now()
+            with patch("labels.utils.print_agent_status_path", return_value=status_path):
+                first_payload = save_print_agent_status("agent-1", when=started_at)
+                first_mtime = status_path.stat().st_mtime_ns
+
+                second_payload = save_print_agent_status(
+                    "agent-1",
+                    when=started_at + timedelta(seconds=2),
+                )
+                second_mtime = status_path.stat().st_mtime_ns
+                stored = load_print_agent_status()
+
+        self.assertEqual(first_payload["agent"], "agent-1")
+        self.assertEqual(second_payload["agent"], "agent-1")
+        self.assertEqual(first_mtime, second_mtime)
+        self.assertEqual(stored["agent"], "agent-1")
+        self.assertEqual(stored["last_seen"], started_at.isoformat())
+
+    def test_save_print_agent_status_updates_immediately_for_new_agent(self):
+        with TemporaryDirectory() as tmp_dir:
+            status_path = Path(tmp_dir) / "print_agent_status.json"
+            started_at = timezone.now()
+            with patch("labels.utils.print_agent_status_path", return_value=status_path):
+                save_print_agent_status("agent-1", when=started_at)
+                save_print_agent_status("agent-2", when=started_at + timedelta(seconds=1))
+                stored = load_print_agent_status()
+
+        self.assertEqual(stored["agent"], "agent-2")
+        self.assertEqual(stored["last_seen"], (started_at + timedelta(seconds=1)).isoformat())

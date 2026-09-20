@@ -1,0 +1,78 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}История товара FBS{% endblock %}
+
+{% block workspace_body %}
+  <form class="operator-filters" method="get">
+    <label>
+      <span>Клиент</span>
+      <select name="agency">
+        <option value="">Все клиенты</option>
+        {% for agency in agencies %}<option value="{{ agency.id }}"{% if agency_filter == agency.id|stringformat:"s" %} selected{% endif %}>{{ agency }}</option>{% endfor %}
+      </select>
+    </label>
+    <label><span>Артикул, ШК или товар</span><input type="search" name="q" value="{{ query }}" placeholder="Например, 0152 или lip_duo"></label>
+    <label>
+      <span>Операция</span>
+      <select name="direction">
+        <option value="">Приход и расход</option>
+        {% for value, label in direction_choices %}<option value="{{ value }}"{% if direction == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label><span>Дата с</span><input type="date" name="date_from" value="{{ date_from }}"></label>
+    <label><span>Дата по</span><input type="date" name="date_to" value="{{ date_to }}"></label>
+    <label><span>На странице</span><select name="page_size">{% for size in page_sizes %}<option value="{{ size }}"{% if page_size == size %} selected{% endif %}>{{ size }}</option>{% endfor %}</select></label>
+    <div class="filter-actions"><button class="button button-primary button-compact" type="submit">Показать</button><a class="button button-secondary button-compact" href="{% url 'fbs:operator_stock_history' %}">Сбросить</a></div>
+  </form>
+
+  <section class="operator-summary">
+    <div><span>Приход за период, шт.</span><strong>{{ summary.arrival_qty }}</strong></div>
+    <div><span>Расход за период, шт.</span><strong>{{ summary.outgoing_qty }}</strong></div>
+    <div><span>Остаток сейчас, шт.</span><strong>{{ summary.current_qty }}</strong></div>
+    <div><span>Операций в отчёте</span><strong>{{ summary.operations }}</strong></div>
+  </section>
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading">
+      <div><span class="section-kicker">Прослеживаемость FBS</span><h2>Когда товар пришёл и куда ушёл</h2></div>
+      <strong>{{ page.paginator.count }}</strong>
+    </div>
+    <div class="operator-table-scroll">
+      <table class="operator-table">
+        <thead><tr><th>Когда</th><th>Операция</th><th>Клиент</th><th>Артикул / товар</th><th>ШК</th><th>Количество</th><th>Откуда</th><th>Куда</th><th>Документ</th></tr></thead>
+        <tbody>
+          {% for row in page.object_list %}
+            <tr>
+              <td><strong>{{ row.event_at|date:"d.m.Y H:i" }}</strong><small>{{ row.status_label }}</small></td>
+              <td><span class="status status-{{ row.direction_status }}">{{ row.direction_label }}</span></td>
+              <td><strong>{{ row.agency_name }}</strong><small>ID {{ row.agency_id }}</small></td>
+              <td><strong><a class="table-main-link" href="{% url 'fbs:operator_stock_item_history' %}?agency={{ row.agency_id }}&sku={{ row.sku_code|urlencode }}&barcode={{ row.barcode|urlencode }}">{{ row.article }}</a></strong><small>{{ row.product_name|default:"—" }}{% if row.external_sku and row.external_sku != row.article %} · арт. МП {{ row.external_sku }}{% endif %}</small></td>
+              <td>{{ row.barcode|default:"—" }}</td>
+              <td><strong>{% if row.direction == 'arrival' %}+{% else %}−{% endif %}{{ row.qty }} шт.</strong></td>
+              <td>{{ row.source_label }}</td>
+              <td>{{ row.destination_label }}</td>
+              <td>
+                {% if row.direction == 'arrival' and row.request_id %}
+                  <a class="table-main-link" href="{% url 'fbs:operator_movement_detail' request_id=row.request_id %}">{{ row.reference_label }}</a>
+                {% elif row.direction == 'arrival' and row.plan_id %}
+                  <a class="table-main-link" href="{% url 'fbs:tsd_storekeeper_plan' plan_id=row.plan_id %}">{{ row.reference_label }}</a>
+                {% elif row.direction == 'outgoing' and row.order_id %}
+                  <a class="table-main-link" href="{% url 'fbs:operator_order_detail' order_id=row.order_id %}">{{ row.reference_label }}</a>
+                  {% if row.pick_batch_id %}<small>Волна №{{ row.pick_batch_id }}</small>{% endif %}
+                {% else %}{{ row.reference_label }}{% endif %}
+              </td>
+            </tr>
+          {% empty %}<tr><td class="empty-row" colspan="9">Операций по выбранным фильтрам не найдено</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if page.paginator.num_pages > 1 %}
+    <nav class="operator-pagination">
+      {% if page.has_previous %}<a class="button button-secondary button-compact" href="?agency={{ agency_filter }}&q={{ query|urlencode }}&direction={{ direction }}&date_from={{ date_from }}&date_to={{ date_to }}&page_size={{ page_size }}&page={{ page.previous_page_number }}">Назад</a>{% endif %}
+      <span>Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="button button-secondary button-compact" href="?agency={{ agency_filter }}&q={{ query|urlencode }}&direction={{ direction }}&date_from={{ date_from }}&date_to={{ date_to }}&page_size={{ page_size }}&page={{ page.next_page_number }}">Далее</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Печать КИЗ · FBS-NEW</title>
+  <style>
+    @page { size: 58mm 40mm; margin: 2mm; }
+    body { margin: 0; color: #111; font-family: Arial, sans-serif; }
+    .label { width: 54mm; min-height: 36mm; display: flex; flex-direction: column; justify-content: center; gap: 2mm; break-after: page; overflow-wrap: anywhere; }
+    .product { font-size: 9pt; font-weight: 700; }
+    .meta { font-size: 7pt; }
+    .code { font-family: "Courier New", monospace; font-size: 8pt; white-space: pre-wrap; }
+    .toolbar { position: fixed; top: 8px; right: 8px; }
+    @media print { .toolbar { display: none; } }
+  </style>
+</head>
+<body>
+  <button class="toolbar" type="button" onclick="window.print()">Печать</button>
+  {% for item in items %}
+    <section class="label">
+      <div class="product">{{ item.product_name }}</div>
+      <div class="meta">{{ item.article }}{% if item.barcode %} · {{ item.barcode }}{% endif %}</div>
+      <div class="code">{{ item.code }}</div>
+    </section>
+  {% endfor %}
+</body>
+</html>

@@ -1,0 +1,38 @@
+{% extends "teammanager/_base.html" %}
+{% block extra_css %}
+  .driver-mgmt-head { display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; align-items:flex-start; }
+  .driver-mgmt-head h1 { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:26px; }
+  .driver-mgmt-sub { margin:5px 0 0; color:var(--muted); font-size:13px; }
+  .driver-mgmt-nav { display:flex; gap:7px; flex-wrap:wrap; }
+  .driver-mgmt-nav a { padding:8px 12px; border-radius:999px; border:1px solid var(--stroke); text-decoration:none; font-size:12px; font-weight:800; }
+  .driver-mgmt-nav a.active { background:var(--accent-soft); color:var(--accent-strong); border-color:rgba(248,144,0,.28); }
+  .dm-card { padding:16px; background:var(--surface); border:1px solid var(--stroke); border-radius:18px; box-shadow:var(--shadow-sm); }
+  .dm-grid { display:grid; gap:12px; }
+  .dm-facts { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
+  .dm-fact { padding:11px 12px; background:var(--surface-2); border-radius:13px; }
+  .dm-label { color:var(--muted); font-size:11px; font-weight:800; }
+  .dm-value { margin-top:4px; font-weight:700; overflow-wrap:anywhere; }
+  .dm-form { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; align-items:end; }
+  .dm-form label { display:grid; gap:6px; color:var(--muted); font-size:12px; font-weight:800; }
+  .dm-form input,.dm-form select,.dm-form textarea { width:100%; min-height:43px; padding:9px 11px; border:1px solid var(--stroke); border-radius:12px; background:var(--surface); color:var(--ink); font:inherit; }
+  .dm-form textarea { min-height:88px; }
+  .dm-table-wrap { overflow:auto; border:1px solid var(--stroke); border-radius:16px; background:var(--surface); }
+  .dm-table { width:100%; min-width:1180px; border-collapse:collapse; }
+  .dm-table th,.dm-table td { padding:11px 12px; border-bottom:1px solid var(--stroke); text-align:left; vertical-align:top; font-size:13px; }
+  .dm-table th { background:var(--surface-2); color:var(--muted); font-size:11px; text-transform:uppercase; }
+  .dm-pill { display:inline-flex; padding:5px 9px; border-radius:999px; background:var(--accent-soft); color:var(--accent-strong); font-size:11px; font-weight:800; }
+  .dm-timeline { display:grid; gap:10px; }
+  .dm-event { padding-left:12px; border-left:3px solid #f89000; }
+  .dm-muted { color:var(--muted); font-size:12px; }
+  {% block management_css %}{% endblock %}
+{% endblock %}
+{% block content %}
+  <header class="driver-mgmt-head">
+    <div><h1>{% block management_title %}Рейсы{% endblock %}</h1><p class="driver-mgmt-sub">Назначение водителей, сдача груза, проблемные рейсы и штрафы.</p></div>
+    <nav class="driver-mgmt-nav"><a href="/logistics/trips/">Все рейсы</a><a href="/logistics/problems/"{% if problems_active %} class="active"{% endif %}>Проблемные рейсы</a></nav>
+  </header>
+  {% if trip_notifications_unread %}
+    <details class="dm-card"><summary>Новые уведомления о рейсах · {{ trip_notifications_unread }}</summary><div class="dm-grid" style="margin-top:12px;">{% for notification in trip_notifications %}<a href="{{ notification.detail_url }}" style="text-decoration:none;padding:10px;border-radius:12px;background:var(--surface-2);"><strong>{{ notification.title }}</strong><div class="dm-muted">{{ notification.text }} · {{ notification.created_at|date:"d.m.Y H:i" }}</div></a>{% endfor %}</div></details>
+  {% endif %}
+  {% block management_content %}{% endblock %}
+{% endblock %}

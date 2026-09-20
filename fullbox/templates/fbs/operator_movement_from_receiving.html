@@ -1,0 +1,285 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Перемещение FBS из приёмки{% endblock %}
+
+{% block workspace_body %}
+  <style>
+    .receiving-selection-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .receiving-selection-summary > span {
+      min-width: 130px;
+      padding: 10px 14px;
+      border: 1px solid var(--border-color, #ded8cc);
+      border-radius: 10px;
+      background: var(--surface-muted, #faf8f3);
+    }
+    .receiving-selection-summary strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 18px;
+    }
+    .receiving-pallet-composition td {
+      padding-top: 0;
+    }
+    .receiving-pallet-composition details {
+      padding: 8px 12px 12px;
+      border: 1px solid var(--border-color, #ded8cc);
+      border-radius: 10px;
+      background: var(--surface-muted, #faf8f3);
+    }
+    .receiving-pallet-composition summary {
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .receiving-article-grid {
+      display: grid;
+      grid-template-columns: minmax(130px, 1fr) minmax(220px, 2fr) minmax(130px, 1fr) minmax(110px, .8fr) minmax(90px, .6fr);
+      gap: 0;
+      margin-top: 9px;
+      overflow-x: auto;
+    }
+    .receiving-article-grid > span {
+      min-width: 0;
+      padding: 8px 10px;
+      border-top: 1px solid var(--border-color, #ded8cc);
+      overflow-wrap: anywhere;
+    }
+    .receiving-article-grid > .receiving-article-head {
+      border-top: 0;
+      color: var(--text-muted, #6f6a62);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .receiving-bulk-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    @media (max-width: 900px) {
+      .receiving-article-grid {
+        grid-template-columns: minmax(120px, 1fr) minmax(190px, 2fr) minmax(120px, 1fr) minmax(100px, .8fr) minmax(80px, .6fr);
+        min-width: 760px;
+      }
+    }
+  </style>
+
+  <nav class="module-tabs" aria-label="Источник FBS-перемещения">
+    <a class="button button-secondary" href="{% url 'fbs:operator_movements' %}">Клиентские заявки</a>
+    <a class="button button-primary" href="{% url 'fbs:operator_movement_from_receiving' %}" aria-current="page">Из приёмки</a>
+  </nav>
+
+  {% if error %}
+    <div class="alert alert-error">
+      <strong>Перемещение не создано.</strong> {{ error }}
+      {% if created_request %}
+        <a href="{% url 'fbs:operator_movement_detail' request_id=created_request.id %}">Открыть {{ created_request.number }}</a>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading">
+      <div>
+        <span class="section-kicker">Приёмка → FBS</span>
+        <h2>Разрешённые палеты принятого товара</h2>
+      </div>
+    </div>
+    <p>
+      Здесь видны только закрытые палеты, которым кладовщик уже разрешил размещение.
+      В заявку попадут только выбранные GV-короба. Незакрытый товар, возвраты, брак и
+      короба других типов не допускаются.
+    </p>
+
+    <form class="operator-filters" method="get">
+      <label>
+        <span>Клиент</span>
+        <select name="agency_id" onchange="this.form.submit()">
+          <option value="">Выберите клиента</option>
+          {% for agency in agencies %}
+            <option value="{{ agency.id }}"{% if selected_agency_id == agency.id %} selected{% endif %}>{{ agency.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        <span>Заявка приёмки</span>
+        <select name="order_id">
+          <option value="">Выберите заявку</option>
+          {% for order in receiving_orders %}
+            <option value="{{ order.order_id }}"{% if selected_order_id == order.order_id %} selected{% endif %}>
+              {{ order.order_id }} · {{ order.pallet_count }} пал. · {{ order.box_count }} кор. · {{ order.qty }} шт.
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <div class="filter-actions">
+        <button class="button button-primary button-compact" type="submit">Показать палеты</button>
+        <a class="button button-secondary button-compact" href="{% url 'fbs:operator_movement_from_receiving' %}">Сбросить</a>
+      </div>
+    </form>
+  </section>
+
+  {% if selected_agency_id and selected_order_id %}
+    <section class="operator-table-band">
+      <div class="operator-table-heading">
+        <div>
+          <span class="section-kicker">Заявка {{ selected_order_id }}</span>
+          <h2>Выберите палеты</h2>
+        </div>
+        <strong>{{ receiving_pallets|length }}</strong>
+      </div>
+      {% if receiving_pallets %}
+        <form id="receiving-pallet-form" method="post" action="{% url 'fbs:operator_create_movement_from_receiving' %}">
+          {% csrf_token %}
+          <input type="hidden" name="agency_id" value="{{ selected_agency_id }}">
+          <input type="hidden" name="order_id" value="{{ selected_order_id }}">
+          <div class="receiving-selection-summary" aria-live="polite">
+            <span>Выбрано палетов<strong id="receiving-selected-pallets">0</strong></span>
+            <span>Коробов<strong id="receiving-selected-boxes">0</strong></span>
+            <span>Артикулов<strong id="receiving-selected-articles">0</strong></span>
+            <span>Позиций<strong id="receiving-selected-positions">0</strong></span>
+            <span>Товаров<strong><span id="receiving-selected-qty">0</span> шт.</strong></span>
+          </div>
+          <div class="receiving-bulk-actions">
+            <button id="receiving-select-all" class="button button-secondary button-compact" type="button">Выбрать все палеты</button>
+            <button id="receiving-clear-all" class="button button-secondary button-compact" type="button">Снять выбор</button>
+          </div>
+          <div class="operator-table-scroll">
+            <table class="operator-table">
+              <thead>
+                <tr>
+                  <th>
+                    <label>
+                      <input id="receiving-pallet-select-all" type="checkbox" checked>
+                      Все
+                    </label>
+                  </th>
+                  <th>Палета</th><th>GV-короба</th><th>Артикулы / позиции</th><th>Количество</th><th>На остатках PR</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for pallet in receiving_pallets %}
+                  <tr>
+                    <td>
+                      <input
+                        class="receiving-pallet-checkbox"
+                        type="checkbox"
+                        name="pallet_code"
+                        value="{{ pallet.pallet_code }}"
+                        data-boxes="{{ pallet.box_count }}"
+                        data-skus="{% for article in pallet.articles %}{{ article.sku_id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                        data-positions="{{ pallet.position_count }}"
+                        data-qty="{{ pallet.qty }}"
+                        checked
+                      >
+                    </td>
+                    <td><strong>{{ pallet.pallet_code }}</strong></td>
+                    <td>
+                      <strong>{{ pallet.box_count }}</strong>
+                      <small>{{ pallet.box_codes|join:", " }}</small>
+                    </td>
+                    <td>{{ pallet.article_count }} арт. / {{ pallet.position_count }} поз.</td>
+                    <td><strong>{{ pallet.qty }} шт.</strong></td>
+                    <td>{{ pallet.created_at|date:"d.m.Y H:i" }}</td>
+                  </tr>
+                  <tr class="receiving-pallet-composition">
+                    <td colspan="6">
+                      <details open>
+                        <summary>Состав палеты {{ pallet.pallet_code }}</summary>
+                        <div class="receiving-article-grid">
+                          <span class="receiving-article-head">Артикул</span>
+                          <span class="receiving-article-head">Товар</span>
+                          <span class="receiving-article-head">Штрихкод</span>
+                          <span class="receiving-article-head">Короба</span>
+                          <span class="receiving-article-head">Количество</span>
+                          {% for article in pallet.articles %}
+                            <span><strong>{{ article.sku_code }}</strong></span>
+                            <span>{{ article.product_name }}</span>
+                            <span>{{ article.barcode }}</span>
+                            <span>
+                              <strong>{{ article.box_count }}</strong>
+                              <small>{{ article.box_codes|join:", " }}</small>
+                            </span>
+                            <span><strong>{{ article.qty }} шт.</strong></span>
+                          {% endfor %}
+                        </div>
+                      </details>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="form-actions">
+            <button id="receiving-submit" class="button button-primary" type="submit">Передать выбранные палеты в FBS</button>
+          </div>
+          <p class="form-help">
+            Все доступные палеты выбраны по умолчанию. Для частичного перемещения
+            снимите выбор с палет, которые пока должны остаться в приёмке.<br>
+            Можно передать один, несколько или сразу все доступные палеты.<br>
+            После создания точный состав блокируется резервом. Фактическое перемещение
+            завершится только после скана палеты/короба и адреса FBS на ТСД.
+          </p>
+        </form>
+      {% else %}
+        <p class="empty-row">У этой заявки нет свободных разрешённых палет с GV-коробами.</p>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  <script>
+    (function () {
+      const selectAll = document.getElementById("receiving-pallet-select-all");
+      const palletCheckboxes = Array.from(document.querySelectorAll(".receiving-pallet-checkbox"));
+      if (!selectAll || !palletCheckboxes.length) return;
+      const selectedPallets = document.getElementById("receiving-selected-pallets");
+      const selectedBoxes = document.getElementById("receiving-selected-boxes");
+      const selectedArticles = document.getElementById("receiving-selected-articles");
+      const selectedPositions = document.getElementById("receiving-selected-positions");
+      const selectedQty = document.getElementById("receiving-selected-qty");
+      const selectAllButton = document.getElementById("receiving-select-all");
+      const clearAllButton = document.getElementById("receiving-clear-all");
+      const submitButton = document.getElementById("receiving-submit");
+
+      function refreshSelection() {
+        const checked = palletCheckboxes.filter((checkbox) => checkbox.checked);
+        const selectedCount = checked.length;
+        selectAll.checked = selectedCount === palletCheckboxes.length;
+        selectAll.indeterminate = selectedCount > 0 && selectedCount < palletCheckboxes.length;
+        selectedPallets.textContent = String(selectedCount);
+        selectedBoxes.textContent = String(checked.reduce((sum, checkbox) => sum + Number(checkbox.dataset.boxes || 0), 0));
+        const skuIds = new Set();
+        checked.forEach((checkbox) => {
+          String(checkbox.dataset.skus || "").split(",").filter(Boolean).forEach((skuId) => skuIds.add(skuId));
+        });
+        selectedArticles.textContent = String(skuIds.size);
+        selectedPositions.textContent = String(checked.reduce((sum, checkbox) => sum + Number(checkbox.dataset.positions || 0), 0));
+        selectedQty.textContent = String(checked.reduce((sum, checkbox) => sum + Number(checkbox.dataset.qty || 0), 0));
+        submitButton.disabled = selectedCount === 0;
+      }
+
+      selectAll.addEventListener("change", function () {
+        palletCheckboxes.forEach((checkbox) => {
+          checkbox.checked = selectAll.checked;
+        });
+        refreshSelection();
+      });
+      selectAllButton.addEventListener("click", function () {
+        palletCheckboxes.forEach((checkbox) => { checkbox.checked = true; });
+        refreshSelection();
+      });
+      clearAllButton.addEventListener("click", function () {
+        palletCheckboxes.forEach((checkbox) => { checkbox.checked = false; });
+        refreshSelection();
+      });
+      palletCheckboxes.forEach((checkbox) => checkbox.addEventListener("change", refreshSelection));
+      refreshSelection();
+    })();
+  </script>
+{% endblock %}

@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Честный знак | FULLBOX</title>
+  
+  <style>
+    
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      overflow: hidden;
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      background-image:
+        linear-gradient(rgba(28,31,26,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(28,31,26,0.06) 1px, transparent 1px);
+      background-size: 36px 36px;
+      opacity: 0.08;
+    }
+    body::after {
+      background:
+        radial-gradient(420px 240px at 20% 20%, rgba(242,183,71,0.18), transparent 70%),
+        radial-gradient(360px 220px at 85% 30%, rgba(14,107,91,0.12), transparent 70%);
+      opacity: 0.7;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 24px 24px 72px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      align-items: stretch;
+      min-height: calc(100vh - 96px);
+    }
+    .side {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 16px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+    }
+    .brand {
+      display: grid;
+      gap: 4px;
+    }
+    .brand-title {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.6px;
+    }
+    .fullbox-brand-mark { display: inline-flex; align-items: center; min-width: 0; }
+    .fullbox-brand-img { display: block; width: auto; height: 42px; max-width: 132px; object-fit: contain; }
+    .profile {
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+    }
+    .profile-value {
+      font-weight: 600;
+    }
+    .nav {
+      display: grid;
+      gap: 10px;
+    }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      padding: 12px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .nav-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 12px 24px rgba(14,107,91,0.12);
+    }
+    .nav-link.primary {
+      background: linear-gradient(135deg, rgba(242,183,71,0.45), rgba(14,107,91,0.15));
+      border-color: transparent;
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub { font-size: 12px; color: var(--muted); }
+    .side-footer {
+      display: grid;
+      gap: 10px;
+    }
+    .content {
+      display: grid;
+      gap: 18px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .panel-title {
+      margin: 0 0 4px;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 24px;
+    }
+    .panel-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      font-weight: 700;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.14);
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .summary-card {
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      display: grid;
+      gap: 6px;
+    }
+    .summary-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+    }
+    .summary-value {
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .tab-btn {
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      font-family: inherit;
+    }
+    .tab-btn.active {
+      border-color: rgba(14,107,91,0.45);
+      box-shadow: 0 8px 18px rgba(14,107,91,0.12);
+      background: linear-gradient(135deg, rgba(14,107,91,0.16), rgba(242,183,71,0.12));
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .tabs-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .tabs-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .cz-import-input {
+      display: none;
+    }
+    .cz-import-status {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .cz-import-status.error {
+      color: #a04331;
+    }
+    .table-wrap {
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th,
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--stroke);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--surface-2);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    .code {
+      word-break: break-all;
+      font-family: "Manrope", system-ui, sans-serif;
+      font-size: 12px;
+      color: #1f2937;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-pill.used { border-color: rgba(212,84,60,0.4); color: #a04331; }
+    .status-pill.free { border-color: rgba(14,107,91,0.4); color: var(--accent); }
+    .status-pill.reserved { border-color: rgba(242,183,71,0.6); color: #8a5a07; }
+    .empty {
+      padding: 18px;
+      color: var(--muted);
+      text-align: center;
+    }
+    @media (max-width: 1200px) {
+      body { overflow: auto; }
+      .layout { grid-template-columns: 1fr; }
+      .side,
+      .content {
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand">
+          <div class="brand-title">{% include "partials/fullbox_brand.html" %}</div>
+        </div>
+        <div class="profile">
+          <div class="profile-value">
+            {% if client_agency %}
+              Кабинет клиента<br>
+              {{ client_agency.agn_name|default:client_agency.fio_agn|default:"клиента" }}
+            {% else %}
+              {% include "partials/current_user.html" %}
+            {% endif %}
+          </div>
+        </div>
+        <nav class="nav">
+          {% if client_agency %}
+            <a class="nav-link" href="/market-sync/?client={{ client_agency.id }}">
+              <span class="nav-title">Синхронизация</span>
+              <span class="nav-sub">Маркетплейсы</span>
+            </a>
+            <a class="nav-link" href="/client/{{ client_agency.id }}/sku/">
+              <span class="nav-title">Номенклатура</span>
+              <span class="nav-sub">SKU и карточки</span>
+            </a>
+            <a class="nav-link primary" href="/client/marking/?client={{ client_agency.id }}">
+              <span class="nav-title">Честный знак</span>
+              <span class="nav-sub">Коды и история</span>
+            </a>
+            <a class="nav-link" href="/sklad/journal/">
+              <span class="nav-title">Складские остатки</span>
+              <span class="nav-sub">Актуальные стоки</span>
+            </a>
+            <a class="nav-link" href="/client/{{ client_agency.id }}/edit/">
+              <span class="nav-title">Реквизиты клиента</span>
+              <span class="nav-sub">Карточка контрагента</span>
+            </a>
+            <a class="nav-link" href="/client/dashboard/lk/?client={{ client_agency.id }}">
+              <span class="nav-title">В кабинет</span>
+              <span class="nav-sub">Главная страница</span>
+            </a>
+          {% else %}
+            <a class="nav-link" href="/client/">
+              <span class="nav-title">Список клиентов</span>
+              <span class="nav-sub">Выбрать кабинет</span>
+            </a>
+          {% endif %}
+        </nav>
+        <div class="side-footer">
+          <a class="btn ghost" href="/logout/">Выход</a>
+        </div>
+      </aside>
+
+      <main class="content">
+        <section class="panel">
+          <div class="tabs-row">
+            <div class="tabs">
+              <button class="tab-btn active" type="button" data-tab="summary">Таблица</button>
+              <button class="tab-btn" type="button" data-tab="history">История</button>
+              <button class="tab-btn" type="button" data-tab="pallets">По палетам</button>
+            </div>
+            <div class="tabs-actions">
+              <input class="cz-import-input" type="file" accept=".xlsx" data-cz-import-input>
+              <button class="btn" type="button" data-cz-import-btn data-cz-import-url="/client/marking/import/?client={{ client_agency.id }}">Добавить ЧЗ</button>
+              <span class="cz-import-status" data-cz-import-status></span>
+            </div>
+          </div>
+
+          <div class="tab-panel active" data-tab-panel="summary">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Штрихкод</th>
+                    <th>Свободен</th>
+                    <th>Забронирован</th>
+                    <th>Использован</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% if cz_rows %}
+                    {% for item in cz_rows %}
+                      <tr>
+                        <td>{{ item.barcode|default:"-" }}</td>
+                        <td>{{ item.free }}</td>
+                        <td>{{ item.reserved }}</td>
+                        <td>{{ item.used }}</td>
+                      </tr>
+                    {% endfor %}
+                  {% else %}
+                    <tr>
+                      <td colspan="4" class="empty">Нет кодов ЧЗ.</td>
+                    </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-tab-panel="history">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Заявка</th>
+                    <th>Штрихкод</th>
+                    <th>Статус</th>
+                    <th>Количество</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% if history_rows %}
+                    {% for item in history_rows %}
+                      <tr>
+                        <td>{{ item.order_label }}</td>
+                        <td>{{ item.barcode }}</td>
+                        <td>
+                          {% if item.status_key == "used" %}
+                            <span class="status-pill used">{{ item.status_label }}</span>
+                          {% elif item.status_key == "reserved" %}
+                            <span class="status-pill reserved">{{ item.status_label }}</span>
+                          {% else %}
+                            <span class="status-pill free">{{ item.status_label }}</span>
+                          {% endif %}
+                        </td>
+                        <td>{{ item.count }}</td>
+                      </tr>
+                    {% endfor %}
+                  {% else %}
+                    <tr>
+                      <td colspan="4" class="empty">История ЧЗ пока пуста.</td>
+                    </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-tab-panel="pallets">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Заявка</th>
+                    <th>Палета</th>
+                    <th>Коробов</th>
+                    <th>ЧЗ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% if pallet_rows %}
+                    {% for row in pallet_rows %}
+                      <tr>
+                        <td>{{ row.order_id }}</td>
+                        <td>{{ row.pallet_code }}</td>
+                        <td>{{ row.boxes_count }}</td>
+                        <td>{{ row.cz_count }}</td>
+                      </tr>
+                    {% endfor %}
+                  {% else %}
+                    <tr>
+                      <td colspan="4" class="empty">Палеты с ЧЗ пока не найдены.</td>
+                    </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const tabs = Array.from(document.querySelectorAll('[data-tab]'));
+      const panels = Array.from(document.querySelectorAll('[data-tab-panel]'));
+      if (!tabs.length || !panels.length) {
+        return;
+      }
+      const setActive = (name) => {
+        tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === name));
+        panels.forEach((panel) => panel.classList.toggle('active', panel.dataset.tabPanel === name));
+      };
+      tabs.forEach((tab) => {
+        tab.addEventListener('click', () => setActive(tab.dataset.tab));
+      });
+    })();
+  </script>
+  <script>
+    (() => {
+      const input = document.querySelector('[data-cz-import-input]');
+      const btn = document.querySelector('[data-cz-import-btn]');
+      const statusEl = document.querySelector('[data-cz-import-status]');
+      const importUrl = btn?.dataset?.czImportUrl || '';
+      if (!input || !btn || !importUrl) {
+        return;
+      }
+
+      const getCsrfToken = () => {
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        if (match) {
+          return decodeURIComponent(match[1]);
+        }
+        return '';
+      };
+
+      const setStatus = (text, isError) => {
+        if (!statusEl) {
+          return;
+        }
+        statusEl.textContent = text;
+        statusEl.classList.toggle('error', Boolean(isError));
+      };
+
+      const buildSummary = (data) => {
+        const parts = [];
+        if (data.added !== undefined) {
+          parts.push(`импортировано: ${data.added}`);
+        }
+        if (data.duplicates) {
+          parts.push(`дубликаты: ${data.duplicates}`);
+        }
+        if (data.unknown_barcodes) {
+          parts.push(`неизвестные ШК: ${data.unknown_barcodes}`);
+        }
+        if (data.mismatched_barcodes) {
+          parts.push(`чужие ШК: ${data.mismatched_barcodes}`);
+        }
+        if (data.invalid_rows) {
+          parts.push(`ошибочные строки: ${data.invalid_rows}`);
+        }
+        return parts.join(', ');
+      };
+
+      const handleFile = async () => {
+        const file = input.files?.[0];
+        if (!file) {
+          return;
+        }
+        setStatus('Импортируем...', false);
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          const resp = await fetch(importUrl, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCsrfToken() },
+            body: formData,
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.ok) {
+            throw new Error(data.error || 'Ошибка импорта.');
+          }
+          setStatus(buildSummary(data) || 'Импорт выполнен.', false);
+          setTimeout(() => window.location.reload(), 600);
+        } catch (err) {
+          setStatus(err.message || 'Ошибка импорта.', true);
+        } finally {
+          input.value = '';
+        }
+      };
+
+      btn.addEventListener('click', () => {
+        input.click();
+      });
+      input.addEventListener('change', handleFile);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Заявка на приемку | {{ agency.agn_name|default:"Клиент" }}</title>
+<style>
+    :root {
+      --success:#1f9d55;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin:0;
+      background:
+        radial-gradient(1200px 600px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 500px at 110% 20%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      color:var(--text);
+      font-family:"Manrope", system-ui, sans-serif;
+      min-height:100vh;
+    }
+    body::before {
+      content:"";
+      position:fixed;
+      inset:0;
+      background-image:
+        linear-gradient(rgba(31,35,40,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(31,35,40,0.06) 1px, transparent 1px);
+      background-size:36px 36px;
+      opacity:0.12;
+      pointer-events:none;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 18px 48px; position:relative; z-index:1; }
+    header { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap; margin-bottom:14px; }
+    .eyebrow { letter-spacing:2px; font-size:12px; color:var(--muted); text-transform:uppercase; }
+    h1 { margin:4px 0 6px; letter-spacing:-0.4px; font-size:28px; }
+    .muted { color: var(--muted); }
+    .small { font-size:12px; }
+    .btn {
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid var(--stroke);
+      background:rgba(15,23,42,0.04);
+      color:var(--text);
+      font-weight:600;
+      cursor:pointer;
+      transition: all .2s ease;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .btn:hover { border-color: var(--gold); box-shadow:0 10px 25px rgba(14,107,91,0.14); transform: translateY(-1px); }
+    .btn.primary { background: linear-gradient(120deg,var(--gold),var(--gold-soft)); color:#1f2328; border-color: transparent; }
+    .btn.ghost { background: transparent; }
+    .card {
+      background:var(--card);
+      border:1px solid var(--stroke);
+      border-radius:18px;
+      padding:16px;
+      box-shadow:0 20px 55px rgba(15,23,42,0.12);
+      animation: fadeUp .5s ease both;
+    }
+    form { display:grid; gap:14px; }
+    .meta-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+    .field label { display:block; font-weight:600; margin-bottom:6px; color:var(--muted); }
+    input, textarea, select {
+      width:100%;
+      padding:9px 10px;
+      border-radius:10px;
+      border:1px solid var(--stroke);
+      background:var(--card-soft);
+      color:var(--text);
+      font-size:14px;
+    }
+    textarea { resize:vertical; min-height:64px; }
+    input[readonly] { color:var(--muted); }
+    .required { color: var(--danger); margin-left:4px; }
+    .hint { color:var(--muted); font-size:12px; margin-top:4px; }
+    .notice {
+      margin-bottom:12px;
+      border:1px solid rgba(31,157,85,0.35);
+      background:rgba(31,157,85,0.12);
+      color:#166534;
+      border-radius:14px;
+      padding:10px 12px;
+    }
+    .section-header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .section-header h2 { margin:0; font-size:18px; }
+    .table-wrap { overflow:auto; border-radius:14px; border:1px solid var(--stroke); background:rgba(15,23,42,0.03); }
+    table { width:100%; border-collapse:collapse; min-width:860px; }
+    th, td { padding:8px; border-bottom:1px solid var(--stroke); vertical-align:top; }
+    th { text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); background:rgba(15,23,42,0.04); }
+    tbody tr:last-child td { border-bottom: none; }
+    .table-actions { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .row-action { padding:6px 10px; border-radius:8px; border:1px solid var(--stroke); background:transparent; color:var(--text); cursor:pointer; font-size:12px; }
+    .row-action:hover { border-color: var(--gold); }
+    .barcode-stack { display:flex; flex-direction:column; gap:6px; }
+    .barcode-main { font-weight:600; }
+    .barcode-toggle {
+      border:none;
+      background:rgba(15,23,42,0.06);
+      color:var(--text);
+      border-radius:999px;
+      padding:4px 8px;
+      font-size:11px;
+      cursor:pointer;
+      width:max-content;
+    }
+    .barcode-toggle.active { background:rgba(199,154,32,0.2); color:#7a5a10; }
+    .barcode-more { display:flex; flex-wrap:wrap; gap:6px; font-size:12px; color:var(--muted); }
+    .barcode-more span { padding:4px 6px; border-radius:8px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); }
+    .bottom-grid { display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:end; }
+    .action-bar { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    .item-row.is-new { animation: rowIn .25s ease; }
+    @keyframes fadeUp { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+    @keyframes rowIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: translateY(0); } }
+    @media (max-width: 900px) {
+      .bottom-grid { grid-template-columns: 1fr; }
+      .action-bar { justify-content:flex-start; }
+      header { align-items:flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="eyebrow">FULLBOX · {{ agency.agn_name|default:"Клиент" }} · {% include "partials/current_user.html" %}</div>
+        <h1>Заявка на приемку</h1>
+        <div class="muted">Поля с <span class="required">*</span> обязательны.</div>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <a class="btn ghost" href="/client/{{ agency.id }}/sku/?view=table">Номенклатура клиента</a>
+        <a class="btn ghost" href="/client/dashboard/lk/?client={{ agency.id }}">Кабинет клиента</a>
+      </div>
+    </header>
+
+    {% if submitted %}
+      <div class="notice">Заявка на приемку отправлена. Мы свяжемся с вами для уточнения деталей.</div>
+    {% endif %}
+
+    <div class="card">
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="meta-grid">
+          <div class="field">
+            <label>Плановая дата/время прибытия <span class="required">*</span></label>
+            <input
+              type="datetime-local"
+              name="eta_at"
+              required
+              data-min-hours="{{ min_past_hours }}"
+              data-now="{{ current_time_input }}"
+            >
+            <div class="hint">Не раньше текущего времени минус {{ min_past_hours|default:"X" }} часов.</div>
+          </div>
+          <div class="field">
+            <label>Ожидаемое количество коробов</label>
+            <input type="number" name="expected_boxes" min="0" placeholder="0">
+            <div class="hint">Можно оставить 0.</div>
+          </div>
+          <div class="field">
+            <label>Документы</label>
+            <input type="file" name="documents" multiple accept=".pdf,.jpg,.jpeg,.png,.xlsx,.doc,.docx">
+            <div class="hint">PDF/JPG/PNG/XLSX/DOCX.</div>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <h2>Состав поставки</h2>
+          <div class="muted small">Если SKU нет в списке — заведите его в номенклатуре.</div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Артикул (SKU) *</th>
+                <th>Наименование</th>
+                <th>ШК</th>
+                <th>Количество (план) *</th>
+                <th>Комментарий по позиции</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="items-body">
+              <tr class="item-row">
+                <td>
+                  <input type="text" name="sku_code[]" class="sku-input" list="sku-options" placeholder="SKU" required>
+                  <input type="hidden" name="sku_id[]" class="sku-id">
+                </td>
+                <td>
+                  <input type="text" name="item_name[]" class="sku-name" readonly placeholder="Автоподтягивается">
+                </td>
+                <td>
+                  <div class="barcode-stack">
+                    <span class="barcode-main">—</span>
+                    <button type="button" class="barcode-toggle" hidden>+0</button>
+                    <div class="barcode-more" hidden></div>
+                  </div>
+                </td>
+                <td>
+                  <input type="number" name="qty[]" class="qty-input" min="1" required placeholder="0">
+                </td>
+                <td>
+                  <input type="text" name="position_comment[]" placeholder="Комментарий">
+                </td>
+                <td>
+                  <button type="button" class="row-action remove-row">Удалить</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-actions">
+          <button type="button" class="btn" id="add-row">+ Добавить строку</button>
+          <div class="muted small">Минимум одна позиция обязательна.</div>
+        </div>
+
+        <div class="bottom-grid">
+          <div class="field">
+            <label>Комментарий</label>
+            <textarea name="comment" rows="2" placeholder="Дополнительная информация"></textarea>
+          </div>
+          <div class="action-bar">
+            <button type="submit" class="btn primary" name="submit_action" value="send">Отправить</button>
+            <button type="submit" class="btn" name="submit_action" value="draft">Сохранить черновик</button>
+            <a class="btn ghost" href="/client/dashboard/lk/?client={{ agency.id }}">Отмена</a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <datalist id="sku-options">
+    {% for sku in sku_options %}
+      <option value="{{ sku.code }}" data-id="{{ sku.id }}" data-name="{{ sku.name }}" data-barcodes="{{ sku.barcodes_joined }}"></option>
+    {% endfor %}
+  </datalist>
+
+  <script>
+    (function(){
+      const tableBody = document.getElementById('items-body');
+      const addBtn = document.getElementById('add-row');
+      const optionNodes = document.querySelectorAll('#sku-options option');
+      const skuMap = {};
+
+      optionNodes.forEach((option) => {
+        const code = option.value.trim();
+        if (!code) {
+          return;
+        }
+        const barcodes = (option.dataset.barcodes || '').split('|').filter(Boolean);
+        skuMap[code] = {
+          id: option.dataset.id || '',
+          name: option.dataset.name || '',
+          barcodes,
+        };
+      });
+
+      function applySku(row, code) {
+        const nameInput = row.querySelector('.sku-name');
+        const idInput = row.querySelector('.sku-id');
+        const main = row.querySelector('.barcode-main');
+        const toggle = row.querySelector('.barcode-toggle');
+        const more = row.querySelector('.barcode-more');
+        const data = skuMap[code];
+
+        if (!data) {
+          nameInput.value = '';
+          idInput.value = '';
+          main.textContent = '—';
+          toggle.hidden = true;
+          toggle.classList.remove('active');
+          more.hidden = true;
+          more.innerHTML = '';
+          return;
+        }
+
+        nameInput.value = data.name || '';
+        idInput.value = data.id || '';
+
+        if (!data.barcodes.length) {
+          main.textContent = '—';
+          toggle.hidden = true;
+          toggle.classList.remove('active');
+          more.hidden = true;
+          more.innerHTML = '';
+          return;
+        }
+
+        main.textContent = data.barcodes[0];
+        if (data.barcodes.length > 1) {
+          toggle.hidden = false;
+          toggle.textContent = `+${data.barcodes.length - 1}`;
+          more.innerHTML = data.barcodes.slice(1).map(value => `<span>${value}</span>`).join('');
+        } else {
+          toggle.hidden = true;
+          toggle.classList.remove('active');
+          more.hidden = true;
+          more.innerHTML = '';
+        }
+      }
+
+      function wireRow(row) {
+        const skuInput = row.querySelector('.sku-input');
+        const toggle = row.querySelector('.barcode-toggle');
+        const more = row.querySelector('.barcode-more');
+        const remove = row.querySelector('.remove-row');
+
+        skuInput.addEventListener('input', () => {
+          applySku(row, skuInput.value.trim());
+        });
+
+        toggle.addEventListener('click', () => {
+          const willShow = more.hidden;
+          more.hidden = !willShow;
+          toggle.classList.toggle('active', willShow);
+        });
+
+        remove.addEventListener('click', () => {
+          const rows = document.querySelectorAll('.item-row');
+          if (rows.length > 1) {
+            row.remove();
+          } else {
+            alert('Нужна минимум одна позиция.');
+          }
+        });
+      }
+
+      addBtn.addEventListener('click', () => {
+        const baseRow = tableBody.querySelector('.item-row');
+        const clone = baseRow.cloneNode(true);
+        clone.querySelectorAll('input').forEach((input) => {
+          input.value = '';
+        });
+        clone.querySelectorAll('.barcode-main').forEach((el) => {
+          el.textContent = '—';
+        });
+        clone.querySelectorAll('.barcode-toggle').forEach((el) => {
+          el.hidden = true;
+          el.classList.remove('active');
+        });
+        clone.querySelectorAll('.barcode-more').forEach((el) => {
+          el.hidden = true;
+          el.innerHTML = '';
+        });
+        wireRow(clone);
+        tableBody.appendChild(clone);
+        clone.classList.add('is-new');
+        setTimeout(() => clone.classList.remove('is-new'), 300);
+      });
+
+      tableBody.querySelectorAll('.item-row').forEach(wireRow);
+
+      const form = document.querySelector('form');
+      form.addEventListener('submit', (event) => {
+        const rows = Array.from(document.querySelectorAll('.item-row'));
+        const filledRows = rows.filter((row) => {
+          const sku = row.querySelector('.sku-input').value.trim();
+          const qty = Number(row.querySelector('.qty-input').value);
+          return sku && qty > 0;
+        });
+        if (!filledRows.length) {
+          event.preventDefault();
+          alert('Добавьте хотя бы одну позицию с SKU и количеством.');
+          return;
+        }
+        const invalidSku = rows.some((row) => {
+          const sku = row.querySelector('.sku-input').value.trim();
+          return sku && !skuMap[sku];
+        });
+        if (invalidSku) {
+          event.preventDefault();
+          alert('SKU не найден в номенклатуре. Сначала заведите его в списке SKU.');
+        }
+      });
+
+      const etaInput = document.querySelector('[data-min-hours]');
+      if (etaInput) {
+        const minHours = Number(etaInput.dataset.minHours || '0');
+        const nowValue = etaInput.dataset.now;
+        const now = nowValue ? new Date(nowValue) : new Date();
+        const minDate = new Date(now.getTime() - minHours * 3600 * 1000);
+        const pad = (value) => String(value).padStart(2, '0');
+        const toInputValue = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        etaInput.min = toInputValue(minDate);
+        if (!etaInput.value) {
+          etaInput.value = toInputValue(now);
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

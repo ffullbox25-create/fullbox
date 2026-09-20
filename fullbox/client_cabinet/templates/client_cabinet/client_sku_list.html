@@ -1,0 +1,675 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <link href="{% static 'vendor/bricolage-manrope.css' %}" rel="stylesheet">
+  <link href="{% static 'client_cabinet/lk-theme.css' %}" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Номенклатура | {{ agency.agn_name|default:"Клиент" }}</title>
+<style>
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:"Manrope", system-ui, sans-serif; }
+    a { color: inherit; text-decoration: none; }
+    .wrap { width: 100%; max-width: none; margin: 0; padding: 28px 24px 64px; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    h1 { margin:0; letter-spacing:-0.4px; }
+    .muted { color: var(--muted); }
+    .btn { padding:10px 14px; border-radius:10px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); color:var(--text); font-weight:600; }
+    .btn:hover { border-color: var(--gold); box-shadow:0 10px 25px rgba(14,107,91,0.14); }
+    .btn.primary { background: linear-gradient(120deg,var(--gold),var(--gold-soft)); color:#1f2328; border-color: transparent; }
+    .search { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .search input { padding:10px; border-radius:10px; border:1px solid var(--stroke); background:#fff; color:var(--text); min-width:260px; }
+    .cards { display:grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:18px; margin-top:18px; align-items:stretch; }
+    .card { background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:16px; box-shadow:0 18px 45px rgba(15,23,42,0.08); display:grid; gap:10px; width:100%; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .tag { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:10px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); }
+    .barcode-tag { display:grid; gap:6px; align-items:start; }
+    .barcode-label { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
+    .barcode-wrap { background:#fff; border:1px solid var(--stroke); border-radius:8px; padding:6px; }
+    .barcode-market-link { color:inherit; text-decoration:none; cursor:pointer; }
+    .barcode-market-link:hover { border-color:var(--gold); color:var(--text); box-shadow:0 6px 14px rgba(14,107,91,0.14); }
+    .barcode-svg { width:170px; height:40px; display:block; }
+    .barcode-text { font-size:11px; color:var(--muted); text-align:center; letter-spacing:1px; }
+    .card .barcode-value { display:none; }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid var(--stroke); background:rgba(242,183,71,0.22); color:var(--gold); font-weight:600; }
+    .meta { color:var(--muted); font-size:13px; }
+    .thumb {
+      width:30mm;
+      height:30mm;
+      min-width:30mm;
+      min-height:30mm;
+      max-width:30mm;
+      max-height:30mm;
+      border-radius:12px;
+      border:1px solid var(--stroke);
+      background:#f1f3f5 center/cover no-repeat;
+      flex-shrink:0;
+    }
+    .thumb.flow {
+      float:right;
+      margin:0 0 10px 12px;
+    }
+    .card-body::after { content:""; display:block; clear:both; }
+    .actions { display:flex; gap:6px; align-items:center; }
+    .act-btn { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border:1px solid var(--stroke); border-radius:8px; background:rgba(15,23,42,0.04); color:var(--text); font-weight:700; font-size:16px; }
+    .act-btn:hover { border-color: var(--gold); box-shadow:0 6px 14px rgba(14,107,91,0.14); }
+    .act-btn.danger { border-color: rgba(240,91,86,0.5); color:#d24d4d; }
+    .act-btn.cart-btn { width:auto; min-width:32px; padding:0 10px; font-size:12px; font-weight:600; }
+    .act-btn.cart-btn.in-cart { border-color: var(--gold); background:rgba(242,183,71,0.22); }
+    .cart-count { font-size:12px; color:var(--muted); margin-left:6px; }
+    .size-picker { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .size-select { padding:6px 10px; border-radius:10px; border:1px solid var(--stroke); background:#fff; color:var(--text); font-size:13px; min-width:120px; }
+    .filter-row th { padding:6px 10px; border-bottom:1px solid var(--stroke); }
+    .filter-input {
+      width:100%;
+      padding:6px 8px;
+      border-radius:8px;
+      border:1px solid var(--stroke);
+      background:#fff;
+      color:var(--text);
+      font-size:12px;
+    }
+    .filter-select {
+      width:100%;
+      padding:6px 8px;
+      border-radius:8px;
+      border:1px solid var(--stroke);
+      background:#fff;
+      color:var(--text);
+      font-size:12px;
+    }
+    @media (max-width: 980px) {
+      .cards { grid-template-columns: 1fr; }
+      .thumb.flow { float:none; margin:0 0 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap" data-client-id="{{ agency.id }}">
+    <header>
+      <div>
+        <div class="muted">FULLBOX · Клиент · {% include "partials/current_user.html" %}</div>
+        <h1>Номенклатура</h1>
+      </div>
+      <div class="row">
+        {% if request.GET.return_to %}
+          <a class="btn primary" id="return-to-order" href="{{ request.GET.return_to }}">Вернуться в заявку<span class="cart-count" id="cart-count"></span></a>
+        {% endif %}
+        <a class="btn" href="/client/dashboard/lk/?client={{ agency.id }}">В кабинет</a>
+        <a class="btn primary" href="/sku/new/">Создать SKU</a>
+        <a class="btn" href="/logout/">Выход</a>
+        <a class="btn {% if view_mode == 'cards' %}primary{% endif %}" href="?view=cards{% if filter_query %}&{{ filter_query }}{% endif %}">Карточки</a>
+        <a class="btn {% if view_mode == 'table' %}primary{% endif %}" href="?view=table{% if filter_query %}&{{ filter_query }}{% endif %}">Таблица</a>
+      </div>
+    </header>
+
+    {% if view_mode == 'table' %}
+      <form method="get" class="table-filters" data-filter-form>
+        <input type="hidden" name="view" value="table">
+        {% if search_value %}
+          <input type="hidden" name="q" value="{{ search_value }}">
+        {% endif %}
+        {% if request.GET.return_to %}
+          <input type="hidden" name="return_to" value="{{ request.GET.return_to }}">
+        {% endif %}
+        <div style="overflow-x:auto; margin-top:16px;">
+          <table style="width:100%; border-collapse:collapse; min-width:1320px;" data-sku-table>
+          <thead>
+            <tr>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid var(--stroke);">Действия</th>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid var(--stroke);">Артикул</th>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid var(--stroke);">Название</th>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid var(--stroke);">Бренд</th>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid var(--stroke);">Маркет</th>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid var(--stroke);">Размер</th>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid var(--stroke);">Вес нетто, кг</th>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid var(--stroke);">Вес брутто, кг</th>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid var(--stroke);">ШК</th>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid var(--stroke);">Обновлено</th>
+            </tr>
+            <tr class="filter-row">
+              <th></th>
+              <th>
+                <input class="filter-input" type="text" name="filter_sku" value="{{ filter_values.sku }}" placeholder="Артикул" data-filter-input="text">
+              </th>
+              <th>
+                <input class="filter-input" type="text" name="filter_name" value="{{ filter_values.name }}" placeholder="Название" data-filter-input="text">
+              </th>
+              <th>
+                <select class="filter-select" name="filter_brand" data-filter-input="select">
+                  <option value="">Бренд</option>
+                  {% for brand in brand_options %}
+                    <option value="{{ brand }}" {% if brand == filter_values.brand %}selected{% endif %}>{{ brand }}</option>
+                  {% endfor %}
+                </select>
+              </th>
+              <th>
+                <select class="filter-select" name="filter_market" data-filter-input="select">
+                  <option value="">Маркет</option>
+                  {% for market in market_options %}
+                    <option value="{{ market }}" {% if market == filter_values.market %}selected{% endif %}>{{ market }}</option>
+                  {% endfor %}
+                </select>
+              </th>
+              <th>
+                <select class="filter-select" name="filter_size" data-filter-input="select">
+                  <option value="">Размер</option>
+                  {% for size in size_options %}
+                    <option value="{{ size }}" {% if size == filter_values.size %}selected{% endif %}>{{ size }}</option>
+                  {% endfor %}
+                </select>
+              </th>
+              <th>
+                <input class="filter-input" type="text" name="filter_weight_net" value="{{ filter_values.weight_net }}" placeholder="Нетто" data-filter-input="text">
+              </th>
+              <th>
+                <input class="filter-input" type="text" name="filter_weight_gross" value="{{ filter_values.weight_gross }}" placeholder="Брутто" data-filter-input="text">
+              </th>
+              <th>
+                <input class="filter-input" type="text" name="filter_barcode" value="{{ filter_values.barcode }}" placeholder="ШК" data-filter-input="text">
+              </th>
+              <th>
+                <input class="filter-input" type="text" name="filter_date" value="{{ filter_values.date }}" placeholder="РґРґ.РјРј.РіРіРіРі" data-filter-input="text">
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+              <tr style="border-bottom:1px solid var(--stroke);">
+                <td style="padding:10px;">
+                  <div class="actions">
+                    <a class="act-btn" title="Редактировать" href="/client/{{ agency.id }}/sku/{{ item.id }}/edit/">✎</a>
+                    <a class="act-btn" title="Создать копию" href="/client/{{ agency.id }}/sku/{{ item.id }}/duplicate/">⧉</a>
+                    <a class="act-btn" title="Печать этикетки" href="/client/{{ agency.id }}/sku/{{ item.id }}/edit/?print=1&next={{ request.get_full_path|urlencode }}">🖨</a>                    {% if request.GET.return_to %}
+                      <button class="act-btn cart-btn cart-add" type="button" title="В заявку" data-sku-id="{{ item.id }}" data-sku-code="{{ item.sku_code }}" data-sku-name="{{ item.name|default:'' }}" data-sizes="{{ item.size_map_json|default:'{}'|escape }}">В заявку</button>
+                    {% endif %}
+                    <a class="act-btn danger delete-btn" data-id="{{ item.id }}" title="Пометить как удаленный">🗑</a>
+                  </div>
+                </td>
+                <td style="padding:10px;">{{ item.sku_code }}</td>
+                <td style="padding:10px;">{{ item.name }}</td>
+                <td style="padding:10px;">{{ item.brand|default:"-" }}</td>
+                <td style="padding:10px;">{{ item.market|default:"-" }}</td>
+                <td style="padding:10px;">
+                  <div
+                    class="size-picker"
+                    data-sizes="{{ item.size_map_json|default:'{}'|escape }}"
+                    data-fallback="{{ item.size|default:'' }}"
+                  >
+                    <select class="size-select" hidden></select>
+                    <span class="size-value" data-prefix="">{{ item.size|default:"-" }}</span>
+                  </div>
+                </td>
+                <td style="padding:10px;">{{ item.weight_net_kg|default:"-" }}</td>
+                <td style="padding:10px;">{{ item.weight_gross_kg|default:item.weight_kg|default:"-" }}</td>
+                <td style="padding:10px;">
+                  {% if item.marketplace_url %}
+                    <a
+                      class="barcode-value barcode-market-link"
+                      href="{{ item.marketplace_url }}"
+                      target="_blank"
+                      rel="noopener"
+                      title="Открыть на {{ item.marketplace_label }}"
+                      data-fallback="{{ item.primary_barcode_display }}"
+                    >
+                      {{ item.primary_barcode_display }}
+                    </a>
+                  {% else %}
+                    <span
+                      class="barcode-value"
+                      data-fallback="{{ item.primary_barcode_display }}"
+                    >
+                      {{ item.primary_barcode_display }}
+                    </span>
+                  {% endif %}
+                </td>
+                <td style="padding:10px;">{{ item.updated_at|date:"d.m.Y H:i" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="10" style="padding:12px;">Нет товаров</td></tr>
+            {% endfor %}
+          </tbody>
+          </table>
+        </div>
+      </form>
+    {% else %}
+      <div class="cards">
+        {% for item in items %}
+          <div class="card">
+            <div class="actions" style="justify-content:flex-end;">
+              <a class="act-btn" title="Редактировать" href="/client/{{ agency.id }}/sku/{{ item.id }}/edit/">✎</a>
+              <a class="act-btn" title="Создать копию" href="/client/{{ agency.id }}/sku/{{ item.id }}/duplicate/">⧉</a>
+              <a class="act-btn" title="Печать этикетки" href="/client/{{ agency.id }}/sku/{{ item.id }}/edit/?print=1&next={{ request.get_full_path|urlencode }}">🖨</a>                    {% if request.GET.return_to %}
+                      <button class="act-btn cart-btn cart-add" type="button" title="В заявку" data-sku-id="{{ item.id }}" data-sku-code="{{ item.sku_code }}" data-sku-name="{{ item.name|default:'' }}" data-sizes="{{ item.size_map_json|default:'{}'|escape }}">В заявку</button>
+                    {% endif %}
+              <a class="act-btn danger delete-btn" data-id="{{ item.id }}" title="Пометить как удаленный">🗑</a>
+            </div>
+            <div class="row" style="justify-content:space-between;">
+              <div>
+                <div class="muted">Артикул</div>
+                <h3 style="margin:0;">{{ item.sku_code }}</h3>
+                <div class="meta">Обновлено: {{ item.updated_at|date:"d.m.Y H:i" }}</div>
+              </div>
+              {% if item.brand %}<span class="pill">{{ item.brand }}</span>{% endif %}
+            </div>
+            <div class="card-body">
+              {% if item.img %}
+                <div class="thumb flow" style="background-image:url('{{ item.img }}');"></div>
+              {% endif %}
+              <div>{{ item.name }}</div>
+              <div class="row">
+                {% if item.market %}<span class="tag">Маркет: {{ item.market }}</span>{% endif %}
+                {% if item.weight_net_kg %}<span class="tag">Нетто: {{ item.weight_net_kg }} кг</span>{% endif %}
+                {% if item.weight_gross_kg or item.weight_kg %}<span class="tag">Брутто: {{ item.weight_gross_kg|default:item.weight_kg }} кг</span>{% endif %}
+                <span class="tag barcode-tag">
+                  <span class="barcode-label">ШК</span>
+                  {% if item.marketplace_url %}
+                    <a class="barcode-wrap barcode-market-link" href="{{ item.marketplace_url }}" target="_blank" rel="noopener" title="Открыть на {{ item.marketplace_label }}">
+                  {% else %}
+                    <span class="barcode-wrap">
+                  {% endif %}
+                    <svg
+                      class="barcode-svg"
+                      data-barcode-svg
+                      data-barcode-value="{{ item.primary_barcode_display }}"
+                      aria-hidden="true"
+                    ></svg>
+                    <span class="barcode-text" data-barcode-text>
+                      {{ item.primary_barcode_display }}
+                    </span>
+                    <span
+                      class="barcode-value"
+                      data-fallback="{{ item.primary_barcode_display }}"
+                      hidden
+                    >
+                      {{ item.primary_barcode_display }}
+                    </span>
+                  {% if item.marketplace_url %}
+                    </a>
+                  {% else %}
+                    </span>
+                  {% endif %}
+                </span>
+                {% if item.color %}<span class="tag">Цвет: {{ item.color }}</span>{% endif %}
+                <div
+                  class="size-picker"
+                  data-sizes="{{ item.size_map_json|default:'{}'|escape }}"
+                  data-fallback="{{ item.size|default:'' }}"
+                >
+                  <span class="tag size-value" data-prefix="Размер: ">{{ item.size|default:"-" }}</span>
+                  <select class="size-select" hidden></select>
+                </div>
+                {% if item.honest_sign %}<span class="pill">Честный знак</span>{% endif %}
+              </div>
+              {% if item.description %}<div class="meta">{{ item.description }}</div>{% endif %}
+            </div>
+          </div>
+        {% empty %}
+          <div class="muted">Нет товаров</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="row" style="margin-top:16px; justify-content:space-between;">
+      <div class="muted">Стр. {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</div>
+      <div class="row">
+        {% if page_obj.has_previous %}
+          <a class="btn" href="?page={{ page_obj.previous_page_number }}&view={{ view_mode }}{% if filter_query %}&{{ filter_query }}{% endif %}">Назад</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+          <a class="btn" href="?page={{ page_obj.next_page_number }}&view={{ view_mode }}{% if filter_query %}&{{ filter_query }}{% endif %}">Вперёд</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</body>
+{% if view_mode == 'cards' %}
+<script src="{% static 'vendor/jsbarcode.min.js' %}"></script>
+{% endif %}
+<script>
+  (function(){
+    const deleteBtns = document.querySelectorAll('.delete-btn');
+    const nextUrl = encodeURIComponent(window.location.pathname + window.location.search);
+    deleteBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        if (confirm('Пометить SKU как удаленный?')) {
+          window.location.href = `/sku/${id}/delete/?next=${nextUrl}`;
+        }
+      });
+    });
+
+    const wrap = document.querySelector('.wrap');
+    const clientId = wrap ? wrap.dataset.clientId : '';
+    const params = new URLSearchParams(window.location.search);
+    const returnTo = params.get('return_to');
+    const cartKey = clientId && returnTo ? `order_cart_${clientId}` : '';
+    const returnKey = clientId && returnTo ? `receiving_return_sku_${clientId}` : '';
+    const returnLink = document.getElementById('return-to-order');
+    if (returnLink && returnKey) {
+      returnLink.addEventListener('click', () => {
+        localStorage.setItem(returnKey, '1');
+      });
+    }
+    const cartButtons = document.querySelectorAll('.cart-add');
+    const cartCount = document.getElementById('cart-count');
+
+    const readCart = () => {
+      if (!cartKey) {
+        return [];
+      }
+      try {
+        const raw = localStorage.getItem(cartKey);
+        return raw ? JSON.parse(raw) : [];
+      } catch (err) {
+        return [];
+      }
+    };
+
+    const writeCart = (items) => {
+      if (!cartKey) {
+        return;
+      }
+      localStorage.setItem(cartKey, JSON.stringify(items));
+    };
+
+    const updateCartUi = (items) => {
+      if (cartCount) {
+        cartCount.textContent = items.length ? ` (${items.length})` : '';
+      }
+      const codes = new Set(items.map((item) => item.code));
+      cartButtons.forEach((btn) => {
+        const code = btn.dataset.skuCode || '';
+        btn.classList.toggle('in-cart', codes.has(code));
+      });
+    };
+
+    const parseSizes = (raw) => {
+      if (!raw) {
+        return {};
+      }
+      try {
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch (err) {
+        return {};
+      }
+    };
+
+    const sizeOrder = [
+      'XXXS',
+      'XXS',
+      'XS',
+      'S',
+      'M',
+      'L',
+      'XL',
+      'XXL',
+      'XXXL',
+      'XXXXL',
+    ];
+
+    const sizeSortKey = (value) => {
+      const raw = String(value || '').trim();
+      const upper = raw.toUpperCase();
+      const numMatch = upper.match(/^(\d+(?:[.,]\d+)?)/);
+      const numValue = numMatch ? Number(numMatch[1].replace(',', '.')) : null;
+      const orderIndex = sizeOrder.indexOf(upper);
+      return {
+        raw,
+        upper,
+        hasNumber: Number.isFinite(numValue),
+        numValue,
+        orderIndex,
+      };
+    };
+
+    const compareSizes = (a, b) => {
+      const left = sizeSortKey(a);
+      const right = sizeSortKey(b);
+      if (left.hasNumber && right.hasNumber && left.numValue !== right.numValue) {
+        return left.numValue - right.numValue;
+      }
+      if (left.hasNumber !== right.hasNumber) {
+        return left.hasNumber ? -1 : 1;
+      }
+      if (left.orderIndex !== -1 || right.orderIndex !== -1) {
+        const leftIdx = left.orderIndex === -1 ? Number.MAX_SAFE_INTEGER : left.orderIndex;
+        const rightIdx = right.orderIndex === -1 ? Number.MAX_SAFE_INTEGER : right.orderIndex;
+        if (leftIdx !== rightIdx) {
+          return leftIdx - rightIdx;
+        }
+      }
+      return left.upper.localeCompare(right.upper, 'ru', { numeric: true, sensitivity: 'base' });
+    };
+
+    const renderBarcode = (svg, value, textEl) => {
+      if (!svg) {
+        return;
+      }
+      const raw = (value || '').toString().trim();
+      if (!raw || raw === '-') {
+        svg.innerHTML = '';
+        if (textEl) {
+          textEl.textContent = raw || '-';
+          textEl.hidden = false;
+        }
+        return;
+      }
+      if (!window.JsBarcode) {
+        if (textEl) {
+          textEl.textContent = raw;
+          textEl.hidden = false;
+        }
+        return;
+      }
+      const useEan = /^\d{12,13}$/.test(raw);
+      const valueToRender = raw;
+      try {
+        JsBarcode(svg, valueToRender, {
+          format: useEan ? 'ean13' : 'CODE128',
+          displayValue: false,
+          margin: 0,
+          height: 36,
+          lineColor: '#1f2328',
+        });
+        if (textEl) {
+          textEl.hidden = true;
+        }
+      } catch (err) {
+        if (textEl) {
+          textEl.textContent = raw;
+          textEl.hidden = false;
+        }
+      }
+    };
+
+    const renderBarcodeForWrapper = (wrapper, value) => {
+      if (!wrapper) {
+        return;
+      }
+      const svg = wrapper.querySelector('[data-barcode-svg]');
+      const textEl = wrapper.querySelector('[data-barcode-text]');
+      if (!svg) {
+        return;
+      }
+      svg.dataset.barcodeValue = value || '';
+      renderBarcode(svg, value, textEl);
+    };
+
+    const updateBarcodeForPicker = (picker) => {
+      const wrapper = picker.closest('.card') || picker.closest('tr');
+      if (!wrapper) {
+        return;
+      }
+      const valueEl = wrapper.querySelector('.barcode-value');
+      if (!valueEl) {
+        return;
+      }
+      const sizeMap = parseSizes(picker.dataset.sizes);
+      const sizeKeys = Object.keys(sizeMap).filter(Boolean);
+      let nextValue = valueEl.dataset.fallback || valueEl.textContent.trim();
+      if (sizeKeys.length > 1) {
+        const select = picker.querySelector('.size-select');
+        const sizeValue = select ? select.value.trim() : '';
+        if (sizeValue === '__all__') {
+          nextValue = '-';
+        } else {
+          const barcodes = sizeValue && sizeMap[sizeValue] ? sizeMap[sizeValue] : [];
+          nextValue = barcodes.length ? barcodes[0] : '-';
+        }
+      } else if (sizeKeys.length === 1) {
+        const barcodes = sizeMap[sizeKeys[0]] || [];
+        nextValue = barcodes.length ? barcodes[0] : '-';
+      }
+      valueEl.textContent = nextValue || '-';
+      renderBarcodeForWrapper(wrapper, nextValue || '-');
+    };
+
+    const setupSizePicker = (picker) => {
+      if (!picker) {
+        return;
+      }
+      const sizeMap = parseSizes(picker.dataset.sizes);
+      const sizeKeys = Object.keys(sizeMap).filter(Boolean);
+      sizeKeys.sort(compareSizes);
+      const select = picker.querySelector('.size-select');
+      const valueEl = picker.querySelector('.size-value');
+      const prefix = valueEl ? (valueEl.dataset.prefix || '') : '';
+      const fallback = (picker.dataset.fallback || '').trim();
+
+      if (select) {
+        select.innerHTML = '';
+      }
+      if (sizeKeys.length > 1 && select) {
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Выберите';
+        select.appendChild(placeholder);
+        const allOption = document.createElement('option');
+        allOption.value = '__all__';
+        allOption.textContent = 'Все';
+        select.appendChild(allOption);
+        sizeKeys.forEach((size) => {
+          const option = document.createElement('option');
+          option.value = size;
+          option.textContent = size;
+          select.appendChild(option);
+        });
+        select.value = sizeKeys[0] || '';
+        select.hidden = false;
+        select.setAttribute('aria-label', 'Размер');
+        select.addEventListener('change', () => updateBarcodeForPicker(picker));
+        if (valueEl) {
+          valueEl.style.display = 'none';
+        }
+      } else {
+        if (select) {
+          select.hidden = true;
+        }
+        if (valueEl) {
+          const display = sizeKeys[0] || fallback || '-';
+          valueEl.textContent = `${prefix}${display}`;
+          valueEl.style.display = '';
+        }
+      }
+      updateBarcodeForPicker(picker);
+    };
+
+    const getSizeFromPicker = (btn) => {
+      const card = btn.closest('.card');
+      const row = btn.closest('tr');
+      const picker = (card || row) ? (card || row).querySelector('.size-picker') : null;
+      if (!picker) {
+        return { size: '', required: false, sizes: [] };
+      }
+      const sizeMap = parseSizes(picker.dataset.sizes);
+      const sizeKeys = Object.keys(sizeMap).filter(Boolean);
+      if (sizeKeys.length > 1) {
+        const select = picker.querySelector('.size-select');
+        const sizeValue = select ? select.value.trim() : '';
+        return { size: sizeValue, required: sizeValue === '', sizes: sizeKeys };
+      }
+      if (sizeKeys.length === 1) {
+        return { size: sizeKeys[0], required: false, sizes: sizeKeys };
+      }
+      const fallback = (picker.dataset.fallback || '').trim();
+      return { size: fallback, required: false, sizes: [] };
+    };
+
+    document.querySelectorAll('.size-picker').forEach(setupSizePicker);
+
+    if (cartKey && cartButtons.length) {
+      let cartItems = readCart();
+      updateCartUi(cartItems);
+
+      cartButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const code = btn.dataset.skuCode;
+          const name = btn.dataset.skuName;
+          const id = btn.dataset.skuId;
+          const sizeInfo = getSizeFromPicker(btn);
+          const chosenSize = sizeInfo.size || '';
+          if (sizeInfo.required && !chosenSize) {
+            alert('Выберите размер.');
+            return;
+          }
+          const sizeList = chosenSize === '__all__' ? sizeInfo.sizes : [chosenSize];
+          const existing = sizeList
+            .map((size) => cartItems.find((item) => item.code === code && (item.size || '') === (size || '')))
+            .find((item) => item);
+          const currentQty = existing ? existing.qty : 1;
+          const qtyPrompt = chosenSize === '__all__' ? 'Количество для каждого размера' : 'Количество';
+          const qtyRaw = prompt(qtyPrompt, String(currentQty));
+          if (!qtyRaw) {
+            return;
+          }
+          const qty = Number(qtyRaw);
+          if (!Number.isFinite(qty) || qty <= 0) {
+            alert('Введите количество больше 0.');
+            return;
+          }
+          sizeList.forEach((size) => {
+            const nextItem = { id, code, name, qty, size };
+            const index = cartItems.findIndex(
+              (item) => item.code === code && (item.size || '') === (size || '')
+            );
+            if (index >= 0) {
+              cartItems[index] = nextItem;
+            } else {
+              cartItems.push(nextItem);
+            }
+          });
+          writeCart(cartItems);
+          updateCartUi(cartItems);
+        });
+      });
+    }
+
+    const filterForm = document.querySelector('[data-filter-form]');
+    if (filterForm) {
+      const textInputs = filterForm.querySelectorAll('[data-filter-input="text"]');
+      const selectInputs = filterForm.querySelectorAll('[data-filter-input="select"]');
+      let submitTimer = null;
+      textInputs.forEach((input) => {
+        input.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            filterForm.submit();
+          }
+        });
+        input.addEventListener('input', () => {
+          if (submitTimer) {
+            clearTimeout(submitTimer);
+          }
+          submitTimer = setTimeout(() => filterForm.submit(), 600);
+        });
+      });
+      selectInputs.forEach((select) => {
+        select.addEventListener('change', () => filterForm.submit());
+      });
+    }
+  })();
+</script>
+</html>

@@ -1,0 +1,29 @@
+<div class="crumbs">
+  <a href="/team-manager/">Личный кабинет</a> →
+  <a href="/team-manager/other-requests/">Другие заявки</a> →
+  {{ item.public_number }}
+</div>
+
+<div class="or-header">
+  <div class="or-header-back">
+    <a class="or-btn" href="/team-manager/other-requests/">← К списку заявок</a>
+  </div>
+  <div class="or-header-main">
+    <div class="or-header-title">
+      <h1>{{ item.display_title }}</h1>
+      <span class="or-pill or-pill-status-{{ item.status }}">{{ item.status_label }}</span>
+      {% if item.is_overdue %}<span class="or-pill or-pill-overdue">Просрочено</span>{% endif %}
+    </div>
+    <div class="or-header-meta">
+      <span><b>{{ item.public_number }}</b></span>
+      <span>{{ item.agency.short_name|default:item.agency.agn_name }}</span>
+      {% if links %}
+        <span>· связано с
+          <a href="{{ links.0.url|default:'#' }}" class="or-link-chip">{{ links.0.get_link_type_display|default:links.0.link_type }} {{ links.0.label|default:links.0.object_key }}</a>
+          {% if links|length > 1 %}<span class="muted">+{{ links|length|add:"-1" }}</span>{% endif %}
+        </span>
+      {% endif %}
+      <span>создана {{ item.created_at|date:"d.m.Y H:i" }}{% if item.created_by %} · {{ item.created_by.get_full_name|default:item.created_by.username }}{% endif %}</span>
+    </div>
+  </div>
+</div>

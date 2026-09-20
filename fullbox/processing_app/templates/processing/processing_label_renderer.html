@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>FULLBOX label renderer</title>
+  <style>
+    html, body { margin: 0; padding: 0; background: #fff; }
+    body { width: 58mm; min-height: 60mm; overflow: hidden; }
+  </style>
+  <style>
+{% include "labels/_label_styles.css" %}
+  </style>
+  <style>
+    .label-preview {
+      transform: none !important;
+      zoom: 1 !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      --label-width: 58mm;
+      --label-height: 60mm;
+      --label-scale: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="renderer-box-template" hidden aria-hidden="true">
+    <div class="label-preview" data-label-root data-label-type="box" data-label-width="58" data-label-height="60">
+      {% include "labels/_label_box.html" %}
+    </div>
+  </div>
+  <div id="renderer-pallet-template" hidden aria-hidden="true">
+    <div class="label-preview" data-label-root data-label-type="pallet" data-label-width="58" data-label-height="60">
+      {% include "labels/_label_pallet.html" %}
+    </div>
+  </div>
+  <div id="render-host" aria-hidden="true"></div>
+  {{ label_settings|json_script:"label-settings-data" }}
+  <script src="/static/vendor/qrcode.min.js"></script>
+  <script src="/static/vendor/html2canvas.min.js"></script>
+  <script>
+    (() => {
+      const settingsEl = document.getElementById('label-settings-data');
+      const labelSettings = settingsEl ? JSON.parse(settingsEl.textContent || '{}') : {};
+      const host = document.getElementById('render-host');
+
+      const parseFont = (value, fallback) => {
+        const parsed = Number.parseFloat(String(value ?? '').replace(',', '.'));
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+      };
+
+      const shortenClientLabel = (value) => {
+        const normalized = String(value || '')
+          .replace(/\u00a0/g, ' ')
+          .replace(/^\u041a\u043b\u0438\u0435\u043d\u0442\s*:\s*/i, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (!normalized) {
+          return '';
+        }
+        const ipMatch = normalized.match(/^(?:\u0418\u041f|\u0438\u043d\u0434\u0438\u0432\u0438\u0434\u0443\u0430\u043b\u044c\u043d\u044b\u0439\s+\u043f\u0440\u0435\u0434\u043f\u0440\u0438\u043d\u0438\u043c\u0430\u0442\u0435\u043b\u044c)\s+(.+)$/i);
+        if (!ipMatch) {
+          return normalized;
+        }
+        const parts = String(ipMatch[1] || '').trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) {
+          return '\u0418\u041f';
+        }
+        const surname = parts[0];
+        const initials = parts.slice(1, 3).map((part) => `${part.charAt(0).toUpperCase()}.`).join('');
+        return initials ? `\u0418\u041f ${surname} ${initials}` : `\u0418\u041f ${surname}`;
+      };
+
+      const getSettings = (kind) => {
+        const entry = labelSettings && typeof labelSettings[kind] === 'object' ? labelSettings[kind] : {};
+        const text = entry && typeof entry.text === 'object' ? entry.text : {};
+        const fonts = entry && typeof entry.fonts === 'object' ? entry.fonts : {};
+        const enabled = entry && typeof entry.enabled === 'object' ? entry.enabled : {};
+        return {
+          text,
+          fonts: {
+            barcode: parseFont(fonts.barcode, 3),
+            box_client: parseFont(fonts.box_client, 2.1),
+            box_basis: parseFont(fonts.box_basis, 1),
+            box_pallet_number: parseFont(fonts.box_pallet_number, 4),
+          },
+          enabled: {
+            barcode: enabled.barcode !== false,
+            box_client: enabled.box_client !== false,
+            box_basis: enabled.box_basis !== false,
+            box_pallet_number: enabled.box_pallet_number !== false,
+          },
+        };
+      };
+
+      const setFont = (root, name, value) => {
+        const parsed = Number.parseFloat(String(value ?? '').replace(',', '.'));
+        if (Number.isFinite(parsed) && parsed > 0) {
+          root.style.setProperty(name, `${parsed}mm`);
+        } else {
+          root.style.removeProperty(name);
+        }
+      };
+
+      const setHeader = (root, prefix, code) => {
+        const target = root.querySelector('[data-box-header]');
+        if (!target) {
+          return;
+        }
+        target.replaceChildren();
+        const strong = document.createElement('span');
+        strong.className = 'label-box-header-prefix';
+        strong.textContent = prefix;
+        target.appendChild(strong);
+        target.appendChild(document.createTextNode(code ? ` - ${code}` : ' -'));
+      };
+
+      const setField = (root, field, value, prefix = '') => {
+        const target = root.querySelector(`[data-info="${field}"]`);
+        if (!target) {
+          return;
+        }
+        const normalized = String(value || '').trim();
+        target.textContent = normalized ? `${prefix}${normalized}` : '';
+        const wrapper = target.closest('.label-box-cell, .label-box-number');
+        if (wrapper) {
+          wrapper.style.display = normalized ? '' : 'none';
+        }
+      };
+
+      const nextPaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+      const buildData = (payload) => {
+        const kind = payload.kind === 'pallet' ? 'pallet' : 'box';
+        const settings = getSettings(kind);
+        const code = String(payload.code || '').trim();
+        const clientLabel = shortenClientLabel(payload.clientLabel || '');
+        return {
+          kind,
+          code: settings.enabled.barcode ? code : '',
+          client: settings.enabled.box_client ? clientLabel : '',
+          basis: settings.enabled.box_basis ? String(settings.text.box_basis || '').trim() : '',
+          number: settings.enabled.box_pallet_number ? String(payload.number || '').trim() : '',
+          fonts: settings.fonts,
+        };
+      };
+
+      const renderLabel = async (payload) => {
+        const data = buildData(payload || {});
+        if (!data.code) {
+          throw new Error('empty_code');
+        }
+        const template = document.querySelector(data.kind === 'pallet' ? '#renderer-pallet-template .label-preview' : '#renderer-box-template .label-preview');
+        if (!template) {
+          throw new Error('template_missing');
+        }
+        host.innerHTML = '';
+        const root = template.cloneNode(true);
+        root.dataset.renderMode = 'print';
+        root.style.setProperty('--label-width', '58mm');
+        root.style.setProperty('--label-height', '60mm');
+        root.style.setProperty('--label-scale', '1');
+        setFont(root, '--font-barcode', data.fonts.barcode);
+        setFont(root, '--font-box-client', data.fonts.box_client);
+        setFont(root, '--font-box-basis', data.fonts.box_basis);
+        setFont(root, '--font-box-pallet-number', data.fonts.box_pallet_number);
+        host.appendChild(root);
+        setHeader(root, data.kind === 'pallet' ? '\u041f\u0430\u043b\u043b\u0435\u0442' : '\u041a\u043e\u0440\u043e\u0431', data.code);
+        setField(root, 'box_client', data.client);
+        setField(root, 'box_basis', data.basis, '\u041e\u0441\u043d\u043e\u0432\u0430\u043d\u0438\u0435: ');
+        setField(root, 'box_pallet_number', data.number);
+        const qrBox = root.querySelector('[data-qr-box]');
+        if (!qrBox) {
+          throw new Error('qr_box_missing');
+        }
+        qrBox.innerHTML = '';
+        const qrHost = qrBox.parentElement || qrBox;
+        const size = Math.floor(Math.min(qrHost.clientWidth || 0, qrHost.clientHeight || 0)) || 160;
+        qrBox.style.width = `${size}px`;
+        qrBox.style.height = `${size}px`;
+        new QRCode(qrBox, {
+          text: data.code,
+          width: size,
+          height: size,
+          correctLevel: QRCode.CorrectLevel.M,
+        });
+        await nextPaint();
+        const canvas = await window.html2canvas(root, {
+          backgroundColor: '#ffffff',
+          scale: 2.12,
+          logging: false,
+          useCORS: true,
+        });
+        return canvas.toDataURL('image/png');
+      };
+
+      window.addEventListener('message', async (event) => {
+        if (event.origin !== window.location.origin) {
+          return;
+        }
+        const message = event.data || {};
+        if (!message || message.type !== 'fullbox:render-processing-label') {
+          return;
+        }
+        const requestId = String(message.requestId || '');
+        try {
+          const image = await renderLabel(message.payload || {});
+          event.source.postMessage({ type: 'fullbox:render-processing-label-result', requestId, ok: true, image }, event.origin);
+        } catch (error) {
+          event.source.postMessage({ type: 'fullbox:render-processing-label-result', requestId, ok: false, error: String(error && error.message ? error.message : error) }, event.origin);
+        }
+      });
+
+      window.parent.postMessage({ type: 'fullbox:processing-label-renderer-ready' }, window.location.origin);
+    })();
+  </script>
+</body>
+</html>

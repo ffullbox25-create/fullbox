@@ -1,0 +1,131 @@
+<script>
+  (function(){
+    const root = document.getElementById('barcode-formset');
+    if (!root) {
+      return;
+    }
+
+    const rowsRoot = root.querySelector('#barcode-rows');
+    const totalForms = document.getElementById('id_barcodes-TOTAL_FORMS');
+    const emptyTemplate = document.getElementById('barcode-empty-form');
+    const addButton = document.getElementById('barcode-add');
+    const countLabel = root.querySelector('[data-barcode-count]');
+
+    const allRows = () => Array.from(rowsRoot.querySelectorAll('[data-barcode-row]'));
+    const activeRows = () => allRows().filter((row) => (
+      !row.classList.contains('is-template-extra') && !row.classList.contains('is-deleted')
+    ));
+
+    const syncPrimaryFields = () => {
+      activeRows().forEach((row) => {
+        const radio = row.querySelector('[data-barcode-primary]');
+        const hidden = row.querySelector('input[name$="-is_primary"]');
+        if (hidden) {
+          hidden.value = radio && radio.checked ? 'True' : 'False';
+        }
+      });
+    };
+
+    const updateCount = () => {
+      const count = activeRows().filter((row) => {
+        const value = row.querySelector('[data-barcode-value]');
+        return value && value.value.trim();
+      }).length;
+      countLabel.textContent = `${count} ${count === 1 ? 'ШК' : 'ШК'}`;
+      syncPrimaryFields();
+    };
+
+    const selectFirstPrimaryIfNeeded = () => {
+      const rows = activeRows();
+      if (!rows.length || rows.some((row) => row.querySelector('[data-barcode-primary]')?.checked)) {
+        return;
+      }
+      const radio = rows[0].querySelector('[data-barcode-primary]');
+      if (radio) {
+        radio.checked = true;
+      }
+    };
+
+    const configureRow = (row) => {
+      const radio = row.querySelector('[data-barcode-primary]');
+      const value = row.querySelector('[data-barcode-value]');
+      const deleteButton = row.querySelector('[data-barcode-delete]');
+      const copyButton = row.querySelector('[data-barcode-copy]');
+
+      radio?.addEventListener('change', () => {
+        if (radio.checked) {
+          activeRows().forEach((otherRow) => {
+            const otherRadio = otherRow.querySelector('[data-barcode-primary]');
+            if (otherRadio && otherRadio !== radio) {
+              otherRadio.checked = false;
+            }
+          });
+        }
+        syncPrimaryFields();
+      });
+
+      value?.addEventListener('input', updateCount);
+
+      deleteButton?.addEventListener('click', () => {
+        const deleteInput = row.querySelector('input[name$="-DELETE"]');
+        if (deleteInput) {
+          deleteInput.checked = true;
+        }
+        row.classList.add('is-deleted');
+        if (radio?.checked) {
+          radio.checked = false;
+        }
+        selectFirstPrimaryIfNeeded();
+        updateCount();
+      });
+
+      copyButton?.addEventListener('click', async () => {
+        const barcode = value?.value.trim();
+        if (!barcode || !navigator.clipboard) {
+          return;
+        }
+        await navigator.clipboard.writeText(barcode);
+        const oldText = copyButton.textContent;
+        copyButton.textContent = 'Скопировано';
+        window.setTimeout(() => { copyButton.textContent = oldText; }, 900);
+      });
+    };
+
+    allRows().forEach(configureRow);
+
+    addButton?.addEventListener('click', () => {
+      let row = rowsRoot.querySelector('.is-template-extra');
+      if (row) {
+        row.classList.remove('is-template-extra');
+      } else if (emptyTemplate && totalForms) {
+        const index = Number(totalForms.value);
+        const html = emptyTemplate.innerHTML.replaceAll('__prefix__', String(index));
+        rowsRoot.insertAdjacentHTML('beforeend', html);
+        totalForms.value = String(index + 1);
+        row = rowsRoot.lastElementChild;
+        configureRow(row);
+      }
+
+      if (row) {
+        const deleteInput = row.querySelector('input[name$="-DELETE"]');
+        if (deleteInput) {
+          deleteInput.checked = false;
+        }
+        if (activeRows().length === 1) {
+          const radio = row.querySelector('[data-barcode-primary]');
+          if (radio) {
+            radio.checked = true;
+          }
+        }
+        row.querySelector('[data-barcode-value]')?.focus();
+      }
+      updateCount();
+    });
+
+    selectFirstPrimaryIfNeeded();
+    updateCount();
+
+    const form = root.closest('form');
+    form?.addEventListener('submit', syncPrimaryFields);
+  })();
+</script>

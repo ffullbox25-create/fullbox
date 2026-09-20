@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Акт приемки № {{ order_id }}</title>
+  <style>
+    :root {
+      --text: #111;
+      --muted: #555;
+      --border: #000;
+      --paper: #ffffff;
+      --bg: #f1f1f1;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Times New Roman", serif;
+      font-size: 13px;
+    }
+    .page {
+      max-width: 900px;
+      margin: 24px auto;
+      background: var(--paper);
+      padding: 24px 28px 32px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+    }
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .toolbar-left {
+      display: inline-flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .toolbar-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+      text-align: right;
+    }
+    .toolbar .btn {
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      background: #f7f7f7;
+      cursor: pointer;
+      font-size: 14px;
+      text-decoration: none;
+      color: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .toolbar .hint {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .toolbar .hint.error {
+      color: #b91c1c;
+      font-weight: 600;
+    }
+    .client-panel {
+      border: 1px solid var(--border);
+      background: #faf7f0;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+    .client-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .client-text {
+      margin: 0 0 8px;
+      line-height: 1.4;
+    }
+    .client-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .client-actions form {
+      margin: 0;
+    }
+    .client-actions .btn {
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      background: #f7f7f7;
+      cursor: pointer;
+      font-size: 13px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .client-status {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .sign-form {
+      display: inline-flex;
+    }
+    .title {
+      font-size: 16px;
+      font-weight: 700;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+      margin-bottom: 10px;
+    }
+    .doc-lines {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .doc-line {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 6px 6px;
+      vertical-align: top;
+    }
+    th {
+      font-weight: 700;
+      text-align: center;
+    }
+    td.num { text-align: center; white-space: nowrap; }
+    tfoot td { font-weight: 700; }
+    .special-boxes {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+    }
+    .special-boxes-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .special-boxes-list {
+      display: grid;
+      gap: 4px;
+      font-size: 12px;
+    }
+    @page {
+      size: A4;
+      margin: 14mm;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 120px 1fr 160px 1fr;
+      gap: 6px 14px;
+      margin-top: 18px;
+      font-size: 13px;
+      align-items: end;
+    }
+    .summary-label { white-space: nowrap; }
+    .summary-line {
+      border-bottom: 1px solid var(--border);
+      min-height: 16px;
+      padding-bottom: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .summary-line.empty { border-bottom: none; }
+    .summary-line img {
+      max-height: 46px;
+      max-width: 160px;
+      display: block;
+    }
+    @media print {
+      body { background: #fff; }
+      .page {
+        box-shadow: none;
+        margin: 0;
+        max-width: 100%;
+        padding: 0;
+      }
+      .toolbar { display: none; }
+      .client-panel { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="toolbar screen-only">
+      <div class="toolbar-left">
+        <a class="btn" href="{{ return_url }}">Назад</a>
+        <button class="btn" type="button" onclick="window.print()">Распечатать</button>
+        {% if marking_export_url %}
+          <a class="btn" href="{{ marking_export_url }}">Выгрузить ЧЗ</a>
+        {% endif %}
+      </div>
+      <div class="toolbar-actions">
+        {% if sign_error == "storekeeper_facsimile" %}
+          <div class="hint error">У кладовщика не загружено факсимиле.</div>
+        {% elif sign_error == "manager_facsimile" %}
+          <div class="hint error">У менеджера не загружено факсимиле.</div>
+        {% elif sign_error == "placement_required" %}
+          <div class="hint error">Печатная форма доступна после закрытия акта размещения.</div>
+        {% elif sign_error == "storekeeper_required" %}
+          <div class="hint error">Сначала подпишите акт кладовщиком.</div>
+        {% elif sign_error == "send" %}
+          <div class="hint error">Не удалось отправить акт клиенту: проверьте размещение.</div>
+        {% endif %}
+
+        {% if can_storekeeper_sign %}
+          <form class="sign-form" method="post" action="/orders/receiving/{{ order_id }}/act/sign/storekeeper/">
+            {% csrf_token %}
+            <button type="submit" onclick="return confirm('После подписания редактирование заявки будет запрещено. Продолжить?')">
+              Подписать и отправить менеджеру
+            </button>
+          </form>
+          <div class="hint">После подписания редактирование заявки будет запрещено.</div>
+        {% elif can_manager_sign %}
+          <div class="hint" style="font-weight:700; color:#8a5b00;">Менеджер должен подписать акт приемки</div>
+          <form class="sign-form" method="post" action="/orders/receiving/{{ order_id }}/act/sign/manager/">
+            {% csrf_token %}
+            <button type="submit">Подписать акт приемки и отправить клиенту</button>
+          </form>
+          <div class="hint">После подписи акт будет отправлен клиенту.</div>
+        {% elif storekeeper_signed and manager_signed %}
+          <div class="hint">Акт подписан кладовщиком и менеджером и отправлен клиенту.</div>
+        {% elif storekeeper_signed %}
+          <div class="hint" style="font-weight:700; color:#8a5b00;">Менеджер должен подписать акт приемки</div>
+          <div class="hint">Акт подписан кладовщиком и ожидает подписи менеджера.</div>
+        {% else %}
+          <div class="hint">Подписи пока не поставлены.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if client_view %}
+      <div class="client-panel screen-only">
+        <div class="client-title">Подтверждение акта приемки</div>
+        {% if client_response == "confirmed" %}
+          <p class="client-text">Спасибо, акт приемки подтвержден.</p>
+          <div class="client-status">Товар будет размещен в соответствии с условиями договора.</div>
+        {% elif client_response == "dispute" %}
+          <p class="client-text">Мы получили уведомление о разногласиях по акту приемки.</p>
+          <div class="client-status">Просим прибыть на склад для урегулирования спорных вопросов и оформления двустороннего акта.</div>
+        {% else %}
+          <p class="client-text">
+            Вы получили акт приемки, подписанный складом и менеджером. Просим подтвердить получение и согласие с данными акта.
+          </p>
+          <p class="client-text">
+            Если вы не согласны с данными акта, нажмите «Заявить разногласия» и прибудьте на склад для урегулирования спорных вопросов и составления двустороннего акта.
+          </p>
+          <p class="client-text">
+            Если в течение 24 часов с момента получения акта{% if client_deadline %} (до {{ client_deadline }}){% endif %}
+            мы не получим подтверждение или заявление о разногласиях и ваш представитель не прибудет на склад, акт считается согласованным,
+            а товар размещается в соответствии с условиями договора.
+          </p>
+          <div class="client-actions">
+            <form method="post" action="/orders/receiving/{{ order_id }}/act/client/confirm/{% if client_param %}?client={{ client_param }}{% endif %}">
+              {% csrf_token %}
+              {% if return_url %}
+                <input type="hidden" name="return" value="{{ return_url }}">
+              {% endif %}
+              <button class="btn" type="submit">Подтвердить акт приемки</button>
+            </form>
+            <form method="post" action="/orders/receiving/{{ order_id }}/act/client/dispute/{% if client_param %}?client={{ client_param }}{% endif %}">
+              {% csrf_token %}
+              {% if return_url %}
+                <input type="hidden" name="return" value="{{ return_url }}">
+              {% endif %}
+              <button class="btn" type="submit">Заявить разногласия</button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <div class="title">Акт приемки № {{ order_id }} от {{ doc_date }}</div>
+    <div class="doc-lines">
+      <div class="doc-line">Поставщик: {{ agency_label }}</div>
+      <div class="doc-line">Исполнитель: {{ executor_label }}</div>
+      {% if client_response == "confirmed" %}
+        <div class="doc-line">Акт приемки подтвержден клиентом{% if client_response_at and client_response_at != "-" %} ({{ client_response_at }}){% endif %}.</div>
+      {% elif client_response == "dispute" %}
+        <div class="doc-line">Клиент заявил разногласия по акту приемки{% if client_response_at and client_response_at != "-" %} ({{ client_response_at }}){% endif %}.</div>
+      {% endif %}
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:36px;">№</th>
+          <th style="width:100px;">ШК</th>
+          <th style="width:80px;">Артикул</th>
+          <th>Наименование</th>
+          {% if show_marking_column %}
+            <th style="width:180px;">ЧЗ</th>
+          {% endif %}
+          <th style="width:95px;">Количество по заявке</th>
+          <th style="width:65px;">Принято</th>
+          <th style="width:85px;">Кол-во коробов (принято)</th>
+          <th style="width:80px;">Расхождения</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+          <tr>
+            <td class="num">{{ forloop.counter }}</td>
+            <td>{{ item.barcode|default:"-" }}</td>
+            <td>{{ item.sku_code|default:"-" }}</td>
+            <td>{{ item.name|default:"-" }}</td>
+            {% if show_marking_column %}
+              <td>{{ item.marking_code|default:"-" }}</td>
+            {% endif %}
+            <td class="num">{{ item.planned }}</td>
+            <td class="num">{{ item.actual }}</td>
+            <td class="num">{{ item.box_qty }}</td>
+            <td class="num">{{ item.mismatch }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="{% if show_marking_column %}9{% else %}8{% endif %}">Нет данных по товарам.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="{% if show_marking_column %}5{% else %}4{% endif %}">Итого</td>
+          <td class="num">{{ total_planned }}</td>
+          <td class="num">{{ total_actual }}</td>
+          <td class="num">{{ total_boxes }}</td>
+          <td class="num">{{ total_mismatch }}</td>
+        </tr>
+      </tfoot>
+    </table>
+    <div class="summary-grid">
+      <div class="summary-label">Менеджер</div>
+      <div class="summary-line">
+        {% if manager_facsimile_url %}
+          <img src="{{ manager_facsimile_url }}" alt="Факсимиле менеджера">
+        {% endif %}
+      </div>
+      <div class="summary-label"></div>
+      <div class="summary-line empty"></div>
+
+      <div class="summary-label">Кладовщик</div>
+      <div class="summary-line">
+        {% if storekeeper_facsimile_url %}
+          <img src="{{ storekeeper_facsimile_url }}" alt="Факсимиле кладовщика">
+        {% endif %}
+      </div>
+      <div class="summary-label">Короба (кол-во)</div>
+      <div class="summary-line">{{ total_boxes }}</div>
+
+      <div class="summary-label">Кол-во ед</div>
+      <div class="summary-line">{{ total_actual }}</div>
+      <div class="summary-label">Палеты (кол-во)</div>
+      <div class="summary-line">{{ total_pallets }}</div>
+    </div>
+  </div>
+</body>
+</html>

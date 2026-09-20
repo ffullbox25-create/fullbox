@@ -1,0 +1,1946 @@
+{% load order_display %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ order_title }} № {{ order_id|display_order_number:order_type }}</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <style>
+    :root {
+      --card: var(--surface);
+      --card-soft: var(--surface-2);
+      --text: var(--ink);
+      --gold: var(--sun);
+      --gold-soft: #ffd88a;
+      --line: var(--stroke);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin:0;
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.16), transparent 55%),
+        var(--bg);
+      color:var(--ink);
+      font-family:"Manrope", system-ui, sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: none; margin: 0; padding: 14px 10px 56px; min-height: 100vh; }
+    header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:12px; flex-wrap:wrap; }
+    .btn-row { display:flex; gap:10px; flex-wrap:wrap; }
+    .tab { padding:10px 14px; border-radius:12px; border:1px solid var(--stroke); background:var(--surface-2); color:var(--ink); font-weight:700; }
+    .tab.active { border-color: rgba(242,183,71,0.45); color:#2a2110; background: linear-gradient(120deg,var(--sun),var(--gold-soft)); box-shadow:0 10px 24px rgba(242,183,71,0.18); }
+    .tab.primary { border-color: rgba(242,183,71,0.45); color:#2a2110; background: linear-gradient(120deg,var(--sun),var(--gold-soft)); box-shadow:0 10px 24px rgba(242,183,71,0.18); }
+    .card { background:var(--surface); border:1px solid var(--stroke); border-radius:18px; padding:14px; box-shadow:var(--shadow); }
+    .detail-layout {
+      display:grid;
+      grid-template-columns: minmax(190px, 220px) minmax(720px, 1fr) minmax(250px, 300px);
+      gap:10px;
+      align-items:start;
+      min-height: calc(100vh - 56px);
+    }
+    .detail-side { display:grid; gap:12px; }
+    .detail-main { display:grid; gap:10px; min-width:0; }
+    .detail-chat { display:grid; gap:12px; }
+    .side-actions { display:grid; gap:8px; text-align:center; }
+    .side-actions .tab,
+    .side-actions button.tab { width:100%; display:flex; justify-content:center; align-items:center; text-align:center; white-space:normal; line-height:1.2; }
+    .side-actions form { display:grid; }
+    .side-card { background:var(--surface); border:1px solid var(--stroke); border-radius:18px; padding:12px; box-shadow:var(--shadow); }
+    .side-title { font-weight:600; margin:0 0 8px; }
+    .info-list { display:grid; gap:10px; }
+    .info-item { display:grid; gap:4px; }
+    .info-label { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
+    .info-value { font-weight:600; word-break:break-word; }
+    .table-card { display:block; min-height:0; overflow:visible; }
+    .table-scroll { overflow:auto; min-height:0; flex:1; border:1px solid var(--stroke); border-radius:12px; background:var(--surface); }
+    .table-scroll table { margin-top:0; }
+    .table-scroll thead th { position: sticky; top: 0; background: var(--surface-2); z-index: 1; box-shadow: 0 2px 0 rgba(28,31,26,0.08); }
+    .table-scroll tbody tr:nth-child(even) { background: rgba(247,242,234,0.62); }
+    .receiving-items-table tfoot td {
+      position: sticky;
+      bottom: 0;
+      z-index: 2;
+      background: #fff5df;
+      border-top: 2px solid var(--accent);
+      box-shadow: 0 -3px 10px rgba(48,48,48,0.08);
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .receiving-items-total-label { text-align: right; color: var(--text); }
+    .receiving-items-total-value { white-space: nowrap; color: var(--text); }
+    .chat { display:grid; gap:10px; max-height:520px; overflow:auto; padding-right:6px; }
+    .chat-item { border:1px solid var(--stroke); border-radius:12px; padding:10px; background:var(--surface-2); }
+    .chat-meta { font-size:12px; color:var(--muted); margin-bottom:6px; display:flex; justify-content:space-between; gap:6px; flex-wrap:wrap; }
+    .chat-text { font-size:13px; }
+    .chat-form { display:grid; gap:8px; margin-bottom:12px; }
+    .chat-form textarea { resize:vertical; min-height:80px; padding:8px 10px; border-radius:10px; border:1px solid var(--stroke); font-size:13px; font-family:inherit; }
+    .chat-form button { padding:8px 12px; border-radius:10px; border:none; background:linear-gradient(120deg,var(--sun),var(--gold-soft)); font-weight:700; cursor:pointer; color:#2a2110; }
+    .participants { display:grid; gap:6px; margin-top:12px; }
+    .participant { border:1px dashed var(--stroke); border-radius:10px; padding:8px; font-size:13px; }
+    .meta-row { margin-top:6px; }
+    .meta-value { color: var(--accent); font-weight:700; }
+    .meta-value.tone-danger { color:#b42318; }
+    .meta-value.tone-pending { color:#9a5a00; }
+    .page-messages { display:grid; gap:8px; margin:0 0 12px; }
+    .page-message { border:1px solid var(--stroke); border-radius:12px; padding:11px 13px; background:var(--surface); font-size:13px; font-weight:700; }
+    .page-message.error { border-color:rgba(180,35,24,.32); background:rgba(180,35,24,.08); color:#8f1d14; }
+    .page-message.success { border-color:rgba(14,107,91,.30); background:rgba(14,107,91,.08); color:#0a5c4e; }
+    .receiving-owner-notice { display:grid; gap:8px; padding:11px; border:1px solid rgba(242,183,71,.46); border-radius:12px; background:rgba(242,183,71,.12); color:#5d4615; font-size:12px; line-height:1.4; text-align:left; }
+    .receiving-owner-notice strong { color:#2a2110; }
+    .receiving-result,
+    .processing-result { display:grid; gap:10px; min-height:0; overflow:visible; padding-right:0; }
+    .summary-panel { border:1px solid var(--stroke); border-radius:16px; padding:14px 14px 10px; background:var(--surface); display:grid; gap:10px; box-shadow:var(--shadow); }
+    .summary-head { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .summary-title { font-weight:700; font-size:18px; }
+    .summary-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    .summary-actions .tab { padding:9px 14px; border-radius:10px; font-size:13px; }
+    .summary-grid { display:grid; grid-template-columns:repeat(8, minmax(104px,1fr)); gap:8px; align-items:stretch; }
+    .summary-metric {
+      border:1px solid rgba(31,35,40,0.10);
+      border-radius:12px;
+      padding:9px 9px 8px;
+      background:var(--surface);
+      min-width:0;
+      min-height:76px;
+      display:grid;
+      grid-template-columns:28px minmax(0,1fr);
+      grid-template-rows:auto auto auto;
+      column-gap:8px;
+      row-gap:2px;
+      align-content:start;
+      align-items:start;
+    }
+    .summary-label { font-size:10px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin:0; line-height:1.15; }
+    .summary-value { font-weight:800; font-size:14px; overflow-wrap:anywhere; line-height:1.18; }
+    .summary-metric > .muted { grid-column:2; font-size:10px; line-height:1.25; }
+    .summary-icon {
+      grid-row:1 / span 2;
+      width:28px;
+      height:28px;
+      display:grid;
+      place-items:center;
+      border:1px solid rgba(14,107,91,.16);
+      border-radius:9px;
+      color:#0e6b5b;
+      background:rgba(14,107,91,.08);
+      margin-top:1px;
+    }
+    .summary-icon svg,
+    .summary-icon svg * { width:16px; height:16px; stroke:currentColor; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+    .summary-metric:nth-child(1) .summary-icon,
+    .summary-metric:nth-child(7) .summary-icon { color:#8a5b00; background:rgba(199,154,28,.14); border-color:rgba(199,154,28,.24); }
+    .summary-metric:nth-child(8) .summary-icon { color:#6b7280; background:rgba(107,114,128,.08); border-color:rgba(107,114,128,.18); }
+    .pill { display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; font-size:11px; font-weight:800; background:rgba(199,154,32,0.16); color:#8a5b00; }
+    .pill.ok { background:rgba(31,157,85,0.14); color:#0f5c30; }
+    .pill.warn { background:rgba(199,154,32,0.18); color:#8a5b00; }
+    .summary-alert { border:1px solid rgba(154,90,0,0.35); background:rgba(199,154,32,0.12); color:#8a5b00; border-radius:10px; padding:10px 12px; font-weight:700; }
+    .priority-client-comment {
+      display:grid;
+      gap:6px;
+      margin-bottom:10px;
+      padding:14px 16px;
+      border:2px solid rgba(248,144,0,0.5);
+      border-radius:10px;
+      background:#fff8e8;
+      color:var(--ink);
+      font-size:18px;
+      font-weight:750;
+      line-height:1.45;
+      overflow-wrap:anywhere;
+    }
+    .priority-client-comment strong { color:#b45309; font-size:12px; font-weight:850; text-transform:uppercase; }
+    .cancel-alert {
+      border:2px solid rgba(212,84,60,0.42);
+      background:#fff0ec;
+      color:#9a2f22;
+      border-radius:14px;
+      padding:14px 16px;
+      font-weight:800;
+      font-size:18px;
+      line-height:1.35;
+    }
+    .cancel-alert small {
+      display:block;
+      margin-top:6px;
+      font-size:13px;
+      color:#9a2f22;
+      font-weight:700;
+    }
+    .cancel-form {
+      display:grid;
+      gap:8px;
+      padding:10px;
+      border:1px solid rgba(212,84,60,0.25);
+      border-radius:12px;
+      background:#fff7f4;
+    }
+    .cancel-form textarea,
+    .cancel-form select {
+      width:100%;
+      border:1px solid var(--stroke);
+      border-radius:10px;
+      padding:8px 10px;
+      font:inherit;
+      font-size:13px;
+      background:#fff;
+    }
+    .cancel-form textarea {
+      min-height:78px;
+      resize:vertical;
+    }
+    .tab.danger {
+      color:#9a2f22;
+      border-color:rgba(212,84,60,0.32);
+      background:rgba(212,84,60,0.10);
+    }
+    .accordion-section { border:1px solid var(--stroke); border-radius:14px; background:var(--surface); overflow:hidden; box-shadow:0 8px 18px rgba(28,31,26,0.05); }
+    .accordion-section summary { list-style:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:12px; padding:9px 12px; font-weight:700; background:var(--surface-2); min-height:42px; }
+    .accordion-section summary::-webkit-details-marker { display:none; }
+    .accordion-title { display:flex; align-items:center; gap:10px; min-width:0; }
+    .accordion-title::before { content:'⌄'; width:18px; height:18px; border:1px solid var(--stroke); border-radius:6px; display:grid; place-items:center; background:var(--surface); font-weight:700; font-size:12px; transform:rotate(-90deg); transition:transform .14s ease; }
+    .accordion-section[open] .accordion-title::before { transform:none; }
+    .section-symbol { width:22px; height:22px; display:inline-grid; place-items:center; color:#4b5563; }
+    .section-symbol svg,
+    .section-symbol svg * { width:16px; height:16px; stroke:currentColor; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+    .accordion-count { color:var(--muted); font-size:12px; font-weight:600; white-space:nowrap; }
+    .accordion-section:not([open]) { max-height:44px; }
+    .accordion-section:not([open]) .accordion-body { display:none; }
+    .accordion-body { padding:0 12px 12px; }
+    .accordion-body .table-scroll { max-height:34vh; }
+    .receiving-result .accordion-section:nth-of-type(2) table { min-width: 920px; table-layout:auto; }
+    .receiving-result .accordion-section:nth-of-type(3) table { min-width: 1220px; table-layout:auto; }
+    .receiving-result .accordion-section:nth-of-type(4) table,
+    .history-wrap table { min-width: 900px; table-layout:auto; }
+    @media (max-width: 1280px) {
+      .wrap { padding: 10px 6px 48px; }
+      .detail-layout {
+        grid-template-columns: minmax(170px, 190px) minmax(640px, 1fr) minmax(210px, 250px);
+        gap: 8px;
+      }
+      .side-card { padding: 10px; }
+      .card { padding: 12px; }
+      th, td { padding: 8px; }
+      .chat-form textarea { min-height: 70px; }
+    }
+    @media (max-width: 1100px) {
+      .detail-layout { grid-template-columns: 1fr; min-height:auto; }
+      .detail-main { height:auto; overflow:visible; }
+      .table-card { height:auto; overflow:visible; }
+      .table-scroll { height:auto; }
+    }
+    h1 { margin:0 0 6px; letter-spacing:-0.5px; }
+    .muted { color: var(--muted); }
+    table { width:100%; border-collapse:collapse; margin-top:12px; }
+    .history-accordion:not([open]) { max-height: 48px; }
+    .history-accordion:not([open]) summary { min-height: 42px; }
+    .history-accordion[open] { max-height: none; }
+    .history-wrap { max-height:150px; overflow:auto; border:1px solid var(--stroke); border-radius:12px; }
+    .history-wrap table { margin-top:0; }
+    .placement-summary { display:grid; gap:12px; margin-top:18px; }
+    .placement-board { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; align-items:start; }
+    .placement-pallet-card { border:1px solid var(--stroke); border-radius:16px; padding:12px; background:var(--surface); box-shadow:var(--shadow); display:grid; gap:10px; align-content:start; }
+    .placement-pallet-head { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+    .placement-pallet-code { font-weight:700; word-break:break-word; }
+    .placement-pallet-badge { display:inline-flex; align-items:center; padding:4px 8px; border-radius:999px; background:rgba(199,154,32,0.15); color:#8a5b00; font-size:12px; font-weight:700; }
+    .placement-box-grid { display:grid; grid-template-columns:repeat(auto-fill,32px); gap:6px; justify-content:start; align-content:start; }
+    .placement-box-chip { width:32px; height:32px; border-radius:9px; display:grid; place-items:center; border:1px solid #1f9d55; background:#d8f2e1; color:#0f5c30; font-size:12px; font-weight:700; user-select:none; }
+    .placement-box-chip.loose { border-color:var(--stroke); background:#f1f0ec; color:#555; }
+    .placement-note { font-size:12px; color:var(--muted); }
+    .placement-table-card { display:grid; gap:12px; margin-top:12px; }
+    .placement-table-card .table-scroll { max-height:60vh; }
+    .placement-summary .table-scroll { max-height:60vh; }
+    .attachment-list { display:grid; gap:8px; }
+    .attachment-item {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 12px;
+      border:1px solid var(--stroke);
+      border-radius:12px;
+      background:var(--surface-2);
+      font-size:13px;
+    }
+    .attachment-item a { font-weight:700; word-break:break-word; }
+    th, td { border-bottom:1px solid var(--stroke); border-right:1px solid var(--stroke); padding:7px 10px; text-align:left; vertical-align:top; font-size:12px; line-height:1.28; }
+    th:last-child, td:last-child { border-right:none; }
+    th { color: var(--muted); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.7px; background:var(--surface-2); }
+    .history-latest td { background: rgba(31,157,85,0.08); }
+    .processing-manual-param-row td { background: rgba(14,107,91,0.08); }
+    .processing-manual-param-row td:first-child { background: rgba(14,107,91,0.13); color: #0b5246; }
+    .manual-param-label { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .manual-param-badge {
+      display:inline-flex;
+      align-items:center;
+      padding:2px 7px;
+      border-radius:999px;
+      background: rgba(14,107,91,0.14);
+      color:#0b5246;
+      font-size:10px;
+      letter-spacing:0.5px;
+      text-transform:uppercase;
+      font-weight:700;
+      white-space:nowrap;
+    }
+    .modal { position:fixed; inset:0; background:rgba(15,23,42,0.45); display:none; align-items:center; justify-content:center; padding:16px; z-index:2000; }
+    .modal.is-open { display:flex; }
+    .modal-card { width:min(420px, 92vw); background:var(--surface); border:1px solid var(--stroke); border-radius:16px; padding:16px; box-shadow:var(--shadow); display:grid; gap:10px; }
+    .modal-title { font-weight:600; }
+    .modal-actions { display:grid; gap:8px; }
+    .modal-actions .tab { width:100%; }
+    .modal-note { color:var(--muted); font-size:12px; }
+    .client-processing-card { display:grid; gap:16px; }
+    .client-processing-hero { display:grid; gap:12px; border:1px solid var(--stroke); border-radius:18px; padding:16px; background:linear-gradient(135deg, rgba(255,253,248,0.98), rgba(14,107,91,0.06)); box-shadow:var(--shadow); }
+    .client-processing-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+    .client-processing-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:26px; letter-spacing:-0.4px; }
+    .status-badge { display:inline-flex; align-items:center; gap:8px; border-radius:999px; padding:7px 12px; font-weight:800; font-size:13px; background:rgba(31,111,235,0.12); color:#1d4ed8; }
+    .status-badge.tone-success { background:rgba(14,107,91,0.14); color:#0b5246; }
+    .status-badge.tone-danger { background:rgba(212,84,60,0.14); color:#b42318; }
+    .success-note { border:1px solid rgba(14,107,91,0.22); background:rgba(14,107,91,0.08); color:#0b5246; border-radius:14px; padding:12px 14px; display:grid; gap:4px; }
+    .success-note strong { font-size:15px; }
+    .processing-action-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .action-menu { position:relative; }
+    .action-menu summary { list-style:none; }
+    .action-menu summary::-webkit-details-marker { display:none; }
+    .action-menu-list { position:absolute; right:0; top:calc(100% + 6px); min-width:220px; padding:8px; border:1px solid var(--stroke); border-radius:14px; background:var(--surface); box-shadow:var(--shadow); z-index:20; display:grid; gap:6px; }
+    .processing-timeline { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; }
+    .timeline-step { border:1px solid var(--stroke); border-radius:14px; padding:10px; background:var(--surface); display:grid; gap:4px; min-height:96px; }
+    .timeline-step::before { content:"○"; color:var(--muted); font-weight:900; }
+    .timeline-step.is-done::before { content:"✓"; color:var(--accent); }
+    .timeline-step.is-current { border-color:rgba(14,107,91,0.42); background:rgba(14,107,91,0.08); }
+    .timeline-step.is-current::before { content:"●"; color:var(--accent); }
+    .timeline-title { font-weight:800; font-size:13px; }
+    .timeline-meta { color:var(--muted); font-size:11px; line-height:1.35; }
+    .processing-card-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .processing-info-card { border:1px solid var(--stroke); border-radius:16px; padding:14px; background:var(--surface); box-shadow:var(--shadow); display:grid; gap:10px; align-content:start; }
+    .processing-info-card h3 { margin:0; font-size:16px; }
+    .info-kv { display:grid; gap:8px; }
+    .info-kv-row { display:grid; grid-template-columns:170px minmax(0,1fr); gap:10px; font-size:13px; }
+    .info-kv-label { color:var(--muted); }
+    .info-kv-value { font-weight:700; min-width:0; overflow-wrap:anywhere; }
+    .processing-table td, .processing-table th { word-break:normal; overflow-wrap:anywhere; }
+    .processing-table .name-col { min-width:220px; max-width:360px; }
+    .processing-act-summary { display:grid; grid-template-columns:repeat(5,minmax(110px,1fr)); gap:8px; margin-bottom:12px; }
+    .processing-act-metric { border:1px solid var(--stroke); border-radius:8px; padding:10px; background:var(--surface); }
+    .processing-act-metric span { display:block; color:var(--muted); font-size:11px; margin-bottom:4px; }
+    .processing-act-metric strong { font-size:17px; }
+    .processing-act-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start; margin-top:12px; }
+    .processing-act-dispute { display:grid; gap:8px; min-width:min(100%,420px); }
+    .history-summary { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; color:var(--muted); font-size:12px; }
+    .modal-card textarea,
+    .modal-card select,
+    .modal-card input[type="file"],
+    .modal-card input[type="text"] { width:100%; border:1px solid var(--stroke); border-radius:10px; padding:9px 10px; background:#fff; }
+    .shipping-return-panel { display:grid; gap:8px; padding-top:4px; }
+    .shipping-return-panel[hidden] { display:none; }
+    .shipping-return-results { display:grid; gap:6px; max-height:220px; overflow:auto; }
+    .shipping-return-result { width:100%; text-align:left; border:1px solid var(--stroke); border-radius:10px; padding:9px 10px; background:#fff; cursor:pointer; }
+    .shipping-return-result.is-selected { border-color:var(--accent); background:var(--accent-soft); }
+    .shipping-return-result small { display:block; color:var(--muted); margin-top:3px; }
+    @media (max-width: 980px) {
+      .processing-timeline { grid-template-columns:1fr; }
+      .processing-card-grid { grid-template-columns:1fr; }
+      .processing-act-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .info-kv-row { grid-template-columns:1fr; gap:2px; }
+    }
+  </style>
+</head>
+<body class="lk-theme">
+  <div class="wrap">
+    {% if messages %}
+      <div class="page-messages" role="status" aria-live="polite">
+        {% for message in messages %}
+          <div class="page-message {{ message.tags|default:'info' }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <div class="detail-layout">
+      <aside class="detail-side">
+        <div class="side-card">
+          <div class="muted">FULLBOX · {% include "partials/current_user.html" %}</div>
+          <h3>{{ order_title }} № {{ order_id|display_order_number:order_type }}</h3>
+          <div class="muted">
+            Статус:
+            <span class="meta-value">
+              {% if order_type == 'processing' and client_view %}
+                {{ processing_client_card.status_title }}
+              {% else %}
+                {{ status_label }}
+              {% endif %}
+            </span>
+            {% if goods_type_label %}<br>Тип поставки: <span class="meta-value">{{ goods_type_label }}</span>{% endif %}
+            {% if shipping_return_order_display %}<br>Отгрузка-источник: <span class="meta-value">{{ shipping_return_order_display }}</span>{% endif %}
+            {% if order_type == 'receiving' and receiving_summary %}<br>Режим: <span class="meta-value">{{ receiving_summary.mode_badge }}</span>{% endif %}
+            {% if responsible %}<div class="meta-row">Текущий ответственный: <span class="meta-value">{{ responsible }}</span></div>{% endif %}
+            {% if next_step_label %}<div class="meta-row">Следующий шаг: <span class="meta-value{% if next_step_tone %} tone-{{ next_step_tone }}{% endif %}">{{ next_step_label }}</span></div>{% endif %}
+            {% if order_type == 'processing' and processing_packers_label %}
+              <div class="meta-row">Упаковывает: <span class="meta-value">{{ processing_packers_label }}</span></div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="side-card">
+          <h4 class="side-title">Действия</h4>
+          <div class="side-actions">
+            {% if client_orders_url %}
+              <a class="tab" href="{{ client_orders_url }}">Журнал заявок</a>
+            {% else %}
+              <a class="tab" href="/orders/">Журнал заявок</a>
+            {% endif %}
+            {% if order_type == 'receiving' %}
+              {% if receiving_work_owner_name and not receiving_work_owned_by_current_user %}
+                <div class="receiving-owner-notice">
+                  <span>Заявка сейчас в работе у <strong>{{ receiving_work_owner_name }}</strong>.</span>
+                  {% if can_take_over_receiving_work %}
+                    <form method="post" onsubmit="return confirm('Забрать заявку у {{ receiving_work_owner_name|escapejs }} и продолжить текущую приемку без сброса черновика?');">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="take_over_receiving_work">
+                      <button class="tab primary" type="submit">Забрать заявку в работу себе</button>
+                    </form>
+                  {% endif %}
+                </div>
+              {% endif %}
+              {% if can_edit_order and receiving_edit_url %}
+                <a class="tab" href="{{ receiving_edit_url }}">Исправить заявку</a>
+              {% elif can_edit_order %}
+                <a class="tab" href="/orders/receiving/?edit={{ order_id }}{% if agency %}&agency={{ agency.id }}{% endif %}">Исправить заявку</a>
+              {% endif %}
+              {% if can_send_to_warehouse %}
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="send_to_warehouse">
+                  <button class="tab primary" type="submit">Подтвердить и передать на склад</button>
+                </form>
+              {% endif %}
+              {% if can_send_act_to_client %}
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="send_act_to_client">
+                  <button class="tab primary" type="submit">Отправить акт клиенту</button>
+                </form>
+              {% endif %}
+              {% if can_manage_storage_placement %}
+                <a class="tab primary" href="{{ storage_placement_url|default:receiving_flow_url }}">{{ storage_placement_action_label }}</a>
+              {% endif %}
+              {% if reachtruck_request_url %}
+                <a class="tab" href="{{ reachtruck_request_url }}">Задание ричтраку</a>
+              {% endif %}
+              {% if not client_view %}
+                {% if can_continue_flow %}
+                  {% if receiving_mode == 'cz' %}
+                    <a class="tab primary" href="/orders/receiving/{{ order_id }}/cz-flow/">Продолжить приемку с ЧЗ</a>
+                  {% else %}
+                    <a class="tab primary" href="/orders/receiving/{{ order_id }}/flow/">Продолжить обычную приемку</a>
+                  {% endif %}
+                {% elif can_open_flow and not receiving_work_owner_name %}
+                  {% if receiving_mode_required_by_client == 'cz' %}
+                    <button class="tab" type="button" data-take-flow-btn data-receiving-mode="cz" data-act-url="/orders/receiving/{{ order_id }}/flow/" data-goods-type="{{ goods_type|default:'' }}">Потоковая приемка с ЧЗ</button>
+                  {% elif receiving_mode_required_by_client == 'standard' %}
+                    <button class="tab" type="button" data-take-flow-btn data-receiving-mode="standard" data-act-url="/orders/receiving/{{ order_id }}/flow/" data-goods-type="{{ goods_type|default:'' }}">Потоковая приемка</button>
+                  {% else %}
+                    <button class="tab" type="button" data-take-flow-btn data-receiving-mode="standard" data-act-url="/orders/receiving/{{ order_id }}/flow/" data-goods-type="{{ goods_type|default:'' }}">Потоковая приемка</button>
+                    {% if has_marked_receiving_items or not items %}
+                      <button class="tab" type="button" data-take-flow-btn data-receiving-mode="cz" data-act-url="/orders/receiving/{{ order_id }}/flow/" data-goods-type="{{ goods_type|default:'' }}">Потоковая приемка с ЧЗ</button>
+                    {% endif %}
+                  {% endif %}
+                    <form method="post" id="take-in-work-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="create_receiving_act">
+                      <input type="hidden" name="goods_type" id="goods-type-input">
+                      <input type="hidden" name="receiving_mode" id="receiving-mode-input" value="{{ receiving_mode_required_by_client|default:receiving_mode|default:'standard' }}">
+                      <input type="hidden" name="shipping_return_order_number" id="shipping-return-order-input" value="{{ shipping_return_order_number|default:'' }}">
+                    </form>
+                {% endif %}
+                {% if can_view_receiving_flow %}
+                  <a class="tab{% if can_reopen_receiving_flow %} primary{% endif %}" href="{{ view_receiving_flow_url }}">{{ view_receiving_flow_label|default:"Посмотреть потоковую приемку" }}</a>
+                {% endif %}
+                {% if can_print_receiving_act %}
+                  {% if can_storekeeper_sign_act %}
+                    <a class="tab primary" href="/orders/receiving/{{ order_id }}/act/print/?return=/orders/receiving/{{ order_id }}/">Подписать и отправить акт</a>
+                    <a class="tab" href="/orders/receiving/{{ order_id }}/act/print/?return=/orders/receiving/{{ order_id }}/">Акт приемки (печатная форма)</a>
+                  {% else %}
+                    <a class="tab{% if needs_manager_act_sign %} primary{% endif %}" href="/orders/receiving/{{ order_id }}/act/print/">{% if needs_manager_act_sign %}Подписать акт приемки{% else %}Акт приемки (печатная форма){% endif %}</a>
+                  {% endif %}
+                  <a class="tab" href="/orders/receiving/{{ order_id }}/export/">Выгрузить приемку</a>
+                  {% if has_receiving_chz_export %}
+                    <a class="tab" href="/orders/receiving/{{ order_id }}/act/chz.xlsx">Выгрузить ЧЗ</a>
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+            {% elif order_type == 'processing' %}
+              {% if can_approve_processing %}
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="approve_processing">
+                  <button class="tab primary" type="submit">{% if client_view %}Взять в работу{% else %}Утвердить заявку{% endif %}</button>
+                </form>
+              {% endif %}
+              {% if not client_view %}
+                {% if can_take_processing %}
+                  <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="take_processing">
+                    <button class="tab primary" type="submit">Принять в работу</button>
+                  </form>
+                {% endif %}
+                {% if can_edit_processing %}
+                  <a class="tab" href="{{ processing_edit_url }}">Редактировать заявку</a>
+                {% endif %}
+              {% elif can_edit_processing and processing_edit_url %}
+                <a class="tab primary" href="{{ processing_edit_url }}">Редактировать заявку</a>
+              {% elif can_request_processing_change %}
+                <button class="tab" type="button" data-open-modal="processing-change-modal">Запросить изменение</button>
+              {% endif %}
+              {% if processing_report_url %}
+                <a class="tab" href="{{ processing_report_url }}">Скачать состав обработки</a>
+              {% endif %}
+            {% endif %}
+            {% if client_cabinet_url %}
+              <a class="tab" href="{{ client_cabinet_url }}">В кабинет</a>
+            {% endif %}
+            {% if client_view and order_type == 'receiving' %}
+              {% if can_print_receiving_act %}
+                <a class="tab" href="/orders/receiving/{{ order_id }}/act/print/?client={{ agency.id }}">Акт приемки (печатная форма)</a>
+              {% endif %}
+            {% endif %}
+            {% if client_view and order_type == 'packing' %}
+              <a class="tab" href="/orders/packing/?client={{ agency.id }}">Новая упаковка</a>
+            {% endif %}
+            {% if not client_cabinet_url %}
+              <a class="tab" href="{{ cabinet_url }}">В кабинет</a>
+            {% endif %}
+            {% if warehouse_invalid_review_pending %}
+              <details class="cancel-form" open>
+                <summary class="tab danger">Передана на разбор</summary>
+                <div class="muted" style="padding:8px 0">
+                  {% if warehouse_invalid_reason %}Причина: {{ warehouse_invalid_reason }}{% endif %}
+                  {% if warehouse_invalid_note %}<br>Комментарий: {{ warehouse_invalid_note }}{% endif %}
+                  <br>Остатки, зоны, резервы, короба и паллеты автоматически не изменялись.
+                </div>
+              </details>
+            {% elif can_close_receiving_task_invalid %}
+              <details class="cancel-form">
+                <summary class="tab danger">Удалить ошибочную заявку</summary>
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="close_receiving_task_invalid">
+                  <select name="invalid_reason" required>
+                    <option value="">Выберите причину</option>
+                    <option value="duplicate">Дубль заявки</option>
+                    <option value="wrong_request">Неверная заявка</option>
+                    <option value="created_by_mistake">Создана ошибочно</option>
+                  </select>
+                  <textarea name="invalid_note" placeholder="Комментарий для начальника склада (необязательно)"></textarea>
+                  <button class="tab danger" type="submit">Отметить удалённой</button>
+                </form>
+              </details>
+            {% endif %}
+            {% if warehouse_cancel_request_pending %}
+              <details class="cancel-form" open>
+                <summary class="tab danger">Отмена на согласовании</summary>
+                <div class="muted" style="padding:8px 0">
+                  {% if warehouse_cancel_reason %}Причина: {{ warehouse_cancel_reason }}{% endif %}
+                </div>
+                {% if can_review_warehouse_cancel %}
+                  <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="cancel_reason" value="{{ warehouse_cancel_reason }}">
+                    <button class="tab danger" type="submit" name="action" value="approve_warehouse_cancel">Подтвердить отмену</button>
+                    <button class="tab" type="submit" name="action" value="reject_warehouse_cancel">Отклонить отмену</button>
+                  </form>
+                {% endif %}
+              </details>
+            {% elif can_request_warehouse_cancel %}
+              <details class="cancel-form">
+                <summary class="tab danger">Запросить отмену</summary>
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="request_warehouse_cancel">
+                  <textarea name="cancel_reason" placeholder="Укажите причину отмены для склада и клиента" required></textarea>
+                  <button class="tab danger" type="submit">Запросить подтверждение склада</button>
+                </form>
+              </details>
+            {% elif order_type == 'processing' and client_view and can_cancel_order %}
+              <button class="tab danger" type="button" data-open-modal="processing-cancel-modal">Отменить заявку</button>
+            {% elif order_type == 'processing' and client_view and can_request_processing_cancel %}
+              <button class="tab danger" type="button" data-open-modal="processing-cancel-request-modal">Запросить отмену</button>
+            {% elif can_cancel_order %}
+              <details class="cancel-form">
+                <summary class="tab danger">Отменить заявку</summary>
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="cancel_order">
+                  <textarea name="cancel_reason" placeholder="Укажите причину отмены для клиента" required></textarea>
+                  <button class="tab danger" type="submit">Подтвердить отмену</button>
+                </form>
+              </details>
+            {% endif %}
+            <a class="tab" href="/logout/">Выход</a>
+          </div>
+        </div>
+
+        <div class="side-card">
+          <h4 class="side-title">Участники</h4>
+          <div class="participants">
+            {% for person in participants %}
+              <div class="participant">{{ person }}</div>
+            {% empty %}
+              <div class="muted">Нет данных.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </aside>
+
+      <main class="detail-main">
+        <div class="card table-card">
+          {% if is_deleted_as_erroneous %}
+            <div class="cancel-alert">
+              ЗАЯВКА УДАЛЕНА КАК ОШИБОЧНАЯ
+              {% if cancel_reason %}<small>Причина: {{ cancel_reason }}</small>{% endif %}
+            </div>
+          {% elif is_cancelled and cancel_reason %}
+            <div class="cancel-alert">
+              ЗАЯВКА ОТМЕНЕНА
+              <small>Причина отмены: {{ cancel_reason }}</small>
+            </div>
+          {% elif warehouse_cancel_request_pending %}
+            <div class="cancel-alert">
+              ОТМЕНА ОЖИДАЕТ ПОДТВЕРЖДЕНИЯ СКЛАДА
+              {% if warehouse_cancel_reason %}
+                <small>Причина отмены: {{ warehouse_cancel_reason }}</small>
+              {% endif %}
+            </div>
+          {% elif warehouse_invalid_review_pending %}
+            <div class="cancel-alert">
+              ТРЕБУЕТСЯ РАЗБОР НАЧАЛЬНИКА СКЛАДА
+              {% if warehouse_invalid_reason %}
+                <small>Причина: {{ warehouse_invalid_reason }}</small>
+              {% endif %}
+            </div>
+          {% endif %}
+          {% if order_type == 'receiving' and receiving_chz_service_label %}
+            <div class="priority-client-comment" role="note">
+              <strong>Режим приёмки по заявке клиента</strong>
+              <div>{{ receiving_chz_service_label }}</div>
+            </div>
+          {% endif %}
+          {% if order_type == 'receiving' %}
+            <div class="priority-client-comment" role="note">
+              <strong>Маршрут после приёмки</strong>
+              <div>{{ receiving_route_label|default:"FBO" }}</div>
+            </div>
+          {% endif %}
+          {% if order_type == 'receiving' and meta.comment %}
+            <div class="priority-client-comment" role="note">
+              <strong>Комментарий клиента к приёмке</strong>
+              <div>{{ meta.comment|linebreaksbr }}</div>
+            </div>
+          {% elif order_type == 'processing' %}
+            {% for row in processing_client_card.technical_rows %}
+              {% if row.label == 'Комментарий клиента' and row.value and row.value != '-' %}
+                <div class="priority-client-comment" role="note">
+                  <strong>Комментарий клиента к обработке</strong>
+                  <div>{{ row.value|linebreaksbr }}</div>
+                </div>
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {% if order_type == 'receiving' %}
+            <div class="receiving-result">
+              <div class="summary-panel">
+                <div class="summary-head">
+                  <div>
+                    <div class="summary-title">Результат приемки</div>
+                    <div class="muted">Заявка №{{ order_id|display_order_number:order_type }} · {{ client_label|default:"-" }}</div>
+                  </div>
+                  <div class="summary-actions">
+                    {% if can_view_receiving_flow %}
+                      <a class="tab" href="{{ view_receiving_flow_url }}">Потоковая приемка</a>
+                    {% endif %}
+                    {% if can_print_receiving_act %}
+                      <a class="tab{% if needs_manager_act_sign %} primary{% endif %}" href="/orders/receiving/{{ order_id }}/act/print/">{% if needs_manager_act_sign %}Подписать акт приемки{% else %}Акт приемки{% endif %}</a>
+                      <a class="tab" href="/orders/receiving/{{ order_id }}/export/">Выгрузить приемку</a>
+                      {% if has_receiving_chz_export %}
+                        <a class="tab primary" href="/orders/receiving/{{ order_id }}/act/chz.xlsx">Выгрузить ЧЗ</a>
+                      {% endif %}
+                    {% endif %}
+                  </div>
+                </div>
+                {% if needs_manager_act_sign %}
+                  <div class="summary-alert">Менеджер должен подписать акт приемки</div>
+                {% endif %}
+                <div class="summary-grid">
+                  <div class="summary-metric">
+                    <div class="summary-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M7 4v6m10-6v6M5 11h14v8H5z" stroke-width="1.7"/></svg></div>
+                    <div class="summary-label">Режим</div>
+                    <div class="summary-value"><span class="pill">{{ receiving_summary.mode_badge }}</span></div>
+                    <div class="muted">{{ receiving_summary.mode_label }}</div>
+                  </div>
+                  <div class="summary-metric">
+                    <div class="summary-icon"><svg viewBox="0 0 24 24" fill="none"><path d="m6 12 4 4 8-8" stroke-width="1.9"/><circle cx="12" cy="12" r="9" stroke-width="1.5"/></svg></div>
+                    <div class="summary-label">Статус</div>
+                    <div class="summary-value">{{ receiving_summary.status }}</div>
+                  </div>
+                  <div class="summary-metric">
+                    <div class="summary-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z" stroke-width="1.5"/><path d="M4.5 8 12 12.2 19.5 8M12 12v8.5" stroke-width="1.5"/></svg></div>
+                    <div class="summary-label">Принято</div>
+                    <div class="summary-value">{{ receiving_summary.accepted_total }} шт.</div>
+                  </div>
+                  <div class="summary-metric">
+                    <div class="summary-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 16h16M6 16V8h12v8M8 20h8" stroke-width="1.6"/></svg></div>
+                    <div class="summary-label">Палет</div>
+                    <div class="summary-value">{{ receiving_summary.pallet_count }}</div>
+                  </div>
+                  <div class="summary-metric">
+                    <div class="summary-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M5 8h14v11H5zM8 5h8v3H8z" stroke-width="1.5"/></svg></div>
+                    <div class="summary-label">Коробов</div>
+                    <div class="summary-value">{{ receiving_summary.box_count }}</div>
+                  </div>
+                  <div class="summary-metric">
+                    <div class="summary-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4 5 7v5c0 4 2.8 6.8 7 8 4.2-1.2 7-4 7-8V7z" stroke-width="1.5"/></svg></div>
+                    <div class="summary-label">ЧЗ</div>
+                    <div class="summary-value">{{ receiving_summary.chz_label }}</div>
+                  </div>
+                  <div class="summary-metric">
+                    <div class="summary-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4 21 20H3z" stroke-width="1.5"/><path d="M12 9v5m0 3h.01" stroke-width="2"/></svg></div>
+                    <div class="summary-label">Расхождения</div>
+                    <div class="summary-value"><span class="pill {{ receiving_summary.mismatch_tone }}">{{ receiving_summary.mismatch_badge }}</span></div>
+                  </div>
+                  <div class="summary-metric">
+                    <div class="summary-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3v4m10-4v4M4 8h16v12H4zM8 13h4" stroke-width="1.5"/></svg></div>
+                    <div class="summary-label">Завершено</div>
+                    <div class="summary-value">{{ receiving_summary.finished_at }}</div>
+                  </div>
+                </div>
+              </div>
+
+              {% include "receiving_distribution/_panel.html" %}
+
+              <details class="accordion-section" open>
+                <summary>
+                  <span class="accordion-title">
+                    <span class="section-symbol"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h4"/></svg></span>
+                    Файлы заявки
+                  </span>
+                  <span class="accordion-count">{{ receiving_attachments|length }} файл(ов)</span>
+                </summary>
+                <div class="accordion-body">
+                  <div class="hint" style="margin-bottom:10px;">Файлы доступны клиенту, менеджеру и складу. Срок хранения на сервере: {{ attachment_retention_days }} дней.</div>
+                  {% if receiving_attachments %}
+                    <div class="attachment-list">
+                      {% for attachment in receiving_attachments %}
+                        <div class="attachment-item">
+                          <a href="/orders/receiving/{{ order_id }}/attachments/{{ attachment.pk }}/">{{ attachment.filename }}</a>
+                          <span>до {{ attachment.expires_at|date:"d.m.Y H:i" }}</span>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <div class="muted">Файлы не загружены.</div>
+                  {% endif %}
+                </div>
+              </details>
+
+              <details class="accordion-section" open>
+                <summary>
+                  <span class="accordion-title">
+                    <span class="section-symbol"><svg viewBox="0 0 24 24"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M3 19h18"/></svg></span>
+                    Итоги по товарам
+                  </span>
+                  <span class="accordion-count">{{ receiving_items_count }} поз.</span>
+                </summary>
+                <div class="accordion-body">
+                  <div class="table-scroll">
+                    <table class="receiving-items-table">
+                      <thead>
+                        <tr>
+                          <th>SKU</th>
+                          <th>Наименование</th>
+                          <th>Размер</th>
+                          <th>Кол-во (план)</th>
+                          <th>Кол-во (факт)</th>
+                          <th>Комментарий</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for item in items %}
+                          <tr>
+                            <td>{{ item.sku_code|default:"-" }}</td>
+                            <td>{{ item.name|default:"-" }}</td>
+                            <td>{{ item.size|default:"-" }}</td>
+                            <td>{{ item.qty|default_if_none:"-" }}</td>
+                            <td>{{ item.actual_qty|default_if_none:"-" }}</td>
+                            <td>{{ item.comment|default:"-" }}</td>
+                          </tr>
+                        {% empty %}
+                          <tr><td colspan="6" class="muted">Товарные позиции не указаны.</td></tr>
+                        {% endfor %}
+                      </tbody>
+                      <tfoot>
+                        <tr class="receiving-items-total-row">
+                          <td colspan="3" class="receiving-items-total-label">Итого</td>
+                          <td class="receiving-items-total-value">{{ receiving_summary.planned_total }}{% if receiving_summary.planned_total != "—" %} шт.{% endif %}</td>
+                          <td class="receiving-items-total-value">{{ receiving_summary.actual_total }}{% if receiving_summary.actual_total != "—" %} шт.{% endif %}</td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              </details>
+
+              {% if placement_pallets or placement_loose_boxes %}
+                <details class="accordion-section" open>
+                  <summary>
+                    <span class="accordion-title">
+                      <span class="section-symbol"><svg viewBox="0 0 24 24"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/><path d="M4.5 8 12 12.2 19.5 8M12 12v8.5"/></svg></span>
+                      Короба и палеты
+                    </span>
+                    <span class="accordion-count">{{ receiving_summary.box_count }} коробов</span>
+                  </summary>
+                  <div class="accordion-body">
+                    <div class="table-scroll">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Паллета</th>
+                            <th>Короб</th>
+                            <th>SKU</th>
+                            <th>Наименование</th>
+                            <th>Размер</th>
+                            <th>ШК</th>
+                            <th>Кол-во</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for pallet in placement_pallets %}
+                            {% for box in pallet.boxes %}
+                              {% if box.items %}
+                                {% for item in box.items %}
+                                  <tr>
+                                    <td>{{ pallet.code }}</td>
+                                    <td>{{ box.code }}</td>
+                                    <td>{{ item.sku_code|default:"-" }}</td>
+                                    <td>{{ item.name|default:"-" }}</td>
+                                    <td>{{ item.size|default:"-" }}</td>
+                                    <td>{{ item.barcode|default:"-" }}</td>
+                                    <td>{{ item.qty|default:"-" }}</td>
+                                  </tr>
+                                {% endfor %}
+                              {% else %}
+                                <tr>
+                                  <td>{{ pallet.code }}</td>
+                                  <td>{{ box.code }}</td>
+                                  <td>-</td>
+                                  <td>-</td>
+                                  <td>-</td>
+                                  <td>-</td>
+                                  <td>{{ box.qty_total|default:"-" }}</td>
+                                </tr>
+                              {% endif %}
+                            {% endfor %}
+                            {% for item in pallet.direct_items %}
+                              <tr>
+                                <td>{{ pallet.code }}</td>
+                                <td>-</td>
+                                <td>{{ item.sku_code|default:"-" }}</td>
+                                <td>{{ item.name|default:"-" }}</td>
+                                <td>{{ item.size|default:"-" }}</td>
+                                <td>{{ item.barcode|default:"-" }}</td>
+                                <td>{{ item.qty|default:"-" }}</td>
+                              </tr>
+                            {% endfor %}
+                          {% endfor %}
+                          {% for box in placement_loose_boxes %}
+                            {% if box.items %}
+                              {% for item in box.items %}
+                                <tr>
+                                  <td>Без паллеты</td>
+                                  <td>{{ box.code }}</td>
+                                  <td>{{ item.sku_code|default:"-" }}</td>
+                                  <td>{{ item.name|default:"-" }}</td>
+                                  <td>{{ item.size|default:"-" }}</td>
+                                  <td>{{ item.barcode|default:"-" }}</td>
+                                  <td>{{ item.qty|default:"-" }}</td>
+                                </tr>
+                              {% endfor %}
+                            {% else %}
+                              <tr>
+                                <td>Без паллеты</td>
+                                <td>{{ box.code }}</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td>{{ box.qty_total|default:"-" }}</td>
+                              </tr>
+                            {% endif %}
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </details>
+              {% endif %}
+
+              <details class="accordion-section history-accordion" open>
+                <summary>
+                  <span class="accordion-title">
+                    <span class="section-symbol"><svg viewBox="0 0 24 24"><path d="M12 7v5l3 2"/><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg></span>
+                    История
+                  </span>
+                  <span class="accordion-count">{{ receiving_history_count }} событий</span>
+                </summary>
+                <div class="accordion-body">
+                  <div class="history-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Когда</th>
+                          <th>Действие</th>
+                          <th>Статус</th>
+                          <th>Описание</th>
+                          <th>Ответственный</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row in history %}
+                          <tr{% if forloop.first %} class="history-latest"{% endif %}>
+                            <td>{{ row.created_at|date:"d.m.Y, H:i" }}</td>
+                            <td>{{ row.action_label }}</td>
+                            <td>{{ row.status_label }}</td>
+                            <td>{{ row.description|default:"-" }}</td>
+                            <td>{{ row.actor_label|default:"-" }}</td>
+                          </tr>
+                        {% empty %}
+                          <tr><td colspan="5" class="muted">Нет данных</td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </details>
+            </div>
+          {% elif order_type == 'packing' %}
+            <h3>Детали заявки</h3>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Поле</th>
+                    <th>Значение</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in packing_fields %}
+                    <tr>
+                      <td>{{ row.label }}</td>
+                      <td>{{ row.value }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="2" class="muted">Данные не указаны.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% elif order_type == 'processing' %}
+            <div class="processing-result">
+              {% if client_view %}
+                <div class="client-processing-card">
+                  <section class="client-processing-hero">
+                    <div class="client-processing-head">
+                      <div>
+                        <a class="muted" href="{{ client_orders_url|default:client_cabinet_url }}">← Вернуться к заявкам</a>
+                        <h1 class="client-processing-title">Заявка на обработку №{{ order_id|display_order_number:order_type }}</h1>
+                        <div class="muted">
+                          {% if processing_client_card.created_at %}Создана {{ processing_client_card.created_at|date:"d.m.Y в H:i" }} · {% endif %}
+                          {{ processing_client_card.status_help }}
+                        </div>
+                      </div>
+                      <span class="status-badge tone-{{ processing_client_card.status_tone }}">{{ processing_client_card.status_title }}</span>
+                    </div>
+
+                    {% if processing_created_notice or processing_client_card.show_success %}
+                      <div class="success-note">
+                        <strong>Заявка успешно отправлена</strong>
+                        <span>Менеджер проверит состав обработки и подтвердит заявку. До подтверждения вы можете изменить или отменить заявку.</span>
+                      </div>
+                    {% elif processing_updated_notice %}
+                      <div class="success-note">
+                        <strong>Изменения сохранены</strong>
+                        <span>Менеджер увидит обновлённые данные в карточке заявки.</span>
+                      </div>
+                    {% elif processing_request_notice == "change" %}
+                      <div class="success-note">
+                        <strong>Запрос на изменение отправлен</strong>
+                        <span>Менеджер получит запрос и решит, можно ли вернуть заявку на редактирование.</span>
+                      </div>
+                    {% elif processing_request_notice == "cancel" %}
+                      <div class="success-note">
+                        <strong>Запрос на отмену отправлен</strong>
+                        <span>Менеджер проверит возможность отмены без автоматического отката складских операций.</span>
+                      </div>
+                    {% endif %}
+
+                    <div class="processing-action-row">
+                      {% if can_approve_processing %}
+                        <form method="post" style="display:inline">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="approve_processing">
+                          <button class="tab primary" type="submit">Взять в работу</button>
+                        </form>
+                      {% endif %}
+                      {% if can_edit_processing and processing_edit_url %}
+                        <a class="tab primary" href="{{ processing_edit_url }}">Редактировать заявку</a>
+                      {% elif can_request_processing_change %}
+                        <button class="tab primary" type="button" data-open-modal="processing-change-modal">Запросить изменение</button>
+                      {% endif %}
+                      <a class="tab" href="#comments-panel">Написать менеджеру</a>
+                      <details class="action-menu">
+                        <summary class="tab">•••</summary>
+                        <div class="action-menu-list">
+                          {% if processing_report_url %}
+                            <a class="tab" href="{{ processing_report_url }}">Скачать состав обработки</a>
+                          {% endif %}
+                          {% if can_cancel_order %}
+                            <button class="tab danger" type="button" data-open-modal="processing-cancel-modal">Отменить заявку</button>
+                          {% elif can_request_processing_cancel %}
+                            <button class="tab danger" type="button" data-open-modal="processing-cancel-request-modal">Запросить отмену</button>
+                          {% endif %}
+                        </div>
+                      </details>
+                    </div>
+                  </section>
+
+                  <section class="processing-info-card">
+                    <h3>Статус заявки</h3>
+                    <div class="processing-timeline">
+                      {% for step in processing_client_card.steps %}
+                        <div class="timeline-step is-{{ step.state }}">
+                          <div class="timeline-title">{{ step.title }}</div>
+                          <div class="timeline-meta">
+                            {% if step.date %}{{ step.date|date:"d.m.Y, H:i" }}{% else %}Будущий этап{% endif %}
+                            {% if step.help %}<br>{{ step.help }}{% endif %}
+                          </div>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </section>
+
+                  <div class="processing-card-grid">
+                    <section class="processing-info-card">
+                      <h3>Общая информация</h3>
+                      <div class="info-kv">
+                        {% for row in processing_client_card.general_rows %}
+                          <div class="info-kv-row">
+                            <div class="info-kv-label">{{ row.label }}</div>
+                            <div class="info-kv-value">{{ row.value }}</div>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </section>
+                    <section class="processing-info-card">
+                      <h3>Техническое задание</h3>
+                      <div class="info-kv">
+                        {% for row in processing_client_card.technical_rows %}
+                          <div class="info-kv-row">
+                            <div class="info-kv-label">{{ row.label }}</div>
+                            <div class="info-kv-value">{{ row.value }}</div>
+                          </div>
+                        {% endfor %}
+                        {% if processing_attachments %}
+                          <div class="info-kv-row">
+                            <div class="info-kv-label">Вложения</div>
+                            <div class="info-kv-value">{{ processing_attachments|length }} файл(ов)</div>
+                          </div>
+                        {% endif %}
+                      </div>
+                    </section>
+                  </div>
+
+                  {% if show_processing_manager_result %}
+                    <details class="accordion-section" open>
+                      <summary>
+                        <span class="accordion-title">
+                          <span class="section-symbol"><svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16M8 15l3-3 3 2 5-6"/></svg></span>
+                          Результат обработки
+                        </span>
+                        <span class="accordion-count">{{ processing_manager_result.box_count }} кор. · {{ processing_manager_result.pallet_count }} пал.</span>
+                      </summary>
+                      <div class="accordion-body">
+                        <div class="processing-card-grid">
+                          <section class="processing-info-card">
+                            <h3>Фактический итог</h3>
+                            <div class="info-kv">
+                              <div class="info-kv-row"><div class="info-kv-label">Заявлено</div><div class="info-kv-value">{{ processing_manager_result.declared_qty }} шт.</div></div>
+                              <div class="info-kv-row"><div class="info-kv-label">Обработано</div><div class="info-kv-value">{{ processing_manager_result.processed_qty }} шт.</div></div>
+                              <div class="info-kv-row"><div class="info-kv-label">Упаковано в короба</div><div class="info-kv-value">{{ processing_manager_result.boxed_qty }} шт.</div></div>
+                              <div class="info-kv-row"><div class="info-kv-label">Сверка количества</div><div class="info-kv-value">{% if processing_manager_result.matches %}Совпадает{% else %}Есть расхождение{% endif %}</div></div>
+                            </div>
+                          </section>
+                          <section class="processing-info-card">
+                            <h3>Сформированная упаковка</h3>
+                            <div class="info-kv">
+                              <div class="info-kv-row"><div class="info-kv-label">Короба</div><div class="info-kv-value">{{ processing_manager_result.box_count }}</div></div>
+                              <div class="info-kv-row"><div class="info-kv-label">Палеты</div><div class="info-kv-value">{{ processing_manager_result.pallet_count }}</div></div>
+                            </div>
+                          </section>
+                        </div>
+
+                        {% if processing_manager_result.result_rows %}
+                          <h3>Что сделано по товарам</h3>
+                          <div class="table-scroll">
+                            <table class="processing-table">
+                              <thead><tr><th>Исходный артикул</th><th>Результат</th><th>Штрихкод результата</th><th>Обработано</th><th>Короба / палеты</th><th class="name-col">Выполнено</th></tr></thead>
+                              <tbody>
+                                {% for row in processing_manager_result.result_rows %}
+                                  <tr>
+                                    <td>{{ row.source_article|default:"-" }}</td>
+                                    <td><strong>{{ row.result_article|default:"-" }}</strong>{% if row.product_name %}<br><span class="muted">{{ row.product_name }}</span>{% endif %}</td>
+                                    <td>{{ row.barcode|default:"-" }}</td>
+                                    <td>{{ row.processed_qty }} шт.</td>
+                                    <td>{{ row.box_qty }} / {{ row.pallet_qty }}</td>
+                                    <td class="name-col">{{ row.operations_text }}</td>
+                                  </tr>
+                                {% endfor %}
+                              </tbody>
+                            </table>
+                          </div>
+                        {% endif %}
+
+                        {% if processing_manager_result.box_rows %}
+                          <h3>Сформированные короба</h3>
+                          <div class="table-scroll">
+                            <table class="processing-table">
+                              <thead><tr><th>Код короба</th><th>Состав</th><th>Количество</th><th>Палета</th><th>Статус</th></tr></thead>
+                              <tbody>
+                                {% for box in processing_manager_result.box_rows %}
+                                  <tr><td>{{ box.code|default:"-" }}</td><td>{{ box.articles }}</td><td>{{ box.qty }} шт.</td><td>{{ box.pallet_code|default:"-" }}</td><td>{% if box.sealed %}Закрыт{% else %}Открыт{% endif %}</td></tr>
+                                {% endfor %}
+                              </tbody>
+                            </table>
+                          </div>
+                        {% endif %}
+                      </div>
+                    </details>
+                  {% endif %}
+
+                  <details class="accordion-section" open>
+                    <summary>
+                      <span class="accordion-title">
+                        <span class="section-symbol"><svg viewBox="0 0 24 24"><path d="M4 7h16M7 4v6m10-6v6M5 11h14v8H5z"/></svg></span>
+                        Состав обработки
+                      </span>
+                      <span class="accordion-count">{{ processing_composition_rows|length }} поз.</span>
+                    </summary>
+                    <div class="accordion-body">
+                      <div class="table-scroll">
+                        <table class="processing-table">
+                          <thead>
+                            <tr>
+                              <th>Артикул</th>
+                              <th class="name-col">Наименование</th>
+                              <th>Штрихкод</th>
+                              <th>Размер</th>
+                              <th>Количество</th>
+                              <th>Услуга</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {% for row in processing_composition_rows %}
+                              <tr>
+                                <td>{{ row.article|default:"-" }}</td>
+                                <td class="name-col">{{ row.name|default:"-" }}</td>
+                                <td>{{ row.barcode|default:"-" }}</td>
+                                <td>{{ row.size_display }}</td>
+                                <td>{{ row.qty_display }}</td>
+                                <td>{{ row.service|default:"-" }}</td>
+                              </tr>
+                            {% empty %}
+                              <tr><td colspan="6" class="muted">Состав обработки не указан.</td></tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </details>
+
+                  <details class="accordion-section">
+                    <summary>
+                      <span class="accordion-title">
+                        <span class="section-symbol"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h4"/></svg></span>
+                        Файлы заявки
+                      </span>
+                      <span class="accordion-count">{{ processing_attachments|length }} файл(ов)</span>
+                    </summary>
+                    <div class="accordion-body">
+                      {% if processing_attachments %}
+                        <div class="attachment-list">
+                          {% for attachment in processing_attachments %}
+                            <div class="attachment-item">
+                              <a href="{% url 'processing_app:processing-attachment-download' order_id attachment.pk %}">{{ attachment.filename }}</a>
+                              <span>{{ attachment.uploaded_at|date:"d.m.Y H:i" }}{% if attachment.uploaded_by %} · {{ attachment.uploaded_by.get_full_name|default:attachment.uploaded_by.username }}{% endif %}</span>
+                            </div>
+                          {% endfor %}
+                        </div>
+                      {% else %}
+                        <div class="muted">Файлы не загружены.</div>
+                      {% endif %}
+                    </div>
+                  </details>
+
+                </div>
+              {% else %}
+              <details class="accordion-section" open>
+                <summary>
+                  <span class="accordion-title">
+                    <span class="section-symbol"><svg viewBox="0 0 24 24"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M3 19h18"/></svg></span>
+                    Размеры
+                  </span>
+                  <span class="accordion-count">{{ processing_size_rows|length }} поз.</span>
+                </summary>
+                <div class="accordion-body">
+                  <div class="table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>№</th>
+                          <th>Артикул товара</th>
+                          <th>Размер</th>
+                          <th>ШК</th>
+                          <th>Кол-во</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row in processing_size_rows %}
+                          <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ row.article|default:"-" }}</td>
+                            <td>{{ row.size|default:"-" }}</td>
+                            <td>{{ row.barcode|default:"-" }}</td>
+                            <td>{{ row.qty|default:"-" }}</td>
+                          </tr>
+                        {% empty %}
+                          <tr><td colspan="5" class="muted">Данные не указаны.</td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </details>
+
+              <details class="accordion-section" open>
+                <summary>
+                  <span class="accordion-title">
+                    <span class="section-symbol"><svg viewBox="0 0 24 24"><path d="M4 7h16M7 4v6m10-6v6M5 11h14v8H5z"/></svg></span>
+                    Параметры обработки
+                  </span>
+                  <span class="accordion-count">{{ processing_params|length }} пар.</span>
+                </summary>
+                <div class="accordion-body">
+                  <div class="table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Параметр</th>
+                          <th>Значение</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row in processing_params %}
+                          <tr{% if row.is_manual %} class="processing-manual-param-row"{% endif %}>
+                            <td>
+                              <div class="manual-param-label">
+                                <span>{{ row.label|default:"-" }}</span>
+                                {% if row.is_manual %}
+                                  <span class="manual-param-badge">Добавлено</span>
+                                {% endif %}
+                              </div>
+                            </td>
+                            <td>{{ row.value|default:"-" }}</td>
+                          </tr>
+                        {% empty %}
+                          <tr><td colspan="2" class="muted">Данные не указаны.</td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </details>
+
+              <details class="accordion-section" open>
+                <summary>
+                  <span class="accordion-title">
+                    <span class="section-symbol"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h4"/></svg></span>
+                    Файлы заявки
+                  </span>
+                  <span class="accordion-count">{{ processing_attachments|length }} файл(ов)</span>
+                </summary>
+                <div class="accordion-body">
+                  <div class="hint" style="margin-bottom:10px;">Файлы доступны всем участникам процесса. Срок хранения на сервере: {{ attachment_retention_days }} дней.</div>
+                  {% if processing_attachments %}
+                    <div class="attachment-list">
+                      {% for attachment in processing_attachments %}
+                        <div class="attachment-item">
+                          <a href="{% url 'processing_app:processing-attachment-download' order_id attachment.pk %}">{{ attachment.filename }}</a>
+                          <span>до {{ attachment.expires_at|date:"d.m.Y H:i" }}</span>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <div class="muted">Файлы не загружены.</div>
+                  {% endif %}
+                </div>
+              </details>
+
+              <details class="accordion-section history-accordion" open>
+                <summary>
+                  <span class="accordion-title">
+                    <span class="section-symbol"><svg viewBox="0 0 24 24"><path d="M12 7v5l3 2"/><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg></span>
+                    История
+                  </span>
+                  <span class="accordion-count">{{ history|length }} событий</span>
+                </summary>
+                <div class="accordion-body">
+                  <div class="history-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Когда</th>
+                          <th>Действие</th>
+                          <th>Статус</th>
+                          <th>Описание</th>
+                          <th>Ответственный</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row in history %}
+                          <tr{% if forloop.first %} class="history-latest"{% endif %}>
+                            <td>{{ row.created_at|date:"d.m.Y, H:i" }}</td>
+                            <td>{{ row.action_label }}</td>
+                            <td>{{ row.status_label }}</td>
+                            <td>{{ row.description|default:"-" }}</td>
+                            <td>{{ row.actor_label|default:"-" }}</td>
+                          </tr>
+                        {% empty %}
+                          <tr><td colspan="5" class="muted">Нет данных</td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </details>
+              {% endif %}
+              {% if processing_act_visible %}
+                <details class="accordion-section" id="processing-act" open>
+                  <summary>
+                    <span class="accordion-title">Акт обработки</span>
+                    <span class="accordion-count">
+                      {% if processing_act_client_response == "dispute" %}
+                        Есть расхождение
+                      {% elif processing_act_manager_response == "confirmed" %}
+                        Подтвержден
+                      {% else %}
+                        Ожидает менеджера
+                      {% endif %}
+                    </span>
+                  </summary>
+                  <div class="accordion-body">
+                    <div class="processing-act-summary">
+                      <div class="processing-act-metric"><span>Заявлено</span><strong>{{ processing_act.declared_qty|default:0 }} шт.</strong></div>
+                      <div class="processing-act-metric"><span>Обработано</span><strong>{{ processing_act.processed_qty|default:0 }} шт.</strong></div>
+                      <div class="processing-act-metric"><span>В коробах</span><strong>{{ processing_act.boxed_qty|default:0 }} шт.</strong></div>
+                      <div class="processing-act-metric"><span>Коробов</span><strong>{{ processing_act.boxes_count|default:0 }}</strong></div>
+                      <div class="processing-act-metric"><span>Палет</span><strong>{{ processing_act.pallets_count|default:0 }}</strong></div>
+                    </div>
+                    <div class="table-scroll">
+                      <table class="processing-table">
+                        <thead>
+                          <tr>
+                            <th>Товар</th>
+                            <th>Операция</th>
+                            <th>Исполнитель</th>
+                            <th>План</th>
+                            <th>Факт</th>
+                            <th>Комментарий</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for service in processing_act.services %}
+                            <tr>
+                              <td>{{ service.card_id|default:"-" }}</td>
+                              <td>{{ service.operation_label|default:"Операция по техкарте" }}</td>
+                              <td>{{ service.performer_name|default:"-" }}</td>
+                              <td>{{ service.planned_qty|default:0 }}</td>
+                              <td>{{ service.actual_qty|default:0 }}</td>
+                              <td>{{ service.comment|default:"-" }}</td>
+                            </tr>
+                          {% empty %}
+                            <tr><td colspan="6" class="muted">Дополнительные операции не зафиксированы.</td></tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="info-kv" style="margin-top:12px;">
+                      <div class="info-kv-row">
+                        <div class="info-kv-label">Менеджер</div>
+                        <div class="info-kv-value">
+                          {% if processing_act_manager_response == "confirmed" %}Подтвердил{% else %}Ожидает проверки{% endif %}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="processing-act-actions">
+                      {% if can_confirm_processing_act_manager %}
+                        <form method="post" id="processing-act-manager-form">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="confirm_processing_act_manager">
+                        </form>
+                        {% if processing_act_services_confirmed %}
+                          <button class="tab primary" type="submit" form="processing-act-manager-form">Подтвердить акт и завершить обработку</button>
+                        {% else %}
+                          <button class="tab primary" type="button" data-open-processing-services-modal>Указать услуги и завершить обработку</button>
+                        {% endif %}
+                      {% endif %}
+                    </div>
+                  </div>
+                </details>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if order_type != 'receiving' and order_type != 'processing' %}
+            <h3 style="margin-top:18px;">История</h3>
+            <div class="history-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Когда</th>
+                    <th>Действие</th>
+                    <th>Статус</th>
+                    <th>Описание</th>
+                    <th>Ответственный</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in history %}
+                    <tr{% if forloop.first %} class="history-latest"{% endif %}>
+                      <td>{{ row.created_at|date:"d.m.Y, H:i" }}</td>
+                      <td>{{ row.action_label }}</td>
+                      <td>{{ row.status_label }}</td>
+                      <td>{{ row.description|default:"-" }}</td>
+                      <td>{{ row.actor_label|default:"-" }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="5" class="muted">Нет данных</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
+        </div>
+
+      </main>
+
+      <aside class="detail-chat">
+        <div class="side-card">
+          <h4 class="side-title">Детали заявки</h4>
+          <div class="info-list">
+            <div class="info-item">
+              <div class="info-label">Клиент</div>
+              <div class="info-value">{{ client_label|default:"-" }}</div>
+            </div>
+            {% if order_type == 'receiving' %}
+              <div class="info-item">
+                <div class="info-label">Приемка</div>
+                <div class="info-value">{{ receiving_summary.mode_badge|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Честный знак</div>
+                <div class="info-value">{{ meta.receiving_chz_service|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Маршрут после приёмки</div>
+                <div class="info-value">{{ meta.receiving_route|default:"FBO" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Дата/время прибытия</div>
+                <div class="info-value">{{ meta.eta_at|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Количество мест</div>
+                <div class="info-value">{{ meta.expected_boxes|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Тип мест</div>
+                <div class="info-value">{{ meta.place_type|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Номер авто</div>
+                <div class="info-value">{{ meta.vehicle_number|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Телефон водителя</div>
+                <div class="info-value">{{ meta.driver_phone|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Комментарий</div>
+                <div class="info-value">{{ meta.comment|default:"-" }}</div>
+              </div>
+            {% elif order_type == 'packing' %}
+              <div class="info-item">
+                <div class="info-label">Плановая дата</div>
+                <div class="info-value">{{ packing_meta.plan_date|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Общее количество</div>
+                <div class="info-value">{{ packing_meta.total_qty|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Маркетплейсы</div>
+                <div class="info-value">{{ packing_meta.marketplaces|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Кратность коробов</div>
+                <div class="info-value">{{ packing_meta.box_mode|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Маркировка</div>
+                <div class="info-value">{{ packing_meta.marking|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Отгрузка</div>
+                <div class="info-value">{{ packing_meta.ship_as|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Распределение</div>
+                <div class="info-value">{{ packing_meta.has_distribution|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Комментарий</div>
+                <div class="info-value">{{ packing_meta.comment|default:"-" }}</div>
+              </div>
+            {% elif order_type == 'processing' %}
+              <div class="info-item">
+                <div class="info-label">Товар</div>
+                <div class="info-value">{{ processing_meta.product_name|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Заказ №</div>
+                <div class="info-value">{{ processing_meta.order_no|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Поставщик</div>
+                <div class="info-value">{{ processing_meta.supplier|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Бренд</div>
+                <div class="info-value">{{ processing_meta.brand|default:"-" }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Предмет</div>
+                <div class="info-value">{{ processing_meta.subject|default:"-" }}</div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="card" id="comments-panel">
+          <h4 class="side-title">Комментарии</h4>
+          <form class="chat-form" method="post">
+            {% csrf_token %}
+            <textarea name="comment" placeholder="Комментарий по заявке"></textarea>
+            <button type="submit">Добавить</button>
+          </form>
+          <div class="chat">
+            {% for comment in comments %}
+              <div class="chat-item">
+                <div class="chat-meta">
+                  <span>{{ comment.actor_label|default:"-" }}</span>
+                  <span>{{ comment.created_at|date:"d.m.Y, H:i" }}</span>
+                </div>
+                <div class="chat-text">{{ comment.text|default:"-" }}</div>
+              </div>
+            {% empty %}
+              <div class="muted">Пока нет комментариев.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="modal" id="goods-type-modal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-title">Выберите тип товара</div>
+      <div class="modal-actions">
+        <button class="tab" type="button" data-goods-type="op">Оптовый (op)</button>
+        <button class="tab" type="button" data-goods-type="gv">Готовый (gv)</button>
+        <button class="tab" type="button" data-goods-type="br">Брак (br)</button>
+        <button class="tab" type="button" data-goods-type="vz">Возврат (vz)</button>
+        <button class="tab" type="button" data-goods-type="votg">Возврат с отгрузки</button>
+        <button class="tab" type="button" data-goods-type="rh">Расходный (rh)</button>
+        <button class="tab" type="button" data-goods-type="no">Не обработанный (no)</button>
+      </div>
+      <div
+        class="shipping-return-panel"
+        id="shipping-return-panel"
+        data-search-url="/orders/receiving/{{ order_id }}/shipping-return-orders/"
+        hidden
+      >
+        <label>
+          <span class="modal-note">Номер отгрузки</span>
+          <input type="text" id="shipping-return-search" autocomplete="off" placeholder="Например: 133, 133_OTG или OTG-000133">
+        </label>
+        <div class="shipping-return-results" id="shipping-return-results"></div>
+        <div class="modal-note" id="shipping-return-hint">Начните вводить номер и выберите отгрузку из списка.</div>
+        <button class="tab primary" type="button" id="shipping-return-confirm" disabled>Продолжить приемку</button>
+      </div>
+      <div class="modal-note">В поставке всегда один тип товара.</div>
+      <button class="tab" type="button" id="goods-type-close">Отмена</button>
+    </div>
+  </div>
+
+  {% if order_type == 'processing' and client_view %}
+    <div class="modal" id="processing-cancel-modal" aria-hidden="true">
+      <form class="modal-card" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="cancel_order">
+        <div class="modal-title">Отменить заявку №{{ order_id|display_order_number:order_type }}?</div>
+        <div class="modal-note">После отмены заявка не будет передана в обработку. Заявка останется в истории.</div>
+        <label>
+          <span class="modal-note">Причина отмены</span>
+          <select name="cancel_reason_choice" required>
+            <option value="">Выберите причину</option>
+            <option value="Ошибка в данных">Ошибка в данных</option>
+            <option value="Обработка больше не требуется">Обработка больше не требуется</option>
+            <option value="Изменилось техническое задание">Изменилось техническое задание</option>
+            <option value="Создана другая заявка">Создана другая заявка</option>
+            <option value="Перенос работ">Перенос работ</option>
+            <option value="Другая причина">Другая причина</option>
+          </select>
+        </label>
+        <label>
+          <span class="modal-note">Комментарий</span>
+          <textarea name="cancel_reason" rows="3" placeholder="Опишите детали отмены"></textarea>
+        </label>
+        <label>
+          <span class="modal-note">Вложение, необязательно</span>
+          <input type="file" name="documents" accept="image/*,.pdf,.xlsx,.xls,.doc,.docx,.txt">
+        </label>
+        <div class="modal-actions">
+          <button class="tab danger" type="submit">Подтвердить отмену</button>
+          <button class="tab" type="button" data-close-modal>Вернуться</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal" id="processing-change-modal" aria-hidden="true">
+      <form class="modal-card" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="request_change">
+        <div class="modal-title">Запросить изменение заявки?</div>
+        <div class="modal-note">Менеджер получит запрос и решит, можно ли вернуть заявку на редактирование.</div>
+        <label>
+          <span class="modal-note">Что требуется изменить</span>
+          <textarea name="request_comment" rows="4" required placeholder="Например: изменить услуги, количество или комментарий"></textarea>
+        </label>
+        <label>
+          <span class="modal-note">Причина</span>
+          <input type="text" name="request_reason" placeholder="Причина изменения">
+        </label>
+        <label>
+          <span class="modal-note">Вложение, необязательно</span>
+          <input type="file" name="documents" accept="image/*,.pdf,.xlsx,.xls,.doc,.docx,.txt">
+        </label>
+        <div class="modal-actions">
+          <button class="tab primary" type="submit">Отправить запрос</button>
+          <button class="tab" type="button" data-close-modal>Отмена</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal" id="processing-cancel-request-modal" aria-hidden="true">
+      <form class="modal-card" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="request_cancel">
+        <div class="modal-title">Запросить отмену заявки?</div>
+        <div class="modal-note">Заявка уже передана в работу. Отмена возможна после подтверждения менеджером.</div>
+        <label>
+          <span class="modal-note">Причина</span>
+          <select name="request_reason" required>
+            <option value="">Выберите причину</option>
+            <option value="Ошибка в данных">Ошибка в данных</option>
+            <option value="Обработка больше не требуется">Обработка больше не требуется</option>
+            <option value="Изменилось техническое задание">Изменилось техническое задание</option>
+            <option value="Создана другая заявка">Создана другая заявка</option>
+            <option value="Перенос работ">Перенос работ</option>
+            <option value="Другая причина">Другая причина</option>
+          </select>
+        </label>
+        <label>
+          <span class="modal-note">Комментарий</span>
+          <textarea name="request_comment" rows="3" placeholder="Опишите детали запроса"></textarea>
+        </label>
+        <label>
+          <span class="modal-note">Вложение, необязательно</span>
+          <input type="file" name="documents" accept="image/*,.pdf,.xlsx,.xls,.doc,.docx,.txt">
+        </label>
+        <div class="modal-actions">
+          <button class="tab danger" type="submit">Отправить запрос</button>
+          <button class="tab" type="button" data-close-modal>Вернуться</button>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+
+  {% if can_confirm_processing_act_manager and not processing_act_services_confirmed %}
+    <div class="modal" id="processing-services-modal" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-title">Фактически оказанные услуги</div>
+        <div class="modal-note">
+          Укажите только выполненные складом услуги. Тарифы и цены здесь не показываются.
+        </div>
+        <div class="modal-body">
+          <div class="services-modal-scroll">
+            {% include "processing/_processing_service_facts_panel.html" %}
+          </div>
+        </div>
+        <div class="modal-actions services-modal-actions">
+          <button class="tab primary" type="button" id="confirm-processing-services-detail">Сохранить услуги и завершить обработку</button>
+          <button class="tab" type="button" data-processing-services-close>Закрыть</button>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <script>
+    (() => {
+      const openButtons = Array.from(document.querySelectorAll('[data-open-modal]'));
+      const closeModal = (modal) => {
+        if (!modal) return;
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+      };
+      openButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const modal = document.getElementById(button.dataset.openModal || '');
+          if (!modal) return;
+          modal.classList.add('is-open');
+          modal.setAttribute('aria-hidden', 'false');
+        });
+      });
+      document.querySelectorAll('[data-close-modal]').forEach((button) => {
+        button.addEventListener('click', () => closeModal(button.closest('.modal')));
+      });
+      document.querySelectorAll('.modal').forEach((modal) => {
+        modal.addEventListener('click', (event) => {
+          if (event.target === modal) closeModal(modal);
+        });
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          document.querySelectorAll('.modal.is-open').forEach(closeModal);
+        }
+      });
+    })();
+
+    (() => {
+      const modal = document.getElementById('processing-services-modal');
+      const form = document.getElementById('processing-act-manager-form');
+      const openButtons = Array.from(document.querySelectorAll('[data-open-processing-services-modal]'));
+      const confirmButton = document.getElementById('confirm-processing-services-detail');
+      if (!modal || !form || !openButtons.length || !confirmButton) return;
+
+      const setOpen = (isOpen) => {
+        modal.classList.toggle('is-open', isOpen);
+        modal.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+      };
+      openButtons.forEach((button) => {
+        button.addEventListener('click', () => setOpen(true));
+      });
+      document.querySelectorAll('[data-processing-services-close]').forEach((button) => {
+        button.addEventListener('click', () => setOpen(false));
+      });
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) setOpen(false);
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') setOpen(false);
+      });
+      confirmButton.addEventListener('click', async () => {
+        const saveServices = window.__wsfSaveWarehouseServices;
+        if (typeof saveServices !== 'function') return;
+        confirmButton.disabled = true;
+        confirmButton.textContent = 'Сохраняю услуги...';
+        try {
+          await saveServices();
+          setOpen(false);
+          form.submit();
+        } catch (_error) {
+          confirmButton.disabled = false;
+          confirmButton.textContent = 'Сохранить услуги и завершить обработку';
+        }
+      });
+    })();
+
+    (() => {
+      const takeButtons = Array.from(document.querySelectorAll('[data-take-flow-btn]'));
+      const modal = document.getElementById('goods-type-modal');
+      const closeBtn = document.getElementById('goods-type-close');
+      const form = document.getElementById('take-in-work-form');
+      const goodsInput = document.getElementById('goods-type-input');
+      const receivingModeInput = document.getElementById('receiving-mode-input');
+      const shippingReturnInput = document.getElementById('shipping-return-order-input');
+      const shippingReturnPanel = document.getElementById('shipping-return-panel');
+      const shippingReturnSearch = document.getElementById('shipping-return-search');
+      const shippingReturnResults = document.getElementById('shipping-return-results');
+      const shippingReturnHint = document.getElementById('shipping-return-hint');
+      const shippingReturnConfirm = document.getElementById('shipping-return-confirm');
+
+      if (!takeButtons.length || !modal || !form || !goodsInput || !receivingModeInput) {
+        return;
+      }
+
+      let pendingMode = receivingModeInput.value || 'standard';
+      let currentButton = takeButtons[0];
+      let searchTimer = null;
+      const modeForGoodsType = (mode, goodsType) => {
+        return String(goodsType || '').trim().toLowerCase() === 'no'
+          ? 'standard'
+          : (mode || 'standard');
+      };
+      const openModal = () => {
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+      };
+      const closeModal = () => {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+      };
+      const resetShippingReturn = () => {
+        if (shippingReturnPanel) shippingReturnPanel.hidden = true;
+        if (shippingReturnInput) shippingReturnInput.value = '';
+        if (shippingReturnSearch) shippingReturnSearch.value = '';
+        if (shippingReturnResults) shippingReturnResults.replaceChildren();
+        if (shippingReturnConfirm) shippingReturnConfirm.disabled = true;
+        if (shippingReturnHint) shippingReturnHint.textContent = 'Начните вводить номер и выберите отгрузку из списка.';
+      };
+      const selectShippingReturn = (row, button) => {
+        if (!shippingReturnInput || !shippingReturnConfirm) return;
+        shippingReturnInput.value = row.number || '';
+        shippingReturnConfirm.disabled = !shippingReturnInput.value;
+        shippingReturnResults?.querySelectorAll('.shipping-return-result').forEach((item) => item.classList.remove('is-selected'));
+        button?.classList.add('is-selected');
+        if (shippingReturnHint) shippingReturnHint.textContent = `Выбрана ${row.display || row.number}`;
+      };
+      const renderShippingReturns = (rows) => {
+        if (!shippingReturnResults) return;
+        shippingReturnResults.replaceChildren();
+        (rows || []).forEach((row) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'shipping-return-result';
+          const title = document.createElement('strong');
+          title.textContent = row.display || row.number || '';
+          const meta = document.createElement('small');
+          const parts = [];
+          if (row.shipped_at) parts.push(`отгружена ${row.shipped_at}`);
+          parts.push(`доступно к возврату: ${row.available_qty || 0} шт.`);
+          if (row.box_count) parts.push(`${row.box_count} мест`);
+          meta.textContent = parts.join(' · ');
+          button.append(title, meta);
+          button.addEventListener('click', () => selectShippingReturn(row, button));
+          shippingReturnResults.append(button);
+        });
+        if (!(rows || []).length && shippingReturnHint) {
+          shippingReturnHint.textContent = 'Подходящих отгруженных заявок не найдено.';
+        }
+      };
+      const searchShippingReturns = async () => {
+        if (!shippingReturnPanel || !shippingReturnSearch) return;
+        const url = shippingReturnPanel.dataset.searchUrl || '';
+        if (!url) return;
+        if (shippingReturnHint) shippingReturnHint.textContent = 'Ищу отгрузку…';
+        try {
+          const response = await fetch(`${url}?q=${encodeURIComponent(shippingReturnSearch.value || '')}`, {
+            credentials: 'same-origin',
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+          });
+          const payload = await response.json();
+          if (!response.ok || !payload.ok) throw new Error(payload.error || 'search_failed');
+          renderShippingReturns(payload.results || []);
+        } catch (_error) {
+          if (shippingReturnHint) shippingReturnHint.textContent = 'Не удалось загрузить список отгрузок. Повторите поиск.';
+        }
+      };
+
+      shippingReturnSearch?.addEventListener('input', () => {
+        if (shippingReturnInput) shippingReturnInput.value = '';
+        if (shippingReturnConfirm) shippingReturnConfirm.disabled = true;
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(searchShippingReturns, 250);
+      });
+      shippingReturnConfirm?.addEventListener('click', () => {
+        if (!shippingReturnInput?.value) return;
+        receivingModeInput.value = modeForGoodsType(pendingMode, 'votg');
+        goodsInput.value = 'votg';
+        form.submit();
+      });
+
+      takeButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          currentButton = btn;
+          pendingMode = btn.dataset.receivingMode || 'standard';
+          receivingModeInput.value = pendingMode;
+          const currentType = (btn.dataset.goodsType || '').trim();
+          if (currentType) {
+            goodsInput.value = currentType;
+            receivingModeInput.value = modeForGoodsType(pendingMode, currentType);
+            form.submit();
+            return;
+          }
+          resetShippingReturn();
+          openModal();
+        });
+      });
+
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+          closeModal();
+        }
+      });
+      if (closeBtn) {
+        closeBtn.addEventListener('click', closeModal);
+      }
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closeModal();
+        }
+      });
+
+      modal.querySelectorAll('[data-goods-type]')?.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const selectedGoodsType = btn.dataset.goodsType || '';
+          const selectedMode = pendingMode || currentButton?.dataset.receivingMode || 'standard';
+          if (selectedGoodsType === 'votg') {
+            goodsInput.value = selectedGoodsType;
+            receivingModeInput.value = modeForGoodsType(selectedMode, selectedGoodsType);
+            if (shippingReturnPanel) shippingReturnPanel.hidden = false;
+            shippingReturnSearch?.focus();
+            searchShippingReturns();
+            return;
+          }
+          resetShippingReturn();
+          goodsInput.value = selectedGoodsType;
+          receivingModeInput.value = modeForGoodsType(selectedMode, selectedGoodsType);
+          form.submit();
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

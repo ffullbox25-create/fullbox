@@ -1,0 +1,126 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}FBS | Биллинг{% endblock %}
+
+{% block extra_css %}
+  .main { gap: 14px; }
+  .page-head { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+  .page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:30px; }
+  .page-sub { color:var(--muted); font-size:13px; margin-top:5px; }
+  .kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+  .kpi { padding:14px; background:var(--surface); border:1px solid var(--line); border-radius:8px; }
+  .kpi span { display:block; color:var(--muted); font-size:12px; }
+  .kpi strong { display:block; margin-top:6px; font-size:25px; }
+  .panel { background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .panel-head { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:14px 16px; border-bottom:1px solid var(--line); }
+  .panel-head h2 { margin:0; font-size:17px; }
+  .filter { display:flex; gap:8px; align-items:center; }
+  .field { min-height:36px; border:1px solid var(--line); border-radius:8px; padding:7px 10px; background:#fff; }
+  .table-wrap { overflow:auto; }
+  table { width:100%; min-width:900px; border-collapse:collapse; font-size:12px; }
+  th,td { padding:11px 12px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); background:var(--surface-2); font-size:11px; }
+  tr:last-child td { border-bottom:0; }
+  .muted { color:var(--muted); font-size:11px; }
+  .status { display:inline-flex; padding:4px 8px; border-radius:999px; background:var(--accent-soft); color:var(--accent-strong); font-weight:800; }
+  .empty { padding:24px; text-align:center; color:var(--muted); }
+  .fbs-calc { padding:16px; }
+  .fbs-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+  .fbs-grid label { display:grid; gap:5px; font-size:12px; color:var(--muted); }
+  .fbs-note { margin:0 0 14px; color:var(--muted); font-size:12px; line-height:1.5; }
+  .fbs-actions { flex-wrap:wrap; }
+  .rate-table input { width:90px; min-height:30px; padding:4px 7px; border:1px solid var(--line); border-radius:6px; }
+  .rate-table td { padding:8px 10px; }
+  @media(max-width:900px){ .kpis,.fbs-grid{grid-template-columns:1fr 1fr;} }
+{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div><h1 class="page-title">Биллинг FBS</h1><div class="page-sub">Приемка, перемещения, сборка, отгрузка, доставка и отдельное хранение FBS.</div></div>
+    <a class="btn btn-primary" href="/team-manager/billing/fbs/kp-upload/">Загрузить PDF+Excel по КП</a>
+  </div>
+  {% include "billing/_billing_nav.html" %}
+
+  <section class="kpis">
+    <div class="kpi"><span>Заявки FBS</span><strong>{{ fbs_summary.applications }}</strong></div>
+    <div class="kpi"><span>Факты услуг</span><strong>{{ fbs_summary.facts }}</strong></div>
+    <div class="kpi"><span>Счета FBS</span><strong>{{ fbs_summary.invoices }}</strong></div>
+    <div class="kpi"><span>Объем фактов</span><strong>{{ fbs_summary.quantity }}</strong></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Расчёт FBS по артикулам</h2></div>
+    <div class="fbs-calc">
+      <p class="fbs-note">Расчёт использует завершённые заявки отгрузки и дату отгрузки, указанную в заявке. Для каждого артикула берётся объём в литрах из габаритов SKU и индивидуальная ставка клиента. Цена и НДС 5% сверху фиксируются в начислении. Приёмка и хранение остаются отдельными контурами: хранение в литрах не пересчитывается этой кнопкой.</p>
+      <p class="fbs-note"><strong>Отчёт за период</strong> включает фактическую приёмку в FBS, подтверждённые передачи маркетплейсам и ежедневное хранение по конечному остатку SKU. «Маркировка ШК 58×40» начисляется отдельно — один раз только по факту подтверждённой этикетки заказа. «Проверка ЧЗ» начисляется только при наличии отдельной ставки клиента: один раз за уникальный подтверждённый КИЗ внутри заказа, но не больше фактического количества товара; повторные и неуспешные сканы не учитываются. Excel содержит шесть листов: итоги, услуги по КП, отгрузку, сверку SKU, хранение и его детализацию. Отчёт скачивается отдельно, не создаёт и не изменяет счёт, поэтому его можно формировать повторно при уже существующем счёте. Счёт создаётся отдельной кнопкой по тому же текущему расчёту; дубликат за тот же период не создаётся. Если не хватает габаритов, тарифа или истории сопоставления, действие будет остановлено, а ошибка покажет, что нужно исправить.</p>
+      <form class="fbs-grid" method="get">
+        <label>Клиент
+          <select class="field" name="client"><option value="">Выберите клиента</option>{% for client in fbs_clients %}<option value="{{ client.id }}" {% if filter_client == client.id|stringformat:'s' %}selected{% endif %}>{{ client }}</option>{% endfor %}</select>
+        </label>
+        <label>Дата от
+          <input class="field" type="date" name="date_from" value="{{ fbs_date_from }}">
+        </label>
+        <label>Дата до
+          <input class="field" type="date" name="date_to" value="{{ fbs_date_to }}">
+        </label>
+        <label>&nbsp;<button class="btn btn-primary" type="submit">Показать ставки</button></label>
+      </form>
+      {% if fbs_selected_client %}
+        <form method="post">{% csrf_token %}
+          <input type="hidden" name="client" value="{{ fbs_selected_client.id }}">
+          <input type="hidden" name="date_from" value="{{ fbs_date_from }}">
+          <input type="hidden" name="date_to" value="{{ fbs_date_to }}">
+          <div class="table-wrap"><table class="rate-table"><thead><tr><th>Операция</th><th>Литраж</th><th>Ставка</th><th>Ед.</th><th>Период</th><th>НДС</th></tr></thead><tbody>
+            {% for rate in fbs_rate_rows %}<tr>
+              <td>{% if rate.operation == 'marking' %}Маркировка ШК 58×40{% else %}{{ rate.get_operation_display }}{% endif %}</td>
+              <td>{% if rate.operation == 'marking' or rate.operation == 'chz_check' or rate.operation == 'storage' %}без диапазона{% else %}&gt; {{ rate.liters_from }} л — {% if rate.liters_to %}≤ {{ rate.liters_to }} л{% else %}без верхней границы{% endif %}{% endif %}</td>
+              <td>{% if fbs_can_edit_rates %}<input name="rate_{{ rate.id }}" inputmode="decimal" value="{{ rate.price }}">{% else %}{{ rate.price }}{% endif %} ₽</td>
+              <td>{{ rate.unit }}</td><td>с {{ rate.valid_from|date:"d.m.Y" }}</td><td>{{ rate.vat_rate }}% сверху</td>
+            </tr>{% empty %}<tr><td colspan="6" class="empty">Для клиента ещё нет ставок FBS.</td></tr>{% endfor %}
+          </tbody></table></div>
+          <div class="filter fbs-actions" style="margin-top:14px; justify-content:flex-end;">
+            {% if fbs_can_edit_rates %}<button class="btn btn-ghost" name="action" value="save_rates" type="submit">Сохранить ставки</button>{% endif %}
+            <button class="btn btn-primary" name="action" value="calculate" type="submit">Рассчитать подбор и отгрузку</button>
+            {% if fbs_can_edit_rates %}<button class="btn btn-ghost" formaction="/team-manager/billing/fbs/period-report/" type="submit">Скачать отчёт Excel</button>{% endif %}
+            {% if fbs_can_edit_rates %}<button class="btn btn-primary" formaction="/team-manager/billing/fbs/period-invoice/" type="submit">Создать счёт по отчёту</button>{% endif %}
+          </div>
+        </form>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Номенклатура FBS и литраж</h2>
+        <div class="muted">Выгрузка по выбранному клиенту: артикулы, габариты в мм, литраж одной единицы и текущий FBS-остаток. В файле также есть пустая тарифная сетка для согласования диапазонов.</div>
+      </div>
+      {% if filter_client %}
+        <a class="btn btn-primary" href="/team-manager/billing/fbs/catalog-export/?client={{ filter_client }}">Скачать Excel</a>
+      {% else %}
+        <span class="muted">Выберите клиента в фильтре выше, чтобы скачать Excel.</span>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Заявки FBS</h2></div>
+    <div class="table-wrap"><table><thead><tr><th>Заявка</th><th>Клиент</th><th>Операция</th><th>Статус</th><th>Создана</th><th></th></tr></thead><tbody>
+      {% for application in fbs_applications %}<tr><td><strong>{{ application.application_id }}</strong></td><td>{{ application.client }}</td><td>{{ application.operational_status_label }}</td><td><span class="status">{{ application.get_billing_status_display }}</span></td><td>{{ application.created_at_source|date:"d.m.Y H:i" }}</td><td><a class="btn btn-ghost" href="/team-manager/billing/applications/{{ application.id }}/">Открыть</a></td></tr>{% empty %}<tr><td class="empty" colspan="6">FBS-заявок пока нет.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Факты услуг FBS</h2></div>
+    <div class="table-wrap"><table><thead><tr><th>Источник</th><th>Клиент</th><th>Услуга</th><th>Количество</th><th>Статус</th><th>Выполнено</th></tr></thead><tbody>
+      {% for fact in fbs_facts %}<tr><td><strong>{{ fact.order_id }}</strong></td><td>{{ fact.client }}</td><td>{{ fact.service_name_snapshot|default:fact.service.name }}</td><td>{{ fact.quantity }} {{ fact.unit }}</td><td>{{ fact.get_status_display }}</td><td>{{ fact.performed_at|date:"d.m.Y H:i" }}</td></tr>{% empty %}<tr><td class="empty" colspan="6">Факты FBS еще не переданы.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Отдельные счета FBS</h2></div>
+    <div class="table-wrap"><table><thead><tr><th>Счет</th><th>Клиент</th><th>Период</th><th>Сумма</th><th>Статус</th><th></th></tr></thead><tbody>
+      {% for invoice in fbs_invoices %}<tr><td><strong>{{ invoice.number }}</strong></td><td>{{ invoice.client }}</td><td>{{ invoice.billing_period|date:"m.Y" }}</td><td>{{ invoice.total_amount }}</td><td>{{ invoice.get_status_display }}</td><td><a class="btn btn-ghost" href="/team-manager/billing/invoices/{{ invoice.id }}/">Открыть</a></td></tr>{% empty %}<tr><td class="empty" colspan="6">Отдельных счетов FBS пока нет.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+{% endblock %}

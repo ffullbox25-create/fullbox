@@ -1,0 +1,163 @@
+<section class="or-card" id="or-attachments">
+  <h2>Фото и файлы</h2>
+
+  <div class="or-file-groups">
+    <div class="or-file-group">
+      <h3>Материалы клиента</h3>
+      {% for file in client_files %}
+        <div class="or-file-card">
+          <div><b>{{ file.filename }}</b><div class="muted" style="font-size:12px">{{ file.uploaded_at|date:"d.m.Y H:i" }}</div></div>
+          <a class="or-btn or-btn-sm" href="{{ file.url }}?client={{ item.agency_id }}" target="_blank" rel="noopener">Скачать</a>
+        </div>
+      {% empty %}
+        <p class="muted">Нет файлов от клиента.</p>
+      {% endfor %}
+    </div>
+    <div class="or-file-group">
+      <h3>Внутренние файлы</h3>
+      {% for file in internal_files %}
+        <div class="or-file-card">
+          <div><b>{{ file.filename }}</b><div class="muted" style="font-size:12px">{{ file.uploaded_at|date:"d.m.Y H:i" }}</div></div>
+          <a class="or-btn or-btn-sm" href="{{ file.url }}?client={{ item.agency_id }}" target="_blank" rel="noopener">Скачать</a>
+        </div>
+      {% empty %}
+        <p class="muted">Внутренних файлов нет.</p>
+      {% endfor %}
+    </div>
+    <div class="or-file-group">
+      <h3>Результат выполнения {% if item.category.require_result_photo %}<span class="or-required-mark">обязательно</span>{% endif %}</h3>
+      {% for file in result_files %}
+        <div class="or-file-card">
+          <div><b>{{ file.filename }}</b><div class="muted" style="font-size:12px">{{ file.uploaded_at|date:"d.m.Y H:i" }}</div></div>
+          <a class="or-btn or-btn-sm" href="{{ file.url }}?client={{ item.agency_id }}" target="_blank" rel="noopener">Скачать</a>
+        </div>
+      {% empty %}
+        <p class="muted">Файлов результата нет.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if item.status != 'closed' and item.status != 'cancelled' and item.status != 'rejected' %}
+  <form method="post" enctype="multipart/form-data" class="or-upload-form" id="or-upload-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="upload_attachment">
+    <div class="or-dropzone" id="or-dropzone" tabindex="0">
+      <input type="file" id="or-file-input" name="files" multiple accept="image/*,.pdf,.xlsx,.xls,.doc,.docx" hidden>
+      <input type="file" id="or-camera-input" accept="image/*" capture="environment" hidden>
+      <div class="or-dropzone-hint">
+        <strong>Перетащите файлы сюда</strong>
+        <div class="or-dropzone-actions">
+          <button type="button" class="or-btn or-btn-sm" id="or-file-browse">Выбрать на диске</button>
+          <button type="button" class="or-btn or-btn-sm" id="or-file-camera">Снять на камеру</button>
+        </div>
+      </div>
+    </div>
+    <div class="or-preview-list" id="or-preview-list"></div>
+    <div class="or-upload-controls">
+      <select name="purpose" id="or-upload-purpose">
+        <option value="internal">Внутренний файл</option>
+        <option value="result" {% if item.status == 'in_progress' and item.category.require_result_photo %}selected{% endif %}>Результат выполнения</option>
+        <option value="client">Для клиента</option>
+      </select>
+      <button class="or-btn or-btn-primary" type="submit" id="or-upload-submit" disabled>Загрузить</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+
+<script>
+(function () {
+  var form = document.getElementById('or-upload-form');
+  if (!form) return;
+  var dropzone = document.getElementById('or-dropzone');
+  var fileInput = document.getElementById('or-file-input');
+  var cameraInput = document.getElementById('or-camera-input');
+  var browseBtn = document.getElementById('or-file-browse');
+  var cameraBtn = document.getElementById('or-file-camera');
+  var previewList = document.getElementById('or-preview-list');
+  var submitBtn = document.getElementById('or-upload-submit');
+  var files = [];
+
+  function render() {
+    previewList.innerHTML = '';
+    submitBtn.disabled = files.length === 0;
+    files.forEach(function (file, idx) {
+      var card = document.createElement('div');
+      card.className = 'or-preview-card';
+      if (file.type && file.type.indexOf('image/') === 0) {
+        var img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        card.appendChild(img);
+      } else {
+        var icon = document.createElement('div');
+        icon.className = 'or-preview-icon';
+        icon.textContent = '📄';
+        card.appendChild(icon);
+      }
+      var name = document.createElement('div');
+      name.className = 'or-preview-name';
+      name.textContent = file.name;
+      card.appendChild(name);
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'or-preview-remove';
+      remove.setAttribute('aria-label', 'Удалить файл');
+      remove.textContent = '✕';
+      remove.addEventListener('click', function () {
+        files.splice(idx, 1);
+        syncInput();
+        render();
+      });
+      card.appendChild(remove);
+      previewList.appendChild(card);
+    });
+  }
+
+  function syncInput() {
+    if (typeof DataTransfer === 'undefined') return;
+    var dt = new DataTransfer();
+    files.forEach(function (f) { dt.items.add(f); });
+    fileInput.files = dt.files;
+  }
+
+  function addFiles(list) {
+    for (var i = 0; i < list.length; i++) {
+      files.push(list[i]);
+    }
+    syncInput();
+    render();
+  }
+
+  browseBtn.addEventListener('click', function () { fileInput.click(); });
+  cameraBtn.addEventListener('click', function () { cameraInput.click(); });
+  fileInput.addEventListener('change', function () { addFiles(fileInput.files); });
+  cameraInput.addEventListener('change', function () {
+    addFiles(cameraInput.files);
+    cameraInput.value = '';
+  });
+
+  ['dragenter', 'dragover'].forEach(function (evt) {
+    dropzone.addEventListener(evt, function (e) {
+      e.preventDefault();
+      dropzone.classList.add('or-dropzone-active');
+    });
+  });
+  ['dragleave', 'drop'].forEach(function (evt) {
+    dropzone.addEventListener(evt, function (e) {
+      e.preventDefault();
+      dropzone.classList.remove('or-dropzone-active');
+    });
+  });
+  dropzone.addEventListener('drop', function (e) {
+    if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+  });
+  dropzone.addEventListener('click', function (e) {
+    if (e.target === dropzone || e.target.classList.contains('or-dropzone-hint')) fileInput.click();
+  });
+
+  form.addEventListener('submit', function () {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Загрузка…';
+  });
+})();
+</script>

@@ -1,0 +1,71 @@
+from django.urls import path
+
+from .views import (
+    free_marking_batch_status,
+    free_marking_candidates,
+    free_marking_confirm_printed,
+    free_marking_import,
+    free_marking_print_page,
+    free_marking_queue,
+    honest_sign_duplicate_page,
+    honest_sign_duplicate_print,
+    honest_sign_duplicate_validate,
+    honest_sign_status_check,
+    honest_sign_status_page,
+    receiving_marking_scan,
+    processing_marking_summary,
+    processing_marking_scan,
+    processing_marking_import,
+    processing_marking_batch_status,
+    processing_marking_confirm_printed,
+    processing_marking_print,
+    processing_marking_queue,
+    processing_marking_reset_printed,
+    marking_report_page,
+    return_printed_marking_page,
+    return_printed_marking_scan,
+)
+
+app_name = "marking"
+
+urlpatterns = [
+    path("report/", marking_report_page, name="report"),
+    path("return/", return_printed_marking_page, name="return-page"),
+    path("return/scan/", return_printed_marking_scan, name="return-scan"),
+    path("free-print/", free_marking_print_page, name="free-print-page"),
+    path("free-print/import/", free_marking_import, name="free-print-import"),
+    path("free-print/candidates/", free_marking_candidates, name="free-print-candidates"),
+    path("free-print/queue/", free_marking_queue, name="free-print-queue"),
+    path("free-print/status/", free_marking_batch_status, name="free-print-status"),
+    path("free-print/confirm/", free_marking_confirm_printed, name="free-print-confirm"),
+    path("duplicate/", honest_sign_duplicate_page, name="duplicate-page"),
+    path("duplicate/validate/", honest_sign_duplicate_validate, name="duplicate-validate"),
+    path("duplicate/print/", honest_sign_duplicate_print, name="duplicate-print"),
+    path("status/", honest_sign_status_page, name="status-page"),
+    path("status/check/", honest_sign_status_check, name="status-check"),
+    path("receiving/<str:order_id>/scan/", receiving_marking_scan, name="receiving-scan"),
+    path("processing/<str:order_id>/summary/", processing_marking_summary, name="processing-summary"),
+    path("processing/<str:order_id>/scan/", processing_marking_scan, name="processing-scan"),
+    path("processing/<str:order_id>/print/", processing_marking_print, name="processing-print"),
+    path(
+        "processing/<str:order_id>/print/queue/",
+        processing_marking_queue,
+        name="processing-print-queue",
+    ),
+    path(
+        "processing/<str:order_id>/print/status/",
+        processing_marking_batch_status,
+        name="processing-print-status",
+    ),
+    path(
+        "processing/<str:order_id>/print/confirm/",
+        processing_marking_confirm_printed,
+        name="processing-print-confirm",
+    ),
+    path(
+        "processing/<str:order_id>/print/reset/",
+        processing_marking_reset_printed,
+        name="processing-print-reset",
+    ),
+    path("processing/<str:order_id>/import/", processing_marking_import, name="processing-import"),
+]

@@ -1,0 +1,1865 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page_title|default:"Новая заявка на отгрузку" }}</title>
+  
+  <style>
+    :root {
+      --blue: #0e6b5b;
+      --blue-soft: rgba(14,107,91,0.12);
+      --orange: #f2b747;
+      --orange-strong: #d49a1a;
+      --ok: #0e6b5b;
+      --ok-soft: rgba(14,107,91,0.12);
+      --warn-soft: rgba(242,183,71,0.22);
+      --line: rgba(28,31,26,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      overflow: hidden;
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image:
+        linear-gradient(rgba(28,31,26,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(28,31,26,0.06) 1px, transparent 1px);
+      background-size: 36px 36px;
+      opacity: 0.08;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input, select, textarea { font: inherit; }
+    .wrap { position: relative; z-index: 1; padding: 24px; }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      min-height: calc(100vh - 96px);
+    }
+    .side {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 16px;
+      align-content: start;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+    }
+    .brand-title {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.6px;
+    }
+    .profile {
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+    }
+    .profile-value { font-weight: 600; }
+    .nav { display: grid; gap: 10px; }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    .nav-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 12px 24px rgba(14,107,91,0.12);
+    }
+    .nav-link.primary {
+      background: linear-gradient(135deg, rgba(242,183,71,0.45), rgba(14,107,91,0.15));
+      border-color: transparent;
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub { font-size: 12px; color: var(--muted); }
+    .content {
+      display: grid;
+      gap: 14px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .page-head h1 {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 24px;
+    }
+    .page-head p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+    .card, .extras-card, .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+    }
+    .card-title, .extras-card h3 {
+      margin: 0 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 800;
+    }
+    .num {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      background: rgba(14,107,91,0.12);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .meta-columns {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+    .meta-card {
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: var(--surface-2);
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+    .meta-title { margin: 0; font-size: 13px; font-weight: 800; }
+    .field { display: grid; gap: 6px; }
+    .field label { font-size: 12px; font-weight: 700; color: var(--muted); }
+    .required { color: var(--danger); }
+    .field input[type="text"],
+    .field input[type="number"],
+    .field input[type="date"],
+    .field input[type="tel"],
+    .field input[type="datetime-local"],
+    .field select,
+    .field textarea,
+    .datetime-row input,
+    .comment-box textarea {
+      width: 100%;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      padding: 9px 11px;
+      background: #fff;
+    }
+    .field input.is-ozon-locked,
+    .field input[readonly].is-ozon-locked {
+      background: #f3f4f6;
+      color: #4b5563;
+      cursor: not-allowed;
+    }
+    .field-state-required {
+      outline: 2px solid rgba(212,84,60,0.35);
+      border-radius: 12px;
+      background: rgba(212,84,60,0.08);
+      padding: 6px;
+    }
+    .field-state-valid {
+      outline: 2px solid rgba(14,107,91,0.35);
+      border-radius: 12px;
+      background: rgba(14,107,91,0.08);
+      padding: 6px;
+    }
+    .field-picker-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; }
+    .btn {
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn.ghost { background: transparent; }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .btn.link {
+      background: transparent;
+      border: 0;
+      color: var(--accent);
+      padding: 8px 0;
+      font-weight: 800;
+    }
+    .checkbox-inline { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+    .stat-box {
+      border-radius: 12px;
+      border: 1px solid rgba(14,107,91,0.22);
+      background: rgba(14,107,91,0.08);
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+    .stat-box h5 { margin: 0; color: var(--accent-strong); font-size: 12px; font-weight: 900; }
+    .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .stat-grid div {
+      background: rgba(255,255,255,0.7);
+      border-radius: 10px;
+      padding: 8px 6px;
+      text-align: center;
+    }
+    .stat-grid strong { display: block; font-size: 16px; }
+    .stat-grid span { color: var(--muted); font-size: 11px; }
+    .hint { color: var(--muted); font-size: 12px; }
+    .errors {
+      border: 1px solid rgba(212,84,60,0.35);
+      background: rgba(212,84,60,0.12);
+      border-radius: 12px;
+      padding: 12px;
+      color: #7f1d1d;
+      display: grid;
+      gap: 6px;
+    }
+    .field-error {
+      color: #7f1d1d;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .extras-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      gap: 12px;
+    }
+    .extras-card {
+      display: grid;
+      gap: 8px;
+      align-content: start;
+      padding: 12px;
+    }
+    .extras-card h3 { margin: 0; font-size: 13px; }
+    .extras-card .num { width: 22px; height: 22px; font-size: 11px; }
+    .dropzone {
+      border: 1.5px dashed rgba(14,107,91,0.35);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: rgba(14,107,91,0.06);
+      color: var(--muted);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+    }
+    .dropzone.is-dragover {
+      border-color: var(--accent);
+      background: rgba(14,107,91,0.12);
+    }
+    .dropzone-title { color: var(--ink); font-weight: 700; font-size: 12px; }
+    .dropzone input[type="file"] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      overflow: hidden;
+    }
+    .dropzone-label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 7px 12px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      font-size: 12px;
+      cursor: pointer;
+      border: 0;
+    }
+    .comment-box textarea {
+      min-height: 58px;
+      max-height: 90px;
+      resize: vertical;
+      font-size: 13px;
+    }
+    .attachment-list { display: grid; gap: 4px; }
+    .attachment-item, .attachment-selected-empty {
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 6px 8px;
+      background: #fff;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .positions-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 260px;
+      gap: 14px;
+      align-items: start;
+    }
+    .positions-grid > * { min-width: 0; }
+    .summary-card {
+      position: sticky;
+      top: 0;
+      display: grid;
+      gap: 12px;
+    }
+    .summary-card h4 { margin: 0; font-size: 14px; }
+    .summary-rows { display: grid; gap: 8px; color: var(--muted); font-size: 13px; }
+    .summary-rows strong { color: var(--ink); font-size: 18px; }
+    .summary-actions { display: grid; gap: 8px; }
+    .summary-actions .btn.primary { width: 100%; padding: 12px; }
+    .stock-table-wrap {
+      overflow: auto;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: rgba(15,23,42,0.03);
+    }
+    .stock-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 960px;
+	    }
+	    .stock-picker-table {
+	      min-width: 1020px;
+	      table-layout: fixed;
+	    }
+    .stock-col-sku { width: 105px; }
+    .stock-col-name { width: 190px; }
+    .stock-col-size { width: 65px; }
+    .stock-col-barcode { width: 125px; }
+    .stock-col-type { width: 90px; }
+	    .stock-col-boxqty { width: 70px; }
+	    .stock-col-available { width: 115px; }
+	    .stock-col-ship { width: 125px; }
+	    .stock-col-boxes { width: 75px; }
+	    .stock-col-total { width: 60px; }
+    .stock-table th, .stock-table td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--stroke);
+      text-align: left;
+      vertical-align: top;
+      font-size: 13px;
+      white-space: normal;
+      word-break: break-word;
+    }
+    .stock-table th { background: var(--surface-2); position: sticky; top: 0; z-index: 1; }
+    .stock-th .th-top { margin-bottom: 6px; }
+    .th-sort {
+      border: 0;
+      background: transparent;
+      font-weight: 800;
+      padding: 0;
+      cursor: pointer;
+      color: var(--ink);
+    }
+    .th-filter {
+      width: 100%;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-size: 12px;
+      background: #fff;
+    }
+    .stock-table tbody tr.split-source-hidden { display: none !important; }
+    .ship-boxes-input {
+      width: 100%;
+      min-width: 104px;
+      max-width: 132px;
+      height: 36px;
+      text-align: right;
+      font-weight: 800;
+      background: #fff;
+    }
+    .ship-box-control { display: flex; gap: 6px; align-items: center; }
+    .ship-row-selected {
+      background: rgba(248, 184, 0, 0.10);
+      box-shadow: inset 3px 0 0 rgba(248, 144, 0, 0.95);
+    }
+    .ship-row-selected .ship-boxes-input {
+      border-color: rgba(248, 144, 0, 0.72);
+      box-shadow: 0 0 0 2px rgba(248, 144, 0, 0.12);
+    }
+    .ship-row-edit-focus {
+      animation: shippingRowFocusPulse 0.9s ease-in-out 2;
+    }
+    @keyframes shippingRowFocusPulse {
+      0%, 100% { box-shadow: inset 3px 0 0 rgba(248, 144, 0, 0.95); }
+      50% { box-shadow: inset 3px 0 0 rgba(248, 104, 0, 1), 0 0 0 3px rgba(248, 144, 0, 0.18); }
+    }
+    .stock-row-reset {
+      display: none;
+      border: 1px solid rgba(185, 28, 28, 0.25);
+      border-radius: 10px;
+      background: #fff7ed;
+      color: #9a3412;
+      font-size: 11px;
+      font-weight: 900;
+      padding: 8px 9px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .ship-row-selected .stock-row-reset {
+      display: inline-flex;
+    }
+	    .ship-box-hint,
+	    .th-hint {
+	      margin-top: 4px;
+	      color: var(--muted);
+	      font-size: 10px;
+	      line-height: 1.2;
+	      font-weight: 700;
+	    }
+	    .ship-rounding-warning {
+	      margin-top: 5px;
+	      color: #b45309;
+	      font-size: 10px;
+	      line-height: 1.25;
+	      font-weight: 800;
+	    }
+	    .ship-row-has-rounding .ship-boxes-input {
+	      border-color: rgba(245,158,11,0.7);
+	      background: #fff7ed;
+	    }
+	    .split-summary {
+	      margin-top: 4px;
+	      color: #0e6b5b;
+	      font-size: 11px;
+	      line-height: 1.25;
+	      font-weight: 800;
+	    }
+	    .stock-box-count-cell {
+	      text-align: right;
+	    }
+	    .ship-box-count-cell {
+	      display: inline-flex;
+	      min-width: 24px;
+	      justify-content: flex-end;
+	      font-weight: 900;
+	      color: #0e6b5b;
+	    }
+	    .ship-total-cell {
+	      display: inline-flex;
+	      min-width: 24px;
+      justify-content: flex-end;
+      font-weight: 800;
+    }
+    .split-box-trigger {
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: #fff;
+      padding: 4px;
+      cursor: pointer;
+    }
+    .split-box-trigger img { width: 100%; height: 100%; object-fit: contain; }
+    .mix-badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(242,183,71,0.35);
+      color: #2a2110;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    #shipping-selection-cards {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+      max-height: 420px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+    #shipping-selection-cards[hidden] { display: none; }
+    .shipping-selection-item {
+      border: 1px solid rgba(248, 144, 0, 0.28);
+      border-radius: 14px;
+      padding: 9px 10px;
+      background: #fffaf0;
+      display: grid;
+      gap: 8px;
+    }
+    .shipping-selection-item-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .shipping-selection-item-title { font-weight: 900; }
+    .shipping-selection-item-sub {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.3;
+    }
+    .shipping-selection-mixed-lines {
+      display: grid;
+      gap: 5px;
+      padding: 8px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(248,144,0,0.16);
+    }
+    .shipping-selection-mixed-line {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) auto;
+      gap: 10px;
+      font-size: 11px;
+      line-height: 1.3;
+    }
+    .shipping-selection-mixed-line b { font-weight: 900; }
+    .shipping-selection-item-metrics,
+    .shipping-selection-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .shipping-selection-chip {
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: rgba(14,107,91,0.10);
+      color: #0e6b5b;
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .shipping-selection-chip.strong {
+      background: rgba(248,144,0,0.16);
+      color: #9a5b00;
+    }
+    .shipping-selection-action {
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: #fff;
+      padding: 6px 8px;
+      font-size: 11px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .datetime-field { display: grid; gap: 6px; }
+    .datetime-row { display: grid; }
+    #eta_at { display: none !important; }
+    .picker-overlay {
+      position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+      background: rgba(28,31,26,.4); z-index: 40; padding: 20px;
+    }
+    .picker-overlay.is-open { display: flex; }
+    .picker-modal {
+      width: min(760px, 100%);
+      max-height: min(80vh, 760px);
+      overflow: auto;
+      background: var(--surface);
+      border-radius: 18px;
+      border: 1px solid var(--stroke);
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      box-shadow: var(--shadow);
+    }
+    .picker-head { display: flex; justify-content: space-between; gap: 12px; }
+    .picker-title { margin: 0; font-size: 20px; font-family: "Bricolage Grotesque", "Manrope", sans-serif; }
+    .picker-search, #split-box-count {
+      width: 100%;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #fff;
+    }
+    .ozon-batch-date-label {
+      display: grid;
+      gap: 6px;
+      margin: 10px 0;
+      color: #303030;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .picker-list { display: grid; gap: 8px; }
+    .picker-item {
+      text-align: left;
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+      cursor: pointer;
+    }
+    #ozon-supply-picker-list .picker-item.is-selected {
+      border-color: #f89000;
+      background: rgba(248, 144, 0, 0.08);
+      box-shadow: 0 0 0 2px rgba(248,144,0,0.18);
+    }
+    #ozon-supply-picker-list .picker-item-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #ozon-supply-picker-list .picker-item-title::before {
+      content: '';
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 2px solid #9ca3af;
+      flex: 0 0 auto;
+      box-sizing: border-box;
+    }
+    #ozon-supply-picker-list .picker-item.is-selected .picker-item-title::before {
+      border-color: #f86800;
+      background: #f89000;
+      box-shadow: inset 0 0 0 3px #fff;
+    }
+    #ozon-supply-picker-list .picker-item.is-batch-ready {
+      border-color: #0e6b5b;
+      background: #f0faf7;
+    }
+    #ozon-supply-picker-list .picker-item.is-needs-split {
+      border-color: #f2b747;
+      background: #fff8e8;
+    }
+    .picker-item-batch-ok,
+    .picker-item-batch-warn {
+      display: block;
+      margin-top: 6px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .picker-item-batch-ok { color: #0e6b5b; }
+    .picker-item-batch-warn { color: #8a5a00; }
+    .picker-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+    #ozon-supply-picker-confirm {
+      border: none;
+      background: linear-gradient(120deg, #f86800, #f8b800);
+      color: #fff;
+      font-weight: 700;
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    #ozon-pull-supply-hint.is-success {
+      color: #0b5246;
+      font-weight: 600;
+    }
+    #ozon-pull-supply-hint.is-warning {
+      color: #8a5a00;
+      font-weight: 600;
+    }
+    .ozon-pull-result {
+      margin: 0 0 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke, #ddd5c6);
+      background: #fffdf8;
+    }
+    .ozon-pull-result.is-success {
+      border-color: #0e6b5b;
+      background: #f0faf7;
+    }
+    .ozon-pull-result.is-warning {
+      border-color: #f2b747;
+      background: #fff8e8;
+    }
+    .ozon-pull-result.is-danger {
+      border-color: #d4543c;
+      background: #fff1ee;
+    }
+    .ozon-status-ok { color: #0e6b5b; font-weight: 700; }
+    .ozon-status-warn { color: #8a5a00; font-weight: 700; }
+    .ozon-status-danger { color: #d4543c; font-weight: 800; }
+    #ozon-supply-picker-list .picker-item.is-already-uploaded {
+      border-color: #d4543c;
+      background: #fff1ee;
+    }
+    #ozon-supply-picker-list .picker-item-danger {
+      color: #d4543c;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    #ozon-pull-supply-hint.is-danger {
+      color: #d4543c;
+      font-weight: 700;
+    }
+    .ozon-pull-result-title {
+      font-weight: 800;
+      margin: 0 0 4px;
+      font-family: "Bricolage Grotesque", Manrope, sans-serif;
+      color: #1c1f1a;
+    }
+    .ozon-pull-result-text {
+      margin: 0;
+      color: #6b6f66;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .ozon-pull-result-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    #ozon-supply-picker-confirm:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .split-lines { display: grid; gap: 8px; }
+    .error-item { color: #7f1d1d; font-weight: 700; }
+    .import-preview-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(28, 31, 26, 0.52);
+      backdrop-filter: blur(3px);
+    }
+    .import-preview-overlay.is-open { display: flex; }
+    .import-preview-modal {
+      width: min(980px, 100%);
+      max-height: min(88vh, 820px);
+      overflow: auto;
+      border: 1px solid var(--stroke);
+      border-radius: 20px;
+      background: var(--surface);
+      box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+    }
+    .import-preview-head,
+    .import-preview-actions {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 16px 18px;
+    }
+    .import-preview-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      border-bottom: 1px solid var(--stroke);
+      background: rgba(255, 253, 248, 0.96);
+    }
+    .import-preview-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+    }
+    .import-preview-body {
+      display: grid;
+      gap: 14px;
+      padding: 16px 18px;
+    }
+    .import-preview-notice {
+      margin: 0;
+      padding: 11px 12px;
+      border: 1px solid rgba(248, 144, 0, 0.32);
+      border-radius: 12px;
+      background: rgba(248, 144, 0, 0.10);
+      color: #6f4300;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .import-preview-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .import-preview-stat {
+      padding: 11px 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      background: var(--surface-2);
+    }
+    .import-preview-stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .import-preview-stat strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 22px;
+    }
+    .import-preview-stat.is-warning {
+      border-color: rgba(245, 158, 11, 0.45);
+      background: #fff7ed;
+      color: #9a3412;
+    }
+    .import-preview-stat.is-ok {
+      border-color: rgba(14, 107, 91, 0.30);
+      background: rgba(14, 107, 91, 0.08);
+      color: #0b5246;
+    }
+    .import-preview-table-wrap {
+      overflow: auto;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+    }
+    .import-preview-table {
+      width: 100%;
+      min-width: 820px;
+      border-collapse: collapse;
+    }
+    .import-preview-table th,
+    .import-preview-table td {
+      padding: 10px;
+      border-bottom: 1px solid var(--stroke);
+      text-align: left;
+      vertical-align: top;
+      font-size: 13px;
+    }
+    .import-preview-table th {
+      background: var(--surface-2);
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .import-preview-table tbody tr:last-child td { border-bottom: 0; }
+    .import-preview-diff { font-weight: 900; }
+    .import-preview-diff.is-warning { color: #b45309; }
+    .import-preview-diff.is-ok { color: #0e6b5b; }
+    .import-preview-actions {
+      position: sticky;
+      bottom: 0;
+      justify-content: flex-end;
+      border-top: 1px solid var(--stroke);
+      background: rgba(255, 253, 248, 0.97);
+    }
+    @media (max-width: 1600px) {
+      .positions-grid { grid-template-columns: minmax(0, 1fr); }
+      .summary-card { position: static; }
+      .summary-rows { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 1100px) {
+      body { overflow: auto; }
+      .layout { grid-template-columns: 1fr; }
+      .side, .content { max-height: none; }
+      .meta-columns, .extras-row, .positions-grid { grid-template-columns: 1fr; }
+      .import-preview-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 620px) {
+      .import-preview-overlay { padding: 8px; }
+      .import-preview-stats { grid-template-columns: 1fr; }
+      .import-preview-actions .btn { width: 100%; }
+    }
+
+    /* Compact client shipping layout: explicit steps and no stretched empty rows. */
+    :root { --blue: #f89000; --blue-soft: rgba(248,144,0,.12); --orange:#f8b800; --orange-strong:#f86800; }
+    .content { align-content: start; max-height:calc(100vh - 32px); }
+    .side { max-height:calc(100vh - 32px); }
+    .nav-link.primary { background:rgba(248,144,0,.15); border-color:rgba(248,144,0,.4); }
+    .nav-link:hover { border-color:#f89000; box-shadow:none; }
+    .field-state-required { outline:1px solid rgba(248,144,0,.45); background:#fffbf3; }
+    .field-state-valid { outline:none; background:transparent; }
+    .field-picker-row:has(#ozon-pull-supply-btn:not([disabled])) { grid-template-columns:1fr; }
+    #ozon-pull-supply-btn { background:#f89000; color:#303030; font-weight:800; }
+    #ozon-supply-picker-overlay[data-loading="1"] #ozon-supply-picker-list { pointer-events:none; }
+    #shipping-create-form { display:grid; gap:12px; min-width:0; }
+    .wrap { padding:16px; }
+    .layout { gap:14px; grid-template-columns:220px minmax(0,1fr); }
+    .side { padding:14px; gap:12px; }
+    .nav { gap:6px; }
+    .nav-link { padding:9px 10px; border-radius:10px; }
+    .card, .extras-card, .summary-card { padding:12px; border-radius:12px; }
+    .meta-card { padding:10px; gap:7px; }
+    .ozon-guide { display:grid; gap:8px; padding:12px 14px; border:1px solid rgba(248,144,0,.4); border-radius:12px; background:#fff8e9; font-size:12px; }
+    .ozon-guide[hidden] { display:none; }
+    .ozon-guide ol { display:flex; gap:28px; flex-wrap:wrap; margin:0; padding-left:20px; font-weight:700; }
+    #ozon-supply-picker-overlay .picker-modal { width:min(980px,100%); max-height:90vh; gap:10px; }
+    #ozon-supply-picker-list { max-height:40vh; overflow:auto; min-height:0; }
+    #ozon-supply-picker-overlay .picker-modal { grid-template-rows:auto auto auto minmax(0,1fr) auto auto auto auto; overflow:auto; }
+    #ozon-supply-picker-overlay .picker-head { align-items:flex-start; }
+    #ozon-supply-picker-overlay .picker-head .btn { flex-shrink:0; }
+    #ozon-supply-picker-list .picker-item { display:grid; gap:5px; }
+    #ozon-supply-picker-list .picker-item-meta { display:block; color:#595959; font-size:12px; line-height:1.45; }
+    #ozon-supply-picker-list .picker-item-danger { font-size:12px; line-height:1.45; }
+    #ozon-supply-picker-overlay .picker-actions { position:sticky; bottom:0; background:var(--surface); padding-top:8px; }
+    #ozon-supply-picker-status { padding:10px; border-radius:8px; background:#fff8e9; color:#303030; line-height:1.5; }
+    #ozon-supply-picker-status:empty { display:none; }
+    #ozon-supply-picker-list .picker-item { padding:10px; }
+    #ozon-supply-picker-overlay button:disabled { cursor:wait; opacity:.65; }
+    @media(max-width:980px) { .layout { grid-template-columns:1fr; } .wrap { padding:10px; } .content,.side { max-height:none; } }
+  </style>
+</head>
+<body>
+  {% with cid=selected_client.id %}
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <img src="/static/client-lk/assets/fullbox-logo.png" alt="Фуллбокс" style="width:112px;max-width:100%;height:auto;">
+        <div class="profile">
+          <div class="profile-value">
+            Кабинет клиента<br>
+            {{ selected_client.agn_name|default:selected_client.fio_agn|default:"клиента" }}
+          </div>
+        </div>
+        <nav class="nav">
+          <a class="nav-link" href="{% url 'shipping:list' %}?client={{ cid }}">
+            <span class="nav-title">Журнал заявок</span>
+            <span class="nav-sub">Все заявки</span>
+          </a>
+          <a class="nav-link" href="/client/dashboard/lk/?client={{ cid }}">
+            <span class="nav-title">Кабинет</span>
+            <span class="nav-sub">Личный кабинет</span>
+          </a>
+          <a class="nav-link" href="/client/{{ cid }}/sku/">
+            <span class="nav-title">Номенклатура</span>
+            <span class="nav-sub">SKU и карточки</span>
+          </a>
+          <a class="nav-link primary" href="{% url 'shipping:create' %}?client={{ cid }}">
+            <span class="nav-title">Заявка на отгрузку</span>
+            <span class="nav-sub">Создание заявки</span>
+          </a>
+          <a class="nav-link" href="/sklad/journal/?client={{ cid }}">
+            <span class="nav-title">Складские остатки</span>
+            <span class="nav-sub">Актуальные стоки</span>
+          </a>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <header class="page-head">
+          <h1>{{ page_title|default:"Новая заявка на отгрузку" }}</h1>
+          <p>Выберите маркетплейс и поставку, проверьте товары и дату, затем отправьте заявку.</p>
+          <p class="hint" id="draft-autosave-status" style="margin-top:8px; font-weight:700;"></p>
+        </header>
+
+        {% if form.errors or parse_errors %}
+          <div class="errors" id="shipping-form-errors" role="alert" aria-live="assertive" tabindex="-1">
+            <div><strong>Заявка не сохранена. Исправьте указанные ниже поля и повторите отправку.</strong></div>
+            {% for field in form %}
+              {% for err in field.errors %}<div>{{ field.label }}: {{ err }}</div>{% endfor %}
+            {% endfor %}
+            {% for err in form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
+            {% for error in parse_errors %}<div>{{ error }}</div>{% endfor %}
+          </div>
+        {% endif %}
+
+        {% if edit_order and edit_order.status == 'draft' and ozon_api_summary.show %}
+          <div class="card" style="border-color:rgba(248,144,0,.5);background:rgba(248,144,0,.08);margin-bottom:16px;">
+            <strong>Заявка Ozon находится на доработке.</strong>
+            Состав поставки сохранён и восстановлен в форме. Резерв будет создан заново
+            после успешной отправки заявки менеджеру. Перед отправкой дата, время,
+            маршрут, позиции, количества и грузовые места будут заново проверены по Ozon.
+          </div>
+        {% endif %}
+
+      <form method="post" enctype="multipart/form-data" id="shipping-create-form">
+        <section class="ozon-guide" data-ozon-only-control="1" style="display:none;">
+          <strong>Отгрузка в Ozon: 3 шага</strong>
+          <ol><li>Выберите поставку Ozon</li><li>Дождитесь проверки всех коробов и остатков</li><li>Проверьте итог и отправьте заявку</li></ol>
+          <span>Поддерживаются 300 единиц товара и 300 коробов в одной поставке. Большой состав загружается частями с сохранением прогресса.</span>
+          <span>Заполнение формы ещё не создаёт заявку. После отправки появится номер Fullbox.</span>
+        </section>
+
+        {% csrf_token %}
+        <input type="hidden" name="agency" value="{{ selected_client.id }}">
+        <input type="hidden" name="client" value="{{ selected_client.id }}">
+        <input type="hidden" name="ozon_supply_payload_json" id="ozon-supply-payload-json" value="{{ ozon_api_summary.payload_json|default:'' }}">
+        <input type="hidden" name="ozon_gm_comment" id="ozon-gm-comment-hidden" value="{{ ozon_api_summary.gm_comment|default:'' }}">
+        <input type="hidden" name="ozon_gm_barcodes" id="ozon-gm-barcodes-hidden" value="{{ ozon_api_summary.gm_barcodes_label|default:'' }}">
+        <input type="hidden" name="ozon_boxes_total" id="ozon-boxes-total-hidden" value="{{ ozon_api_summary.boxes_total|default:'' }}">
+        {% if edit_order %}
+          <input type="hidden" name="edit_order_id" value="{{ edit_order.pk }}">
+          <input type="hidden" name="edit" value="1">
+          <input type="hidden" id="shipping-original-delivery-type" value="{{ edit_order.delivery_type|default:'' }}">
+          <input
+            type="hidden"
+            id="shipping-draft-type-change-guard"
+            value="{% if edit_order.status == 'draft' %}1{% else %}0{% endif %}"
+          >
+        {% endif %}
+
+        {% if ozon_api_summary.show and partial_box_splits_json != "[]" %}
+          <section
+            class="card"
+            id="ozon-piece-pick-tariff-inline"
+            style="border-color:rgba(248,144,0,.5);background:rgba(248,144,0,.08);"
+          >
+            <label class="checkbox-inline" style="align-items:flex-start;gap:12px;">
+              <input
+                type="checkbox"
+                name="piece_pick_tariff_confirmed"
+                value="1"
+                id="ozon-piece-pick-tariff-checkbox"
+                {% if request.POST.piece_pick_tariff_confirmed == "1" %}checked{% endif %}
+              >
+              <span>
+                <strong>Подтверждение тарификации поштучного подбора</strong><br>
+                <span id="ozon-piece-pick-tariff-inline-qty">
+                  В заявке есть поштучный подбор из коробов.
+                </span>
+                Поштучный подбор тарифицируется отдельно. Поставьте галочку перед сохранением заявки.
+              </span>
+            </label>
+          </section>
+        {% endif %}
+
+        <section class="card">
+          <h3 class="card-title"><span class="num">1</span> Параметры заявки</h3>
+          <div class="meta-columns">
+            <div class="meta-card">
+              <h4 class="meta-title">Тип и состав</h4>
+              <div class="field" data-required-field="delivery_type" data-required-mode="select">
+                <label>{{ form.delivery_type.label }} <span class="required">*</span></label>
+                {{ form.delivery_type }}
+              </div>
+              <div class="field" data-marketplace-delivery-only="1">
+                <label class="checkbox-inline">
+                  {{ form.requires_marking_scan }}
+                  <span>Для маркированного товара требовать парный скан ШК и Data Matrix</span>
+                </label>
+                <div class="hint">Действует только для позиций с признаком «Честный знак» в маркетплейс-отгрузке.</div>
+              </div>
+              <div class="field" data-transfer-section="1" style="display:none;">
+                <label>Состав перемещения из Excel</label>
+                <div class="controls" style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <a
+                    class="btn"
+                    href="/shipping/template.xlsx?client={{ cid }}"
+                    data-transfer-template-download="1"
+                    download
+                  >Скачать шаблон</a>
+                  <button class="btn primary" type="button" data-transfer-template-trigger="1">Загрузить файл</button>
+                </div>
+                <div class="hint">Используется тот же шаблон и проверка доступного товара, что для WB.</div>
+              </div>
+              <div class="field" data-pickup-section="1" data-courier-hide="1" data-required-field="marketplace" data-required-mode="select">
+                <label>Маркетплейс <span class="required">*</span></label>
+                {{ form.marketplace }}
+              </div>
+              <div class="field" data-pickup-section="1" data-courier-hide="1" data-required-field="shipping_barcode" data-required-mode="text">
+                <label>ШК поставки <span class="required">*</span></label>
+                <div class="field-picker-row">
+                  {{ form.shipping_barcode }}
+                  <button
+                    class="btn"
+                    type="button"
+                    id="ozon-pull-supply-btn"
+                    data-ozon-only-control="1"
+                    data-ozon-supplies-url="{{ ozon_supplies_url }}"
+                    data-ozon-supplies-batch-url="{{ ozon_supplies_batch_url }}"
+                    data-ozon-supplies-detail-url="{{ ozon_supplies_detail_url_template }}"
+                    data-ozon-gm-preload-url="{{ ozon_gm_preload_url_template }}"
+                    {% if edit_order %}data-exclude-order-id="{{ edit_order.id }}"{% endif %}
+                    title="Выбрать одну или несколько поставок из кабинета Ozon"
+                  >Выбрать заявки Ozon</button>
+                </div>
+                <div class="hint" id="ozon-shipping-barcode-lock-hint" hidden>Для Ozon ШК и номер поставки заполняются автоматически после выбора заявки.</div>
+              </div>
+              <div class="field" data-pickup-section="1" data-courier-hide="1" data-required-field="wb_supply_barcode" data-required-mode="text" data-hide-for-marketplace="ozon">
+                <label>Номер поставки <span class="required">*</span></label>
+                {{ form.wb_supply_barcode }}
+              </div>
+              <div class="field" data-pickup-section="1" data-courier-hide="1" data-required-field="supply_number" data-required-mode="text" data-show-for-marketplace="ozon" data-ozon-only-control="1">
+                <label>Номер поставки Ozon <span class="required">*</span></label>
+                {{ form.supply_number }}
+                <div class="hint" id="ozon-pull-supply-hint">Выберите одну или несколько заявок Ozon кнопкой выше.</div>
+              </div>
+              <div class="field" data-pickup-section="1" data-courier-hide="1" data-required-field="supply_type" data-required-mode="select">
+                <label>Тип поставки <span class="required">*</span></label>
+                {{ form.supply_type }}
+              </div>
+              <div class="stat-box">
+                <h5>Доступно к отгрузке</h5>
+                <div class="stat-grid">
+                  <div><strong>{{ stock_available_lines|default:0 }}</strong><span>позиций</span></div>
+                  <div><strong>{{ stock_available_boxes|default:0 }}</strong><span>коробов</span></div>
+                  <div><strong>{{ stock_available_qty|default:0 }}</strong><span>штук</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="meta-card">
+              <h4 class="meta-title">Склад и упаковка</h4>
+              <div class="field" data-pickup-section="1" data-courier-hide="1" {% if ozon_preview_groups %}data-ozon-force-transit="1"{% endif %}>
+                <label>Транзитный склад</label>
+                <label class="checkbox-inline">{{ form.wb_transit_warehouse }} <span>Да</span></label>
+                {% if ozon_preview_groups %}
+                  <div class="hint">Для Ozon укажите транзитный (хаб) склад — конечные склады уже в превью ниже.</div>
+                {% endif %}
+              </div>
+              <div class="field" id="transit-address-field" data-pickup-section="1" data-courier-hide="1" data-required-field="transit_address" data-required-mode="text" {% if ozon_preview_groups %}data-required-when="always"{% else %}data-required-when="transit"{% endif %}>
+                <label>Транзитный адрес {% if ozon_preview_groups %}<span class="required">*</span>{% endif %}</label>
+                <div class="field-picker-row">
+                  {{ form.transit_address }}
+                  <button class="btn ghost picker-btn" type="button" data-picker-target="transit">Выбрать</button>
+                </div>
+                <datalist id="transit-address-options"></datalist>
+                <div class="hint" id="transit-address-hint"></div>
+              </div>
+              <div class="field" data-pickup-section="1" data-courier-hide="1" data-required-field="destination_warehouse" data-required-mode="text" data-required-when="destination">
+                <label>Склад назначения <span class="required" data-destination-required-marker>*</span></label>
+                <div class="field-picker-row">
+                  {{ form.destination_warehouse }}
+                  <button class="btn ghost picker-btn" type="button" data-picker-target="destination">Выбрать</button>
+                </div>
+                <datalist id="destination-warehouse-options"></datalist>
+                <div class="hint" id="destination-warehouse-hint"></div>
+                {% if ozon_api_summary.destination_missing %}
+                  <div class="hint">Ozon не вернул конечный склад по этой заявке — точка приёмки из транзитного адреса автоматически подставлена в поле выше.</div>
+                {% endif %}
+                {% if ozon_preview_groups %}
+                  <div class="hint">Конечные склады Ozon берутся из Excel и сохраняются как распределение внутри одной заявки.</div>
+                {% endif %}
+                <div class="hint" data-ozon-transit-destination-hint hidden>Для Ozon точка приёмки из транзитного адреса подставляется в склад назначения автоматически.</div>
+              </div>
+              <div class="stat-box">
+                <h5>Состав заявки</h5>
+                <div class="stat-grid">
+                  <div><strong id="auto-pallet-count">—</strong><span>паллет</span></div>
+                  <div><strong id="auto-box-count">{{ initial_selection_box_count|default:0 }}</strong><span>коробов</span></div>
+                  <div><strong id="auto-item-count">{{ initial_selection_item_count|default:0 }}</strong><span>штук</span></div>
+                </div>
+                <div class="hint" id="shipping-selection-summary">Позиций: {{ initial_selection_position_count|default:0 }} · Коробов: {{ initial_selection_box_count|default:0 }} · Штук: {{ initial_selection_item_count|default:0 }}</div>
+                <div id="shipping-selection-cards" hidden></div>
+              </div>
+            </div>
+
+            <div class="meta-card">
+              <h4 class="meta-title">Маршрут и транспорт</h4>
+              <div class="field" data-pickup-section="1" data-courier-hide="1" data-required-field="slot_date" data-required-mode="date" data-required-when="ozon">
+                <label>Дата слота</label>
+                {{ form.slot_date }}
+              </div>
+              <div class="field" id="slot-time-field" data-pickup-section="1" data-courier-hide="1">
+                <label>Время слота</label>
+                {{ form.slot_time }}
+              </div>
+              <div class="field field-state-route" data-required-field="eta_at" data-required-mode="datetime">
+                <label>Дата отгрузки <span class="required">*</span></label>
+                <div class="datetime-field">
+                  <div class="datetime-row datetime-row-eta">
+                    <input type="date" id="eta-date" value="{{ initial_eta_date }}" data-initial-date="{{ initial_eta_date }}" required>
+                  </div>
+                  {{ form.eta_at }}
+                </div>
+                {% for err in form.eta_at.errors %}<div class="field-error">{{ err }}</div>{% endfor %}
+                <div
+                  id="client-marketplace-date-rule"
+                  class="hint"
+                  style="margin-top:8px;padding:10px 12px;border:1px solid rgba(248,144,0,.38);border-radius:8px;background:rgba(248,144,0,.10);color:#303030;font-weight:700;line-height:1.45;"
+                >
+                  Заявки на маркетплейсы до 11:00 принимаются на отгрузку на завтра. С 11:00 — на послезавтра. Текущая дата недоступна.
+                </div>
+              </div>
+              <div class="field" data-transfer-section="1" data-required-field="destination_address" data-required-mode="text" data-required-when="transfer" style="display:none;">
+                <label>Куда перемещаем <span class="required">*</span></label>
+                {{ form.destination_address }}
+                <div class="hint">Укажите склад, адрес, город или другое понятное направление перемещения.</div>
+              </div>
+              <div class="field" data-pickup-section="1" data-courier-keep="1" data-transfer-hide="1" data-required-field="vehicle_type" data-required-mode="select">
+                <label>Транспорт <span class="required">*</span></label>
+                {{ form.vehicle_type }}
+                <div class="hint" id="courier-vehicle-hint" hidden>Для курьера выберите СДЭК или Яндекс.</div>
+              </div>
+              <div class="field" data-pickup-section="1" data-courier-keep="1" data-transfer-hide="1">
+                <label>Номер авто</label>
+                {{ form.vehicle_number }}
+              </div>
+              <div class="field" data-pickup-section="1" data-courier-keep="1" data-transfer-hide="1" data-required-field="driver_phone" data-required-mode="phone-optional">
+                <label>Телефон водителя</label>
+                {{ form.driver_phone }}
+              </div>
+            </div>
+          </div>
+          {% if ozon_api_summary.show %}
+            <div data-ozon-only-control="1" style="margin-top:14px;padding:14px;border:1px solid #0e6b5b;border-radius:16px;background:#f0faf7;">
+              <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+                <div>
+                  <div style="font-weight:900;margin-bottom:4px;">Данные Ozon по заявке</div>
+                  <div class="hint">Эти данные подтянуты из Ozon и сохраняются в заявке для клиента и менеджера.</div>
+                </div>
+                <div class="hint">Короб Ozon (ШК ГМ) — упаковка для приёмки маркетплейсом. Короб Fullbox — исходная тара на складе; их количество может отличаться при переупаковке.</div>
+              </div>
+              <div class="stat-grid" style="margin-top:12px;">
+                <div><strong>{{ ozon_api_summary.supply_number|default:"—" }}</strong><span>номер поставки / заказа Ozon</span></div>
+                <div><strong>{{ ozon_api_summary.shipping_barcode|default:"—" }}</strong><span>ШК поставки</span></div>
+                <div><strong>{{ ozon_api_summary.boxes_total|default:"0" }}</strong><span>коробов Ozon</span></div>
+              </div>
+              {% if ozon_api_summary.destination_missing %}
+                <div class="hint" style="margin-top:8px;">Конечный склад: Ozon не вернул значение. Транзитный адрес: {{ ozon_api_summary.transit_address|default:"—" }}.</div>
+              {% endif %}
+              <div style="margin-top:12px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,0.72);border:1px solid rgba(14,107,91,0.18);">
+                <details><summary>Показать все коды коробов Ozon</summary>
+                <div style="word-break:break-word;max-height:160px;overflow:auto;">{{ ozon_api_summary.gm_barcodes_label|default:"—" }}</div></details>
+              </div>
+              {% if ozon_api_summary.item_rows %}
+                <div class="stock-table-wrap" style="margin-top:12px;">
+                  <table class="stock-table">
+                    <thead>
+                      <tr>
+                        <th>Артикул</th>
+                        <th>ШК товара</th>
+                        <th>К отгрузке, шт</th>
+                        <th>Коробов</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in ozon_api_summary.item_rows %}
+                        <tr>
+                          <td><b>{{ row.sku_code }}</b><div class="hint">{{ row.name }}</div></td>
+                          <td>{{ row.barcode }}</td>
+                          <td>{{ row.qty_requested }}</td>
+                          <td>{{ row.boxes|default:"—" }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% endif %}
+              {% if ozon_api_summary.gm_cargoes %}
+                <div class="stock-table-wrap" style="margin-top:12px;">
+                  <table class="stock-table">
+                    <thead>
+                      <tr>
+                        <th>ШК ГМ Ozon</th>
+                        <th>Состав Ozon</th>
+                        <th>Короб Fullbox</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for cargo in ozon_api_summary.gm_cargoes %}
+                        <tr>
+                          <td><b>{{ cargo.gm_barcode }}</b></td>
+                          <td>
+                            {% for item in cargo.items %}
+                              <div>{{ item.offer_id|default:item.barcode }} — {{ item.quantity }} шт.</div>
+                            {% empty %}
+                              <span class="hint">Ozon не вернул состав грузового места.</span>
+                            {% endfor %}
+                          </td>
+                          <td>
+                            {% if cargo.fullbox_box_code %}
+                              <b>{{ cargo.fullbox_box_code }}</b>
+                              <div class="hint">{{ cargo.assignment_label }}</div>
+                            {% else %}
+                              <span class="hint">{{ cargo.assignment_label }}</span>
+                            {% endif %}
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% endif %}
+            </div>
+          {% endif %}
+        </section>
+
+        <div class="extras-row" id="comment-section">
+          <section class="extras-card">
+            <h3><span class="num">2</span> Комментарий</h3>
+            <div class="field comment-box">
+              <textarea
+                name="comment"
+                id="id_comment"
+                rows="2"
+                placeholder="Короткий комментарий для менеджера или склада"
+              >{% if form.comment.value %}{{ form.comment.value }}{% endif %}</textarea>
+            </div>
+          </section>
+          <section class="extras-card" id="files-section">
+            <h3><span class="num">3</span> Файлы</h3>
+            <div class="dropzone" id="shipping-documents-dropzone">
+              <div class="dropzone-title">Прикрепить файл</div>
+              <label class="dropzone-label" for="shipping-documents">Выбрать</label>
+              <input
+                id="shipping-documents"
+                name="documents"
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls"
+              >
+              <span class="hint">PDF, Excel, JPG, PNG</span>
+            </div>
+            <div class="attachment-list" id="shipping-documents-selected">
+              <div class="attachment-selected-empty">Файлы не выбраны</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;">
+              <button class="btn primary" type="button" id="shipping-documents-upload">Загрузить файлы</button>
+              <span class="hint" id="shipping-documents-upload-status">Файлы загружаются только этой кнопкой и не участвуют в автосохранении.</span>
+            </div>
+            <div
+              class="attachment-list"
+              id="shipping-documents-existing"
+              data-order-id="{% if edit_order %}{{ edit_order.pk }}{% endif %}"
+            >
+              {% for attachment in existing_attachments %}
+                <div class="attachment-item" data-attachment-id="{{ attachment.pk }}">
+                  <a href="{% url 'shipping:attachment-download' edit_order.pk attachment.pk %}">{{ attachment.filename }}</a>
+                  <span>до {{ attachment.expires_at|date:"d.m.Y H:i" }}</span>
+                  <button class="btn link" type="button" data-attachment-delete="{{ attachment.pk }}">Удалить</button>
+                </div>
+              {% empty %}
+                <div class="attachment-selected-empty">Загруженных файлов нет.</div>
+              {% endfor %}
+            </div>
+          </section>
+        </div>
+
+        {% if import_discrepancies %}
+          <div class="errors" style="border-color:#f59e0b;background:#fff7ed;color:#9a3412;">
+            <div style="font-weight:800;margin-bottom:6px;">Расхождения по шаблону (что не удалось набрать из остатков):</div>
+            {% for item in import_discrepancies %}
+              <div>{{ item }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="positions-grid">
+          <section class="card">
+            <h3 class="card-title"><span class="num">4</span> Позиции — доступно к отгрузке</h3>
+            <p class="hint" style="margin-top:-6px;">Укажите количество товара в штуках вручную или загрузите Excel. Система сама подберёт целые короба и, когда точное количество нельзя набрать целыми коробами, рассчитает поштучный отбор. ШК короба выдаёт склад после сборки.</p>
+            <p class="hint" data-show-for-marketplace="ozon" data-ozon-only-control="1" style="margin-top:-6px;">Для поставки из Ozon состав загружается кнопкой «Выбрать заявки Ozon». Таблица ниже показывает доступные складские короба; товары и короба — разные величины.</p>
+            <input id="shipping-template-input" type="file" name="shipping_template" accept=".xlsx,.xls" style="display:none;" data-marketplace-independent="1">
+            <div class="controls" style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;">
+              <a class="btn" href="/shipping/template.xlsx?client={{ cid }}">Скачать шаблон</a>
+              <label class="btn primary" for="shipping-template-input" style="cursor:pointer;">Загрузить шаблон</label>
+              <button class="btn" type="submit" name="action" value="import_template" id="shipping-template-submit">Применить файл</button>
+            </div>
+            <p class="hint" id="shipping-template-file-name" style="margin-top:-6px;"></p>
+            {% if ozon_preview_groups %}
+              <div data-ozon-batch-preview="1" style="margin:12px 0 16px;padding:12px;border:1px solid #0e6b5b;border-radius:12px;background:#f0faf7;">
+                <div style="font-weight:800;margin-bottom:8px;">Превью Ozon{% if ozon_batch_id %} (пакет {{ ozon_batch_id }}){% endif %}</div>
+                <p class="hint" style="margin-top:0;">Одна заявка Ozon: укажите транзитный склад и номер поставки. После отправки менеджеру откроется эта же заявка с таблицей распределения по конечным складам (отдельные SO не создаются). ШК ГМ сохраняются для наклейки на короба.</p>
+                <div class="stock-table-wrap">
+                  <table class="stock-table">
+                    <thead>
+                      <tr>
+                        <th>Склад назначения</th>
+                        <th>Коробов</th>
+                        <th>Шт.</th>
+                        <th>Позиций</th>
+                        <th>ШК ГМ Ozon</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for g in ozon_preview_groups %}
+                        <tr>
+                          <td><b>{{ g.warehouse }}</b></td>
+                          <td>{{ g.boxes_total }}</td>
+                          <td>{{ g.qty_total }}</td>
+                          <td>{{ g.applied_lines }}</td>
+                          <td style="font-size:13px;">
+                            {% if g.gm_barcodes %}
+                              {% for code in g.gm_barcodes %}{{ code }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                            {% else %}—{% endif %}
+                          </td>
+                        </tr>
+                        {% if g.assembled_by_sku %}
+                          <tr>
+                            <td colspan="5" style="font-size:13px;color:#445;">
+                              {% for row in g.assembled_by_sku %}
+                                {{ row.sku_code }}: {{ row.boxes }} кор. / {{ row.qty }} шт{% if not forloop.last %}; {% endif %}
+                              {% endfor %}
+                            </td>
+                          </tr>
+                        {% endif %}
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            {% endif %}
+            {% include "shipping/_client_quantity_picker.html" %}
+            <div hidden aria-hidden="true" data-client-legacy-stock-picker>
+              {% include "shipping/_stock_picker_table.html" %}
+            </div>
+
+            {% if import_assembled_by_sku %}
+              <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--stroke);">
+                <h3 class="card-title" style="font-size:16px;margin-bottom:8px;">Собрано по шаблону</h3>
+                <p class="hint" style="margin-top:0;">По каждому артикулу — сколько коробов-источников и штук подобрано, включая поштучный добор.</p>
+                <div class="stock-table-wrap">
+                  <table class="stock-table">
+                    <thead>
+                      <tr>
+                        <th>Артикул</th>
+                        <th>Наименование</th>
+                        <th>Коробов</th>
+                        <th>Шт.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in import_assembled_by_sku %}
+                        <tr>
+                          <td><b>{{ row.sku_code|default:"-" }}</b></td>
+                          <td>{{ row.name|default:"-" }}</td>
+                          <td><b>{{ row.boxes }}</b></td>
+                          <td>{{ row.qty }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            {% elif import_assembled_lines %}
+              <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--stroke);">
+                <h3 class="card-title" style="font-size:16px;margin-bottom:8px;">Собрано по шаблону</h3>
+                <div class="stock-table-wrap">
+                  <table class="stock-table">
+                    <thead>
+                      <tr>
+                        <th>Артикул</th>
+                        <th>Коробов</th>
+                        <th>Шт.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for line in import_assembled_lines %}
+                        <tr>
+                          <td><b>{{ line.sku_code|default:"-" }}</b></td>
+                          <td><b>{{ line.boxes }}</b></td>
+                          <td>{{ line.applied_qty }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            {% endif %}
+          </section>
+
+          <aside class="summary-card">
+            <h4>Итого по заявке</h4>
+            <div class="summary-rows">
+              <div>Паллет<br><strong id="footer-pallet-count">—</strong></div>
+              <div>Коробов<br><strong><span id="footer-box-count">{{ initial_selection_box_count|default:0 }}</span></strong></div>
+              <div>Штук<br><strong><span id="footer-item-count">{{ initial_selection_item_count|default:0 }}</span></strong></div>
+            </div>
+            <div class="hint" id="draft-autosave-status-side" style="font-weight:700;"></div>
+            <div class="summary-actions">
+              {% if is_edit_mode %}
+                <button class="btn primary" type="submit" name="action" value="update">Сохранить изменения</button>
+                <a class="btn link" href="{% url 'shipping:detail' edit_order.pk %}">Отмена</a>
+              {% else %}
+                <button class="btn primary" type="submit" name="action" value="submit">Отправить заявку</button>
+                <button class="btn link" type="submit" name="action" value="save_draft" data-shipping-save-draft>Сохранить черновик</button>
+                <button class="btn link" type="button" id="shipping-clear-form">Очистить данные</button>
+              {% endif %}
+            </div>
+          </aside>
+        </div>
+      </form>
+      </main>
+    </div>
+  </div>
+  {% if import_assembled_lines %}
+    <div
+      class="import-preview-overlay"
+      id="shipping-import-preview"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="shipping-import-preview-title"
+    >
+      <section class="import-preview-modal">
+        <header class="import-preview-head">
+          <div>
+            <h2 class="import-preview-title" id="shipping-import-preview-title">Проверка загрузки Excel</h2>
+            <div class="hint">Сопоставьте количество из файла с количеством, загруженным в заявку.</div>
+          </div>
+          <button class="btn ghost" type="button" id="shipping-import-preview-close">Закрыть</button>
+        </header>
+        <div class="import-preview-body">
+          <p class="import-preview-notice">
+            Файл только заполнил форму. Заявка ещё не отправлена: позиции можно изменить вручную до нажатия «Отправить заявку».
+          </p>
+          <div class="import-preview-stats">
+            <div class="import-preview-stat">
+              <span>Заявлено в Excel</span>
+              <strong id="shipping-import-requested-total">0</strong>
+            </div>
+            <div class="import-preview-stat">
+              <span>Загружено в заявку</span>
+              <strong id="shipping-import-loaded-total">0</strong>
+            </div>
+            <div class="import-preview-stat">
+              <span>Подобрано коробов</span>
+              <strong id="shipping-import-boxes-total">0</strong>
+            </div>
+            <div class="import-preview-stat" id="shipping-import-difference-card">
+              <span>Расхождение</span>
+              <strong id="shipping-import-difference-total">0</strong>
+            </div>
+          </div>
+          <div class="import-preview-table-wrap">
+            <table class="import-preview-table">
+              <thead>
+                <tr>
+                  <th>Строка файла</th>
+                  <th>Товар</th>
+                  <th>Заявлено</th>
+                  <th>Загружено</th>
+                  <th>Коробов</th>
+                  <th>Разница</th>
+                </tr>
+              </thead>
+              <tbody id="shipping-import-preview-rows">
+                {% for line in import_assembled_lines %}
+                  <tr
+                    data-import-preview-row
+                    data-row-no="{{ line.row_no }}"
+                    data-sku="{{ line.sku_code|default:'' }}"
+                    data-name="{{ line.name|default:'' }}"
+                    data-barcode="{{ line.barcode|default:'' }}"
+                    data-requested="{{ line.requested_qty }}"
+                    data-loaded="{{ line.applied_qty }}"
+                    data-boxes="{{ line.boxes }}"
+                  >
+                    <td data-import-cell="row">{{ line.row_no }}</td>
+                    <td data-import-cell="identity">
+                      <b>{{ line.sku_code|default:"-" }}</b>
+                      <div>{{ line.name|default:"-" }}</div>
+                      <div class="hint">ШК {{ line.barcode|default:"-" }}</div>
+                    </td>
+                    <td data-import-cell="requested">{{ line.requested_qty }}</td>
+                    <td data-import-cell="loaded">{{ line.applied_qty }}</td>
+                    <td data-import-cell="boxes">{{ line.boxes }}</td>
+                    <td data-import-cell="difference">—</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <footer class="import-preview-actions">
+          <button class="btn ghost" type="button" id="shipping-import-preview-edit">Редактировать позиции</button>
+          <button class="btn primary" type="button" id="shipping-import-preview-confirm">Всё верно, продолжить</button>
+        </footer>
+      </section>
+    </div>
+  {% endif %}
+  {% endwith %}
+
+  {{ marketplace_warehouse_catalog|json_script:"marketplace-warehouse-catalog" }}
+  {% include "shipping/_shipping_form_runtime.html" %}
+  <script>
+    (function () {
+      const form = document.getElementById('shipping-create-form');
+      const deliveryType = form ? form.querySelector('[name="delivery_type"]') : null;
+      const originalTypeNode = document.getElementById('shipping-original-delivery-type');
+      const draftGuard = document.getElementById('shipping-draft-type-change-guard');
+      if (!form || !deliveryType || !originalTypeNode || !draftGuard || draftGuard.value !== '1') return;
+
+      let savedType = String(originalTypeNode.value || '');
+      let restoring = false;
+      let resetInProgress = false;
+      const statusNode = () => (
+        document.getElementById('draft-autosave-status-side')
+        || document.getElementById('draft-autosave-status')
+      );
+      const restoreSavedType = () => {
+        restoring = true;
+        deliveryType.value = savedType;
+        deliveryType.dispatchEvent(new Event('change', { bubbles: true }));
+        restoring = false;
+      };
+
+      deliveryType.addEventListener('change', async (event) => {
+        if (restoring || resetInProgress) return;
+        const nextType = String(deliveryType.value || '');
+        if (!savedType || nextType === savedType) return;
+
+        event.stopImmediatePropagation();
+        const approved = window.confirm(
+          'Вы уверены, что хотите изменить тип отгрузки? '
+          + 'Все заполненные параметры и состав черновика будут удалены. '
+          + 'Загруженные файлы останутся.'
+        );
+        if (!approved) {
+          restoreSavedType();
+          return;
+        }
+
+        resetInProgress = true;
+        deliveryType.disabled = true;
+        const status = statusNode();
+        if (status) status.textContent = 'Очищаем черновик и меняем тип отгрузки…';
+        const payload = new FormData();
+        [
+          'csrfmiddlewaretoken',
+          'agency',
+          'client',
+          'edit_order_id',
+          'edit',
+        ].forEach((name) => {
+          const control = form.querySelector(`[name="${name}"]`);
+          if (control) payload.set(name, control.value || '');
+        });
+        payload.set('delivery_type', nextType);
+        payload.set('action', 'save_draft');
+        payload.set('draft_autosave', '1');
+        payload.set('reset_draft_on_type_change', '1');
+
+        try {
+          const response = await fetch(window.location.href, {
+            method: 'POST',
+            body: payload,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          });
+          const result = await response.json();
+          if (!response.ok || !result.ok) {
+            throw new Error(result.error || 'Не удалось изменить тип отгрузки.');
+          }
+          savedType = nextType;
+          window.location.reload();
+        } catch (error) {
+          resetInProgress = false;
+          deliveryType.disabled = false;
+          restoreSavedType();
+          if (status) status.textContent = error.message || 'Не удалось изменить тип отгрузки.';
+          window.alert(error.message || 'Не удалось изменить тип отгрузки.');
+        }
+      }, true);
+    })();
+
+    (function () {
+      const form = document.getElementById('shipping-create-form');
+      const clearBtn = document.getElementById('shipping-clear-form');
+      const marketplace = form ? form.querySelector('[name="marketplace"]') : null;
+      const ozonOnlyNodes = Array.from(document.querySelectorAll('[data-ozon-only-control]'));
+      const ozonCompositionPanel = document.getElementById('ozon-composition-panel');
+      const ozonSupplyInput = form ? form.querySelector('[name="supply_number"]') : null;
+      const clearOzonApiPayload = () => {
+        if (!form) return;
+        ['ozon_supply_payload_json', 'ozon_gm_comment', 'ozon_gm_barcodes', 'ozon_boxes_total'].forEach((name) => {
+          const el = form.querySelector(`[name="${name}"]`);
+          if (el) el.value = '';
+        });
+      };
+      const normalizeMarketplace = () => {
+        if (!marketplace) return '';
+        const option = marketplace.options ? marketplace.options[marketplace.selectedIndex] : null;
+        const text = [
+          marketplace.value,
+          option ? option.textContent : '',
+        ].join(' ').toLowerCase();
+        if (text.includes('ozon') || text.includes('озон')) return 'ozon';
+        if (text.includes('wb') || text.includes('wildberries')) return 'wb';
+        return '';
+      };
+      const setNestedDisabled = (node, disabled) => {
+        if (!node) return;
+        const controls = node.matches && node.matches('input, select, textarea, button')
+          ? [node]
+          : Array.from(node.querySelectorAll('input, select, textarea, button'));
+        controls.forEach((control) => {
+          if (control.type === 'hidden') return;
+          control.disabled = disabled;
+          if (disabled) control.required = false;
+        });
+      };
+      const syncOzonOnlyControls = () => {
+        const isOzon = normalizeMarketplace() === 'ozon';
+        ozonOnlyNodes.forEach((node) => {
+          if (node === ozonCompositionPanel && node.hidden) return;
+          node.style.display = isOzon ? '' : 'none';
+          setNestedDisabled(node, !isOzon);
+        });
+        if (!isOzon && ozonSupplyInput) {
+          ozonSupplyInput.value = '';
+          clearOzonApiPayload();
+        }
+      };
+      if (marketplace) {
+        marketplace.addEventListener('change', syncOzonOnlyControls);
+        marketplace.addEventListener('input', syncOzonOnlyControls);
+      }
+      if (clearBtn && form) {
+        clearBtn.addEventListener('click', () => {
+          if (!confirm('Очистить данные формы? Черновик в журнале не удалится.')) return;
+          form.reset();
+          const status = document.getElementById('draft-autosave-status-side') || document.getElementById('draft-autosave-status');
+          if (status) status.textContent = 'Данные очищены. Внесите новые данные и сохраните черновик.';
+          syncOzonOnlyControls();
+        });
+      }
+      syncOzonOnlyControls();
+      window.setTimeout(syncOzonOnlyControls, 0);
+    })();
+
+    (function () {
+      const templateInput = document.getElementById('shipping-template-input');
+      const templateName = document.getElementById('shipping-template-file-name');
+      const templateSubmit = document.getElementById('shipping-template-submit');
+      const formEl = document.getElementById('shipping-create-form');
+      const transferTemplateTriggers = Array.from(document.querySelectorAll('[data-transfer-template-trigger="1"]'));
+      transferTemplateTriggers.forEach((trigger) => {
+        trigger.addEventListener('click', function () {
+          if (templateInput && !templateInput.disabled) {
+            templateInput.click();
+          }
+        });
+      });
+      const bindAutoSubmit = (input, nameEl, submitBtn) => {
+        if (!input) return;
+        input.addEventListener('change', function () {
+          const file = input.files && input.files[0];
+          if (nameEl) {
+            nameEl.textContent = file ? ('Файл: ' + file.name) : '';
+          }
+          if (file && formEl && submitBtn) {
+            if (typeof formEl.requestSubmit === 'function') {
+              formEl.requestSubmit(submitBtn);
+            } else {
+              submitBtn.click();
+            }
+          }
+        });
+      };
+      bindAutoSubmit(templateInput, templateName, templateSubmit);
+    })();
+    (function () {
+      const overlay = document.getElementById('shipping-import-preview');
+      if (!overlay) return;
+
+      const rows = Array.from(overlay.querySelectorAll('[data-import-preview-row]'));
+      const grouped = new Map();
+      rows.forEach((row) => {
+        const rowNo = String(row.dataset.rowNo || '');
+        const current = grouped.get(rowNo) || {
+          first: row,
+          extra: [],
+          requested: Number(row.dataset.requested || 0),
+          loaded: 0,
+          boxes: 0,
+          identities: [],
+        };
+        if (current.first !== row) current.extra.push(row);
+        current.loaded += Number(row.dataset.loaded || 0);
+        current.boxes += Number(row.dataset.boxes || 0);
+        const identity = [
+          String(row.dataset.sku || '').trim(),
+          String(row.dataset.name || '').trim(),
+          String(row.dataset.barcode || '').trim() ? ('ШК ' + String(row.dataset.barcode || '').trim()) : '',
+        ].filter(Boolean).join(' · ');
+        if (identity && !current.identities.includes(identity)) current.identities.push(identity);
+        grouped.set(rowNo, current);
+      });
+
+      let requestedTotal = 0;
+      let loadedTotal = 0;
+      let boxesTotal = 0;
+      grouped.forEach((group) => {
+        requestedTotal += group.requested;
+        loadedTotal += group.loaded;
+        boxesTotal += group.boxes;
+        const difference = group.loaded - group.requested;
+        const identityCell = group.first.querySelector('[data-import-cell="identity"]');
+        const requestedCell = group.first.querySelector('[data-import-cell="requested"]');
+        const loadedCell = group.first.querySelector('[data-import-cell="loaded"]');
+        const boxesCell = group.first.querySelector('[data-import-cell="boxes"]');
+        const differenceCell = group.first.querySelector('[data-import-cell="difference"]');
+        if (identityCell) identityCell.textContent = group.identities.join(' / ') || '—';
+        if (requestedCell) requestedCell.textContent = String(group.requested);
+        if (loadedCell) loadedCell.textContent = String(group.loaded);
+        if (boxesCell) boxesCell.textContent = String(group.boxes);
+        if (differenceCell) {
+          differenceCell.textContent = difference > 0 ? ('+' + difference) : String(difference);
+          differenceCell.classList.add('import-preview-diff', difference === 0 ? 'is-ok' : 'is-warning');
+        }
+        group.extra.forEach((row) => row.remove());
+      });
+
+      const differenceTotal = loadedTotal - requestedTotal;
+      const setText = (id, value) => {
+        const node = document.getElementById(id);
+        if (node) node.textContent = String(value);
+      };
+      setText('shipping-import-requested-total', requestedTotal);
+      setText('shipping-import-loaded-total', loadedTotal);
+      setText('shipping-import-boxes-total', boxesTotal);
+      setText(
+        'shipping-import-difference-total',
+        differenceTotal > 0 ? ('+' + differenceTotal) : differenceTotal
+      );
+      const differenceCard = document.getElementById('shipping-import-difference-card');
+      if (differenceCard) {
+        differenceCard.classList.add(differenceTotal === 0 ? 'is-ok' : 'is-warning');
+      }
+
+      const closePreview = () => {
+        overlay.classList.remove('is-open');
+      };
+      const editPreview = () => {
+        closePreview();
+        const stockWrap = document.getElementById('shipping-stock-picker-wrap');
+        if (stockWrap) stockWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const selectedInput = document.querySelector('.ship-row-selected .ship-boxes-input');
+        if (selectedInput) {
+          const selectedRow = selectedInput.closest('tr');
+          if (selectedRow) selectedRow.classList.add('ship-row-edit-focus');
+          window.setTimeout(() => selectedInput.focus(), 350);
+        }
+      };
+      document.getElementById('shipping-import-preview-close')?.addEventListener('click', closePreview);
+      document.getElementById('shipping-import-preview-confirm')?.addEventListener('click', closePreview);
+      document.getElementById('shipping-import-preview-edit')?.addEventListener('click', editPreview);
+      overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) closePreview();
+      });
+      overlay.classList.add('is-open');
+    })();
+    (function () {
+      const dropzone = document.getElementById('shipping-documents-dropzone');
+      const input = document.getElementById('shipping-documents');
+      if (!dropzone || !input) {
+        return;
+      }
+      const setDrag = (on) => dropzone.classList.toggle('is-dragover', on);
+      ['dragenter', 'dragover'].forEach((eventName) => {
+        dropzone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setDrag(true);
+        });
+      });
+      ['dragleave', 'drop'].forEach((eventName) => {
+        dropzone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setDrag(false);
+        });
+      });
+      dropzone.addEventListener('drop', (event) => {
+        const files = event.dataTransfer && event.dataTransfer.files;
+        if (!files || !files.length) {
+          return;
+        }
+        const transfer = new DataTransfer();
+        Array.from(input.files || []).forEach((file) => transfer.items.add(file));
+        Array.from(files).forEach((file) => transfer.items.add(file));
+        input.files = transfer.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    })();
+  </script>
+  {% include "shipping/_ozon_form_recovery.html" %}
+</body>
+</html>

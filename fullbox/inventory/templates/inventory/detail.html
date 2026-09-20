@@ -1,0 +1,118 @@
+{% extends "head_manager/fbs_base.html" %}
+
+{% block title %}Инвентаризация №{{ inventory.id }}{% endblock %}
+
+{% block head_extra %}
+  <style>
+    .detail-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .detail-cell { padding: 12px; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--surface-soft); }
+    .detail-cell span { display: block; color: var(--muted); font-size: 11px; font-weight: 900; text-transform: uppercase; }
+    .detail-cell strong { display: block; margin-top: 5px; overflow-wrap: anywhere; }
+    .delta-positive { color: var(--success); font-weight: 900; }
+    .delta-negative { color: var(--danger); font-weight: 900; }
+    .scope-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 14px 16px; }
+    @media (max-width: 900px) { .detail-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 560px) { .detail-grid { grid-template-columns: 1fr; } }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="topbar">
+    <div>
+      <h1>Инвентаризация №{{ inventory.id }}</h1>
+      <p class="subtitle">{{ inventory.get_inventory_type_display }} · создана {{ inventory.created_at|date:"d.m.Y H:i" }}</p>
+    </div>
+    <div class="topbar-actions">
+      {% if inventory.lines.exists %}<a class="btn" href="{% url 'inventory:export' inventory.id %}">Экспорт в Excel</a>{% endif %}
+      <a class="btn" href="{% url 'inventory:list' %}">К журналу</a>
+    </div>
+  </div>
+
+  <section class="panel" style="padding:16px;display:grid;gap:14px;">
+    <div class="detail-grid">
+      <div class="detail-cell"><span>Статус</span><strong>{{ inventory.get_status_display }}</strong></div>
+      <div class="detail-cell"><span>Создал</span><strong>{{ inventory.created_by.get_full_name|default:inventory.created_by.username|default:"—" }}</strong></div>
+      <div class="detail-cell"><span>Провел</span><strong>{{ inventory.performed_by_name|default:"—" }}</strong></div>
+      <div class="detail-cell"><span>Мест</span><strong>{{ inventory.scope_locations.count }}</strong></div>
+      {% if inventory.agency_id %}<div class="detail-cell"><span>Партнер</span><strong>{{ inventory.agency.agn_name }}</strong></div>{% endif %}
+      {% if inventory.sku_id %}<div class="detail-cell"><span>Товар</span><strong>{{ inventory.sku.sku_code }} · {{ inventory.sku.name }}</strong></div>{% endif %}
+      <div class="detail-cell"><span>Начало</span><strong>{{ inventory.started_at|date:"d.m.Y H:i"|default:"—" }}</strong></div>
+      <div class="detail-cell"><span>Окончание</span><strong>{{ inventory.completed_at|date:"d.m.Y H:i"|default:"—" }}</strong></div>
+    </div>
+    {% if inventory.comment %}<div class="notice">{{ inventory.comment }}</div>{% endif %}
+    <div class="action-row">
+      {% if can_transfer %}
+        <form method="post" action="{% url 'inventory:action' inventory.id %}">
+          {% csrf_token %}<input type="hidden" name="action" value="transfer">
+          <button class="btn primary" type="submit">Передать в работу</button>
+        </form>
+      {% endif %}
+      {% if can_cancel %}
+        <form method="post" action="{% url 'inventory:action' inventory.id %}" onsubmit="return confirm('Отменить инвентаризацию?');">
+          {% csrf_token %}<input type="hidden" name="action" value="cancel">
+          <button class="btn" type="submit">Отменить</button>
+        </form>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div><h2>Места и задания ричтракеров</h2><p class="muted">На каждое место создается отдельное специальное задание.</p></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Место</th><th>Коробов по базе</th><th>Насчитано</th><th>Разница</th><th>Статус задания</th><th>Исполнитель</th><th>Контроль расхождения</th><th>Начало</th><th>Окончание</th></tr></thead>
+        <tbody>
+          {% for scope in inventory.scope_locations.all %}
+            <tr>
+              <td><strong>{{ scope.display_code }}</strong></td>
+              {% with task=scope.execution_task %}
+                <td>{% if task %}{{ task.planned_box_count }}{% else %}—{% endif %}</td>
+                <td>{% if task and task.actual_box_count is not None %}{{ task.actual_box_count }}{% else %}—{% endif %}</td>
+                <td>{% if task and task.box_difference is not None %}{% if task.box_difference > 0 %}+{% endif %}{{ task.box_difference }}{% else %}—{% endif %}</td>
+                <td>{% if task %}<span class="pill {% if task.status == 'completed' %}success{% elif task.status == 'in_progress' %}warning{% elif task.status == 'canceled' %}danger{% else %}info{% endif %}">{{ task.get_status_display }}</span>{% else %}—{% endif %}</td>
+                <td>{% if task %}{{ task.assigned_to_name|default:"—" }}{% else %}—{% endif %}</td>
+                <td>
+                  {% if task.discrepancy_reported_at %}
+                    <strong>Отчет получен</strong><br>
+                    <span class="muted">По базе: {{ task.planned_box_count }} · Факт: {{ task.actual_box_count }}<br>Паллеты: {{ task.discrepancy_pallet_codes|join:", "|default:"не обнаружены" }}<br>Короба: {{ task.discrepancy_box_codes|join:", "|default:"не обнаружены" }}<br>{{ task.discrepancy_reported_by_name }} · {{ task.discrepancy_reported_at|date:"d.m.Y H:i" }}</span>
+                  {% elif task.counted_at and task.status == 'in_progress' %}
+                    <span class="pill warning">Не совпало — ожидается отправка</span>
+                  {% else %}—{% endif %}
+                </td>
+                <td>{% if task %}{{ task.started_at|date:"d.m.Y H:i"|default:"—" }}{% else %}—{% endif %}</td>
+                <td>{% if task %}{{ task.completed_at|date:"d.m.Y H:i"|default:"—" }}{% else %}—{% endif %}</td>
+              {% endwith %}
+            </tr>
+          {% empty %}
+            <tr><td colspan="9" class="empty">Область пересчета пока не определена.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if inventory_lines %}
+    <section class="panel">
+      <div class="panel-head">
+        <div><h2>Товары по базе на начало задания</h2><p class="muted">Расхождений по количеству коробов: {{ discrepancy_count }}</p></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Место</th><th>Партнер</th><th>Товар</th><th>По базе, шт.</th></tr></thead>
+          <tbody>
+            {% for line in inventory_lines %}
+              <tr>
+                <td>{{ line.location_display }}</td>
+                <td>{{ line.agency.agn_name }}</td>
+                <td class="wide"><strong>{{ line.sku_code }}</strong>{% if line.size %} · {{ line.size }}{% endif %}<br><span class="muted">{{ line.name }}{% if line.barcode %} · {{ line.barcode }}{% endif %}</span></td>
+                <td>{{ line.planned_qty }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

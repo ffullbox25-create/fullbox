@@ -1,0 +1,54 @@
+{% extends "hr/base.html" %}
+
+{% block title %}Начисления и удержания{% endblock %}
+
+{% block content %}
+  <header class="page-head">
+    <div>
+      <div class="breadcrumbs"><a href="{% url 'hr:monthly-payroll-report' %}?month={{ month_value }}">Месячный отчёт</a><span>›</span><span>Начисления и удержания</span></div>
+      <h1>Начисления и удержания</h1>
+      <div class="muted">В отчёт попадают только подтверждённые строки.</div>
+    </div>
+  </header>
+
+  {% if can_manage_payroll_adjustments %}
+    <section class="panel">
+      <h2>Новая строка расчёта</h2>
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-grid">
+          {% include "hr/_form_fields.html" with form=form %}
+          <div class="form-actions"><button class="btn primary" type="submit">Сохранить</button></div>
+        </div>
+      </form>
+    </section>
+  {% endif %}
+
+  <section class="panel">
+    <form class="filter-bar" method="get">
+      <div class="field"><label for="adjustment-month">Месяц</label><input id="adjustment-month" type="month" name="month" value="{{ month_value }}"></div>
+      <button class="btn" type="submit">Показать</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="compact-table-wrap">
+      <table>
+        <thead><tr><th>Сотрудник</th><th>Вид</th><th class="money">Сумма</th><th>Основание</th><th>Статус</th><th></th></tr></thead>
+        <tbody>
+          {% for item in adjustments %}
+            <tr>
+              <td>{{ item.employee.full_name }}</td><td>{{ item.get_kind_display }}</td><td class="money">{{ item.amount|floatformat:2 }}</td><td>{{ item.description }}</td>
+              <td><span class="status {% if item.status == 'approved' %}ok{% else %}off{% endif %}">{{ item.get_status_display }}</span></td>
+              <td>
+                {% if can_manage_payroll_adjustments and item.status != 'approved' %}
+                  <form method="post" action="{% url 'hr:payroll-adjustment-approve' item.pk %}">{% csrf_token %}<button class="btn" type="submit">Подтвердить</button></form>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}<tr><td colspan="6" class="empty-state">За выбранный месяц строк пока нет.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

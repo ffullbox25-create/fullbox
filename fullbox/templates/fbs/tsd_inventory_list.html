@@ -1,0 +1,119 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Инвентаризация FBS{% endblock %}
+
+{% block workspace_body %}
+  {% if can_self_start %}
+    <section class="detail-surface">
+      <h2>Начать инвентаризацию ЧЗ</h2>
+      <p class="text-muted">Заранее созданное задание не требуется. Выберите, что пересчитываете: один короб или всю ячейку. После пересчёта результат уйдёт руководителю на проверку.</p>
+      <form class="scan-form" method="post" autocomplete="off" data-submit-once data-self-kiz-inventory>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="self_start">
+        <label for="self-inventory-target-type">Что пересчитываем</label>
+        <select id="self-inventory-target-type" name="target_type" required>
+          <option value="box" selected>Отдельный короб</option>
+          <option value="cell">Вся ячейка</option>
+        </select>
+        <label for="self-inventory-target-scan" data-target-scan-label>Короб FBS</label>
+        <input id="self-inventory-target-scan" name="target_scan" required autofocus inputmode="none" placeholder="Отсканируйте QR короба">
+        <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Начать пересчёт Data Matrix</button>
+      </form>
+      <p class="text-muted">Для короба блокируется только этот короб. Для ячейки временно блокируются все короба в ней. Если выбранная область участвует в активной операции или уже проверяется, система не начнёт пересчёт и покажет причину.</p>
+      <p class="text-muted">В режиме «Вся ячейка» пересчитываются КИЗы, уже закреплённые за коробами. Если КИЗ ещё не зарегистрирован в системе, используйте режим «Отдельный короб».</p>
+    </section>
+  {% endif %}
+  {% if batch_created %}
+    <section class="detail-surface">
+      <p><strong>Создано заданий по клиенту: {{ batch_created }}.</strong> Назначьте исполнителей в списке ниже.</p>
+      <p class="text-muted">Пропущено: уже проверяется {{ batch_busy }}, без подходящего товара {{ batch_empty }}.</p>
+    </section>
+  {% endif %}
+  {% if can_manage %}
+    <details class="detail-surface"><summary>Задание на инвентаризацию клиента</summary>
+      <p class="text-muted">Проверка идёт по паллетам клиента: блокируется только та паллета, которую считают, остальной товар клиента продолжает отгружаться. Паллеты берутся по маршруту обхода — от ячейки к ячейке.</p>
+      <form class="scan-form" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="agency_batch">
+        <label for="batch-agency">Клиент</label>
+        <select id="batch-agency" name="agency" required>
+          <option value="">Выберите клиента</option>
+          {% for agency in agencies %}<option value="{{ agency.id }}">{{ agency }}</option>{% endfor %}
+        </select>
+        <label for="batch-scan-mode">Способ пересчета</label>
+        <select id="batch-scan-mode" name="scan_mode" required>
+          {% for value, label in scan_mode_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+        </select>
+        <label for="batch-limit">Сколько паллет взять в работу</label>
+        <input id="batch-limit" name="pallet_limit" type="number" min="1" max="{{ agency_batch_max }}" value="10" required>
+        <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Создать задания по клиенту</button>
+      </form>
+    </details>
+  {% endif %}
+  {% if can_manage %}
+    <details class="detail-surface"><summary>Создать проверку</summary>
+      <p class="text-muted">Выберите место и создайте проверку. Исполнителя назначьте в карточке проверки.</p>
+      <form class="scan-form" method="post">
+        {% csrf_token %}
+        <label for="inventory-target">Область</label>
+        <select id="inventory-target" name="target" required>
+          <option value="">Выберите короб или место</option>
+          {% if can_approve %}<option value="all:0">Весь FBS · сводная проверка без назначения на ТСД</option>
+          <optgroup label="Клиенты · сводная проверка без назначения на ТСД">{% for agency in agencies %}<option value="agency:{{ agency.id }}">{{ agency }}</option>{% endfor %}</optgroup>{% endif %}
+          <optgroup label="Ячейки">{% for cell in cells %}<option value="cell:{{ cell.id }}">{{ cell.cell_code }} · {{ cell.warehouse_location_label }}</option>{% endfor %}</optgroup>
+          <optgroup label="Паллеты">{% for pallet in pallets %}<option value="pallet:{{ pallet.id }}">{{ pallet.pallet_code }} · {{ pallet.agency }}</option>{% endfor %}</optgroup>
+          <optgroup label="Короба">{% for box in boxes %}<option value="box:{{ box.id }}">{{ box.box_code }} · {{ box.agency }}</option>{% endfor %}</optgroup>
+          {% if can_approve %}<optgroup label="SKU клиента · без назначения на ТСД">{% for sku in skus %}<option value="sku:{{ sku.id }}">{{ sku.agency }} · {{ sku.sku_code }}</option>{% endfor %}</optgroup>{% endif %}
+        </select>
+        <label for="inventory-mode">Режим</label>
+        <select id="inventory-mode" name="mode" required>
+          <option value="drain" selected>После завершения активных операций</option>
+          {% if can_approve %}{% for value, label in mode_choices %}{% if value != 'drain' %}<option value="{{ value }}">{{ label }}</option>{% endif %}{% endfor %}{% endif %}
+        </select>
+        <label for="inventory-scan-mode">Способ пересчета</label>
+        <select id="inventory-scan-mode" name="scan_mode" required>
+          {% for value, label in scan_mode_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+        </select>
+        <p class="text-muted">Для покодовой инвентаризации Честного знака выберите конкретный короб и способ «С КИЗами».</p>
+        <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Создать инвентаризацию</button>
+      </form>
+    </details>
+  {% endif %}
+  <section class="section-band">
+    {% if can_manage %}<nav><a href="?state=open">В работе</a> · <a href="?state=unassigned">Без исполнителя</a> · <a href="?state=recount">Повторно</a> · <a href="?state=approval">На утверждении</a> · <a href="?state=closed">Завершённые</a></nav>{% endif %}
+    <div class="section-heading"><h2>{% if can_self_start %}Мои инвентаризации{% else %}Инвентаризации{% endif %}</h2><span class="count">{{ sessions|length }}</span></div>
+    <div class="task-list">
+      {% for session in sessions %}
+        <a class="task-card" href="{% url 'fbs:tsd_inventory_detail' session_id=session.id %}">
+          <span class="task-main"><strong>#{{ session.id }} · {{ session.workflow_target_label }}</strong>
+            <span>{{ session.workflow_place_label }} · {{ session.workflow_agency_label }}</span>
+            <span>{{ session.workflow_assignee_label }}</span>
+            <span>Заказов: {{ session.order_count }} · {{ session.get_scan_mode_display }}{% if session.nearest_cutoff %} · Срок {{ session.nearest_cutoff|date:"d.m H:i" }}{% endif %}</span>
+          </span>
+          <span class="task-side"><strong>{{ session.get_status_display }}</strong><span>{{ session.created_at|date:"d.m H:i" }}</span></span>
+        </a>
+      {% empty %}<div class="empty-state">Инвентаризаций нет</div>{% endfor %}
+    </div>
+  </section>
+  {% if can_self_start %}
+    <script>
+      (() => {
+        const form = document.querySelector("[data-self-kiz-inventory]");
+        const targetType = document.getElementById("self-inventory-target-type");
+        const targetScan = document.getElementById("self-inventory-target-scan");
+        const targetLabel = form?.querySelector("[data-target-scan-label]");
+        if (!form || !targetType || !targetScan || !targetLabel) return;
+        const refreshTarget = () => {
+          const isCell = targetType.value === "cell";
+          targetLabel.textContent = isCell ? "Ячейка FBS" : "Короб FBS";
+          targetScan.placeholder = isCell
+            ? "Отсканируйте QR ячейки"
+            : "Отсканируйте QR короба";
+          targetScan.value = "";
+          targetScan.focus();
+        };
+        targetType.addEventListener("change", refreshTarget);
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

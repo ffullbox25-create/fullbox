@@ -1,0 +1,188 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Сборка заказов FBS{% endblock %}
+{% block page_title %}{% if request_role == 'picker' %}Сборка заказов{% else %}{{ page_title }}{% endif %}{% endblock %}
+
+{% block content %}
+  {% if request_role == 'picker' %}
+    <div class="picker-focus-shell">
+      {% if restock_requests %}
+        <details class="picker-return-drawer">
+          <summary>
+            <span><strong>Возврат отбора</strong><small>Ошибочно собранный товар</small></span>
+            <span class="count">{{ restock_request_count }}</span>
+          </summary>
+          <div class="picker-return-list">
+            {% for restock in restock_requests %}
+              <a href="{% url 'fbs:tsd_pick_restock' request_id=restock.id %}">
+                <span><strong>Задание #{{ restock.id }}</strong><small>Забрать: {{ restock.batch.workstation.name|default:"стол не назначен" }}</small><small>Волна #{{ restock.batch_id }} · {{ restock.planned_qty }} шт.</small></span>
+                <strong>{{ restock.returned_qty }} / {{ restock.planned_qty }}</strong>
+              </a>
+            {% endfor %}
+          </div>
+        </details>
+      {% endif %}
+
+      {% if not picker_cart %}
+        <section class="picker-focus-card" aria-labelledby="picker-start-title">
+          <div class="picker-focus-number">1</div>
+          <div class="picker-focus-copy">
+            <span>Начало сборки</span>
+            <h2 id="picker-start-title">Отсканируйте свободную тару</h2>
+            <p>После скана система сразу выдаст следующую свободную волну.</p>
+          </div>
+          <form class="scan-form picker-focus-form" method="post" action="{% url 'fbs:tsd_bind_pick_equipment' %}" autocomplete="off" novalidate data-submit-once data-scan-feedback data-scan-focus-lock>
+            {% csrf_token %}
+            <label for="picker-cart">QR тары</label>
+            <input id="picker-cart" type="text" name="cart_scan" autofocus required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" enterkeyhint="done" data-scanner-only data-scan-autosubmit="250" data-scan-focus-lock>
+            <div class="scan-inline-error" role="alert" aria-live="assertive" data-scan-error {% if not error %}hidden{% endif %}>{{ error }}</div>
+            <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Начать сборку</button>
+          </form>
+        </section>
+
+        <div class="picker-availability" aria-label="Состояние очереди">
+          <span>Свободных волн</span>
+          <strong>{{ free_batch_count }}</strong>
+        </div>
+      {% else %}
+        <section class="picker-session-bar" aria-label="Текущая сессия сборщика">
+          <div><span>Тара</span><strong>{{ picker_cart.name }}</strong><small>{{ picker_cart.barcode }}</small></div>
+          <div><span>В работе</span><strong>{{ active_wave_count }} волн.</strong><small>{% if picker_cart_busy %}Товар находится в таре{% else %}Тара свободна{% endif %}</small></div>
+        </section>
+
+        {% if my_active_batches %}
+          <section class="picker-active-list" aria-labelledby="picker-active-title">
+            <div class="picker-list-heading"><span>Текущая работа</span><h2 id="picker-active-title">Продолжите волну</h2></div>
+            {% for batch in my_active_batches %}
+              <article class="picker-active-row">
+                <div class="picker-active-progress">
+                  <span>Волна #{{ batch.id }}</span>
+                  <strong>{{ batch.picked_qty }} / {{ batch.planned_qty }} <small>шт.</small></strong>
+                  <small>{{ batch.order_count }} заказов · {{ batch.get_status_display }}</small>
+                </div>
+                {% if batch.status == 'verification' %}
+                  {% if batch.picking_completed_at %}
+                    <div class="picker-ready-state picker-ready-state-compact"><strong>Передана контролеру</strong><span>Возьмите новую свободную тару</span></div>
+                  {% else %}
+                    <a class="button button-primary" href="{% url 'fbs:tsd_pick_handover' batch_id=batch.id %}">Сдать тару на стол</a>
+                  {% endif %}
+                {% elif batch.next_allocation_id %}
+                  <a class="button button-primary" href="{% url 'fbs:tsd_pick_allocation' allocation_id=batch.next_allocation_id %}">Продолжить сборку</a>
+                {% else %}
+                  <div class="picker-ready-state picker-ready-state-compact"><strong>Задание готовится</strong><span>Обновите экран через несколько секунд</span></div>
+                {% endif %}
+              </article>
+            {% endfor %}
+          </section>
+        {% else %}
+          <section class="picker-focus-card picker-focus-card-waiting">
+            <div class="picker-focus-number">2</div>
+            <div class="picker-focus-copy">
+              <span>Следующий шаг</span>
+              <h2>{% if free_batch_count %}Возьмите свободную волну{% else %}Свободных волн пока нет{% endif %}</h2>
+              <p>{% if free_batch_count %}Тара уже отсканирована. Запустите следующую сборку.{% else %}Тара сохранена. Экран можно обновить позже.{% endif %}</p>
+            </div>
+            {% if can_claim_next %}
+              <form class="picker-focus-action" method="post" action="{% url 'fbs:tsd_claim_next_pick_batch' %}" data-submit-once>
+                {% csrf_token %}
+                <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Взять волну</button>
+              </form>
+            {% endif %}
+          </section>
+        {% endif %}
+
+        <form class="picker-change-tare" method="post" action="{% url 'fbs:tsd_clear_pick_equipment' %}" data-submit-once>
+          {% csrf_token %}
+          <button class="button button-secondary" type="submit">Сменить тару</button>
+        </form>
+      {% endif %}
+    </div>
+  {% else %}
+    {% if overdue_unassembled_count %}
+      <div class="notice notice-error" role="alert">
+        <strong>Несобранные заказы старше 15 часов: {{ overdue_unassembled_count }}</strong>
+        <span>Самый старый ожидает {{ overdue_unassembled_oldest_hours }} ч. Новые заказы не обгоняют старые при создании и выдаче волн.</span>
+        {% if overdue_unassembled_clients %}
+          <small>{% for row in overdue_unassembled_clients %}{% if not forloop.first %} · {% endif %}{{ row.client_name }}: {{ row.order_count }}{% endfor %}</small>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if restock_requests %}
+      <section class="picker-restock-queue" aria-labelledby="picker-restock-title">
+        <div class="section-heading">
+          <div><span class="section-kicker">Приоритетное задание</span><h2 id="picker-restock-title">Вернуть ошибочный отбор</h2></div>
+          <span class="count">{{ restock_request_count }}</span>
+        </div>
+        <div class="task-list">
+          {% for restock in restock_requests %}
+            <article class="picker-restock-card">
+              <div><strong>Задание #{{ restock.id }}</strong><span>Волна #{{ restock.batch_id }} · {{ restock.source_box_count }} кор. · {{ restock.planned_qty }} шт.</span></div>
+              <div class="picker-wave-progress"><strong>{{ restock.returned_qty }} / {{ restock.planned_qty }}</strong><span>возвращено</span></div>
+              <a class="button button-primary" href="{% url 'fbs:tsd_pick_restock' request_id=restock.id %}">{% if restock.assigned_to_id == request.user.id %}Продолжить{% else %}Взять задание{% endif %}</a>
+            </article>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    <section class="equipment-binding {% if picker_cart %}equipment-binding-ready{% endif %}" aria-labelledby="equipment-title">
+      <div class="section-heading">
+        <div><span class="section-kicker">Сессия ТСД</span><h2 id="equipment-title">Тара отбора</h2></div>
+        {% if picker_cart %}<span class="status status-confirmed">Закреплена</span>{% endif %}
+      </div>
+      {% if picker_cart %}
+        <div class="equipment-session-grid">
+          <div><span>Тара</span><strong>{{ picker_cart.name }}</strong><small>{{ picker_cart.barcode }}</small></div>
+          <div><span>Текущая волна</span><strong>{% if active_wave_count %}В работе{% else %}Нет{% endif %}</strong><small>{% if picker_cart_busy %}Тара занята до завершения контроля{% else %}Тара свободна{% endif %}</small></div>
+        </div>
+        <div class="equipment-actions">
+          {% if can_claim_next %}
+            <form method="post" action="{% url 'fbs:tsd_claim_next_pick_batch' %}" data-submit-once>{% csrf_token %}<button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Получить следующую волну</button></form>
+          {% endif %}
+          <form method="post" action="{% url 'fbs:tsd_clear_pick_equipment' %}" data-submit-once>{% csrf_token %}<button class="button button-secondary" type="submit">Сменить тару</button></form>
+        </div>
+      {% else %}
+        <p class="equipment-intro">Отсканируйте QR любой свободной тары. Система привяжет к ней волну и весь подобранный товар.</p>
+        <form class="scan-form equipment-scan-form" method="post" action="{% url 'fbs:tsd_bind_pick_equipment' %}" autocomplete="off" novalidate data-submit-once data-scan-feedback data-scan-focus-lock>
+          {% csrf_token %}
+          <label for="picker-cart">QR тары</label>
+          <input id="picker-cart" type="text" name="cart_scan" autofocus required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" enterkeyhint="done" data-scanner-only data-scan-autosubmit="250" data-scan-focus-lock>
+          <div class="scan-inline-error" role="alert" aria-live="assertive" data-scan-error {% if not error %}hidden{% endif %}>{{ error }}</div>
+          <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Получить волну</button>
+        </form>
+      {% endif %}
+    </section>
+
+    {% if can_prepare_queue %}
+      <section class="queue-control">
+        <div class="queue-stats"><div><span>Новые заказы</span><strong>{{ received_count }}</strong></div><div><span>Зарезервированы</span><strong>{{ reserved_count }}</strong></div></div>
+        <form method="post" action="{% url 'fbs:tsd_prepare_picking' %}" data-submit-once>
+          {% csrf_token %}
+          <label for="wave-size">Заказов в волне</label>
+          <select id="wave-size" name="wave_size"><option value="50">До 50 заказов</option><option value="100">До 100 заказов</option></select>
+          <button class="button button-secondary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Подготовить очередь</button>
+        </form>
+      </section>
+    {% endif %}
+
+    <section class="section-band">
+      <div class="section-heading"><div><span class="section-kicker">Очередь</span><h2>Волны отбора</h2></div><span class="count">{{ free_batch_count }} свободных</span></div>
+      <div class="task-list">
+        {% for batch in available_batches %}
+          <article class="task-card task-card-form" id="wave-{{ batch.id }}">
+            <div class="task-main"><strong>Волна #{{ batch.id }}</strong><span>{{ batch.agency }}</span><span>{{ batch.order_count }} заказов · {{ batch.planned_qty }} единиц</span>{% if batch.is_overdue %}<span class="status status-blocked">Есть заказы старше 15 часов · {{ batch.overdue_age_hours }} ч.</span>{% endif %}</div>
+            <div class="task-side"><strong>{{ batch.picked_qty }}/{{ batch.planned_qty }} шт.</strong>{% if batch.assigned_to_id == request.user.id %}<span class="status status-in_progress">Ваша волна</span>{% else %}<span class="status status-confirmed">Свободно</span>{% endif %}</div>
+            {% if batch.status == 'verification' %}
+              {% if batch.assigned_to_id == request.user.id %}
+                {% if batch.picking_completed_at %}<span class="status status-confirmed">Передана контролеру</span>{% else %}<a class="button button-primary" href="{% url 'fbs:tsd_pick_handover' batch_id=batch.id %}">Сдать волну</a>{% endif %}
+              {% else %}<span class="status status-confirmed">Ожидается контролер</span>{% endif %}
+            {% elif batch.assigned_to_id == request.user.id and batch.next_allocation_id %}
+              <a class="button button-primary" href="{% url 'fbs:tsd_pick_allocation' allocation_id=batch.next_allocation_id %}">Продолжить волну</a>
+            {% else %}<div class="queue-position"><span>Ожидает свободного сборщика</span><small>Выдается по порядку очереди</small></div>{% endif %}
+          </article>
+        {% empty %}<div class="empty-state">Заданий отбора нет</div>{% endfor %}
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

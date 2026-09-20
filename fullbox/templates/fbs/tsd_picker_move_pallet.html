@@ -1,0 +1,23 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Паллета → место{% endblock %}
+{% block page_class %}tsd-page-picker-tool{% endblock %}
+{% block page_title %}Паллета → место{% endblock %}
+
+{% block content %}
+  {% include "fbs/_tsd_picker_move_styles.html" %}
+  <section class="picker-move-card" aria-label="Перемещение паллеты">
+    <p class="picker-move-hint" id="move-hint">FBS-паллета — в точное место OS, PR или OTG. Физическая паллета приёмки — в точное место OS. Количество товара и резервы не изменяются.</p>
+    <form method="post" class="picker-move-form" data-scan-sequence aria-describedby="move-hint">
+      {% csrf_token %}
+      <label>1. Паллета
+        <input name="pallet_scan" value="{{ selected_pallet }}" data-scan-field autocomplete="off" autocapitalize="characters" enterkeyhint="next" spellcheck="false" required placeholder="QR FBS или физической паллеты">
+      </label>
+      <label>2. Конечное место
+        <input name="destination_location_scan" value="{{ selected_destination_location }}" data-scan-field autocomplete="off" autocapitalize="characters" enterkeyhint="done" spellcheck="false" required placeholder="QR точного места OS / PR / OTG">
+      </label>
+      <button class="button button-primary" type="submit">Переместить паллету</button>
+    </form>
+  </section>
+  {% include "fbs/_tsd_picker_move_scan_script.html" %}
+{% endblock %}

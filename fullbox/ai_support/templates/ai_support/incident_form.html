@@ -1,0 +1,41 @@
+{% extends "ai_support/base.html" %}
+{% block title %}Сообщить об ошибке{% endblock %}
+{% block content %}
+  <div class="stack">
+    <section>
+      <h1>Сообщить об ошибке</h1>
+      <p class="muted">Укажите заявку и опишите фактический результат. Технический контекст страницы будет приложен автоматически.</p>
+    </section>
+    <form class="card stack" method="post" id="incident-form">
+      {% csrf_token %}
+      {{ form.source_url }}{{ form.page_title }}{{ form.context_json }}
+      {% if form.non_field_errors %}<div class="field-errors">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="grid">
+        <label>Зона системы{{ form.zone }}{{ form.zone.errors }}</label>
+        <label>Тип объекта{{ form.object_type }}{{ form.object_type.errors }}</label>
+        <label>Номер заявки, короба или задания{{ form.object_id }}{{ form.object_id.errors }}</label>
+        <label>Приоритет{{ form.severity }}{{ form.severity.errors }}</label>
+      </div>
+      <label>Что делали и что произошло?{{ form.description }}{{ form.description.errors }}</label>
+      <label>Что должно было произойти?{{ form.expected_result }}{{ form.expected_result.errors }}</label>
+      <label style="max-width:360px">Можно повторить ошибку?{{ form.reproducible }}{{ form.reproducible.errors }}</label>
+      <div class="notice">После отправки агент не меняет остатки, движения или данные заявки. Сначала выполняется диагностика.</div>
+      <div><button class="btn primary" type="submit">Отправить ИИ-программисту</button></div>
+    </form>
+  </div>
+  <script>
+    (() => {
+      const source = document.getElementById("id_source_url");
+      const title = document.getElementById("id_page_title");
+      const context = document.getElementById("id_context_json");
+      if (source && !source.value) source.value = window.location.pathname + window.location.search;
+      if (title && !title.value) title.value = document.title;
+      if (context) context.value = JSON.stringify({
+        screen: {width: window.screen.width, height: window.screen.height},
+        viewport: {width: window.innerWidth, height: window.innerHeight},
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+        online: navigator.onLine
+      });
+    })();
+  </script>
+{% endblock %}

@@ -1,0 +1,138 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Настройка волн FBS{% endblock %}
+
+{% block workspace_body %}
+  <section class="operator-table-band" id="marketplace-priority">
+    <div class="operator-table-heading">
+      <div>
+        <span class="section-kicker">Очередь подбора</span>
+        <h2>Приоритет маркетплейсов</h2>
+      </div>
+    </div>
+    <div class="notice notice-warn" role="status">
+      Меньшее число означает более высокий приоритет. Настройка применяется с указанной даты только к свободным волнам.
+    </div>
+    <form method="post" action="{% url 'fbs:tsd_wave_settings' %}" class="ts-wave-filters">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_marketplace_priorities">
+      {% for row in marketplace_priorities %}
+        <label>
+          <span>{{ row.label }}</span>
+          <input type="number" name="priority_{{ row.marketplace }}" min="1" max="100" value="{{ row.priority }}" required>
+        </label>
+      {% endfor %}
+      <label>
+        <span>Действует с</span>
+        <input type="date" name="effective_from" value="{{ marketplace_priority_date|date:'Y-m-d' }}" required>
+      </label>
+      <div class="ts-orders-filter-actions"><button class="button button-primary" type="submit">Сохранить приоритет</button></div>
+    </form>
+  </section>
+
+  <section class="operator-table-band" id="queue-order">
+    <div class="operator-table-heading">
+      <div>
+        <span class="section-kicker">Свободные волны</span>
+        <h2>Порядок выдачи подборщику</h2>
+      </div>
+      <strong>{{ wave_queue|length }}</strong>
+    </div>
+    <div class="notice notice-warn" role="status">
+      Ручное перемещение действует до конца сегодняшнего дня. Взятые в работу и переданные на проверку волны не меняются.
+    </div>
+    <div class="operator-table-scroll">
+      <table class="operator-table">
+        <thead><tr><th>№</th><th>Волна</th><th>Клиент</th><th>Маркетплейс</th><th>Товаров</th><th>Приоритет</th><th></th></tr></thead>
+        <tbody>
+          {% for batch in wave_queue %}
+            <tr>
+              <td><strong>{{ batch.queue_position }}</strong></td>
+              <td><a href="{% url 'fbs:operator_wave_detail' batch_id=batch.id %}">#{{ batch.id }}</a></td>
+              <td><strong>{{ batch.agency }}</strong></td>
+              <td>{{ batch.queue_marketplace_label }}</td>
+              <td>{{ batch.planned_qty }}</td>
+              <td><small>{{ batch.queue_priority_label }}</small></td>
+              <td class="row-action">
+                <form method="post" action="{% url 'fbs:tsd_wave_settings' %}" class="row-actions">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="reorder_queue">
+                  <input type="hidden" name="batch_id" value="{{ batch.id }}">
+                  <button class="button button-secondary button-compact" type="submit" name="direction" value="top" title="В начало">⇈</button>
+                  <button class="button button-secondary button-compact" type="submit" name="direction" value="up" title="Выше">↑</button>
+                  <button class="button button-secondary button-compact" type="submit" name="direction" value="down" title="Ниже">↓</button>
+                  <button class="button button-secondary button-compact" type="submit" name="direction" value="bottom" title="В конец">⇊</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-row" colspan="7">Свободных волн сейчас нет.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading">
+      <div>
+        <span class="section-kicker">Настройка FBS</span>
+        <h2>Размер волн по кабинетам</h2>
+      </div>
+      <strong>{{ wave_profiles|length }} кабинетов</strong>
+    </div>
+    <div class="notice notice-warn" role="status">
+      Лимит применяется к автоматическому и ручному созданию новых волн. Уже созданные волны не меняются. Если один заказ превышает лимит единиц, он создаётся отдельной волной.
+    </div>
+    <div class="operator-table-scroll">
+      <table class="operator-table">
+        <thead>
+          <tr>
+            <th>Клиент</th>
+            <th>Кабинет</th>
+            <th>Состояние</th>
+            <th>Заказов в волне</th>
+            <th>Единиц в волне</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for profile in wave_profiles %}
+            <tr>
+              <td>
+                <strong>{{ profile.agency }}</strong>
+                <small>ID {{ profile.agency_id }}</small>
+              </td>
+              <td>
+                <strong>{{ profile.get_marketplace_display }} · {{ profile.name }}</strong>
+                <small>Склад {{ profile.external_warehouse_id }}</small>
+              </td>
+              <td>
+                <span class="status {% if profile.is_active and profile.order_pull_enabled %}status-done{% endif %}">{% if profile.is_active and profile.order_pull_enabled %}Активен{% else %}Выключен{% endif %}</span>
+                <small>{% if profile.wave_policy_configured %}Индивидуально{% else %}Системное правило{% endif %}</small>
+              </td>
+              <td>
+                <input form="wave-policy-{{ profile.id }}" type="number" name="max_orders_per_wave" min="1" max="100" value="{{ profile.wave_max_orders }}" required style="width:110px">
+              </td>
+              <td>
+                <input form="wave-policy-{{ profile.id }}" type="number" name="max_units_per_wave" min="1" max="100" value="{{ profile.wave_max_units }}" required style="width:110px">
+              </td>
+              <td class="row-action">
+                <form id="wave-policy-{{ profile.id }}" method="post" action="{% url 'fbs:tsd_wave_settings' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="profile_id" value="{{ profile.id }}">
+                </form>
+                <button class="button button-primary button-compact" form="wave-policy-{{ profile.id }}" type="submit" name="action" value="save">Сохранить</button>
+                {% if profile.wave_policy_configured %}
+                  <button class="button button-secondary button-compact" form="wave-policy-{{ profile.id }}" type="submit" name="action" value="reset">Системное правило</button>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-row" colspan="6">Кабинеты FBS ещё не настроены.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

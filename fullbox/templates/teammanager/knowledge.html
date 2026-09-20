@@ -1,0 +1,434 @@
+{% extends "teammanager/_base.html" %}
+{% block title %}База знаний — кабинет менеджера{% endblock %}
+{% block extra_css %}
+.kb-shell {
+  --kb-orange:#f89000;
+  --kb-orange-strong:#f86800;
+  --kb-yellow:#f8b800;
+  --kb-ink:#303030;
+  display:grid;
+  gap:18px;
+  color:var(--kb-ink);
+}
+.kb-head {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:24px;
+  align-items:end;
+  padding:4px 0 18px;
+  border-bottom:1px solid var(--stroke);
+}
+.kb-eyebrow {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:7px;
+  color:var(--kb-orange-strong);
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.kb-eyebrow::before {
+  content:"";
+  width:28px;
+  height:4px;
+  border-radius:2px;
+  background:linear-gradient(90deg,var(--kb-orange-strong),var(--kb-yellow));
+}
+.page-title {
+  margin:0;
+  font-family:"Bricolage Grotesque","Manrope",sans-serif;
+  font-size:32px;
+  line-height:1.12;
+  font-weight:800;
+  letter-spacing:0;
+}
+.page-sub {
+  max-width:760px;
+  margin-top:7px;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.5;
+}
+.kb-head-stats {
+  display:flex;
+  gap:24px;
+  padding:0 4px 2px 0;
+}
+.kb-stat { display:grid; gap:2px; min-width:72px; }
+.kb-stat strong {
+  font-family:"Bricolage Grotesque","Manrope",sans-serif;
+  font-size:24px;
+  line-height:1;
+  color:var(--kb-orange-strong);
+}
+.kb-stat span { color:var(--muted); font-size:11px; font-weight:800; }
+.kb-toolbar {
+  display:grid;
+  grid-template-columns:minmax(280px,1fr) minmax(180px,240px) minmax(180px,240px);
+  gap:10px;
+  padding:12px;
+  border:1px solid var(--stroke);
+  border-top:3px solid var(--kb-orange);
+  border-radius:8px;
+  background:#fff;
+}
+.kb-control { display:grid; gap:5px; min-width:0; }
+.kb-label {
+  color:var(--muted);
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.kb-field {
+  width:100%;
+  min-height:42px;
+  padding:10px 12px;
+  border:1px solid var(--stroke);
+  border-radius:6px;
+  background:#fff;
+  color:var(--kb-ink);
+  font:inherit;
+  font-size:13px;
+}
+.kb-field:focus {
+  outline:2px solid rgba(248,144,0,.24);
+  border-color:var(--kb-orange);
+}
+.kb-section-grid {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+}
+.kb-section-card {
+  position:relative;
+  display:grid;
+  grid-template-columns:40px minmax(0,1fr);
+  gap:12px;
+  min-height:124px;
+  padding:14px;
+  overflow:hidden;
+  border:1px solid var(--stroke);
+  border-radius:8px;
+  background:#fff;
+  color:inherit;
+  text-decoration:none;
+  transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease;
+}
+.kb-section-card::after {
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:3px;
+  background:linear-gradient(90deg,var(--kb-orange-strong),var(--kb-yellow));
+  opacity:0;
+}
+.kb-section-card:hover,
+.kb-section-card.active {
+  border-color:rgba(248,144,0,.5);
+  box-shadow:0 8px 22px rgba(48,48,48,.07);
+  transform:translateY(-1px);
+}
+.kb-section-card.active { background:rgba(248,144,0,.055); }
+.kb-section-card:hover::after,
+.kb-section-card.active::after { opacity:1; }
+.kb-icon {
+  width:40px;
+  height:40px;
+  display:grid;
+  place-items:center;
+  border-radius:7px;
+  background:rgba(248,144,0,.13);
+  color:var(--kb-orange-strong);
+  font-size:17px;
+  font-weight:900;
+}
+.kb-section-copy { display:grid; align-content:start; min-width:0; }
+.kb-section-card h2 { margin:0; font-size:14px; line-height:1.25; font-weight:900; }
+.kb-section-card p {
+  margin:5px 0 10px;
+  color:var(--muted);
+  font-size:11.5px;
+  line-height:1.42;
+}
+.kb-count {
+  align-self:end;
+  color:var(--kb-orange-strong);
+  font-size:10.5px;
+  font-weight:900;
+}
+.kb-list-head {
+  display:flex;
+  justify-content:space-between;
+  align-items:end;
+  gap:14px;
+  padding-top:2px;
+}
+.kb-list-title {
+  margin:0;
+  font-family:"Bricolage Grotesque","Manrope",sans-serif;
+  font-size:21px;
+  line-height:1.2;
+  font-weight:800;
+}
+.kb-list-note { margin-top:4px; color:var(--muted); font-size:11.5px; }
+.kb-list-count {
+  flex:none;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+}
+.kb-materials {
+  display:grid;
+  gap:7px;
+}
+.kb-material {
+  display:grid;
+  grid-template-columns:52px minmax(240px,1fr) minmax(190px,260px) 40px;
+  gap:14px;
+  align-items:center;
+  min-height:92px;
+  padding:12px 12px 12px 0;
+  overflow:hidden;
+  border:1px solid var(--stroke);
+  border-radius:8px;
+  background:#fff;
+  color:inherit;
+  text-decoration:none;
+  transition:border-color .16s ease,background .16s ease;
+}
+.kb-material:hover {
+  border-color:rgba(248,144,0,.48);
+  background:rgba(248,144,0,.035);
+}
+.kb-material[hidden],
+.kb-section-card[hidden] { display:none !important; }
+.kb-num {
+  align-self:stretch;
+  display:grid;
+  place-items:center;
+  border-right:1px solid var(--stroke);
+  color:var(--kb-orange-strong);
+  font-family:"Bricolage Grotesque","Manrope",sans-serif;
+  font-size:17px;
+  font-weight:800;
+}
+.kb-material-copy { min-width:0; }
+.kb-material h3 { margin:0; font-size:14px; line-height:1.28; font-weight:900; }
+.kb-material p {
+  margin:5px 0 0;
+  color:var(--muted);
+  font-size:11.5px;
+  line-height:1.42;
+}
+.kb-material-info { display:grid; gap:8px; }
+.kb-material-top { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.kb-kind,
+.kb-status,
+.kb-tag {
+  display:inline-flex;
+  align-items:center;
+  min-height:21px;
+  padding:3px 7px;
+  border-radius:999px;
+  font-size:10px;
+  font-weight:900;
+}
+.kb-kind { background:var(--surface-2); color:var(--muted); }
+.kb-status { background:rgba(248,144,0,.13); color:var(--kb-orange-strong); }
+.kb-meta { display:flex; flex-wrap:wrap; gap:5px 10px; color:var(--muted); font-size:10.5px; }
+.kb-tags { display:flex; flex-wrap:wrap; gap:5px; }
+.kb-tag { min-height:19px; padding:2px 6px; background:#fff8e8; color:#76520a; }
+.kb-open {
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border-radius:7px;
+  background:linear-gradient(135deg,var(--kb-orange),var(--kb-yellow));
+  color:#2a2110;
+  font-size:18px;
+  font-weight:900;
+}
+.kb-empty {
+  display:none;
+  padding:26px 18px;
+  border:1px dashed rgba(248,144,0,.5);
+  border-radius:8px;
+  background:rgba(248,144,0,.045);
+  color:var(--muted);
+  font-size:13px;
+  font-weight:800;
+  text-align:center;
+}
+@media (max-width:1100px) {
+  .kb-section-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .kb-material { grid-template-columns:48px minmax(220px,1fr) 210px 36px; gap:10px; }
+}
+@media (max-width:760px) {
+  .kb-head { grid-template-columns:1fr; gap:14px; }
+  .kb-head-stats { padding:0; }
+  .page-title { font-size:27px; }
+  .kb-toolbar,
+  .kb-section-grid { grid-template-columns:1fr; }
+  .kb-material {
+    grid-template-columns:42px minmax(0,1fr) 34px;
+    padding-right:10px;
+  }
+  .kb-material-info { grid-column:2 / 4; }
+  .kb-open { grid-column:3; grid-row:1; }
+}
+{% endblock %}
+{% block content %}
+<div class="kb-shell">
+  <header class="kb-head">
+    <div>
+      <div class="kb-eyebrow">Центр знаний Fullbox</div>
+      <h1 class="page-title">База знаний</h1>
+      <div class="page-sub">Регламенты, инструкции и рабочие материалы менеджера сопровождения в едином стандарте компании.</div>
+    </div>
+    <div class="kb-head-stats" aria-label="Состав базы знаний">
+      <span class="kb-stat"><strong>{{ kb_sections|length }}</strong><span>разделов</span></span>
+      <span class="kb-stat"><strong>{{ kb_articles|length }}</strong><span>материалов</span></span>
+    </div>
+  </header>
+
+  <div class="kb-toolbar" aria-label="Фильтры базы знаний">
+    <label class="kb-control">
+      <span class="kb-label">Поиск</span>
+      <input id="kb-search" class="kb-field" type="search" placeholder="Название, тема или тег" autocomplete="off">
+    </label>
+    <label class="kb-control">
+      <span class="kb-label">Раздел</span>
+      <select id="kb-section-filter" class="kb-field">
+        <option value="all">Все разделы</option>
+        {% for section in kb_sections %}
+          <option value="{{ section.key }}">{{ section.title }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="kb-control">
+      <span class="kb-label">Тег</span>
+      <select id="kb-tag-filter" class="kb-field">
+        <option value="all">Все теги</option>
+        {% for tag in kb_tags %}
+          <option value="{{ tag }}">{{ tag }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+
+  <div class="kb-section-grid" id="kb-section-grid">
+    {% for section in kb_sections %}
+      <a class="kb-section-card" href="#materials" data-section-card="{{ section.key }}" data-kb-search="{{ section.title|lower }} {{ section.description|lower }} {{ section.tags|join:' '|lower }}">
+        <span class="kb-icon" aria-hidden="true">{{ section.icon }}</span>
+        <span class="kb-section-copy">
+          <h2>{{ section.title }}</h2>
+          <p>{{ section.description }}</p>
+          <span class="kb-count">{{ section.count }} мат.</span>
+        </span>
+      </a>
+    {% endfor %}
+  </div>
+
+  <div class="kb-list-head" id="materials">
+    <div>
+      <h2 class="kb-list-title">Материалы</h2>
+      <div class="kb-list-note">Актуальные инструкции и документы для ежедневной работы.</div>
+    </div>
+    <div class="kb-list-count"><span id="kb-shown-count">{{ kb_articles|length }}</span> из {{ kb_articles|length }}</div>
+  </div>
+
+  <div class="kb-materials" id="kb-materials">
+    {% for article in kb_articles %}
+      <a
+        class="kb-material"
+        href="/team-manager/knowledge/{{ article.slug }}/"
+        data-section="{{ article.category }}"
+        data-tags="{{ article.tags|join:'|' }}"
+        data-kb-search="{{ article.title|lower }} {{ article.summary|lower }} {{ article.search|lower }} {{ article.tags|join:' '|lower }}"
+      >
+        <span class="kb-num">{{ article.num }}</span>
+        <span class="kb-material-copy">
+          <h3>{{ article.title }}</h3>
+          <p>{{ article.summary }}</p>
+        </span>
+        <span class="kb-material-info">
+          <span class="kb-material-top">
+            <span class="kb-kind">{{ article.kind }}</span>
+            <span class="kb-status">{{ article.status }}</span>
+          </span>
+          <span class="kb-meta">
+            <span>{{ article.updated_at }}</span>
+            <span>{{ article.author }}</span>
+          </span>
+          <span class="kb-tags">
+            {% for tag in article.tags %}<span class="kb-tag">{{ tag }}</span>{% endfor %}
+          </span>
+        </span>
+        <span class="kb-open" aria-hidden="true">→</span>
+      </a>
+    {% endfor %}
+  </div>
+  <div class="kb-empty" id="kb-empty">По выбранным параметрам материалов нет.</div>
+</div>
+
+<script>
+(function () {
+  var input = document.getElementById("kb-search");
+  var sectionFilter = document.getElementById("kb-section-filter");
+  var tagFilter = document.getElementById("kb-tag-filter");
+  var materials = Array.prototype.slice.call(document.querySelectorAll(".kb-material"));
+  var sectionCards = Array.prototype.slice.call(document.querySelectorAll(".kb-section-card"));
+  var empty = document.getElementById("kb-empty");
+  var shownCount = document.getElementById("kb-shown-count");
+  if (!input || !sectionFilter || !tagFilter || !empty) return;
+
+  function norm(value) { return String(value || "").trim().toLowerCase(); }
+
+  function apply() {
+    var q = norm(input.value);
+    var section = sectionFilter.value || "all";
+    var tag = tagFilter.value || "all";
+    var shown = 0;
+    var visibleBySection = {};
+
+    materials.forEach(function (card) {
+      var hay = norm(card.getAttribute("data-kb-search"));
+      var tags = String(card.getAttribute("data-tags") || "").split("|");
+      var cardSection = card.getAttribute("data-section");
+      var ok = (!q || hay.indexOf(q) !== -1) &&
+        (section === "all" || cardSection === section) &&
+        (tag === "all" || tags.indexOf(tag) !== -1);
+      card.hidden = !ok;
+      if (ok) {
+        shown += 1;
+        visibleBySection[cardSection] = true;
+      }
+    });
+
+    sectionCards.forEach(function (card) {
+      var key = card.getAttribute("data-section-card");
+      card.hidden = section !== "all" && section !== key;
+      card.classList.toggle("active", section === key);
+      if ((q || tag !== "all") && !visibleBySection[key]) card.hidden = true;
+    });
+
+    empty.style.display = shown ? "none" : "block";
+    if (shownCount) shownCount.textContent = shown;
+  }
+
+  sectionCards.forEach(function (card) {
+    card.addEventListener("click", function () {
+      sectionFilter.value = card.getAttribute("data-section-card") || "all";
+      apply();
+    });
+  });
+  input.addEventListener("input", apply);
+  sectionFilter.addEventListener("change", apply);
+  tagFilter.addEventListener("change", apply);
+})();
+</script>
+{% endblock %}

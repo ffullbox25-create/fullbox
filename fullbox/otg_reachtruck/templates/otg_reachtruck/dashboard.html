@@ -1,0 +1,498 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f89000">
+  <title>Ричтракер ОТГ</title>
+  <link href="{% static 'vendor/bricolage-manrope.css' %}" rel="stylesheet">
+  <style>
+    :root { color-scheme: light; font-family: "Manrope", system-ui, sans-serif; color: #303030; background: #f7f5f0; --ink:#303030; --accent:#f89000; --strong:#f86800; --yellow:#f8b800; --soft:rgba(248,144,0,.13); --line:rgba(48,48,48,.13); --muted:#736e65; --danger:#b43b37; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width:320px; background: #f7f5f0; color:var(--ink); }
+    .app { width: min(100%, 680px); margin: 0 auto; padding: 14px 14px calc(26px + env(safe-area-inset-bottom)); }
+    .brand-row { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
+    .brand { display:block; width:145px; }
+    .fullbox-brand-img { width:145px; max-height:42px; object-fit:contain; object-position:left center; display:block; }
+    .sound-toggle { min-height:42px; border:1px solid var(--line); border-radius:12px; padding:8px 11px; background:#fff; color:var(--ink); font:800 12px "Manrope",sans-serif; cursor:pointer; }
+    .sound-toggle[aria-pressed="true"] { background:var(--soft); border-color:rgba(248,144,0,.4); color:#8a4b00; }
+    .sound-setup { margin-bottom:12px; padding:11px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px; border:1px solid rgba(248,144,0,.25); border-radius:14px; background:#fff6df; color:#704000; font-size:12px; font-weight:800; }
+    .sound-setup button { flex:0 0 auto; min-height:38px; border:0; border-radius:10px; padding:8px 11px; background:var(--accent); color:#2d210f; font:800 12px "Manrope",sans-serif; }
+    .top { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .back { color: #8a4b00; font-weight: 800; text-decoration: none; }
+    h1, h2, h3, p { margin: 0; }
+    h1, h2 { font-family:"Bricolage Grotesque","Manrope",sans-serif; }
+    h1 { font-size: 25px; }
+    h2 { font-size: 20px; }
+    .notice { margin: 0 0 14px; padding: 12px; border-radius: 8px; font-weight: 700; }
+    .notice.error { background: #ffe8e5; color: #9b1c1c; }
+    .notice.ok { background: #e6f6ec; color: #17663b; }
+    .request-list { display: grid; gap: 10px; }
+    .request { display: block; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: #fff; color: inherit; text-decoration: none; box-shadow:0 8px 22px rgba(48,48,48,.05); }
+    .request.overdue { border:2px solid var(--strong); }
+    .request strong { display: block; font-size: 18px; }
+    .request span { display: block; margin-top: 5px; color: var(--muted); font-size: 14px; }
+    .request-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+    .badge { display: inline-flex; margin-top:0; padding:5px 8px; border-radius:999px; background:var(--soft); color:#8a4b00; font-size:11px; font-weight:900; }
+    .badge.overdue { background:#f8e4e1; color:var(--danger); }
+    .badge.urgent { background:#ffe0d8; color:#a62d24; }
+    .request-comment { margin-top:9px; padding:9px 10px; border-radius:10px; background:#faf8f3; color:#5f5a52; font-size:12px; line-height:1.4; }
+    .panel { display: grid; gap: 14px; }
+    .details { display: grid; gap: 10px; padding: 14px; border: 1px solid #d4dce5; border-radius: 8px; background: #fff; }
+    .detail { display: grid; gap: 3px; }
+    .detail span { color: #607087; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+    .detail strong { font-size: 22px; word-break: break-word; }
+    .detail.address strong { font-size: 30px; color: #0a4f71; }
+    .take, .confirm, .not-found { width: 100%; min-height: 52px; border: 0; border-radius: 8px; font-size: 17px; font-weight: 800; cursor: pointer; }
+    .take { background: linear-gradient(120deg,var(--accent),var(--yellow)); color: #2d210f; }
+    .scan { display: grid; gap: 10px; padding: 14px; border-radius: 8px; background: #eaf0f5; }
+    .scan h3 { font-size: 18px; }
+    .scan input { width: 100%; min-height: 52px; border: 1px solid #9cacbd; border-radius: 6px; padding: 10px 12px; font-size: 18px; }
+    .confirm { background: linear-gradient(120deg,var(--accent),var(--yellow)); color: #2d210f; }
+    .not-found { background: #fff4e5; border: 1px solid #d97706; color: #8a4b00; }
+    .boxes { display: grid; gap: 9px; }
+    .boxes-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+    .boxes-head h3 { font-size: 17px; }
+    .boxes-head span { color: #566477; font-size: 14px; font-weight: 800; white-space: nowrap; }
+    .box-list { display: grid; gap: 7px; }
+    .box { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid #d4dce5; border-radius: 6px; background: #fff; }
+    .box strong { word-break: break-word; }
+    .box span { color: #566477; white-space: nowrap; }
+    .route { display: grid; gap: 12px; }
+    .route-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+    .route-head h3 { font-size: 19px; }
+    .route-head span { color: #566477; font-size: 13px; font-weight: 800; }
+    .route-group { display: grid; gap: 7px; }
+    .route-group-title { color: #244e72; font-size: 14px; font-weight: 900; text-transform: uppercase; }
+    .route-stop { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 12px; border: 1px solid #d4dce5; border-radius: 8px; background: #fff; }
+    .route-stop.current { border: 2px solid var(--accent); background: #fff8e9; }
+    .route-stop.done { background: #f0f3f5; color: #566477; }
+    .route-stop-main { display: grid; gap: 4px; min-width: 0; }
+    .route-address { font-size: 22px; color: #0a4f71; font-weight: 900; }
+    .route-pallet { font-size: 15px; font-weight: 800; overflow-wrap: anywhere; }
+    .route-meta { color: #566477; font-size: 12px; font-weight: 700; }
+    .route-actions { display: grid; justify-items: end; gap: 8px; }
+    .route-status { padding: 4px 7px; border-radius: 4px; background: #e8eef5; color: #244e72; font-size: 12px; font-weight: 900; white-space: nowrap; }
+    .route-stop.current .route-status { background: var(--accent); color: #2d210f; }
+    .route-stop.done .route-status { background: #d7dde3; color: #465569; }
+    .route-take { min-height: 42px; border: 0; border-radius: 9px; padding: 9px 12px; background:linear-gradient(120deg,var(--accent),var(--yellow)); color:#2d210f; font-size: 14px; font-weight: 900; cursor: pointer; }
+    .route-release { min-height:40px; border:1px solid #d8a29d; border-radius:9px; padding:8px 10px; background:#fff; color:var(--danger); font:800 12px "Manrope",sans-serif; cursor:pointer; }
+    .assignment-meta { color:var(--muted); font-size:12px; font-weight:700; }
+    .route-hint { padding: 12px; border-left: 4px solid #d97706; background: #fff4e5; color: #6f4300; font-size: 14px; font-weight: 700; }
+    .empty { padding: 18px 0; color: #566477; }
+    .assignment-alert { position:fixed; z-index:60; left:50%; bottom:20px; transform:translate(-50%,22px); width:min(500px,calc(100% - 24px)); padding:17px; border:2px solid var(--accent); border-radius:20px; background:#fff; box-shadow:0 22px 70px rgba(48,48,48,.28); opacity:0; pointer-events:none; transition:opacity .2s ease,transform .2s ease; }
+    .assignment-alert.show { opacity:1; transform:translate(-50%,0); pointer-events:auto; }
+    .assignment-alert h2 { margin:3px 34px 5px 0; font-size:22px; }
+    .assignment-alert p { color:var(--muted); font-size:13px; }
+    .assignment-alert-close { position:absolute; top:9px; right:9px; width:34px; height:34px; border:0; border-radius:50%; background:#f5f1e9; font-size:21px; cursor:pointer; }
+    @media (max-width: 480px) {
+      .route-stop { grid-template-columns: 1fr; }
+      .route-actions { justify-items: stretch; }
+      .route-take { width: 100%; }
+      .sound-setup { align-items:stretch; flex-direction:column; }
+      .sound-setup button { width:100%; }
+    }
+  </style>
+</head>
+<body data-otg-employee-id="{{ employee.pk|default:'' }}">
+  <audio id="scan-success-audio" preload="auto" src="{% static 'reachtruck/audio/scan-success.mp3' %}"></audio>
+  <audio id="scan-error-audio" preload="auto" src="{% static 'reachtruck/audio/scan-error.mp3' %}"></audio>
+  <main class="app">
+    <div class="brand-row">
+      <a class="brand" href="/reachtruck/" aria-label="К выбору работы">{% include "partials/fullbox_brand.html" %}</a>
+      <button id="otg-sound-toggle" class="sound-toggle" type="button" aria-pressed="false">🔕 Звук</button>
+    </div>
+    <div id="otg-sound-setup" class="sound-setup" hidden>
+      <span>Один раз включите звук, чтобы слышать «Новая заявка на отгрузку».</span>
+      <button id="otg-sound-enable" type="button">Проверить звук</button>
+    </div>
+    <header class="top">
+      {% if selected %}
+        <a class="back" href="/otg-reachtruck/">← К заявкам ОТГ</a>
+      {% else %}
+        <a class="back" href="/reachtruck/">← К выбору работы</a>
+      {% endif %}
+      <h1>Ричтракер ОТГ</h1>
+    </header>
+
+    {% if can_refresh_queue %}<form id="otg-queue-refresh" hidden>{% csrf_token %}</form>{% endif %}
+    {% if error %}<div class="notice error">{{ error }}</div>{% endif %}
+    {% if ok_message %}<div class="notice ok">{{ ok_message }}</div>{% endif %}
+    {% if completed %}<div class="notice ok">Заявка ОТГ выполнена.</div>{% endif %}
+
+    {% if can_refresh_queue %}
+      <form method="post" style="margin-bottom:14px">
+        {% csrf_token %}<input type="hidden" name="action" value="take_next">
+        <button class="take" id="otg-next-request" type="submit">{{ queue_action_label }}</button>
+      </form>
+    {% endif %}
+    {% if not selected %}
+      <section id="otg-queue-list" class="request-list">
+        {% include "otg_reachtruck/_queue_cards.html" %}
+      </section>
+    {% else %}
+      <section class="panel">
+        <div>
+          <h2>Отгрузка №{{ selected.label }}</h2>
+          {% if selected.client %}<p>{{ selected.client }}</p>{% endif %}
+          <div class="request-meta">
+            <b class="badge{% if selected.priority == 'urgent' %} urgent{% endif %}">{{ selected.priority_label }}</b>
+            <b class="badge">Ожидает {{ selected.age_label }}</b>
+            {% if selected.is_overdue %}<b class="badge overdue">Просрочено</b>{% endif %}
+          </div>
+          {% if selected.shipping_order.slot_date %}<p>Слот: {{ selected.shipping_order.slot_date|date:"d.m.Y" }}{% if selected.shipping_order.slot_time %} · {{ selected.shipping_order.slot_time|time:"H:i" }}{% endif %}</p>{% endif %}
+          {% if selected.comment %}<div class="request-comment">{{ selected.comment }}</div>{% endif %}
+        </div>
+
+        {% if selected.assignment.employee_name %}<p>Заявка закреплена за: <strong>{{ selected.assignment.employee_name }}</strong></p>{% endif %}
+        {% if selected.assignment_error and not execution.can_scan %}<div class="notice">{{ selected.assignment_error }}</div>{% endif %}
+        {% if can_manage_assignments and selected.assignment.employee_id %}
+          <form method="post">
+            {% csrf_token %}<input type="hidden" name="action" value="release_order">
+            <input type="hidden" name="request" value="{{ selected.key }}">
+            <button type="submit" class="not-found">Освободить заявку для другого водителя</button>
+          </form>
+          <p>Передача доступна после завершения взятых паллет. Выполненные перемещения сохраняются.</p>
+        {% endif %}
+        {% if selected.waiting %}
+          <div class="notice" id="otg-waiting-request" data-request="{{ selected.key }}">
+            <strong>Принята складом · Ожидает отбора</strong>
+            <p>{{ selected.waiting_message }}</p>
+            {% if selected.needs_attention %}<p>Требуется проверка кладовщиком причины блокировки.</p>{% else %}<p>Задания появятся автоматически, когда отбор станет доступен.</p>{% endif %}
+          </div>
+        {% elif execution.can_take %}
+          {% if route_groups %}
+            <div class="route-hint">Выберите удобное место в маршруте и возьмите нужную паллету в работу.</div>
+          {% else %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="take">
+              <input type="hidden" name="request" value="{{ selected.key }}">
+              <button class="take" type="submit">Взять заявку в работу</button>
+            </form>
+          {% endif %}
+        {% elif execution.can_scan %}
+          <div class="details">
+            <div class="detail">
+              <span>Паллета</span>
+              <strong>{{ pallet_code }}</strong>
+            </div>
+            <div class="detail address">
+              <span>Адрес паллеты</span>
+              <strong>{{ source_code }}</strong>
+            </div>
+          </div>
+
+          <form method="post" class="scan">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="scan">
+            <input type="hidden" name="request" value="{{ selected.key }}">
+            <h3>{{ execution.prompt }}</h3>
+            <input name="scan_value" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="{{ scan_placeholder }}" autofocus>
+            <button class="confirm" type="submit">Подтвердить скан</button>
+          </form>
+
+          {% if active_execution.scan_fact_mode and current_step == "boxes" and not active_execution.destination_confirmed %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="no_stock">
+              <input type="hidden" name="request" value="{{ selected.key }}">
+              <button class="not-found" type="submit">
+                {% if active_execution.boxes_scanned_count %}Остальных нет на месте{% else %}Нет на месте{% endif %}
+              </button>
+            </form>
+          {% endif %}
+
+          {% if current_step == "boxes" %}
+            <div class="boxes">
+              <div class="boxes-head">
+                <h3>Короба на этой паллете</h3>
+                <span>Найдено {{ active_execution.boxes_scanned_count }} из {{ active_execution.boxes_total }}</span>
+              </div>
+              <div class="box-list">
+                {% for box in active_execution.boxes_pending %}
+                  <div class="box"><strong>{{ box.box_code }}</strong><span>{{ box.box_qty }} шт.</span></div>
+                {% endfor %}
+                {% for box in active_execution.boxes_found %}
+                  <div class="box"><strong>{{ box.box_code }}</strong><span>Найден</span></div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+        {% elif not selected.assignment_error %}
+          <div class="empty">Нет активного шага для этой заявки.</div>
+        {% endif %}
+
+        {% if route_groups %}
+          <section class="route">
+            <div class="route-head">
+              <h3>Все места заявки</h3>
+              <span>{{ route_stop_count }} мест</span>
+            </div>
+            {% for group in route_groups %}
+              <div class="route-group">
+                <div class="route-group-title">{{ group.label }}</div>
+                {% for stop in group.stops %}
+                  <div class="route-stop {{ stop.status_key }}">
+                    <div class="route-stop-main">
+                      <div class="route-address">{{ stop.source_code|default:"Адрес не указан" }}</div>
+                      <div class="route-pallet">{{ stop.pallet_code|default:"Паллета не указана" }}</div>
+                      <div class="route-meta">
+                        Подзадач: {{ stop.subtask_count }}
+                        {% if stop.completed_subtask_count %}
+                          · выполнено {{ stop.completed_subtask_count }}
+                        {% endif %}
+                      </div>
+                      {% if stop.assignee_name %}
+                        <div class="assignment-meta">Водитель: {{ stop.assignee_name }}{% if stop.assignment_age_label %} · в работе {{ stop.assignment_age_label }}{% endif %}</div>
+                      {% endif %}
+                    </div>
+                    <div class="route-actions">
+                      <span class="route-status">{{ stop.status_label }}</span>
+                      {% if stop.can_choose %}
+                        <form method="post">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="take_task">
+                          <input type="hidden" name="request" value="{{ selected.key }}">
+                          <input type="hidden" name="task" value="{{ stop.selectable_task_id }}">
+                          <button class="route-take" type="submit">Взять в работу</button>
+                        </form>
+                      {% endif %}
+                      {% if stop.can_release %}
+                        <form method="post" onsubmit="return window.confirm('Вернуть незапущенное задание в общую очередь?');">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="release_task">
+                          <input type="hidden" name="request" value="{{ selected.key }}">
+                          <input type="hidden" name="task" value="{{ stop.active_task_id }}">
+                          <button class="route-release" type="submit">Вернуть в очередь</button>
+                        </form>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endfor %}
+          </section>
+        {% endif %}
+      </section>
+    {% endif %}
+  </main>
+  {{ request_notifications|json_script:"otg-request-notifications" }}
+  <section id="otg-assignment-alert" class="assignment-alert" role="alertdialog" aria-live="assertive" hidden>
+    <button id="otg-assignment-close" class="assignment-alert-close" type="button" aria-label="Закрыть">×</button>
+    <div class="badge">Новое задание</div>
+    <h2>Новая заявка на отгрузку</h2>
+    <p id="otg-assignment-text"></p>
+  </section>
+  <script>
+    (() => {
+      {% if not selected %}
+      window.setTimeout(() => window.location.reload(), 10000);
+      {% endif %}
+      const flashState = '{{ flash_state|default:""|escapejs }}';
+      if (flashState === 'error' || flashState === 'success') {
+        const playFallbackTone = () => {
+          try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) {
+              return;
+            }
+            const ctx = new AudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = flashState === 'error' ? 'sawtooth' : 'sine';
+            osc.frequency.value = flashState === 'error' ? 180 : 720;
+            gain.gain.value = flashState === 'error' ? 0.06 : 0.05;
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.frequency.setValueAtTime(osc.frequency.value, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(
+              flashState === 'error' ? 120 : 520,
+              ctx.currentTime + 0.16
+            );
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+            osc.stop(ctx.currentTime + 0.18);
+          } catch (e) {}
+        };
+        try {
+          const audioId = flashState === 'error' ? 'scan-error-audio' : 'scan-success-audio';
+          const audioEl = document.getElementById(audioId);
+          if (audioEl) {
+            audioEl.currentTime = 0;
+            const playPromise = audioEl.play();
+            if (playPromise && typeof playPromise.catch === 'function') {
+              playPromise.catch(() => playFallbackTone());
+            }
+          } else {
+            playFallbackTone();
+          }
+        } catch (e) {
+          playFallbackTone();
+        }
+      }
+    })();
+  </script>
+  <script>
+    (() => {
+      'use strict';
+
+      const employeeId = String(document.body.dataset.otgEmployeeId || 'shared').trim();
+      const endpoint = '/otg-reachtruck/?queue=1';
+      const soundKey = 'fullbox-otg-sound-enabled';
+      const initializedKey = `fullbox-otg-queue-initialized-${employeeId}`;
+      const requestKeysKey = `fullbox-otg-request-keys-${employeeId}`;
+      const toggle = document.getElementById('otg-sound-toggle');
+      const setup = document.getElementById('otg-sound-setup');
+      const enableButton = document.getElementById('otg-sound-enable');
+      const alertBox = document.getElementById('otg-assignment-alert');
+      const alertText = document.getElementById('otg-assignment-text');
+      const alertClose = document.getElementById('otg-assignment-close');
+      let polling = false;
+
+      const storageGet = (key, fallback) => {
+        try {
+          const value = window.localStorage.getItem(key);
+          return value === null ? fallback : value;
+        } catch (_error) {
+          return fallback;
+        }
+      };
+      const storageSet = (key, value) => {
+        try { window.localStorage.setItem(key, String(value)); } catch (_error) {}
+      };
+      const readStoredKeys = () => {
+        try {
+          const value = JSON.parse(storageGet(requestKeysKey, '[]'));
+          return Array.isArray(value) ? value.map(String) : [];
+        } catch (_error) {
+          return [];
+        }
+      };
+      const soundEnabled = () => storageGet(soundKey, '0') === '1';
+      const syncSoundUi = () => {
+        const enabled = soundEnabled();
+        if (toggle) {
+          toggle.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+          toggle.textContent = enabled ? '🔔 Звук' : '🔕 Звук';
+        }
+        if (setup) setup.hidden = enabled;
+      };
+      const speakNewShippingRequest = () => {
+        if (!soundEnabled() || !('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) return;
+        try {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance('Новая заявка на отгрузку');
+          utterance.lang = 'ru-RU';
+          utterance.rate = 0.92;
+          utterance.pitch = 1;
+          window.speechSynthesis.speak(utterance);
+        } catch (_error) {}
+      };
+      const showAlert = (requestRow) => {
+        if (alertBox) {
+          const parts = [];
+          if (requestRow && requestRow.label) parts.push(`Отгрузка №${requestRow.label}`);
+          if (requestRow && requestRow.client) parts.push(requestRow.client);
+          if (alertText) alertText.textContent = parts.join(' · ');
+          alertBox.hidden = false;
+          window.requestAnimationFrame(() => alertBox.classList.add('show'));
+        }
+        speakNewShippingRequest();
+        if ('vibrate' in navigator) navigator.vibrate([180, 90, 180]);
+      };
+      const closeAlert = () => {
+        if (!alertBox) return;
+        alertBox.classList.remove('show');
+        window.setTimeout(() => { alertBox.hidden = true; }, 220);
+      };
+      const acceptQueue = (requests, announce) => {
+        const rows = Array.isArray(requests)
+          ? requests.filter((row) => row && String(row.key || '').trim())
+          : [];
+        const previous = new Set(readStoredKeys());
+        const currentKeys = rows.map((row) => String(row.key));
+        const added = rows.filter((row) => !previous.has(String(row.key)));
+        storageSet(requestKeysKey, JSON.stringify(currentKeys));
+        if (announce && added.length) showAlert(added[added.length - 1]);
+      };
+      const pollQueue = async () => {
+        if (polling || !navigator.onLine) return;
+        polling = true;
+        try {
+          const response = await fetch(endpoint, {
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          });
+          if (!response.ok) return;
+          const payload = await response.json();
+          acceptQueue(payload.requests, true);
+          const nextButton = document.getElementById('otg-next-request');
+          if (nextButton && payload.queue_action_label) nextButton.textContent = payload.queue_action_label;
+          const list = document.getElementById('otg-queue-list');
+          if (list && typeof payload.html === 'string') list.innerHTML = payload.html;
+          const waiting = document.getElementById('otg-waiting-request');
+          if (waiting && Array.isArray(payload.requests)) {
+            const row = payload.requests.find((item) => item.key === waiting.dataset.request);
+            if (row && row.waiting === false) window.location.reload();
+          }
+          const refreshForm = document.getElementById('otg-queue-refresh');
+          if (refreshForm) {
+            const token = refreshForm.querySelector('[name="csrfmiddlewaretoken"]');
+            if (token) {
+              try {
+                await fetch('/otg-reachtruck/', {
+                  method: 'POST', credentials: 'same-origin', cache: 'no-store',
+                  headers: { 'X-CSRFToken': token.value, 'Content-Type': 'application/x-www-form-urlencoded' },
+                  body: 'action=refresh_queue',
+                });
+              } catch (_error) {}
+            }
+          }
+        } catch (_error) {
+        } finally {
+          polling = false;
+        }
+      };
+      const seedQueue = () => {
+        const script = document.getElementById('otg-request-notifications');
+        let rows = [];
+        if (script) {
+          try { rows = JSON.parse(script.textContent || '[]'); } catch (_error) {}
+        }
+        const initialized = storageGet(initializedKey, '0') === '1';
+        acceptQueue(rows, initialized);
+        storageSet(initializedKey, '1');
+      };
+      const enableSound = () => {
+        storageSet(soundKey, '1');
+        syncSoundUi();
+        speakNewShippingRequest();
+      };
+      const disableSound = () => {
+        storageSet(soundKey, '0');
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        syncSoundUi();
+      };
+
+      if (toggle) {
+        toggle.addEventListener('click', () => {
+          if (soundEnabled()) disableSound(); else enableSound();
+        });
+      }
+      if (enableButton) enableButton.addEventListener('click', enableSound);
+      if (alertClose) alertClose.addEventListener('click', closeAlert);
+      document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeAlert(); });
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) pollQueue(); });
+      window.addEventListener('focus', pollQueue);
+      window.addEventListener('online', pollQueue);
+
+      syncSoundUi();
+      seedQueue();
+      window.setInterval(pollQueue, 10000);
+    })();
+  </script>
+</body>
+</html>

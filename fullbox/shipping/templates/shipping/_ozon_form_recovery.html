@@ -1,0 +1,183 @@
+{% if not edit_order or edit_order.status == 'draft' %}
+<script>
+  // Browser recovery only: no server draft, stock reservation or Ozon request.
+  (function () {
+    const form = document.getElementById('shipping-create-form');
+    const userId = '{{ request.user.pk|default:""|escapejs }}';
+    if (!form || !userId) return;
+    const control = (name) => form.elements.namedItem(name);
+    const agencyId = String(control('agency')?.value || '');
+    if (!agencyId) return;
+    const serverOrder = '{{ edit_order.pk|default:""|escapejs }}';
+    const serverVersion = '{{ edit_order.updated_at|date:"c"|escapejs }}';
+    const isPost = '{{ request.method|escapejs }}' === 'POST';
+    const prefix = `fullbox.ozon-form.v1:${userId}:${agencyId}:`;
+    const maxAge = 24 * 60 * 60 * 1000;
+    let token = new URL(location.href).searchParams.get('ozon_form') || '';
+    if (!/^[a-zA-Z0-9-]{16,80}$/.test(token)) token = '';
+    let restoring = false;
+    let touched = false;
+    let pendingFiles = [];
+    let timer;
+    const newToken = () => Array.from(crypto.getRandomValues(new Uint8Array(16)),
+      (byte) => byte.toString(16).padStart(2, '0')).join('');
+    const notice = document.createElement('div');
+    notice.className = 'hint';
+    notice.id = 'ozon-form-recovery-status';
+    notice.setAttribute('role', 'status');
+    (document.getElementById('draft-autosave-status')?.parentElement || form).appendChild(notice);
+    const fields = [
+      'delivery_type', 'marketplace', 'requires_marking_scan', 'shipping_barcode',
+      'supply_number', 'supply_type', 'wb_transit_warehouse', 'transit_address',
+      'destination_warehouse', 'slot_date', 'slot_time', 'eta_at', 'destination_address',
+      'vehicle_type', 'vehicle_number', 'driver_phone', 'comment',
+      'ozon_supply_payload_json', 'ozon_gm_comment', 'ozon_gm_barcodes', 'ozon_boxes_total',
+    ];
+    const isOzon = () => {
+      const market = control('marketplace');
+      return control('delivery_type')?.value === 'marketplace'
+        && String(market?.selectedOptions?.[0]?.textContent || '').trim().toLowerCase() === 'ozon';
+    };
+    const forget = () => {
+      clearTimeout(timer);
+      try { if (token) sessionStorage.removeItem(prefix + token); } catch (_) { /* unavailable */ }
+      touched = false;
+      pendingFiles = [];
+      notice.textContent = '';
+    };
+    const pinFormUrl = () => {
+      if (!token) token = newToken();
+      const url = new URL(location.href);
+      url.searchParams.set('ozon_form', token);
+      if (!serverOrder) {
+        // An autosaved non-Ozon draft is a different form. Leave it unchanged.
+        url.searchParams.set('force_new', '1');
+        url.searchParams.delete('order');
+        url.searchParams.delete('edit');
+        form.querySelectorAll('input[name="edit_order_id"], input[name="edit"]').forEach((node) => node.remove());
+        const documents = document.getElementById('shipping-documents-existing');
+        if (documents?.dataset.orderId) {
+          documents.dataset.orderId = '';
+          if (documents.querySelector('[data-attachment-id]')) {
+            documents.textContent = 'Ранее загруженные файлы остались в прежнем черновике. Для Ozon выберите файлы заново.';
+          }
+        }
+      }
+      history.replaceState(history.state, '', url);
+    };
+    const save = () => {
+      clearTimeout(timer);
+      if (restoring || !touched || !isOzon()) return;
+      try {
+        const values = {};
+        fields.forEach((name) => {
+          const el = control(name);
+          if (el) values[name] = el.type === 'checkbox' ? el.checked : el.value;
+        });
+        const quantities = {};
+        form.querySelectorAll('tr[data-stock-key]').forEach((row) => {
+          const input = row.querySelector('.ship-boxes-input');
+          if (input) quantities[row.dataset.stockKey] = input.value;
+        });
+        if (!token) token = newToken();
+        sessionStorage.setItem(prefix + token, JSON.stringify({
+          at: Date.now(), order: serverOrder, version: serverVersion, values, quantities,
+          etaDate: document.getElementById('eta-date')?.value || '',
+          files: pendingFiles,
+        }));
+        pinFormUrl();
+        notice.textContent = 'Форма Ozon сохранена в этой вкладке для обновления страницы. Заявка ещё не отправлена. Выбранные файлы после обновления нужно прикрепить заново.';
+      } catch (_) {
+        notice.textContent = 'Не удалось сохранить форму в браузере. Не обновляйте страницу до отправки заявки.';
+      }
+    };
+    const changed = (event) => {
+      if (restoring) return;
+      if (!isOzon()) { forget(); return; }
+      touched = true;
+      // Coalesce programmatic field updates from the Ozon preview.
+      clearTimeout(timer);
+      if (['marketplace', 'delivery_type'].includes(event?.target?.name)) save();
+      else timer = setTimeout(save, 150);
+    };
+    form.addEventListener('input', changed);
+    form.addEventListener('change', changed);
+    document.getElementById('shipping-documents')?.addEventListener('change', (event) => {
+      pendingFiles = Array.from(event.target.files || [], (file) => file.name);
+      changed();
+    });
+    form.addEventListener('shipping-ozon-filled', () => { changed(); save(); });
+    form.addEventListener('reset', forget);
+    window.addEventListener('pagehide', save);
+    window.addEventListener('beforeunload', (event) => {
+      save();
+      if (touched && isOzon() && notice.textContent.startsWith('Не удалось')) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+    form.addEventListener('submit', save);
+
+    const restore = () => {
+      if (!token || isPost || document.getElementById('shipping-form-errors')) return;
+      let snapshot;
+      try {
+        snapshot = JSON.parse(sessionStorage.getItem(prefix + token) || 'null');
+        if (!snapshot) return;
+        if (Date.now() - snapshot.at > maxAge || snapshot.order !== serverOrder
+            || snapshot.version !== serverVersion || snapshot.values?.delivery_type !== 'marketplace') {
+          forget();
+          return;
+        }
+        if (serverOrder && document.getElementById('shipping-original-delivery-type')?.value !== 'marketplace') return;
+        restoring = true;
+        control('delivery_type').value = 'marketplace';
+        control('marketplace').value = snapshot.values.marketplace;
+        if (!isOzon()) return;
+        // This event initializes visibility; the persisted server type must
+        // already be marketplace for existing drafts (normal reset flow).
+        control('delivery_type').dispatchEvent(new Event('change', { bubbles: true }));
+        control('marketplace').dispatchEvent(new Event('change', { bubbles: true }));
+        const payload = JSON.parse(snapshot.values.ozon_supply_payload_json || 'null');
+        if (payload?.form) form.dispatchEvent(new CustomEvent('shipping-ozon-recover', { detail: payload }));
+        fields.forEach((name) => {
+          const el = control(name);
+          if (!el || !(name in snapshot.values)) return;
+          if (el.type === 'checkbox') el.checked = Boolean(snapshot.values[name]);
+          else el.value = snapshot.values[name];
+        });
+        const eta = document.getElementById('eta-date');
+        if (eta) eta.value = snapshot.etaDate || '';
+        ['wb_transit_warehouse', 'vehicle_type'].forEach((name) => control(name)?.dispatchEvent(new Event('change', { bubbles: true })));
+        eta?.dispatchEvent(new Event('change', { bubbles: true }));
+        form.querySelectorAll('tr[data-stock-key]').forEach((row) => {
+          const input = row.querySelector('.ship-boxes-input');
+          const value = snapshot.quantities?.[row.dataset.stockKey];
+          if (input && value !== undefined) {
+            input.value = value;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+        // Never restore tariff acceptance or any security/identity field.
+        form.dataset.ozonRecovered = '1';
+        pendingFiles = Array.isArray(snapshot.files) ? snapshot.files : [];
+        touched = true;
+        notice.textContent = 'Форма Ozon восстановлена после обновления. Перед отправкой состав и остатки будут проверены сервером заново.'
+          + (snapshot.files?.length ? ' Прикрепите файлы заново: ' + snapshot.files.join(', ') : '');
+      } catch (_) {
+        notice.textContent = 'Не удалось восстановить форму Ozon. Выберите поставки повторно.';
+      } finally { restoring = false; }
+    };
+    // Run after all form/grid handlers and pageshow autofill cleanup.
+    window.addEventListener('pageshow', (event) => { if (!event.persisted) restore(); });
+    try {
+      Object.keys(sessionStorage).filter((key) => key.startsWith(prefix)).forEach((key) => {
+        try {
+          if (Date.now() - JSON.parse(sessionStorage.getItem(key)).at > maxAge) sessionStorage.removeItem(key);
+        } catch (_) { sessionStorage.removeItem(key); }
+      });
+    } catch (_) { /* recovery reports storage failures when edited */ }
+  })();
+</script>
+{% endif %}

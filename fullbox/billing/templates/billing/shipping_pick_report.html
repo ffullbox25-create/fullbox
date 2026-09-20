@@ -1,0 +1,473 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}Подбор отгрузок — Биллинг{% endblock %}
+
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.filter-card {
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:12px;
+  display:flex; gap:10px; flex-wrap:wrap; align-items:end;
+}
+.field {
+  border:1px solid var(--line); border-radius:10px; background:#fff;
+  padding:9px 12px; font:inherit; font-size:13px;
+}
+.kpi-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }
+.kpi {
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:14px;
+}
+.kpi span { display:block; color:var(--muted); font-size:12px; font-weight:800; }
+.kpi strong { display:block; margin-top:4px; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:26px; font-weight:900; }
+.table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:1320px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:2px solid var(--line); }
+td { padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+tbody tr:hover td { background:#fff9ef; }
+tbody tr.manual-not-invoiced td { background:#fff; }
+tbody tr.manual-not-invoiced:hover td { background:#fff; }
+tbody tr.manual-invoiced td { background:#bbf7d0; border-bottom-color:#86efac; }
+tbody tr.manual-invoiced:hover td { background:#a7f3d0; }
+tbody tr.manual-invoiced td:first-child { box-shadow:inset 5px 0 0 #16a34a; }
+.row-main { font-weight:850; }
+.row-sub { color:var(--muted); font-size:11px; margin-top:2px; line-height:1.35; }
+.num { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-weight:850; white-space:nowrap; }
+.badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900; white-space:nowrap; }
+.badge.green { background:var(--green-soft); color:var(--green-strong); }
+.badge.invoice-done { background:#16a34a; color:#fff; box-shadow:0 0 0 2px rgba(22,163,74,.12); }
+.badge.invoice-pending { background:#f3f4f6; color:#6b7280; border:1px solid #d1d5db; }
+.badge.orange { background:var(--orange-soft); color:#b45309; }
+.badge.red { background:#fff0f0; color:var(--red); }
+.badge.gray { background:var(--surface-2); color:var(--muted); }
+.billing-link {
+  display:block; min-width:142px; padding:8px 10px; border:1px solid #f8b800;
+  border-radius:9px; background:var(--orange-soft); color:#7a4300; text-decoration:none;
+  transition:background .15s ease, transform .15s ease;
+}
+.billing-link:hover, .billing-link:focus-visible { background:#ffe2a7; color:#5c3200; transform:translateY(-1px); }
+.billing-link .row-main { display:flex; align-items:center; gap:5px; }
+.billing-link .row-sub { color:#7a4300; }
+.billing-missing { display:grid; gap:5px; }
+.manual-invoice-box { margin-top:6px; display:grid; gap:5px; }
+.bulk-invoice-bar {
+  display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  background:#fff9ef; border:1px solid #f8b800; border-radius:12px; padding:10px 12px;
+}
+.bulk-invoice-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.pick-select-cell { width:38px; text-align:center; }
+.pick-select-cell input { width:16px; height:16px; accent-color:#f89000; }
+.manual-invoice-btn {
+  border:1px solid var(--line); border-radius:8px; background:#fff; padding:6px 8px;
+  font:inherit; font-size:11px; font-weight:850; cursor:pointer; color:var(--text);
+}
+.manual-invoice-btn:hover, .manual-invoice-btn:focus-visible { border-color:#f8b800; background:#fff9ef; }
+.manual-invoice-note {
+  display:inline-flex; width:max-content; max-width:100%; padding:5px 8px; border-radius:999px;
+  background:#16a34a; color:#fff; font-size:11px; font-weight:900;
+}
+.manual-invoice-pending {
+  display:inline-flex; width:max-content; max-width:100%; padding:5px 8px; border-radius:999px;
+  background:#f3f4f6; color:#6b7280; border:1px solid #d1d5db; font-size:11px; font-weight:900;
+}
+.manual-invoice-modal {
+  position:fixed; inset:0; z-index:2000; display:none; align-items:center; justify-content:center;
+  background:rgba(48,48,48,.35); padding:20px;
+}
+.manual-invoice-modal.is-open { display:flex; }
+.manual-invoice-dialog {
+  width:min(420px,100%); background:#fff; border:1px solid var(--line);
+  border-radius:14px; box-shadow:0 20px 50px rgba(0,0,0,.18); padding:18px;
+}
+.manual-invoice-dialog h2 { margin:0 0 12px; font-size:18px; font-weight:900; }
+.manual-invoice-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+.manual-invoice-check { display:flex; align-items:center; gap:8px; margin-top:10px; font-size:13px; font-weight:800; }
+.client-summary { display:flex; gap:8px; flex-wrap:wrap; }
+.client-chip {
+  border:1px solid var(--line); border-radius:12px; background:#fff; padding:9px 12px;
+  display:grid; gap:3px; min-width:220px;
+}
+.client-chip strong { font-size:13px; }
+.summary-note { color:var(--muted); font-size:12px; font-weight:700; }
+@media (max-width: 1200px) { .kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+{% endblock %}
+
+{% block content %}
+{% include "billing/_billing_nav.html" %}
+
+<div>
+  <h1 class="page-title">Подбор отгрузок</h1>
+  <div class="page-sub">
+    Отчет по заявкам на отгрузку: отдельно короба, подобранные кратно коробам, и поштучный подбор. Данные подбора читаются из складских событий, общее количество товара — из позиций заявки; начисления и остатки не меняются.
+  </div>
+</div>
+
+<form class="filter-card" method="get">
+  <div>
+    <div class="row-sub">С даты отгрузки</div>
+    <input class="field" type="date" name="date_from" value="{{ shipping_pick_filter_date_from }}" style="width:150px">
+  </div>
+  <div>
+    <div class="row-sub">По дату отгрузки</div>
+    <input class="field" type="date" name="date_to" value="{{ shipping_pick_filter_date_to }}" style="width:150px">
+  </div>
+  <div style="min-width:240px;flex:1">
+    <div class="row-sub">Клиент</div>
+    <select class="field" name="client" style="width:100%">
+      <option value="">Все</option>
+      {% for c in shipping_pick_clients %}
+        <option value="{{ c.id }}" {% if shipping_pick_filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <div class="row-sub">Статус отгрузки</div>
+    <select class="field" name="status" style="width:190px">
+      <option value="">Все</option>
+      {% for code, label in shipping_pick_status_choices %}
+        <option value="{{ code }}" {% if shipping_pick_filter_status == code %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <div class="row-sub">Направление</div>
+    <select class="field" name="delivery_type" style="width:190px">
+      <option value="">Все направления</option>
+      {% for code, label in shipping_pick_delivery_type_choices %}
+        <option value="{{ code }}" {% if shipping_pick_filter_delivery_type == code %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div style="min-width:260px;flex:1">
+    <div class="row-sub">Поиск</div>
+    <input class="field" name="q" value="{{ shipping_pick_filter_q }}" placeholder="Заявка, клиент, склад, ШК" style="width:100%">
+  </div>
+  <div>
+    <div class="row-sub">Сортировка</div>
+    <select class="field" name="sort" style="width:260px">
+      {% for code, label in shipping_pick_sort_options %}
+        <option value="{{ code }}" {% if shipping_pick_filter_sort == code %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <label class="field" style="display:flex;gap:8px;align-items:center">
+    <input type="checkbox" name="show_empty" value="1" {% if shipping_pick_filter_show_empty %}checked{% endif %}>
+    <span>Показывать без подбора</span>
+  </label>
+  <button class="btn primary" type="submit">Показать</button>
+  <a class="btn" href="/team-manager/billing/shipping-pick-report/">Сбросить</a>
+</form>
+
+<div class="kpi-grid">
+  <div class="kpi"><span>Заявок в отчете</span><strong>{{ shipping_pick_totals.orders }}</strong></div>
+  <div class="kpi"><span>Всего товара по заявкам</span><strong>{{ shipping_pick_totals.goods_units }} ед.</strong></div>
+  <div class="kpi"><span>Кратно коробам</span><strong>{{ shipping_pick_totals.whole_boxes }}</strong></div>
+  <div class="kpi"><span>Поштучно</span><strong>{{ shipping_pick_totals.piece_units }}</strong></div>
+  <div class="kpi"><span>Без классификации</span><strong>{{ shipping_pick_totals.unclassified_boxes }}</strong></div>
+</div>
+
+{% if shipping_pick_client_totals %}
+  <div class="client-summary">
+    {% for item in shipping_pick_client_totals %}
+      <div class="client-chip">
+        <strong>{{ item.client.short_name|default:item.client.agn_name }}</strong>
+        <span class="row-sub">{{ item.orders }} заявок · {{ item.goods_units }} ед. товара</span>
+        <span class="row-sub">{{ item.whole_boxes }} кор. кратно · {{ item.piece_units }} шт. поштучно</span>
+        {% if item.unclassified_boxes %}<span class="row-sub">{{ item.unclassified_boxes }} кор. без веса</span>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<div class="summary-note">
+  Проверено заявок в периоде: {{ shipping_pick_total_orders_scanned }}. На экран выводятся первые 300 заявок, пустые скрыты по умолчанию.
+</div>
+
+<div class="bulk-invoice-bar">
+  <div>
+    <div class="row-main">Групповой ручной счет</div>
+    <div class="row-sub">Отметьте заявки галочками и укажите один номер счета для всех выбранных строк.</div>
+  </div>
+  <div class="bulk-invoice-actions">
+    <span class="row-sub">Выбрано: <span class="num" id="manual-invoice-selected-count">0</span></span>
+    <button class="btn primary" type="button" id="manual-invoice-bulk-open" disabled>Ручной счет по выбранным</button>
+  </div>
+</div>
+
+<div class="table-card">
+  <table>
+    <thead>
+      <tr>
+        <th class="pick-select-cell">
+          <input type="checkbox" id="manual-invoice-select-all" aria-label="Выбрать все заявки на странице">
+        </th>
+        <th>Дата отгрузки / заявка</th>
+        <th>Клиент</th>
+        <th>Направление</th>
+        <th>Статус</th>
+        <th>Всего товара, ед.</th>
+        <th>Кратно коробам</th>
+        <th>Поштучно</th>
+        <th>Разбивка коробов</th>
+        <th>Биллинг</th>
+        <th>Проверка</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in shipping_pick_rows %}
+        <tr class="{% if row.manual_invoice.is_issued %}manual-invoiced{% elif row.application %}manual-not-invoiced{% endif %}">
+          <td class="pick-select-cell">
+            {% if row.application %}
+              <input
+                type="checkbox"
+                class="js-pick-row-select"
+                value="{{ row.application.id }}"
+                data-app-number="{{ row.application.application_id }}"
+                aria-label="Выбрать заявку {{ row.application.application_id }}"
+              >
+            {% else %}
+              <span class="row-sub">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if row.order.planned_ship_date %}
+              <div class="row-main">{{ row.order.planned_ship_date|date:"d.m.Y" }}</div>
+              <div class="row-sub">дата указана в заявке</div>
+            {% else %}
+              <div class="row-main">Дата не указана</div>
+              <div class="row-sub">укажите дату отгрузки в заявке</div>
+            {% endif %}
+            <div class="row-sub">{{ row.order.number }}</div>
+          </td>
+          <td>
+            <div class="row-main">{{ row.client.short_name|default:row.client.agn_name|truncatechars:38 }}</div>
+            <div class="row-sub">ИНН {{ row.client.inn|default:"—" }}</div>
+          </td>
+          <td>
+            <div class="row-main">{{ row.order.get_delivery_type_display|default:"Отгрузка" }}</div>
+            <div class="row-sub">
+              {% if row.order.marketplace %}{{ row.order.marketplace }} · {% endif %}
+              {{ row.order.destination_warehouse|default:row.order.destination_address|default:"—"|truncatechars:70 }}
+            </div>
+            {% if row.transit_warehouse %}
+              <div class="row-sub">Транзитный склад: {{ row.transit_warehouse|truncatechars:70 }}</div>
+            {% endif %}
+          </td>
+          <td><span class="badge gray">{{ row.order.get_status_display }}</span></td>
+          <td>
+            <span class="num">{{ row.goods_units }}</span> ед.
+            <div class="row-sub">по заявке</div>
+          </td>
+          <td><span class="num">{{ row.whole_boxes }}</span> кор.</td>
+          <td><span class="num">{{ row.piece_units }}</span> шт.</td>
+          <td>
+            {% for band in row.box_breakdown %}
+              {% if band.quantity %}
+                <div class="row-sub">{{ band.label }}: <span class="num">{{ band.quantity }}</span></div>
+              {% endif %}
+            {% empty %}
+              <span class="row-sub">—</span>
+            {% endfor %}
+            {% if row.unclassified_boxes %}
+              <div class="row-sub">Без веса: {{ row.unclassified_boxes }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {% if row.application %}
+              <a class="billing-link" href="/team-manager/billing/applications/{{ row.application.id }}/" aria-label="Открыть заявку биллинга {{ row.application.application_id }}">
+                <span class="row-main">Открыть заявку биллинга <span aria-hidden="true">↗</span></span>
+                <span class="row-sub">{{ row.application.application_id }} · фактов: {{ row.facts_count }} · начислений: {{ row.charges_count }}</span>
+              </a>
+              <div class="manual-invoice-box">
+                {% if row.manual_invoice.is_issued %}
+                  <div class="manual-invoice-note">Счет выставлен{% if row.manual_invoice.number %}: {{ row.manual_invoice.number }}{% endif %}</div>
+                {% elif row.manual_invoice.number %}
+                  <div class="manual-invoice-pending">Номер указан, счет не выставлен: {{ row.manual_invoice.number }}</div>
+                {% else %}
+                  <div class="manual-invoice-pending">Счет не выставлен</div>
+                {% endif %}
+                <button
+                  type="button"
+                  class="manual-invoice-btn js-manual-invoice"
+                  data-app-id="{{ row.application.id }}"
+                  data-app-number="{{ row.application.application_id }}"
+                  data-invoice-number="{{ row.manual_invoice.number|default:'' }}"
+                  data-invoice-issued="{% if row.manual_invoice.is_issued %}1{% else %}0{% endif %}"
+                >Ручной счет</button>
+              </div>
+            {% else %}
+              <div class="billing-missing">
+                <span class="badge orange">нет заявки биллинга</span>
+                <span class="row-sub">фактов: {{ row.facts_count }} · начислений: {{ row.charges_count }}</span>
+              </div>
+            {% endif %}
+          </td>
+          <td>
+            {% if row.manual_invoice.is_issued %}
+              <span class="badge invoice-done">счет выставлен</span>
+            {% elif row.warnings %}
+              {% for warning in row.warnings %}
+                <div><span class="badge red">{{ warning|truncatechars:90 }}</span></div>
+              {% endfor %}
+            {% elif row.unclassified_boxes %}
+              <span class="badge red">есть короба без веса</span>
+            {% elif row.application %}
+              <span class="badge invoice-pending">счет не выставлен</span>
+            {% else %}
+              <span class="badge green">рассчитано</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="10">
+            <div class="row-main">За выбранный период подбора не найдено.</div>
+            <div class="row-sub">Включите “Показывать без подбора”, если нужно увидеть все отгрузки периода.</div>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="manual-invoice-modal" id="manual-invoice-modal" aria-hidden="true">
+  <div class="manual-invoice-dialog" role="dialog" aria-modal="true" aria-labelledby="manual-invoice-title">
+    <h2 id="manual-invoice-title">Ручной счет</h2>
+    <form id="manual-invoice-form">
+      {% csrf_token %}
+      <input type="hidden" name="application_id" id="manual-invoice-app-id">
+      <input type="hidden" name="application_ids" id="manual-invoice-app-ids">
+      <div class="row-sub" id="manual-invoice-app-number"></div>
+      <div style="margin-top:10px">
+        <div class="row-sub">Номер счета</div>
+        <input class="field" name="number" id="manual-invoice-number" maxlength="64" placeholder="Например INV-2026-000001" style="width:100%">
+      </div>
+      <label class="manual-invoice-check">
+        <input type="checkbox" name="is_issued" id="manual-invoice-issued">
+        <span>Счет выставлен</span>
+      </label>
+      <div class="manual-invoice-actions">
+        <button class="btn" type="button" id="manual-invoice-cancel">Отмена</button>
+        <button class="btn primary" type="submit">Сохранить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  const modal = document.getElementById('manual-invoice-modal');
+  const form = document.getElementById('manual-invoice-form');
+  const appId = document.getElementById('manual-invoice-app-id');
+  const appIds = document.getElementById('manual-invoice-app-ids');
+  const appNumber = document.getElementById('manual-invoice-app-number');
+  const numberInput = document.getElementById('manual-invoice-number');
+  const issuedInput = document.getElementById('manual-invoice-issued');
+  const cancelBtn = document.getElementById('manual-invoice-cancel');
+  const bulkOpenBtn = document.getElementById('manual-invoice-bulk-open');
+  const selectedCount = document.getElementById('manual-invoice-selected-count');
+  const selectAll = document.getElementById('manual-invoice-select-all');
+  const csrf = form ? form.querySelector('[name=csrfmiddlewaretoken]') : null;
+  const rowChecks = Array.from(document.querySelectorAll('.js-pick-row-select'));
+
+  function openModal(btn) {
+    appId.value = btn.dataset.appId || '';
+    appIds.value = '';
+    appNumber.textContent = btn.dataset.appNumber ? 'Заявка ' + btn.dataset.appNumber : '';
+    numberInput.value = btn.dataset.invoiceNumber || '';
+    issuedInput.checked = btn.dataset.invoiceIssued === '1';
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    setTimeout(function(){ numberInput.focus(); }, 30);
+  }
+
+  function openBulkModal() {
+    const selected = rowChecks.filter(function(item){ return item.checked; });
+    if (!selected.length) return;
+    const ids = selected.map(function(item){ return item.value; });
+    const numbers = selected.map(function(item){ return item.dataset.appNumber || item.value; });
+    appId.value = '';
+    appIds.value = ids.join(',');
+    appNumber.textContent = 'Выбрано заявок: ' + selected.length + ' · ' + numbers.slice(0, 5).join(', ') + (numbers.length > 5 ? '...' : '');
+    numberInput.value = '';
+    issuedInput.checked = true;
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    setTimeout(function(){ numberInput.focus(); }, 30);
+  }
+
+  function closeModal() {
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function refreshBulkState() {
+    const selected = rowChecks.filter(function(item){ return item.checked; });
+    if (selectedCount) selectedCount.textContent = selected.length;
+    if (bulkOpenBtn) bulkOpenBtn.disabled = selected.length === 0;
+    if (selectAll) {
+      selectAll.checked = rowChecks.length > 0 && selected.length === rowChecks.length;
+      selectAll.indeterminate = selected.length > 0 && selected.length < rowChecks.length;
+    }
+  }
+
+  document.querySelectorAll('.js-manual-invoice').forEach(function(btn){
+    btn.addEventListener('click', function(){ openModal(btn); });
+  });
+  rowChecks.forEach(function(item){
+    item.addEventListener('change', refreshBulkState);
+  });
+  if (selectAll) {
+    selectAll.addEventListener('change', function(){
+      rowChecks.forEach(function(item){ item.checked = selectAll.checked; });
+      refreshBulkState();
+    });
+  }
+  if (bulkOpenBtn) bulkOpenBtn.addEventListener('click', openBulkModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+  if (modal) {
+    modal.addEventListener('click', function(event){
+      if (event.target === modal) closeModal();
+    });
+  }
+  document.addEventListener('keydown', function(event){
+    if (event.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+  });
+  if (form) {
+    form.addEventListener('submit', function(event){
+      event.preventDefault();
+      const id = appId.value;
+      const ids = (appIds.value || '').split(',').filter(Boolean);
+      const isBulk = ids.length > 0;
+      if (!id && !isBulk) return;
+      const url = isBulk
+        ? '/team-manager/billing/api/applications/manual-invoice-marker/bulk/'
+        : '/team-manager/billing/api/applications/' + id + '/manual-invoice-marker/';
+      const payload = {
+        number: numberInput.value || '',
+        is_issued: issuedInput.checked
+      };
+      if (isBulk) payload.application_ids = ids;
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrf ? csrf.value : ''
+        },
+        body: JSON.stringify(payload)
+      })
+        .then(function(response){ return response.json().then(function(data){ return {response: response, data: data}; }); })
+        .then(function(result){
+          if (!result.response.ok || !result.data.ok) {
+            throw new Error(result.data.error || 'Не удалось сохранить отметку счета');
+          }
+          window.location.reload();
+        })
+        .catch(function(error){ alert(error.message || 'Не удалось сохранить отметку счета'); });
+    });
+  }
+  refreshBulkState();
+})();
+</script>
+{% endblock %}

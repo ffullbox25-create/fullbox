@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Заявки | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --font-body: "Manrope", system-ui, sans-serif;
+      --font-display: "Bricolage Grotesque", "Manrope", system-ui, sans-serif;
+      --bg: #f6f8f7;
+      --surface: #ffffff;
+      --surface-soft: #f8faf9;
+      --ink: #303030;
+      --muted: #70665f;
+      --accent: #f89000;
+      --accent-soft: rgba(248, 144, 0, 0.13);
+      --stroke: rgba(23, 33, 29, 0.1);
+      --shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: var(--font-body); color: var(--ink); background: var(--bg); }
+    a { color: inherit; text-decoration: none; }
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 250px minmax(0, 1fr); }
+    .shell.nav-collapsed { grid-template-columns: 82px minmax(0, 1fr); }
+    .side { position: sticky; top: 0; height: 100vh; overflow: auto; padding: 22px 18px; background: #fbfdfc; border-right: 1px solid var(--stroke); display: grid; grid-template-rows: auto auto 1fr auto; gap: 22px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 900; font-family: var(--font-display); font-size: 20px; letter-spacing: 0; }
+    .fullbox-brand-mark { display: inline-flex; align-items: center; min-width: 0; }
+    .fullbox-brand-img { display: block; width: auto; height: 42px; max-width: 132px; object-fit: contain; }
+    .profile { padding: 12px; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--surface); }
+    .profile-label, .nav-heading { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+    .profile-name { margin-top: 4px; font-weight: 800; line-height: 1.35; }
+    .nav { display: grid; align-content: start; gap: 18px; }
+    .nav-section { display: grid; gap: 7px; }
+    .nav-link { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius); color: #2b3531; border: 1px solid transparent; }
+    .nav-link:hover, .nav-link.primary { color: #fff; background: linear-gradient(135deg, #f86800, #f8b800); border-color: rgba(248, 144, 0, 0.32); box-shadow: 0 10px 24px rgba(248, 144, 0, 0.16); }
+    .nav-link.primary { position: relative; }
+    .nav-link.primary::before { content: ""; position: absolute; left: -18px; top: 8px; bottom: 8px; width: 3px; border-radius: 999px; background: var(--accent); }
+    .nav-icon { width: 20px; height: 20px; display: grid; place-items: center; color: currentColor; }
+    .nav-title { font-size: 14px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+    .nav-drilldown { display: grid; gap: 6px; }
+    .nav-drilldown summary { list-style: none; cursor: pointer; }
+    .nav-drilldown summary::-webkit-details-marker { display: none; }
+    .nav-submenu { display: grid; gap: 4px; padding: 2px 0 4px 44px; }
+    .nav-submenu a { color: var(--muted); font-size: 13px; font-weight: 800; line-height: 1.35; padding: 5px 0; }
+    .nav-submenu a:hover { color: var(--accent); }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 9px 13px; border-radius: var(--radius); border: 1px solid var(--stroke); background: var(--surface); font-weight: 800; font-size: 13px; cursor: pointer; }
+    .btn.primary { border-color: transparent; background: var(--accent); color: #fff; }
+    .collapse-btn { width: 100%; }
+    .sidebar-actions { display: grid; gap: 8px; }
+    .logout-btn { color: #c43f4d; background: #fff; }
+    .shell.nav-collapsed .side { padding-inline: 14px; }
+    .shell.nav-collapsed .profile, .shell.nav-collapsed .nav-heading, .shell.nav-collapsed .nav-title, .shell.nav-collapsed .nav-submenu, .shell.nav-collapsed .btn-label { display: none; }
+    .shell.nav-collapsed .brand, .shell.nav-collapsed .nav-link { justify-content: center; }
+    .shell.nav-collapsed .fullbox-brand-img { height: 34px; max-width: 42px; }
+    .shell.nav-collapsed .nav-link { grid-template-columns: 22px; padding-inline: 10px; }
+    .shell.nav-collapsed .nav-link.primary::before { left: -14px; }
+    .content { min-width: 0; padding: 22px 28px 34px; display: grid; gap: 16px; align-content: start; }
+    .topbar { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+    h1, h2, p { margin: 0; }
+    h1 { font-family: var(--font-display); font-size: 28px; line-height: 1.15; letter-spacing: 0; }
+    .subtitle, .muted { color: var(--muted); font-size: 12px; line-height: 1.4; }
+    .tabs, .filters, .pager { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .tab { min-height: 34px; padding: 8px 12px; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--surface); color: var(--muted); font-size: 13px; font-weight: 900; }
+    .tab.active { color: #fff; background: var(--accent); border-color: var(--accent); }
+    .filters { display: grid; grid-template-columns: minmax(240px, 1.4fr) repeat(5, minmax(130px, 1fr)) auto auto; padding: 12px; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+    .filters input, .filters select { min-height: 36px; padding: 8px 10px; border: 1px solid var(--stroke); border-radius: var(--radius); background: #fff; font: inherit; font-size: 12px; font-weight: 800; outline: 0; }
+    .filters .search { min-width: 0; }
+    .table-panel { overflow: hidden; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+    .table-wrap { overflow: auto; }
+    table { width: 100%; min-width: 1380px; border-collapse: collapse; }
+    th, td { padding: 11px 12px; border-bottom: 1px solid var(--stroke); text-align: left; font-size: 12px; vertical-align: top; white-space: nowrap; }
+    th { position: sticky; top: 0; z-index: 1; background: var(--surface-soft); color: var(--muted); font-weight: 900; }
+    td.title { white-space: normal; min-width: 260px; }
+    .type-pill { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 8px; border-radius: 999px; color: var(--accent); background: var(--accent-soft); font-size: 12px; font-weight: 900; }
+    tr.request-row { --row-tone: var(--muted); cursor: pointer; }
+    tr.request-row:hover td { background: var(--surface-soft); }
+    tr.request-row td:first-child { border-left: 3px solid var(--row-tone); }
+    tr.stage-overdue { --row-tone: #c43f4d; }
+    tr.stage-today, tr.stage-soon { --row-tone: #b7791f; }
+    tr.stage-in_work { --row-tone: #1f6b9c; }
+    tr.stage-no_owner { --row-tone: #6d56a8; }
+    tr.stage-done { --row-tone: var(--accent); }
+    .empty { margin: 14px; padding: 20px; border: 1px dashed var(--stroke); border-radius: var(--radius); color: var(--muted); text-align: center; }
+    .pager { justify-content: flex-end; padding: 12px; border-top: 1px solid var(--stroke); }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      .side { position: static; height: auto; grid-template-rows: auto; }
+      .content { padding: 18px; }
+      .topbar { display: grid; }
+      .filters { grid-template-columns: 1fr; }
+    }
+  </style>
+  <link href="/static/head_manager/cabinet.css" rel="stylesheet">
+</head>
+<body>
+  <div class="shell" id="dashboard-shell">
+    {% include "head_manager/_main_sidebar.html" with active="requests" %}
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <h1>Заявки</h1>
+          <div class="subtitle">Приемка, обработка, отгрузка и прочие работы строками. Данные на {{ today_label }}, обновлены {{ updated_at }}.</div>
+        </div>
+        <a class="btn" href="/head-manager/">Назад</a>
+      </header>
+
+      <nav class="tabs" aria-label="Типы заявок">
+        {% for item in request_stage_filters %}
+          <a class="tab{% if item.key == selected_stage %} active{% endif %}" href="?request_filter={{ item.key }}&type={{ selected_type }}">{{ item.label }} · {{ item.count }}</a>
+        {% endfor %}
+      </nav>
+
+      <nav class="tabs" aria-label="Операции заявок">
+        {% for item in request_types %}
+          <a class="tab{% if item.key == selected_type %} active{% endif %}" href="?type={{ item.key }}&request_filter={{ selected_stage }}">{{ item.label }} · {{ item.count }}</a>
+        {% endfor %}
+      </nav>
+
+      <form class="filters" method="get">
+        <input type="hidden" name="type" value="{{ selected_type }}">
+        <input type="hidden" name="request_filter" value="{{ selected_stage }}">
+        <input class="search" type="search" name="q" value="{{ filters.q }}" placeholder="Поиск: номер, клиент, исполнитель, рейс, склад, зона, МП">
+        <input type="search" name="client" value="{{ filters.client }}" placeholder="Клиент">
+        <input type="search" name="employee" value="{{ filters.employee }}" placeholder="Исполнитель">
+        <input type="search" name="warehouse_filter" value="{{ filters.warehouse_filter }}" placeholder="Склад">
+        <input type="search" name="zone" value="{{ filters.zone }}" placeholder="Зона">
+        <input type="search" name="marketplace" value="{{ filters.marketplace }}" placeholder="Маркетплейс">
+        <select name="status">
+          <option value="">Все статусы</option>
+          {% for value,label in status_choices %}
+            <option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <input type="search" name="document_status" value="{{ filters.document_status }}" placeholder="Статус документов">
+        <input type="date" name="date_from" value="{{ filters.date_from }}">
+        <input type="date" name="date_to" value="{{ filters.date_to }}">
+        <button class="btn primary" type="submit">Применить</button>
+        <a class="btn" href="/head-manager/requests/">Сбросить</a>
+      </form>
+
+      <section class="table-panel">
+        {% if rows %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Тип</th>
+                  <th>Номер</th>
+                  <th>Заявка</th>
+                  <th>Клиент</th>
+                  <th>Склад</th>
+                  <th>Зона</th>
+                  <th>Маркетплейс</th>
+                  <th>Документы</th>
+                  <th>Статус</th>
+                  <th>Исполнитель</th>
+                  <th>Создано</th>
+                  <th>Дедлайн</th>
+                  <th>Срок</th>
+                  <th>Обновлено</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                  <tr class="request-row stage-{{ row.stage }}" onclick="window.location.href='{{ row.href }}'">
+                    <td><span class="type-pill">{{ row.type_label }}</span></td>
+                    <td><a href="{{ row.href }}">{{ row.number }}</a></td>
+                    <td class="title"><a href="{{ row.href }}">{{ row.title }}</a></td>
+                    <td>{{ row.client }}</td>
+                    <td>{{ row.warehouse }}</td>
+                    <td>{{ row.zone }}</td>
+                    <td>{{ row.marketplace }}</td>
+                    <td>{{ row.document_status }}</td>
+                    <td>{{ row.status }}</td>
+                    <td>{{ row.executor }}</td>
+                    <td>{{ row.created|default:"-" }}</td>
+                    <td>{{ row.deadline|default:"-" }}</td>
+                    <td>{{ row.deadline_label|default:"-" }}</td>
+                    <td>{{ row.updated|default:"-" }}</td>
+                    <td><a class="type-pill" href="{{ row.href }}">Открыть</a></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if page_obj.has_other_pages %}
+            <div class="pager">
+              {% if page_obj.has_previous %}
+                <a class="btn" href="?{{ query_string }}&page={{ page_obj.previous_page_number }}">Назад</a>
+              {% endif %}
+              <span class="muted">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+              {% if page_obj.has_next %}
+                <a class="btn" href="?{{ query_string }}&page={{ page_obj.next_page_number }}">Дальше</a>
+              {% endif %}
+            </div>
+          {% endif %}
+        {% else %}
+          <div class="empty">По выбранным фильтрам заявок нет.</div>
+        {% endif %}
+      </section>
+    </main>
+  </div>
+  <script>
+    (function () {
+      var shell = document.getElementById("dashboard-shell");
+      var button = document.getElementById("sidebar-collapse");
+      if (!shell || !button) return;
+      var storageKey = "head-manager-sidebar-collapsed";
+      var collapsed = localStorage.getItem(storageKey) === "1";
+      function render() {
+        shell.classList.toggle("nav-collapsed", collapsed);
+        button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      }
+      button.addEventListener("click", function () {
+        collapsed = !collapsed;
+        localStorage.setItem(storageKey, collapsed ? "1" : "0");
+        render();
+      });
+      render();
+    })();
+  </script>
+</body>
+</html>

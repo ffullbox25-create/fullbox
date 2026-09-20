@@ -1,0 +1,65 @@
+<section class="or-card" id="or-actions">
+  <h2>Выполнение задачи</h2>
+  {% if missing_result %}
+    <div class="or-alert or-alert-warning">
+      Перед завершением заполните обязательные данные: {{ missing_result|join:", " }}.
+    </div>
+  {% endif %}
+  {% if primary_action %}
+    <form method="post" class="or-action-form" id="other-request-primary-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="{{ primary_action.0 }}">
+      {% if primary_action.0 == 'complete_work' %}
+        {% include "teammanager/other_requests/_result_fields.html" %}
+      {% endif %}
+      <button class="or-btn or-btn-primary" type="submit" id="other-request-primary-submit">{{ primary_action.1 }}</button>
+    </form>
+  {% else %}
+    <p class="muted" style="margin:0">Для текущего статуса действий исполнителя не требуется.</p>
+  {% endif %}
+
+  <div class="or-action-secondary">
+    {% if item.status == 'awaiting_manager_check' or item.status == 'done_by_department' %}
+      <form method="post" class="or-inline-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="return_rework">
+        <input type="text" name="reason" placeholder="Причина возврата" required>
+        <button class="or-btn" type="submit">Вернуть на доработку</button>
+      </form>
+    {% endif %}
+    {% if item.status == 'awaiting_manager' or item.status == 'in_progress' or item.status == 'awaiting_manager_check' %}
+      <form method="post" class="or-inline-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="request_client_info">
+        <input type="text" name="reason" placeholder="Что уточнить у клиента" required>
+        <button class="or-btn" type="submit">Запросить уточнение у клиента</button>
+      </form>
+    {% endif %}
+    {% if warehouse_cancel_request_pending %}
+      <div class="or-alert or-alert-warning">
+        Запрос на отмену отправлен складу.
+        {% if warehouse_cancel_reason %}Причина: {{ warehouse_cancel_reason }}.{% endif %}
+      </div>
+    {% elif can_request_warehouse_cancel %}
+      <details class="or-more-actions">
+        <summary>Ещё действия</summary>
+        <form method="post" class="or-inline-form" style="margin-top:8px">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="request_warehouse_cancel">
+          <input type="text" name="reason" placeholder="Причина отмены" required>
+          <button class="or-btn or-btn-danger" type="submit">Запросить отмену у склада</button>
+        </form>
+      </details>
+    {% elif item.status != 'closed' and item.status != 'cancelled' and item.status != 'rejected' and not cancel_blocked_by_warehouse %}
+      <details class="or-more-actions">
+        <summary>Ещё действия</summary>
+        <form method="post" class="or-inline-form" style="margin-top:8px">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="cancel">
+          <input type="text" name="reason" placeholder="Причина отмены" required>
+          <button class="or-btn or-btn-danger" type="submit">Отменить заявку</button>
+        </form>
+      </details>
+    {% endif %}
+  </div>
+</section>

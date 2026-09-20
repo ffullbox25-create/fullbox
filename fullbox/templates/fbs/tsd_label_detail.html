@@ -1,0 +1,51 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Этикетка {{ order.external_order_id }}{% endblock %}
+{% block page_class %}tsd-page-operator{% endblock %}
+
+{% block content %}
+  <section class="detail-surface scan-summary">
+    <div class="metric-grid">
+      <div><span>Заказ</span><strong>{{ order.external_order_id }}</strong></div>
+      <div><span>Клиент</span><strong>{{ order.profile.agency }}</strong></div>
+      <div><span>Маркетплейс</span><strong>{{ label.get_marketplace_display }}</strong></div>
+      <div><span>Формат</span><strong>{{ label.get_label_format_display }}</strong></div>
+      <div><span>ID этикетки</span><strong>{{ label.external_label_id|default:"Ожидается" }}</strong></div>
+      <div><span>Статус</span><strong>{{ label.get_status_display }}</strong></div>
+      <div><span>Печать</span><strong>{% if print_job %}{{ print_status_label }}{% else %}Не отправлена{% endif %}</strong></div>
+    </div>
+  </section>
+
+  {% if label.status == label.STATUS_READY and label.label_format == label.FORMAT_PNG %}
+    <form class="action-strip" method="post" data-submit-once>
+      {% csrf_token %}<input type="hidden" name="action" value="print">
+      <button class="button button-secondary" type="submit">Напечатать повторно</button>
+      {% if print_job %}<span>Принтер: {{ print_job.printer_name }}{% if print_job.error %} · {{ print_job.error }}{% endif %}</span>{% endif %}
+    </form>
+  {% endif %}
+
+  {% if label.status == label.STATUS_READY %}
+    {% if label.document_url %}
+      <nav class="action-strip" aria-label="Файл этикетки">
+        <a class="button button-secondary" href="{{ label.document_url }}" target="_blank" rel="noopener">Открыть этикетку</a>
+      </nav>
+    {% endif %}
+    <section class="scan-step" aria-labelledby="label-scan-title">
+      <div class="step-number">1</div>
+      <div class="step-copy">
+        <h2 id="label-scan-title">Этикетка маркетплейса</h2>
+        <strong>{{ label.external_label_id }}</strong>
+      </div>
+    </section>
+    <form class="scan-form" method="post" autocomplete="off" data-submit-once data-scan-feedback data-scan-focus-lock{% if agent_scan_poll_url %} data-agent-scan-poll-url="{{ agent_scan_poll_url }}" data-agent-scan-since="{{ agent_scan_event_id }}"{% endif %}>
+      {% csrf_token %}<input type="hidden" name="action" value="confirm">
+      <label for="label-scan">Скан этикетки</label>
+      <input id="label-scan" type="text" name="label_scan" autofocus required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-scan-autosubmit="250">
+      <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Подтвердить этикетку</button>
+    </form>
+  {% elif label.status == label.STATUS_REQUESTED %}
+    <div class="empty-state" data-auto-refresh="5000">Этикетка еще не получена от маркетплейса. Экран обновится автоматически.</div>
+  {% else %}
+    <div class="notice notice-ok" role="status">Заказ готов к передаче</div>
+  {% endif %}
+{% endblock %}

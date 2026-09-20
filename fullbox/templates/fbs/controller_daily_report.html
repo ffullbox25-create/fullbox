@@ -1,0 +1,129 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Мой день{% endblock %}
+{% block page_class %}tsd-page-controller controller-report-page{% endblock %}
+
+{% block content %}
+<style>
+  .controller-report-page{--report-orange:#f86800;--report-yellow:#f8b800;--report-line:#e8e1d8;--report-soft:#fff8ee}
+  .report-shell{display:grid;gap:14px;max-width:1180px;margin:0 auto}
+  .report-hero,.report-panel,.report-kpi{border:1px solid var(--report-line);border-radius:14px;background:#fff;box-shadow:0 8px 28px rgba(48,48,48,.055)}
+  .report-hero{position:relative;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:20px 22px;overflow:hidden;background:linear-gradient(110deg,#fff 55%,#fff4df)}
+  .report-hero:before{content:"";position:absolute;inset:0 auto 0 0;width:7px;background:linear-gradient(180deg,var(--report-yellow),var(--report-orange))}
+  .report-hero small{display:block;color:#a94a00;font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.08em}
+  .report-hero h2{margin:5px 0 0;font-size:26px;line-height:1.2}
+  .report-hero strong{font-size:17px;color:#555}
+  .report-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .report-kpi{display:grid;gap:6px;min-height:94px;padding:16px}
+  .report-kpi span{color:#707070;font-size:11px;font-weight:750}
+  .report-kpi strong{align-self:end;font-size:25px;line-height:1;color:#303030}
+  .report-kpi:nth-child(-n+4) strong{color:var(--report-orange)}
+  .report-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,.65fr);gap:14px;align-items:start}
+  .report-panel{padding:18px}
+  .report-panel h2{margin:0 0 13px;font-size:19px}
+  .report-note{margin:0 0 14px;padding:11px 13px;border-radius:10px;background:var(--report-soft);color:#68533f;font-size:12px;line-height:1.45}
+  .report-table-wrap{overflow-x:auto}
+  .report-table{width:100%;border-collapse:collapse;font-size:12px}
+  .report-table th,.report-table td{padding:10px 8px;border-top:1px solid #eee;text-align:right;white-space:nowrap}
+  .report-table th{border-top:0;color:#777;font-size:10px;text-transform:uppercase}
+  .report-table th:first-child,.report-table td:first-child{text-align:left;white-space:normal;min-width:180px}
+  .report-empty{margin:0;color:#747474;font-size:13px}
+  .activity-list{display:grid;gap:0;margin:0}
+  .activity-list div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid #eee}
+  .activity-list div:first-child{border-top:0}
+  .activity-list dt{color:#707070;font-size:12px}
+  .activity-list dd{margin:0;font-size:14px;font-weight:850}
+  .error-list{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+  .error-list li{display:flex;justify-content:space-between;gap:12px;padding:10px 11px;border-radius:9px;background:#fff4f1;color:#8f1d14;font-size:12px;line-height:1.4}
+  .error-list strong{flex:0 0 auto}
+  .close-panel{border-color:rgba(248,104,0,.42);background:linear-gradient(115deg,#fff 60%,#fff4df)}
+  .close-panel p{margin:0 0 14px;color:#656565;font-size:13px;line-height:1.5}
+  .close-panel form{margin:0}
+  .close-panel .button{width:100%;min-height:48px;border-radius:10px}
+  @media(max-width:820px){.report-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.report-grid{grid-template-columns:1fr}.report-hero{align-items:flex-start;flex-direction:column}.report-hero strong{font-size:14px}}
+</style>
+
+<div class="report-shell">
+  <section class="report-hero">
+    <div>
+      <small>Личный отчёт контролера</small>
+      <h2>{{ report.date|date:"d.m.Y" }}</h2>
+    </div>
+    <strong>{% if workstation %}{{ workstation.name }}{% else %}Рабочее место не подключено{% endif %}</strong>
+  </section>
+
+  <section class="report-kpis" aria-label="Итоги дня">
+    <div class="report-kpi"><span>Проверено единиц</span><strong>{{ report.units }}</strong></div>
+    <div class="report-kpi"><span>Заказов</span><strong>{{ report.orders }}</strong></div>
+    <div class="report-kpi"><span>Завершено волн</span><strong>{{ report.waves }}</strong></div>
+    <div class="report-kpi"><span>Закрыто отгрузок</span><strong>{{ report.shipments }}</strong></div>
+    <div class="report-kpi"><span>Время в волнах</span><strong>{{ report.wave_time }}</strong></div>
+    <div class="report-kpi"><span>Средняя волна</span><strong>{{ report.average_wave_time }}</strong></div>
+    <div class="report-kpi"><span>Самая долгая волна</span><strong>{{ report.longest_wave_time }}</strong></div>
+    <div class="report-kpi"><span>Ошибок сканирования</span><strong>{{ report.errors }}</strong></div>
+  </section>
+
+  <div class="report-grid">
+    <section class="report-panel">
+      <h2>По клиентам</h2>
+      <p class="report-note">Время в волнах — сумма интервалов от начала проверки до завершения волны. Если волны шли параллельно, это не равно точному рабочему времени сотрудника.</p>
+      {% if report.clients %}
+        <div class="report-table-wrap">
+          <table class="report-table">
+            <thead><tr><th>Клиент</th><th>Единиц</th><th>Заказов</th><th>Волн</th><th>Отгрузок</th><th>Время</th><th>Среднее</th><th>Ошибок</th></tr></thead>
+            <tbody>
+              {% for client in report.clients %}
+                <tr><td><strong>{{ client.name }}</strong></td><td>{{ client.units }}</td><td>{{ client.orders }}</td><td>{{ client.waves }}</td><td>{{ client.shipments }}</td><td>{{ client.wave_time }}</td><td>{{ client.average_wave_time }}</td><td>{{ client.errors }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="report-empty">Сегодня у этого контролера ещё нет завершённых операций.</p>
+      {% endif %}
+    </section>
+
+    <div style="display:grid;gap:14px">
+      <section class="report-panel">
+        <h2>Активность</h2>
+        <dl class="activity-list">
+          <div><dt>Первое действие</dt><dd>{% if report.first_activity %}{{ report.first_activity|date:"H:i:s" }}{% else %}—{% endif %}</dd></div>
+          <div><dt>Последнее действие</dt><dd>{% if report.last_activity %}{{ report.last_activity|date:"H:i:s" }}{% else %}—{% endif %}</dd></div>
+          <div><dt>Интервал активности</dt><dd>{{ report.activity_time }}</dd></div>
+        </dl>
+      </section>
+
+      {% if report.error_reasons %}
+        <section class="report-panel">
+          <h2>Частые ошибки</h2>
+          <ul class="error-list">
+            {% for reason in report.error_reasons %}<li><span>{{ reason.0 }}</span><strong>{{ reason.1 }}</strong></li>{% endfor %}
+          </ul>
+        </section>
+      {% endif %}
+
+      <section class="report-panel close-panel">
+        {% if tote_session %}
+          {% if show_close_action %}
+            <h2>Завершить смену</h2>
+            <p>Проверьте показатели дня. После подтверждения будет выполнено обычное закрытие сессии тары со всеми действующими проверками.</p>
+            <form method="post" action="{% url 'fbs:controller_home' %}" data-submit-once>
+              {% csrf_token %}
+              <input type="hidden" name="action" value="close_tote_session">
+              <input type="hidden" name="session_id" value="{{ tote_session.id }}">
+              <button class="button" type="submit">Подтвердить и закрыть сессию</button>
+            </form>
+          {% else %}
+            <h2>Смена ещё открыта</h2>
+            <p>Перед завершением вы ещё раз увидите этот отчёт и подтвердите закрытие.</p>
+            <a class="button button-secondary" href="{% url 'fbs:controller_daily_report' %}?close=1">Перейти к завершению смены</a>
+          {% endif %}
+        {% else %}
+          <h2>Сессия закрыта</h2>
+          <p>Активной сессии тары у текущего рабочего места нет. Отчёт доступен только для просмотра.</p>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}

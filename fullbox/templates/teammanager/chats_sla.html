@@ -1,0 +1,292 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}SLA чатов | Кабинет менеджера{% endblock %}
+
+{% block extra_css %}
+    .page-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .page-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 28px;
+    }
+    .page-sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .head-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+    }
+    .kpi.tone-danger { background: #fbf1ee; border-color: #f0cfc7; }
+    .kpi.tone-warn { background: #fff8e8; border-color: #f0e0b0; }
+    .kpi-label { color: var(--muted); font-size: 12px; font-weight: 800; }
+    .kpi strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 26px;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      color: var(--ink);
+    }
+    .kpi .hint { margin-top: 4px; font-size: 11px; color: var(--muted); }
+    .panel-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .panel-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-2);
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+    }
+    .panel-head h2 {
+      margin: 0;
+      font-size: 15px;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    }
+    .panel-head .meta { font-size: 12px; color: var(--muted); }
+    .sla-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .sla-table th {
+      text-align: left;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      border-bottom: 1px solid var(--line);
+      background: #fffdf8;
+    }
+    .sla-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    .sla-table tr:last-child td { border-bottom: 0; }
+    .sla-table a { color: var(--accent-strong); font-weight: 700; text-decoration: none; }
+    .sla-table a:hover { text-decoration: underline; }
+    .badge {
+      display: inline-flex;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+    }
+    .badge.overdue { background: rgba(212, 84, 60, 0.14); color: var(--danger); }
+    .preview { color: var(--muted); font-size: 12px; max-width: 280px; }
+    .empty {
+      padding: 28px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .sla-form {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .sla-form label { font-size: 12px; color: var(--muted); font-weight: 700; }
+    .sla-form input {
+      width: 72px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: #fff;
+      font: inherit;
+    }
+    @media (max-width: 1100px) {
+      .kpi-row, .panel-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 720px) {
+      .kpi-row, .panel-grid { grid-template-columns: 1fr; }
+    }
+{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">SLA чатов</h1>
+      <div class="page-sub">
+        Контроль ответов клиентам · порог {{ sla_minutes }} мин · обновлено {{ sla_report.generated_at }}
+      </div>
+    </div>
+    <div class="head-actions">
+      <a class="btn ghost" href="/team-manager/chats/">К чатам</a>
+      <form class="sla-form" method="get" action="/team-manager/chats/sla/">
+        <label for="sla">Порог, мин</label>
+        <input id="sla" name="sla" type="number" min="15" max="1440" step="15" value="{{ sla_minutes }}">
+        <button class="btn primary" type="submit">Применить</button>
+      </form>
+    </div>
+  </div>
+
+  <section class="kpi-row" aria-label="KPI SLA">
+    <div class="kpi {% if sla_report.kpi.unanswered %}tone-warn{% endif %}">
+      <div class="kpi-label">Без ответа</div>
+      <strong>{{ sla_report.kpi.unanswered }}</strong>
+      <div class="hint">Последнее сообщение — от клиента</div>
+    </div>
+    <div class="kpi {% if sla_report.kpi.overdue %}tone-danger{% endif %}">
+      <div class="kpi-label">Просрочено SLA</div>
+      <strong>{{ sla_report.kpi.overdue }}</strong>
+      <div class="hint">Ждут дольше {{ sla_minutes }} мин</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Открытые вопросы</div>
+      <strong>{{ sla_report.kpi.open_questions }}</strong>
+      <div class="hint">Статусы «нужен ответ / в работе»</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Ср. первый ответ</div>
+      <strong>
+        {% if sla_report.kpi.avg_first_response_min != None %}
+          {{ sla_report.kpi.avg_first_response_min }} мин
+        {% else %}
+          —
+        {% endif %}
+      </strong>
+      <div class="hint">по {{ sla_report.kpi.response_samples }} диалогам</div>
+    </div>
+  </section>
+
+  <div class="panel-grid">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Ожидают ответа</h2>
+        <span class="meta">{{ sla_report.unanswered|length }} из {{ sla_report.kpi.unanswered }}</span>
+      </div>
+      {% if sla_report.unanswered %}
+      <div style="overflow:auto">
+        <table class="sla-table">
+          <thead>
+            <tr>
+              <th>Клиент / чат</th>
+              <th>Менеджер</th>
+              <th>Ожидание</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in sla_report.unanswered %}
+            <tr>
+              <td>
+                <a href="{{ row.chat_url }}">{{ row.agency_name }}</a>
+                <div class="preview">{{ row.title }}{% if row.order_id %} · {{ row.order_id }}{% endif %}</div>
+                {% if row.preview %}<div class="preview">«{{ row.preview }}»</div>{% endif %}
+              </td>
+              <td>{{ row.manager }}</td>
+              <td>
+                {% if row.is_overdue %}
+                  <span class="badge overdue">{{ row.waiting_minutes }} мин</span>
+                {% else %}
+                  <span class="badge">{{ row.waiting_minutes }} мин</span>
+                {% endif %}
+              </td>
+              <td>{{ row.status_label }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty">Нет диалогов без ответа — отлично.</div>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Нагрузка по менеджерам</h2>
+        <span class="meta">7 дней + текущие</span>
+      </div>
+      {% if sla_report.managers %}
+      <div style="overflow:auto">
+        <table class="sla-table">
+          <thead>
+            <tr>
+              <th>Менеджер</th>
+              <th>Без ответа</th>
+              <th>Просроч.</th>
+              <th>Открыто</th>
+              <th>Сообщ. 7д</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in sla_report.managers %}
+            <tr>
+              <td>{{ m.manager }}<div class="preview">{{ m.clients }} клиент.</div></td>
+              <td>{{ m.unanswered }}</td>
+              <td>{% if m.overdue %}<span class="badge overdue">{{ m.overdue }}</span>{% else %}0{% endif %}</td>
+              <td>{{ m.open }}</td>
+              <td>{{ m.client_messages_7d }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty">Нет данных по менеджерам.</div>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Сообщения клиентов по заявкам</h2>
+      <span class="meta">топ активных диалогов</span>
+    </div>
+    {% if sla_report.orders %}
+    <div style="overflow:auto">
+      <table class="sla-table">
+        <thead>
+          <tr>
+            <th>Тип</th>
+            <th>Заявка</th>
+            <th>Сообщений клиента</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in sla_report.orders %}
+          <tr>
+            <td>{{ o.order_type|default:"—" }}</td>
+            <td>{{ o.order_id }}</td>
+            <td>{{ o.client_messages }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty">Пока нет клиентских сообщений в чатах заявок.</div>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends "warehouse_goods/base.html" %}
+{% load static %}
+{% block title %}{{ sku.name }}{% endblock %}
+{% block content %}
+<h1 class="goods-breadcrumb"><span class="home-mark">⌂</span><span>/</span><span>Склад</span><span>/</span><a href="{% url 'warehouse_goods:list' %}">Товары</a><span>/</span><strong>{{ sku.pk }}: {{ sku.name }}</strong></h1>
+
+<section class="product-overview">
+  <div class="overview-top"><a class="btn" href="{% url 'warehouse_goods:edit' sku.pk %}">Изменить</a></div>
+  <div class="overview-body">
+    <div class="overview-image">{% if sku.img %}<img src="{{ sku.img }}" alt="{{ sku.name }}">{% else %}<span>◫</span>{% endif %}</div>
+    <div class="detail-title">
+      <h2>{{ sku.name }}</h2>
+      <table class="product-data"><tbody>
+        <tr><th>Партнер:</th><td>{{ sku.agency.agn_name|default:'—' }}</td></tr>
+        <tr><th>Артикул:</th><td>{{ sku.sku_code }}</td></tr>
+        <tr><th>Штрихкод:</th><td>{{ primary_barcode.value|default:'—' }}</td></tr>
+        <tr><th>Размер:</th><td>{{ sku.size|default:'—' }}</td></tr>
+        <tr><th>Вес:</th><td>{% if sku.weight_kg %}{{ sku.weight_kg }} кг{% else %}—{% endif %}</td></tr>
+        <tr><th>Габариты:</th><td>{% if sku.length_mm or sku.width_mm or sku.height_mm %}{{ sku.length_mm|default:0 }}×{{ sku.width_mm|default:0 }}×{{ sku.height_mm|default:0 }} мм{% else %}—{% endif %}</td></tr>
+        <tr><th>Объем:</th><td>{{ sku.volume|default:'—' }}</td></tr>
+        <tr><th>Цвет:</th><td>{{ sku.color|default:'—' }}</td></tr>
+        <tr><th>Категория:</th><td>{{ sku.tovar_category|default:'—' }}</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="action-bar">
+    <button class="btn" type="button" data-modal-open="label-modal">ПЕЧАТЬ ЭТИКЕТОК</button>
+    <a class="btn" href="{% url 'warehouse_goods:history' sku.pk %}" target="_blank">История движения</a>
+    <button class="btn" type="button" data-modal-open="move-modal">Переместить товар</button>
+    <button class="btn primary" type="button" data-modal-open="transfer-modal">ПЕРЕДАТЬ ТОВАР</button>
+  </div>
+</section>
+
+<section class="stock-strip">
+  <div data-stock-key="total" data-stock-value="{{ totals.total }}"><span>Всего</span><strong>{{ totals.total }}</strong></div>
+  {% for item in totals.components %}<div data-stock-key="{{ item.key }}" data-stock-value="{{ item.value }}"><span>{{ item.label }}</span><strong{% if item.css_class %} class="{{ item.css_class }}"{% endif %}>{{ item.value }}</strong></div>{% endfor %}
+</section>
+
+<nav class="tabs" data-tabs data-initial-tab="{{ initial_tab }}">
+  <button data-tab="about">О товаре</button>
+  <button data-tab="characteristics">Характеристики</button>
+  <button data-tab="locations">Места хранения</button>
+  <button data-tab="identifiers">Штрихкоды и артикулы</button>
+  <button data-tab="services">Услуги по умолчанию</button>
+  <button data-tab="orders">Заказы</button>
+  <button data-tab="files">Файлы</button>
+  <button data-tab="marking">Коды маркировки</button>
+  <button data-tab="extra">Доп. поля</button>
+  <button data-tab="tasks">Типовое ТЗ</button>
+</nav>
+<section id="tab-panel" class="tab-panel" data-tab-url="{% url 'warehouse_goods:tab' sku.pk '__tab__' %}">
+  <div class="loading-state">Загрузка данных…</div>
+</section>
+
+<dialog class="modal" id="move-modal">
+  <form method="post" action="{% url 'warehouse_goods:move' sku.pk %}">
+    {% csrf_token %}
+    <div class="modal-head"><h2>Переместить товар</h2><button type="button" data-modal-close>×</button></div>
+    <p>Будет создано штатное задание ричтракеру. Складской остаток изменится только после выполнения задания.</p>
+    <label><span>Место назначения</span><select name="location" required><option value="">Выберите место</option>{% for location in move_locations %}<option value="{{ location.pk }}">{{ location.zone_code }} · {{ location.display_name|default:location.location_code }}</option>{% endfor %}</select></label>
+    <label><span>Количество</span><input name="qty" type="number" min="1" max="{{ totals.available|default:1 }}" value="1" required></label>
+    <label><span>Комментарий</span><textarea name="comment" rows="3"></textarea></label>
+    <div class="form-actions"><button class="btn quiet" type="button" data-modal-close>Отмена</button><button class="btn primary" type="submit">Создать задание</button></div>
+  </form>
+</dialog>
+
+<dialog class="modal" id="transfer-modal">
+  <form method="post" action="{% url 'warehouse_goods:transfer' sku.pk %}">
+    {% csrf_token %}
+    <div class="modal-head"><h2>Передать товар</h2><button type="button" data-modal-close>×</button></div>
+    <p>Создадим черновик заявки типа «Перемещение», после чего откроется штатная форма отгрузки.</p>
+    <label><span>Количество</span><input name="qty" type="number" min="1" max="{{ totals.available|default:1 }}" value="1" required></label>
+    <label><span>Комментарий</span><textarea name="comment" rows="3"></textarea></label>
+    <div class="form-actions"><button class="btn quiet" type="button" data-modal-close>Отмена</button><button class="btn primary" type="submit">Продолжить</button></div>
+  </form>
+</dialog>
+
+<dialog class="modal label-dialog" id="label-modal">
+  <form id="label-form" data-pdf-url="{% url 'warehouse_goods:label-pdf' sku.pk %}" data-queue-url="{% url 'warehouse_goods:label-queue' sku.pk %}">
+    {% csrf_token %}
+    <div class="modal-head"><h2>Печать этикеток</h2><button type="button" data-modal-close>×</button></div>
+    <div class="label-layout">
+      <div class="label-controls">
+        <label><span>Шаблон</span><select name="template_key" id="label-template">{% for template in label_templates %}<option value="{{ template.key }}" data-width="{{ template.width_mm }}" data-height="{{ template.height_mm }}">{{ template.button_title }}</option>{% endfor %}</select></label>
+        <label><span>Количество копий</span><input name="copies" type="number" min="1" max="500" value="1"></label>
+        <div class="label-info">Этикетка строится из данных этой карточки. Перед отправкой проверьте предпросмотр.</div>
+      </div>
+      <div class="label-preview-wrap">
+        <div id="label-preview" class="label-preview">
+          <div class="label-brand">FULLBOX</div><strong>{{ sku.name_print|default:sku.name }}</strong>
+          <span>Арт. {{ sku.sku_code }}{% if sku.size %} · {{ sku.size }}{% endif %}</span>
+          <svg id="label-barcode"></svg><small>{{ primary_barcode.value|default:sku.sku_code }}</small>
+        </div>
+      </div>
+    </div>
+    <div id="label-status" class="inline-status"></div>
+    <div class="form-actions"><button class="btn quiet" type="button" data-modal-close>Закрыть</button><button class="btn secondary" type="button" data-label-pdf>Скачать PDF</button><button class="btn primary" type="button" data-label-queue>Печать</button></div>
+  </form>
+</dialog>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'warehouse_goods/vendor/jsbarcode.min.js' %}"></script>
+<script src="{% static 'warehouse_goods/vendor/html2canvas.min.js' %}"></script>
+{% endblock %}

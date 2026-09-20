@@ -1,0 +1,351 @@
+{% extends "orders/receiving_tsd_base.html" %}
+{% load static %}
+{% block title %}Приемка № {{ order_id }}{% endblock %}
+{% block head %}
+  <script defer src="{% static 'vendor/qrcode.min.js' %}"></script>
+  <script defer src="{% static 'vendor/html2canvas.min.js' %}"></script>
+  <script defer src="{% url 'orders-receiving-tsd-asset' 'receiving_tsd.js' %}?v=20260920-pallet-route"></script>
+  <style>
+    .box-correction-controls { grid-column: 1 / -1; display: grid; grid-template-columns: 64px minmax(60px, 1fr) minmax(90px, 1fr); gap: 7px; align-items: end; }
+    .box-correction-controls label { min-width: 0; font-size: 12px; }
+    .box-correction-controls input { width: 100%; min-height: 48px; font-size: 20px; border: 2px solid #f89000; border-radius: 9px; padding: 6px; }
+    #box-correction-status { overflow-wrap: anywhere; margin: 8px 0; }
+    #box-correction-panel[hidden], #box-correction-mark[hidden] { display: none; }
+    #box-correction-panel { margin-top: 8px; }
+    .scan-quantity-control { margin-top: 9px; display: grid; grid-template-columns: minmax(0, 1fr) 112px; gap: 5px 7px; align-items: center; }
+    .scan-quantity-control label { color: #6a6a6a; font-size: 14px; font-weight: 800; }
+    .scan-quantity-control input { text-align: center; font-weight: 900; }
+    .scan-quantity-control small { grid-column: 1 / -1; color: #6a6a6a; line-height: 1.35; }
+    .scan-quantity-control[hidden] { display: none; }
+    .cz-recount-launch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .cz-recount-launch .btn {
+      min-height: 32px;
+      padding: 6px 10px;
+      white-space: nowrap;
+    }
+    .cz-recount-hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .cz-recount-card {
+      width: min(680px, 94vw);
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+    }
+    #cz-recount-modal [hidden] { display: none !important; }
+    .cz-recount-caption {
+      padding: 10px 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: #f8fafc;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .cz-recount-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .cz-recount-stat {
+      padding: 8px 10px;
+      border: 1px solid var(--stroke);
+      border-radius: 9px;
+      background: #fff;
+    }
+    .cz-recount-stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .cz-recount-stat strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 18px;
+    }
+    .cz-recount-status {
+      min-height: 42px;
+      padding: 9px 11px;
+      border: 1px solid rgba(248, 144, 0, 0.45);
+      border-radius: 9px;
+      background: rgba(248, 144, 0, 0.10);
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+    .cz-recount-alert {
+      padding: 12px;
+      border: 2px solid #b91c1c;
+      border-radius: 10px;
+      background: #b91c1c;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+    .cz-recount-card.is-issue {
+      border-color: #b91c1c;
+      box-shadow: 0 24px 70px rgba(127, 29, 29, 0.35);
+    }
+    .cz-recount-issues {
+      max-height: 150px;
+      overflow: auto;
+      padding: 8px 10px;
+      border: 1px solid var(--stroke);
+      border-radius: 9px;
+      background: #fff;
+    }
+    .cz-recount-issue-row {
+      padding: 5px 0;
+      border-bottom: 1px solid var(--stroke);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .cz-recount-issue-row:last-child { border-bottom: 0; }
+    @media (max-width: 620px) {
+      .cz-recount-launch { align-items: flex-start; flex-direction: column; }
+      .cz-recount-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    #cz-recount-modal { padding: 0; border: 0; border-radius: 12px; width: min(680px, 94vw); max-height: calc(100dvh - 20px); }
+    #cz-recount-modal::backdrop { background: rgba(0,0,0,.55); }
+    #cz-recount-modal .cz-recount-card { display: grid; gap: 8px; padding: 12px; width: 100%; box-sizing: border-box; }
+    #cz-recount-modal .box-modal-header, #cz-recount-modal .action-right { display:flex; gap:8px; justify-content:space-between; align-items:center; }
+    #cz-recount-modal .box-modal-title { font-weight:800; }
+    #cz-recount-modal .button { min-height:40px; padding:8px; }
+  </style>
+{% endblock %}
+{% block content %}
+  <section
+    id="receiving-tsd-app"
+    data-order-id="{{ order_id }}"
+    data-scan-url="{% url 'orders-receiving-tsd-scan' order_id %}"
+    data-open-box-url="{% url 'orders-receiving-tsd-open-box' order_id %}"
+    data-close-box-url="{% url 'orders-receiving-tsd-close-box' order_id %}"
+    data-correct-box-url="{% url 'orders-receiving-tsd-correct-box' order_id %}"
+    data-is-marked="{% if is_cz %}1{% else %}0{% endif %}"
+    data-close-pallet-url="{% url 'orders-receiving-tsd-close-pallet' order_id %}"
+    data-location-url="{% url 'orders-receiving-tsd-set-location' order_id %}"
+    data-fbs-destination-url="/orders/receiving/{{ order_id|urlencode }}/flow/pallet-placement-permission/"
+    data-complete-url="{% url 'orders-receiving-tsd-complete' order_id %}"
+    data-event-url="{% url 'orders-receiving-tsd-event' order_id %}"
+    data-print-agents-url="{% url 'orders-receiving-tsd-print-agents' order_id %}"
+    data-print-url="{% url 'orders-receiving-tsd-print-label' order_id %}"
+    data-marking-mode-url="{% url 'orders-receiving-tsd-set-marking-mode' order_id %}"
+    data-marking-mode-can-change="{% if marking_mode_can_change %}1{% else %}0{% endif %}"
+    data-receiving-route="{{ receiving_route }}"
+    data-csrf="{{ csrf_token }}"
+  >
+    <div class="detail-nav">
+      <a class="back-link" href="{% url 'orders-receiving-tsd-queue' %}">← К заявкам</a>
+      <span id="marking-mode-chip" class="status-chip {% if is_cz %}status-cz{% endif %}">{% if is_cz %}Честный знак{% else %}Обычный товар{% endif %}</span>
+      <span class="status-chip">→ {{ receiving_route_label }}</span>
+    </div>
+
+    <section class="order-card order-card-compact">
+      <div>
+        <p class="eyebrow">Заявка № {{ order_id }}</p>
+        <h1>{{ client|default:"Клиент не указан" }}</h1>
+      </div>
+      <div class="live-speed"><b id="metric-rate">{{ metrics.units_per_minute }}</b><span>шт./мин</span></div>
+    </section>
+
+    <section class="progress-card compact-card">
+      <div class="progress-numbers">
+        <span><b id="accepted-qty">{{ summary.accepted_qty }}</b> принято</span>
+        <span><b id="planned-qty">{{ summary.planned_qty }}</b> заявлено</span>
+        <span><b id="remaining-qty">{{ summary.remaining_qty }}</b> осталось</span>
+      </div>
+      <div class="progress-track"><i id="progress-bar"></i></div>
+      <div class="metrics-row">
+        <span>Начало: <b>{{ metrics.started_at|default:"—" }}</b></span>
+        <span>Ошибок: <b id="metric-errors">{{ metrics.error_count }}</b></span>
+      </div>
+    </section>
+
+    <section class="settings-card compact-card">
+      <strong>Маршрут после приёмки: {{ receiving_route_label }}</strong>
+      {% if receiving_route == 'fbs' %}<p class="hint">После закрытия паллеты и сканирования PR выберите конечное FBS-место самостоятельно. Автоматического назначения нет. Тип товара зафиксирован как GV.</p>{% endif %}
+      <strong>Тип приемки: {{ goods_type_label }}{% if goods_type %} — {{ goods_type|upper }}{% endif %}</strong>
+      {% if receiving_configuration_locked %}
+        <p class="hint">Тип и режим зафиксированы при начале приемки и сохраняются при её продолжении.</p>
+      {% else %}
+        <form method="post" action="{% url 'orders-receiving-tsd-set-goods-type' order_id %}">
+          {% csrf_token %}
+          <label for="receiving-goods-type">Тип товара</label>
+          <div class="inline-control">
+            <select id="receiving-goods-type" class="scan-input" name="goods_type" required>
+              <option value="">Выберите тип товара</option>
+              {% for code, label in goods_type_choices %}
+                <option value="{{ code }}" {% if code == goods_type %}selected{% endif %}>{{ label }} — {{ code|upper }}</option>
+              {% endfor %}
+            </select>
+            <button class="button button-primary" type="submit">Применить</button>
+          </div>
+        </form>
+      {% endif %}
+    </section>
+
+    <section class="marking-card compact-card">
+      <label class="marking-toggle" for="marking-mode-toggle">
+        <span>
+          <strong>Сканировать Честный знак</strong>
+          <small id="marking-mode-hint">{{ marking_mode_hint }}</small>
+        </span>
+        <input
+          id="marking-mode-toggle"
+          type="checkbox"
+          {% if is_cz %}checked{% endif %}
+          {% if not marking_mode_can_change %}disabled{% endif %}
+        >
+      </label>
+    </section>
+
+    <section class="scan-card compact-card">
+      <div class="container-strip">
+        <div><span>Палета</span><strong id="active-pallet-code">{{ summary.active_pallet|default:"Не открыта" }}</strong><small><b id="active-pallet-qty">{{ summary.active_pallet_qty }}</b> шт. · <b id="active-pallet-boxes">{{ summary.active_pallet_boxes }}</b> кор.</small></div>
+        <div><span>Короб</span><strong id="active-box-code">{{ summary.active_box|default:"Не открыт" }}</strong><small><b id="active-box-qty">{{ summary.active_box_qty }}</b> шт.</small></div>
+      </div>
+      <div id="scan-status" class="scan-status" role="status">
+        {% if summary.active_box %}Сканируйте ШК товара{% else %}Сканируйте товар — первый короб откроется автоматически{% endif %}
+      </div>
+      <label id="scan-input-label" class="scan-input-label" for="scan-input">ШК товара{% if is_cz %}, затем Data Matrix{% endif %}</label>
+      <div class="inline-control">
+        <input id="scan-input" class="scan-input" type="text" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Сканируйте код" autofocus>
+        <button id="scan-submit" class="button button-primary" type="button">Принять</button>
+      </div>
+      <div id="scan-quantity-control" class="scan-quantity-control"{% if is_cz %} hidden{% endif %}>
+        <label for="scan-quantity">Количество товара</label>
+        <input id="scan-quantity" class="scan-input" type="number" inputmode="numeric" min="1" max="100000" step="1" value="1">
+        <small>Введите количество, затем отсканируйте ШК или нажмите «Принять».</small>
+      </div>
+      <div class="scan-actions three-actions">
+        <button id="open-box" class="button button-secondary" type="button" {% if summary.active_box %}disabled{% endif %}>Новый короб</button>
+        <button id="close-box" class="button button-warn" type="button" {% if not summary.active_box %}disabled{% endif %}>Закрыть короб</button>
+        <button id="close-pallet" class="button button-dark" type="button" {% if summary.active_box or not summary.active_pallet %}disabled{% endif %}>Закрыть палету</button>
+      </div>
+      <button id="cz-recount-start" class="button button-secondary scan-actions" type="button">Перепроверить ЧЗ короба</button>
+      <button id="edit-box" class="button button-secondary scan-actions" type="button">Исправить короб</button>
+    </section>
+
+    <dialog class="box-modal" id="cz-recount-modal" aria-hidden="true">
+      <div class="box-modal-card cz-recount-card" id="cz-recount-card" role="dialog" aria-modal="true" aria-labelledby="cz-recount-title">
+        <div class="box-modal-header">
+          <div class="box-modal-title" id="cz-recount-title">Перепроверка ЧЗ короба</div>
+          <button type="button" class="button button-secondary" id="cz-recount-close">Завершить</button>
+        </div>
+        <div class="cz-recount-caption" id="cz-recount-caption"></div>
+        <div class="cz-recount-stats" aria-label="Результат перепроверки ЧЗ">
+          <div class="cz-recount-stat"><span>Сканирований</span><strong id="cz-recount-scans">0</strong></div>
+          <div class="cz-recount-stat"><span>Уникальных</span><strong id="cz-recount-unique">0</strong></div>
+          <div class="cz-recount-stat"><span>Совпало с коробом</span><strong id="cz-recount-matched">0</strong></div>
+          <div class="cz-recount-stat"><span>Дублей</span><strong id="cz-recount-duplicates">0</strong></div>
+          <div class="cz-recount-stat"><span>Новых, не учтённых</span><strong id="cz-recount-unexpected">0</strong></div>
+          <div class="cz-recount-stat"><span>Осталось проверить</span><strong id="cz-recount-missing">0</strong></div>
+        </div>
+        <div class="cz-recount-status" id="cz-recount-status">
+          Сканируйте только DataMatrix ЧЗ товаров из этого короба.
+        </div>
+        <label for="cz-recount-input">DataMatrix для проверки (не приёмки)</label>
+        <div class="inline-control">
+          <input id="cz-recount-input" class="scan-input" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button id="cz-recount-submit" class="button button-primary" type="button">Проверить</button>
+        </div>
+        <div class="cz-recount-alert" id="cz-recount-alert" hidden></div>
+        <div class="cz-recount-issues" id="cz-recount-issues" hidden></div>
+        <div class="action-right">
+          <button type="button" class="button button-secondary" id="cz-recount-restart">Начать заново</button>
+          <button type="button" class="button button-primary" id="cz-recount-ack" hidden>Понятно, продолжить</button>
+        </div>
+      </div>
+    </dialog>
+
+    <details id="current-items-card" class="current-items-card compact-card">
+      <summary>Содержимое текущего короба · <span id="box-count">всего коробов: {{ summary.box_count }}</span></summary>
+      <div id="box-correction-panel" hidden>
+        <p class="hint">{% if is_cz %}Отсканируйте лишний Data Matrix из текущего короба. Будет удалён только этот скан.{% else %}Укажите верное количество или нажмите «−1». Ноль удаляет позицию из короба.{% endif %}</p>
+        <div id="box-correction-status" role="status" aria-live="polite"></div>
+        <div id="box-correction-mark" {% if not is_cz %}hidden{% endif %}>
+          <label for="correction-mark">Лишний Data Matrix</label>
+          <div class="inline-control">
+            <input id="correction-mark" class="scan-input" type="text" inputmode="none" autocomplete="off" placeholder="Сканируйте лишний код">
+            <button id="remove-correction-mark" class="button button-warn" type="button">Убрать</button>
+          </div>
+        </div>
+        <button id="finish-box-correction" class="button button-secondary scan-actions" type="button">Готово — продолжить сканирование</button>
+      </div>
+      <div id="current-items" class="current-items"></div>
+    </details>
+
+    <section class="location-card compact-card">
+      <div class="section-title">
+        <div><p class="eyebrow">Последнее отсканированное место PR</p><h2 id="location-label">{{ receiving_location.label|default:"Не указано" }}</h2></div>
+        <span id="location-code" class="status-chip">{{ receiving_location.code|default:"PR" }}</span>
+      </div>
+      <p class="hint">Отсканируйте конкретное место PR, где оставлена закрытая палета. Ячейки OS здесь не сохраняются.</p>
+      <label for="location-pallet">Палета для размещения</label>
+      <select id="location-pallet" class="scan-input" aria-describedby="location-pallet-hint"></select>
+      <p id="location-pallet-hint" class="hint">После закрытия палета выбирается автоматически. Для другой палеты выберите её номер перед сканированием PR.</p>
+      <div class="inline-control">
+        <input id="location-input" class="scan-input" type="text" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="QR места PR">
+        <button id="save-location" class="button button-secondary" type="button">Сохранить</button>
+      </div>
+      <button id="clear-location" class="button button-secondary scan-actions" type="button">Очистить поле</button>
+    </section>
+
+    <section class="putaway-card compact-card">
+      <div class="section-title"><h2>Закрытые палеты и маршрут</h2><span><b id="sealed-pallet-count">{{ summary.sealed_pallet_count }}</b> закрыто</span></div>
+      <div id="putaway-preview" class="putaway-preview"></div>
+      <p class="hint">{% if receiving_route == 'fbs' %}Для каждой закрытой паллеты показывается выбранное кладовщиком FBS-место. Без выбора места размещение не разрешается.{% else %}После завершения задание появится у водителя ричтрака. Он может заменить рекомендацию на другую свободную OS-ячейку.{% endif %}</p>
+    </section>
+
+    <details class="settings-card compact-card" open>
+      <summary>Печать рядом с местом приемки</summary>
+      <label>Включенный компьютер
+        <span class="inline-control">
+          <select id="print-agent">
+            <option value="">Ищу включенные компьютеры…</option>
+            {% for agent in agents %}<option value="{{ agent.agent_id }}">{{ agent.title }} · онлайн · {{ agent.active_printer|default:"нет готового принтера" }}</option>{% endfor %}
+          </select>
+          <button id="refresh-print-agents" class="button button-secondary" type="button">Обновить</button>
+        </span>
+      </label>
+      <label>Рабочий принтер — определяется автоматически
+        <select id="print-printer" disabled><option value="">Проверяю принтер…</option></select>
+      </label>
+      <p id="print-status" class="muted">Компьютер появится здесь, когда на нем подключен Fullbox Desktop.</p>
+      <label>Повторная печать закрытой тары
+        <span class="inline-control">
+          <select id="reprint-container"><option value="">Нет закрытых коробов или палет</option></select>
+          <button id="reprint-container-label" class="button button-secondary" type="button">Напечатать</button>
+        </span>
+      </label>
+      <p class="hint">Выберите только закрытый короб или палету. Рабочий принтер компьютер определит автоматически.</p>
+    </details>
+
+    <section class="finish-card compact-card">
+      <button id="finish-button" class="button button-primary button-large" type="button">Завершить приемку и создать размещение</button>
+      <small>Для каждой закрытой палеты нужно отдельно указать место PR.</small>
+    </section>
+
+    <div id="receiving-label" class="print-label" aria-hidden="true">
+      <div class="print-brand">{{ client.short_name|default:client.agn_name|default:"Клиент не указан" }} · <span id="label-kind">PR</span></div>
+      <div id="label-qr" class="label-qr"></div>
+      <strong id="label-code"></strong>
+      <span>Заявка № {{ order_id }}</span>
+    </div>
+
+    {{ flow_state|json_script:"receiving-tsd-state" }}
+    {{ summary|json_script:"receiving-tsd-summary" }}
+    {{ agents|json_script:"receiving-tsd-agents" }}
+    {{ receiving_location|json_script:"receiving-tsd-location" }}
+    {{ pending_placement_pallets|json_script:"receiving-tsd-pending-pallets" }}
+    {{ putaway_preview|json_script:"receiving-tsd-putaway" }}
+  </section>
+  {% include "orders/_receiving_fbs_destination_picker.html" %}
+{% endblock %}

@@ -1,0 +1,74 @@
+<div
+  class="column-multi-filter"
+  data-column-multi-filter
+  data-filter-name="{{ filter_name }}"
+  data-filter-label="{{ placeholder }}"
+>
+  <button
+    class="column-multi-toggle"
+    type="button"
+    data-column-multi-toggle
+    aria-haspopup="dialog"
+    aria-expanded="false"
+    title="Выбрать несколько значений: {{ placeholder }}"
+  >
+    <span class="column-multi-toggle-label" data-column-multi-label>{{ placeholder }}</span>
+    <span class="column-multi-count" data-column-multi-count>{% if selected_values %}{{ selected_values|length }}{% endif %}</span>
+  </button>
+  <div data-column-multi-hidden>
+    <input
+      type="hidden"
+      name="{{ filter_name }}"
+      value="{{ legacy_value|escape }}"
+      form="journalFilters"
+      data-column-multi-legacy
+    >
+    {% for selected_value in selected_values %}
+      <input
+        type="hidden"
+        name="{{ filter_name }}_values"
+        value="{{ selected_value|escape }}"
+        form="journalFilters"
+        data-column-multi-selected
+      >
+    {% endfor %}
+  </div>
+  <div
+    class="column-multi-panel"
+    data-column-multi-panel
+    role="dialog"
+    aria-label="Выбор значений: {{ placeholder }}"
+    hidden
+  >
+    <input
+      class="column-multi-search"
+      type="search"
+      data-column-multi-search
+      value="{{ legacy_value|escape }}"
+      placeholder="Найти: {{ placeholder|lower }}"
+      autocomplete="off"
+    >
+    <div class="column-multi-options" data-column-multi-options>
+      {% for option in options %}
+        <label
+          class="column-multi-option{% if option in selected_values %} is-selected{% endif %}"
+          data-column-multi-option
+          data-search-value="{{ option|lower|escape }}"
+        >
+          <input
+            type="checkbox"
+            value="{{ option|escape }}"
+            data-column-multi-checkbox
+            {% if option in selected_values %}checked{% endif %}
+          >
+          <span>{{ option }}</span>
+        </label>
+      {% endfor %}
+      <div class="column-multi-empty" data-column-multi-empty hidden>Ничего не найдено</div>
+    </div>
+    <div class="column-multi-actions">
+      <button class="column-multi-action" type="button" data-column-multi-clear>Очистить</button>
+      <button class="column-multi-action primary" type="button" data-column-multi-apply>Применить</button>
+    </div>
+  </div>
+</div>

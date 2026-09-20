@@ -1,0 +1,336 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}Очередь менеджера{% endblock %}
+
+{% block extra_css %}
+  .queue-page { display: grid; gap: 16px; min-width: 0; }
+  .queue-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+  .queue-head h1 { margin: 0; color: var(--ink); font-family: "Bricolage Grotesque", "Manrope", sans-serif; font-size: clamp(26px, 3vw, 38px); }
+  .queue-sub { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+  .queue-kpis { display: grid; grid-template-columns: repeat(6, minmax(116px, 1fr)); gap: 10px; }
+  .queue-kpi { display: grid; gap: 7px; min-height: 88px; padding: 13px 14px; border: 1px solid var(--stroke); border-radius: 16px; background: var(--surface); color: var(--ink); transition: transform .15s ease, border-color .15s ease; }
+  .queue-kpi:hover { transform: translateY(-1px); border-color: var(--accent); }
+  .queue-kpi.active { background: var(--accent-soft); border-color: var(--accent); box-shadow: inset 0 0 0 1px rgba(248, 144, 0, .16); }
+  .queue-kpi-label { color: var(--muted); font-size: 12px; font-weight: 750; }
+  .queue-kpi-value { font-size: 25px; line-height: 1; font-weight: 850; color: var(--ink); }
+  .queue-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 14px; align-items: start; }
+  .queue-card { min-width: 0; border: 1px solid var(--stroke); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-sm); }
+  .queue-alert { padding: 12px 15px; border: 1px solid rgba(248, 144, 0, .35); border-radius: 14px; background: var(--accent-soft); color: var(--ink); font-size: 13px; font-weight: 700; }
+  .queue-alert.danger { border-color: rgba(212,84,60,.34); background: var(--danger-soft); color: var(--danger); }
+  .queue-filters { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(150px, 1fr) 140px 160px minmax(190px, 1.2fr) auto; gap: 9px; padding: 14px; border-bottom: 1px solid var(--stroke); align-items: end; }
+  .queue-field { display: grid; gap: 5px; min-width: 0; color: var(--muted); font-size: 11px; font-weight: 750; }
+  .queue-field select, .queue-field input, .modal-field { width: 100%; box-sizing: border-box; min-height: 38px; padding: 8px 10px; border: 1px solid var(--stroke); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; }
+  .queue-filter-actions { display: flex; gap: 7px; }
+  .queue-btn { display: inline-flex; justify-content: center; align-items: center; gap: 5px; min-height: 36px; padding: 8px 11px; border: 1px solid var(--stroke); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+  .queue-btn:hover { border-color: var(--accent); }
+  .queue-btn.primary { background: var(--accent); border-color: var(--accent); color: #303030; }
+  .queue-btn.soft { background: var(--accent-soft); border-color: rgba(248,144,0,.3); }
+  .queue-btn:disabled { opacity: .58; cursor: wait; }
+  .queue-chips { display: flex; flex-wrap: wrap; gap: 7px; padding: 0 14px 12px; }
+  .queue-chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--ink); font-size: 12px; font-weight: 750; }
+  .queue-chip a { color: var(--accent-strong); }
+  .queue-table-wrap { overflow-x: auto; }
+  .queue-table { width: 100%; min-width: 900px; border-collapse: collapse; }
+  .queue-table th { padding: 10px 13px; color: var(--muted); background: var(--surface-2); border-bottom: 1px solid var(--stroke); font-size: 10px; letter-spacing: .05em; text-align: left; text-transform: uppercase; }
+  .queue-table td { padding: 13px; border-bottom: 1px solid var(--stroke); vertical-align: top; color: var(--ink); font-size: 12px; }
+  .queue-table tbody tr:hover { background: rgba(248,144,0,.035); }
+  .queue-primary { font-weight: 800; color: var(--ink); }
+  .queue-muted { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.35; }
+  .queue-state { display: inline-flex; padding: 5px 8px; border-radius: 999px; font-size: 11px; font-weight: 850; }
+  .queue-state.to_accept, .queue-state.to_confirm { background: var(--accent-soft); color: var(--accent-strong); }
+  .queue-state.waiting_client, .queue-state.waiting_warehouse, .queue-state.waiting_logistics { background: var(--surface-2); color: var(--muted); border: 1px solid var(--stroke); }
+  .queue-state.overdue { background: var(--danger-soft); color: var(--danger); }
+  .queue-state.stuck { background: var(--sun-soft); color: #8a5a00; }
+  .queue-state.done { background: var(--green-soft); color: var(--green-strong); }
+  .queue-actions { display: flex; flex-wrap: wrap; gap: 6px; max-width: 330px; }
+  .queue-inline-form { display: inline-flex; }
+  .queue-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; color: var(--muted); font-size: 12px; }
+  .queue-pages { display: flex; flex-wrap: wrap; gap: 5px; }
+  .queue-page-link { display: grid; place-items: center; min-width: 30px; height: 30px; padding: 0 7px; border: 1px solid var(--stroke); border-radius: 9px; color: var(--ink); background: var(--surface); font-weight: 750; }
+  .queue-page-link.active { background: var(--accent-soft); border-color: var(--accent); }
+  .queue-empty { padding: 45px 20px; text-align: center; color: var(--muted); }
+  .queue-aside { display: grid; gap: 12px; }
+  .queue-side-card { padding: 15px; }
+  .queue-side-card h2 { margin: 0 0 10px; color: var(--ink); font-size: 14px; }
+  .queue-event { display: block; padding: 9px 0; border-top: 1px solid var(--stroke); color: var(--ink); }
+  .queue-event:first-of-type { border-top: 0; }
+  .queue-event strong { display: block; font-size: 12px; }
+  .queue-event span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+  .queue-quick { display: grid; gap: 7px; }
+  .queue-billing-number { margin: 4px 0 10px; color: var(--ink); font-size: 28px; font-weight: 850; }
+  .queue-modal-backdrop { display: none; position: fixed; inset: 0; z-index: 80; place-items: center; padding: 20px; background: rgba(48,48,48,.38); }
+  .queue-modal-backdrop.open { display: grid; }
+  .queue-modal { width: min(440px, 100%); display: grid; gap: 12px; padding: 20px; border-radius: 18px; border: 1px solid var(--stroke); background: var(--surface); box-shadow: 0 24px 70px rgba(48,48,48,.24); }
+  .queue-modal h3 { margin: 0; color: var(--ink); }
+  .queue-modal label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 750; }
+  .queue-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .queue-check { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 750; }
+  @media (max-width: 1280px) { .queue-kpis { grid-template-columns: repeat(3, 1fr); } .queue-layout { grid-template-columns: 1fr; } .queue-aside { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 900px) { .queue-filters { grid-template-columns: repeat(2, 1fr); } .queue-aside { grid-template-columns: 1fr; } }
+  @media (max-width: 620px) { .queue-kpis, .queue-filters { grid-template-columns: 1fr; } .queue-head { align-items: start; flex-direction: column; } }
+{% endblock %}
+
+{% block content %}
+<div class="queue-page">
+  <header class="queue-head">
+    <div>
+      <h1>Очередь менеджера</h1>
+      <p class="queue-sub">Активных задач: {{ active_total }}{% if total != active_total %} · по текущим фильтрам: {{ total }}{% endif %}</p>
+    </div>
+    <a class="queue-btn soft" href="/team-manager/queue/">Сбросить фильтры</a>
+  </header>
+
+  {% if degraded %}
+    <div class="queue-alert danger" role="alert">Часть данных недоступна: {{ degraded_text }}. Очередь показана с доступными данными.</div>
+  {% endif %}
+  {% if source_truncated %}
+    <div class="queue-alert" role="alert">Показаны первые {{ source_limit }} задач. Уточните фильтры.</div>
+  {% endif %}
+
+  <section class="queue-kpis" aria-label="Состояния очереди">
+    {% for card in state_cards %}
+      <a class="queue-kpi{% if card.active %} active{% endif %}" href="{{ card.url }}" aria-current="{% if card.active %}page{% else %}false{% endif %}">
+        <span class="queue-kpi-label">{{ card.label }}</span>
+        <span class="queue-kpi-value" data-kpi-value="{{ card.key }}">{{ card.count }}</span>
+      </a>
+    {% endfor %}
+  </section>
+
+  <div class="queue-layout">
+    <section class="queue-card">
+      <form class="queue-filters" method="get" action="/team-manager/queue/">
+        {% if filters.state %}<input type="hidden" name="state" value="{{ filters.state }}">{% endif %}
+        <label class="queue-field">Клиент
+          <select name="client">
+            <option value="all">Все клиенты</option>
+            {% for option in client_options %}
+              <option value="{{ option.id }}"{% if filters.client == option.id|stringformat:"s" %} selected{% endif %}>{{ option.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="queue-field">Склад
+          <select name="warehouse">
+            <option value="all">Все склады</option>
+            {% for option in warehouse_options %}
+              <option value="{{ option }}"{% if filters.warehouse == option %} selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="queue-field">Срок
+          <select name="due">
+            {% for key, label in due_options %}
+              <option value="{{ key }}"{% if filters.due == key %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="queue-field">Исполнитель
+          <select name="scope">
+            {% for key, label in scope_options %}
+              <option value="{{ key }}"{% if filters.scope == key %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="queue-field">Поиск
+          <input type="search" name="q" value="{{ filters.q }}" placeholder="Номер, клиент, задача">
+        </label>
+        <div class="queue-filter-actions">
+          <button class="queue-btn primary" type="submit">Показать</button>
+        </div>
+      </form>
+
+      {% if filters.client != "all" or filters.state %}
+        <div class="queue-chips">
+          {% if filters.client != "all" %}
+            {% for option in client_options %}{% if filters.client == option.id|stringformat:"s" %}<span class="queue-chip">Клиент: {{ option.name }} <a href="{{ clear_client_url }}" aria-label="Снять фильтр по клиенту">×</a></span>{% endif %}{% endfor %}
+          {% endif %}
+          {% if filters.state %}<span class="queue-chip">Состояние: {{ selected_state_label }} <a href="{{ clear_state_url }}" aria-label="Снять фильтр по состоянию">×</a></span>{% endif %}
+        </div>
+      {% endif %}
+
+      <div class="queue-table-wrap">
+        <table class="queue-table">
+          <thead><tr><th>Заявка</th><th>Клиент</th><th>Что нужно сделать</th><th>Срок</th><th>Действие</th></tr></thead>
+          <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>
+                <a class="queue-primary" href="{{ row.open_url }}">{{ row.number }}</a>
+                <span class="queue-muted">{{ row.type_label }} · {{ row.executor }}</span>
+              </td>
+              <td>
+                <span class="queue-primary">{{ row.client_name }}</span>
+                {% if row.warehouse and row.warehouse != "—" %}<span class="queue-muted">{{ row.warehouse }}</span>{% endif %}
+              </td>
+              <td>
+                <span class="queue-state {{ row.state }}">{{ row.state_label }}</span>
+                <span class="queue-muted">{{ row.state_explanation }}</span>
+              </td>
+              <td>
+                {% if row.deadline %}<span class="queue-primary">{{ row.deadline|date:"d.m.Y H:i" }}</span>{% else %}<span class="queue-muted">Без срока</span>{% endif %}
+                {% if row.warehouse_deadline_change_count %}<span class="queue-muted">Переносов склада: {{ row.warehouse_deadline_change_count }}</span>{% endif %}
+              </td>
+              <td>
+                <div class="queue-actions">
+                  {% if row.act_sign_url %}
+                    <form class="queue-inline-form queue-sign-form" method="post" action="{{ row.act_sign_url }}">
+                      {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+                      <button class="queue-btn primary" type="submit">Подтвердить акт</button>
+                    </form>
+                  {% elif row.trip_action_url %}
+                    <a class="queue-btn primary" href="{{ row.trip_action_url }}">Отметить сдачу</a>
+                  {% else %}
+                    <a class="queue-btn primary" href="{{ row.open_url }}">Открыть</a>
+                  {% endif %}
+                  {% if row.can_claim %}<button class="queue-btn claim-task" type="button" data-task-id="{{ row.id }}">Взять в работу</button>{% endif %}
+                  {% if row.can_transfer %}<button class="queue-btn transfer-task" type="button" data-task-id="{{ row.id }}" data-task-number="{{ row.number }}" data-executor="{{ row.executor }}">Передать</button>{% endif %}
+                  {% if row.warehouse_deadline_task_id %}<button class="queue-btn deadline-task" type="button" data-task-id="{{ row.warehouse_deadline_task_id }}" data-task-number="{{ row.number }}" data-current="{{ row.warehouse_deadline_value }}">Сдвинуть срок</button>{% endif %}
+                  {% if row.chat_url %}<a class="queue-btn" href="{{ row.chat_url }}">Написать</a>{% endif %}
+                  {% if row.act_sign_url or row.trip_action_url %}<a class="queue-btn" href="{{ row.open_url }}">Открыть</a>{% endif %}
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5"><div class="queue-empty">По выбранным фильтрам задач нет. <a href="/team-manager/queue/">Показать всю очередь</a></div></td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="queue-footer">
+        <span>{{ range_start }}–{{ range_end }} из {{ filtered_total }} в состоянии «{{ selected_state_label }}» · всего по фильтрам {{ total }}</span>
+        {% if num_pages > 1 %}
+          <nav class="queue-pages" aria-label="Страницы очереди">
+            {% if prev_url %}<a class="queue-page-link" href="{{ prev_url }}">←</a>{% endif %}
+            {% for item in page_links %}<a class="queue-page-link{% if item.active %} active{% endif %}" href="{{ item.url }}">{{ item.number }}</a>{% endfor %}
+            {% if next_url %}<a class="queue-page-link" href="{{ next_url }}">→</a>{% endif %}
+          </nav>
+        {% endif %}
+      </footer>
+    </section>
+
+    <aside class="queue-aside">
+      <section class="queue-card queue-side-card">
+        <h2>Последние события</h2>
+        {% for event in recent_events %}
+          <a class="queue-event" href="{{ event.open_url }}"><strong>{{ event.number }} · {{ event.state_label }}</strong><span>{{ event.client_name }}{% if event.updated_at %} · {{ event.updated_at|date:"d.m H:i" }}{% endif %}</span></a>
+        {% empty %}<span class="queue-muted">Событий по фильтрам нет.</span>{% endfor %}
+      </section>
+      <section class="queue-card queue-side-card">
+        <h2>Быстрые действия</h2>
+        <div class="queue-quick">
+          {% for card in state_cards %}{% if card.key == "to_confirm" or card.key == "overdue" or card.key == "to_accept" %}<a class="queue-btn" href="{{ card.url }}">{{ card.label }} · {{ card.count }}</a>{% endif %}{% endfor %}
+          <a class="queue-btn" href="/team-manager/settings/">Настроить замещения</a>
+        </div>
+      </section>
+      <section class="queue-card queue-side-card">
+        <h2>Биллинг</h2>
+        <div class="queue-billing-number">{{ billing_attention_count }}</div>
+        <span class="queue-muted">задач очереди с финансовым следующим шагом</span>
+        <a class="queue-btn soft" href="/team-manager/billing/">Открыть биллинг</a>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<div class="queue-modal-backdrop" id="queue-transfer-modal" aria-hidden="true">
+  <div class="queue-modal" role="dialog" aria-labelledby="queue-transfer-title">
+    <h3 id="queue-transfer-title">Передать задачу</h3>
+    <span class="queue-muted" id="queue-transfer-subtitle">—</span>
+    <input type="hidden" id="queue-transfer-task-id">
+    <label>Кому
+      <select class="modal-field" id="queue-transfer-to">
+        <option value="">— выберите сотрудника —</option>
+        {% for colleague in cabinet_colleagues %}<option value="{{ colleague.id }}">{{ colleague.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="queue-check"><input type="checkbox" id="queue-transfer-return"> Вернуть в общую очередь</label>
+    <label>Причина
+      <select class="modal-field" id="queue-transfer-reason">{% for reason in transfer_reasons %}<option value="{{ reason.label }}">{{ reason.label }}</option>{% endfor %}</select>
+    </label>
+    <label>Комментарий<textarea class="modal-field" id="queue-transfer-comment" rows="3"></textarea></label>
+    <div class="queue-modal-actions"><button class="queue-btn modal-close" type="button">Отмена</button><button class="queue-btn primary" id="queue-transfer-submit" type="button">Передать</button></div>
+  </div>
+</div>
+
+<div class="queue-modal-backdrop" id="queue-deadline-modal" aria-hidden="true">
+  <div class="queue-modal" role="dialog" aria-labelledby="queue-deadline-title">
+    <h3 id="queue-deadline-title">Сдвинуть складской срок</h3>
+    <span class="queue-muted" id="queue-deadline-subtitle">—</span>
+    <input type="hidden" id="queue-deadline-task-id">
+    <label>Новый срок<input class="modal-field" id="queue-deadline-value" type="datetime-local" min="{{ deadline_min }}"></label>
+    <label>Причина<textarea class="modal-field" id="queue-deadline-reason" rows="3" placeholder="Не менее 5 символов"></textarea></label>
+    <div class="queue-modal-actions"><button class="queue-btn modal-close" type="button">Отмена</button><button class="queue-btn primary" id="queue-deadline-submit" type="button">Сохранить срок</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function csrfToken(){
+    var match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+  function postJson(url, body, button){
+    button.disabled = true;
+    return fetch(url, {
+      method: "POST", credentials: "same-origin",
+      headers: {"Content-Type": "application/json", "X-CSRFToken": csrfToken()},
+      body: JSON.stringify(body)
+    }).then(function(response){ return response.json(); }).then(function(payload){
+      if(!payload || !payload.ok){ throw new Error((payload && payload.error) || "Операция не выполнена"); }
+      return payload;
+    }).finally(function(){ button.disabled = false; });
+  }
+  document.querySelectorAll(".queue-sign-form").forEach(function(form){
+    form.addEventListener("submit", function(){ var button = form.querySelector("button"); if(button){ button.disabled = true; button.textContent = "Подписываем…"; } });
+  });
+  document.addEventListener("click", function(event){
+    var claim = event.target.closest(".claim-task");
+    if(claim){
+      postJson("/team-manager/api/tasks/" + claim.dataset.taskId + "/claim/", {reason: "Взята из очереди менеджера"}, claim)
+        .then(function(){ window.location.reload(); }).catch(function(error){ alert(error.message); });
+      return;
+    }
+    var transfer = event.target.closest(".transfer-task");
+    if(transfer){
+      document.getElementById("queue-transfer-task-id").value = transfer.dataset.taskId || "";
+      document.getElementById("queue-transfer-subtitle").textContent = (transfer.dataset.taskNumber || transfer.dataset.taskId) + " · сейчас: " + (transfer.dataset.executor || "—");
+      document.getElementById("queue-transfer-modal").classList.add("open");
+      return;
+    }
+    var deadline = event.target.closest(".deadline-task");
+    if(deadline){
+      document.getElementById("queue-deadline-task-id").value = deadline.dataset.taskId || "";
+      document.getElementById("queue-deadline-subtitle").textContent = deadline.dataset.taskNumber || "Заявка";
+      document.getElementById("queue-deadline-value").value = deadline.dataset.current || "";
+      document.getElementById("queue-deadline-reason").value = "";
+      document.getElementById("queue-deadline-modal").classList.add("open");
+    }
+  });
+  document.querySelectorAll(".queue-modal-backdrop").forEach(function(modal){
+    modal.addEventListener("click", function(event){ if(event.target === modal || event.target.closest(".modal-close")){ modal.classList.remove("open"); } });
+  });
+  var returnQueue = document.getElementById("queue-transfer-return");
+  returnQueue.addEventListener("change", function(){ document.getElementById("queue-transfer-to").disabled = returnQueue.checked; });
+  document.getElementById("queue-transfer-submit").addEventListener("click", function(){
+    var button = this, taskId = document.getElementById("queue-transfer-task-id").value;
+    var body = {
+      return_to_queue: returnQueue.checked,
+      reason: document.getElementById("queue-transfer-reason").value,
+      comment: document.getElementById("queue-transfer-comment").value
+    };
+    if(!body.return_to_queue){ body.to_employee_id = parseInt(document.getElementById("queue-transfer-to").value || "0", 10) || null; }
+    if(!body.return_to_queue && !body.to_employee_id){ alert("Выберите сотрудника или возврат в очередь"); return; }
+    postJson("/team-manager/api/tasks/" + taskId + "/transfer/", body, button)
+      .then(function(){ window.location.reload(); }).catch(function(error){ alert(error.message); });
+  });
+  document.getElementById("queue-deadline-submit").addEventListener("click", function(){
+    var button = this, taskId = document.getElementById("queue-deadline-task-id").value;
+    var dueDate = document.getElementById("queue-deadline-value").value;
+    var reason = document.getElementById("queue-deadline-reason").value.trim();
+    if(!dueDate || reason.length < 5){ alert("Укажите будущий срок и причину не короче 5 символов"); return; }
+    postJson("/team-manager/api/tasks/" + taskId + "/warehouse-deadline/", {due_date: dueDate, reason: reason}, button)
+      .then(function(){ window.location.reload(); }).catch(function(error){ alert(error.message); });
+  });
+})();
+</script>
+{% endblock %}

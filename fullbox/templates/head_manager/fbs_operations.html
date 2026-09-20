@@ -1,0 +1,245 @@
+{% extends "head_manager/fbs_base.html" %}
+
+{% block title %}FBS{% endblock %}
+
+{% block head_extra %}
+  <style>
+    .override-form { display: grid; grid-template-columns: minmax(220px, 1fr) auto; gap: 8px; align-items: end; min-width: 360px; }
+    @media (max-width: 760px) { .override-form { grid-template-columns: 1fr; min-width: 260px; } }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <header class="topbar">
+    <div>
+      <h1>FBS</h1>
+      <p class="subtitle">Заказы, волны, передача данных и готовность к отгрузке.</p>
+    </div>
+    <div class="topbar-actions">
+      <a class="btn" href="/head-manager/reports/employees/fbs-productivity/">Отчёт FBS за день</a>
+      <a class="btn" href="/head-manager/fbs/controllers/">FBS-контролёры</a>
+      <a class="btn" href="/head-manager/fbs/pickers/">Сборщики</a>
+      {% if fbs_enabled %}
+        <a class="btn" href="/fbs/tsd/storekeeper/">Операторская</a>
+        <a class="btn" href="/fbs/tsd/picking/">Отбор</a>
+        <a class="btn" href="/fbs/tsd/labels/">Этикетки заказов</a>
+        <a class="btn" href="/fbs/metadata/">Контроль передач</a>
+      {% endif %}
+      <a class="btn primary" href="/head-manager/fbs/settings/">Настройки FBS</a>
+    </div>
+  </header>
+
+  {% if not fbs_enabled %}
+    <div class="notice warning">Операционный модуль FBS выключен. Справочники оборудования доступны для подготовки запуска.</div>
+  {% endif %}
+
+  <section class="metrics" aria-label="Сводка FBS">
+    <div class="metric"><span>Все заявки</span><strong>{{ summary.total }}</strong></div>
+    <div class="metric"><span>Открытые</span><strong>{{ summary.open }}</strong></div>
+    <div class="metric"><span>В отборе</span><strong>{{ summary.picking }}</strong></div>
+    <div class="metric"><span>Готовы к передаче</span><strong>{{ summary.ready }}</strong></div>
+    <div class="metric"><span>Конфликты передач</span><strong>{{ summary.conflicts }}</strong></div>
+    <div class="metric"><span>Просрочены</span><strong>{{ summary.overdue }}</strong></div>
+    <div class="metric"><span>Проблемные</span><strong>{{ summary.problems }}</strong></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div><h2>Активные волны</h2><p class="muted">В очереди и в работе</p></div>
+      <span class="pill info">{{ active_batches|length }}</span>
+    </div>
+    {% if active_batches %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Волна</th><th>Клиент</th><th>Статус</th><th>Сборщик</th><th>Место / тележка</th><th>Заказы</th><th>Отобрано</th><th>Создана</th></tr></thead>
+          <tbody>
+            {% for batch in active_batches %}
+              <tr>
+                <td><strong>#{{ batch.id }}</strong></td>
+                <td class="wide">{{ batch.agency }}</td>
+                <td><span class="pill info">{{ batch.get_status_display }}</span></td>
+                <td>{% if batch.assigned_to %}{{ batch.assigned_to.get_username }}{% else %}-{% endif %}</td>
+                <td>{% if batch.workstation %}{{ batch.workstation.name }} / {{ batch.cart.name }}{% else %}-{% endif %}</td>
+                <td>{{ batch.task_count }}</td>
+                <td>{{ batch.picked_qty }}/{{ batch.planned_qty }}</td>
+                <td>{{ batch.created_at|date:"d.m.Y H:i" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty">Активных волн нет.</div>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>Клиенты и сроки</h2></div></div>
+    {% if client_operations %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Клиент</th><th>Открыто</th><th>Волн в очереди</th><th>В работе</th><th>Просрочено</th><th>Единиц просрочено</th><th>Проблемы</th><th>Передано</th></tr></thead>
+          <tbody>
+            {% for row in client_operations %}
+              <tr>
+                <td class="wide"><strong>{{ row.agency_name }}</strong></td>
+                <td>{{ row.open_orders }}</td>
+                <td>{{ row.queued_waves }}</td>
+                <td>{{ row.active_waves }}</td>
+                <td>{% if row.overdue_orders %}<span class="pill danger">{{ row.overdue_orders }}</span>{% else %}0{% endif %}</td>
+                <td>{{ row.overdue_qty }}</td>
+                <td>{% if row.problem_orders %}<span class="pill danger">{{ row.problem_orders }}</span>{% else %}0{% endif %}</td>
+                <td>{{ row.completed_orders }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}<div class="empty">Данных по клиентам нет.</div>{% endif %}
+  </section>
+
+  {% if open_pick_exceptions %}
+    <section class="panel">
+      <div class="panel-head"><div><h2>Товар не найден и проблемы отбора</h2></div><span class="pill danger">{{ open_pick_exceptions|length }}</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Заказ</th><th>Клиент</th><th>Проблема</th><th>Ячейка</th><th>Сборщик</th><th>Время</th></tr></thead>
+          <tbody>
+            {% for issue in open_pick_exceptions %}
+              <tr>
+                <td><strong>{{ issue.task.order.external_order_id }}</strong></td>
+                <td class="wide">{{ issue.task.order.profile.agency }}</td>
+                <td><span class="pill danger">{{ issue.get_exception_type_display }}</span> {{ issue.reason }}</td>
+                <td>{% if issue.allocation %}{{ issue.allocation.balance.box.pallet.cell.cell_code }}{% else %}-{% endif %}</td>
+                <td>{% if issue.created_by %}{{ issue.created_by.get_username }}{% else %}-{% endif %}</td>
+                <td>{{ issue.created_at|date:"d.m.Y H:i" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if compliance_override_candidates %}
+    <section class="panel">
+      <div class="panel-head"><div><h2>Ошибки обязательных данных</h2><p class="muted">Только начальник склада может разрешить отгрузку с подтвержденной ошибкой</p></div><span class="pill danger">{{ compliance_override_candidates|length }}</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Заказ</th><th>Клиент</th><th>Данные</th><th>Статус</th><th>Ошибка</th><th>Решение</th></tr></thead>
+          <tbody>
+            {% for transfer in compliance_override_candidates %}
+              <tr>
+                <td><strong>{{ transfer.order_item.order.external_order_id }}</strong></td>
+                <td class="wide">{{ transfer.order_item.order.profile.agency }}</td>
+                <td>{{ transfer.get_metadata_type_display }}</td>
+                <td><span class="pill danger">{{ transfer.get_status_display }}</span></td>
+                <td class="wide">{{ transfer.last_error|default:"Ошибка подтверждена маркетплейсом" }}</td>
+                <td>
+                  <form class="override-form" method="post" action="/head-manager/fbs/orders/{{ transfer.order_item.order_id }}/compliance-override/">
+                    {% csrf_token %}
+                    <input type="hidden" name="metadata_type" value="{{ transfer.metadata_type }}">
+                    <label>Причина<input type="text" name="reason" required maxlength="500" placeholder="Основание для ручной отгрузки"></label>
+                    <button class="btn primary" type="submit">Разрешить</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>Инвентаризация, перемещения и передача</h2></div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Контур</th><th>Номер</th><th>Клиент</th><th>Статус</th><th>Объект</th><th>Исполнитель</th><th>Создано</th><th>Решение</th></tr></thead>
+        <tbody>
+          {% for session in active_inventory_sessions %}
+            <tr><td>Инвентаризация</td><td>#{{ session.id }}</td><td>{{ session.agency|default:"Все клиенты" }}</td><td><span class="pill warning">{{ session.get_status_display }}</span></td><td>{{ session.get_scope_type_display }}</td><td>{% if session.first_counter %}{{ session.first_counter.get_username }}{% else %}-{% endif %}</td><td>{{ session.created_at|date:"d.m.Y H:i" }}</td><td>-</td></tr>
+          {% endfor %}
+          {% for movement in active_internal_movements %}
+            <tr><td>Перемещение</td><td>#{{ movement.id }}</td><td>{{ movement.agency }}</td><td><span class="pill info">{{ movement.get_status_display }}</span></td><td>{{ movement.source_box.box_code }} → {% if movement.target_box %}{{ movement.target_box.box_code }}{% else %}{{ movement.target_pallet.cell.cell_code }}{% endif %}</td><td>{% if movement.assigned_to %}{{ movement.assigned_to.get_username }}{% else %}-{% endif %}</td><td>{{ movement.created_at|date:"d.m.Y H:i" }}</td><td>-</td></tr>
+          {% endfor %}
+          {% for handover in handover_batches %}
+            <tr>
+              <td>Передача</td>
+              <td><a href="/fbs/tsd/storekeeper/handover/{{ handover.id }}/"><strong>#{{ handover.id }}</strong></a></td>
+              <td>{{ handover.profile.agency }}</td>
+              <td><span class="pill {% if handover.status == 'accepted' %}success{% elif handover.status == 'problem' %}danger{% else %}warning{% endif %}">{{ handover.get_status_display }}</span></td>
+              <td>{{ handover.profile.get_marketplace_display }} · {{ handover.box_count }} коробов</td>
+              <td>{% if handover.dispatched_by %}{{ handover.dispatched_by.get_username }}{% else %}-{% endif %}</td>
+              <td>{{ handover.created_at|date:"d.m.Y H:i" }}</td>
+              <td>
+                {% if handover.active_verification_override %}
+                  <span class="pill warning">Аварийный допуск</span>
+                  <div class="muted">{{ handover.active_verification_override.approved_by.get_username }} · {{ handover.active_verification_override.approved_at|date:"d.m.Y H:i" }}</div>
+                  <div class="muted">{{ handover.active_verification_override.reason }}</div>
+                {% elif handover.can_request_verification_override %}
+                  <form class="override-form" method="post" action="/head-manager/fbs/handovers/{{ handover.id }}/verification-override/">
+                    {% csrf_token %}
+                    <label>Причина<input type="text" name="reason" required maxlength="500" placeholder="Почему повторный скан невозможен"></label>
+                    <button class="btn primary" type="submit">Разрешить без повторной проверки</button>
+                  </form>
+                  <div class="muted">КИЗ, сроки, состав поставки, этикетки и короба останутся обязательными.</div>
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>Все FBS-заявки</h2><p class="muted">Данные из изолированного FBS-контура</p></div></div>
+    <form class="filters" method="get">
+      <input type="search" name="q" value="{{ query }}" placeholder="Заказ, клиент, SKU или товар">
+      <select name="status">
+        <option value="">Все статусы</option>
+        {% for value, label in status_choices %}<option value="{{ value }}"{% if status_filter == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <select name="marketplace">
+        <option value="">Все маркетплейсы</option>
+        {% for value, label in marketplace_choices %}<option value="{{ value }}"{% if marketplace_filter == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <button class="btn primary" type="submit">Применить</button>
+      <a class="btn" href="/head-manager/fbs/">Сбросить</a>
+    </form>
+    {% if page_obj.object_list %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Заказ</th><th>Маркетплейс</th><th>Клиент</th><th>Состав</th><th>Волна</th><th>Исполнитель</th><th>Статус</th><th>Дедлайн</th><th>Обновлено</th></tr></thead>
+          <tbody>
+            {% for order in page_obj.object_list %}
+              <tr>
+                <td><strong>{{ order.external_order_id }}</strong></td>
+                <td>{{ order.profile.get_marketplace_display }}</td>
+                <td class="wide">{{ order.profile.agency }}</td>
+                <td>{{ order.item_count }} SKU · {{ order.total_qty|default:0 }} шт.</td>
+                <td>{% if order.overview_task %}#{{ order.overview_task.batch_id }}{% else %}-{% endif %}</td>
+                <td>{% if order.overview_task.assigned_to %}{{ order.overview_task.assigned_to.get_username }}{% else %}-{% endif %}</td>
+                <td><span class="pill {{ order.status_class }}">{{ order.get_internal_status_display }}</span>{% if order.problem_reason %}<div class="muted">{{ order.problem_reason }}</div>{% endif %}</td>
+                <td>{% if order.is_overdue %}<span class="pill danger">{{ order.cutoff_at|date:"d.m.Y H:i" }}</span>{% else %}{{ order.cutoff_at|date:"d.m.Y H:i"|default:"-" }}{% endif %}</td>
+                <td>{{ order.updated_at|date:"d.m.Y H:i" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if page_obj.has_other_pages %}
+        <div class="pager">
+          {% if page_obj.has_previous %}<a class="btn" href="?{{ query_string }}&page={{ page_obj.previous_page_number }}">Назад</a>{% endif %}
+          <span class="muted">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+          {% if page_obj.has_next %}<a class="btn" href="?{{ query_string }}&page={{ page_obj.next_page_number }}">Дальше</a>{% endif %}
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="empty">FBS-заявок по выбранным фильтрам нет.</div>
+    {% endif %}
+  </section>
+{% endblock %}

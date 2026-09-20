@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Настройка сканеров | FULLBOX</title>
+  <link href="/static/vendor/space-grotesk.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#0b0b0f;
+      --card:#14141f;
+      --card-2:#1a1a28;
+      --gold:#d6a300;
+      --text:#e8e8ed;
+      --muted:#9aa0b3;
+      --stroke: rgba(255,255,255,0.08);
+      --accent: rgba(214,163,0,0.22);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin:0;
+      background: radial-gradient(900px 420px at 15% -10%, rgba(214,163,0,0.08), transparent 60%), var(--bg);
+      color:var(--text);
+      font-family:'Space Grotesk',system-ui,sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 18px 72px; }
+    .card {
+      background:var(--card);
+      border:1px solid var(--stroke);
+      border-radius:18px;
+      padding:18px;
+      box-shadow:0 18px 45px rgba(0,0,0,0.35);
+    }
+    .hero {
+      display:flex;
+      justify-content:space-between;
+      gap:18px;
+      flex-wrap:wrap;
+      align-items:flex-start;
+    }
+    h1 { margin:0 0 8px; }
+    h2 { margin:0 0 10px; font-size:18px; }
+    p { margin:0; }
+    .muted { color: var(--muted); }
+    .grid {
+      display:grid;
+      gap:14px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      margin-top:16px;
+    }
+    .btn {
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid var(--stroke);
+      background:rgba(255,255,255,0.02);
+      color:var(--text);
+      font-weight:600;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+    }
+    .btn.primary {
+      border-color: transparent;
+      background: linear-gradient(120deg, var(--gold), #f6cf6c);
+      color:#1b1404;
+    }
+    .btn:hover { border-color: var(--gold); box-shadow:0 8px 22px rgba(214,163,0,0.2); }
+    .pill {
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      background:var(--accent);
+      color:var(--text);
+      font-size:12px;
+      margin-top:8px;
+    }
+    .input-box {
+      width:100%;
+      padding:12px;
+      border-radius:12px;
+      border:1px solid var(--stroke);
+      background:rgba(255,255,255,0.04);
+      color:var(--text);
+      font-size:18px;
+    }
+    .status {
+      margin-top:10px;
+      display:grid;
+      gap:6px;
+      font-size:14px;
+    }
+    .status span { font-weight:600; }
+    ul {
+      margin:10px 0 0;
+      padding-left:18px;
+      display:grid;
+      gap:6px;
+      color: var(--muted);
+      font-size:14px;
+    }
+    .hint {
+      margin-top:10px;
+      font-size:12px;
+      color: var(--muted);
+    }
+    .actions {
+      margin-top:12px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .field-grid {
+      display:grid;
+      gap:10px;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      margin-top:10px;
+    }
+    .field {
+      display:grid;
+      gap:6px;
+      font-size:12px;
+      color: var(--muted);
+    }
+    .select {
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid var(--stroke);
+      background:rgba(255,255,255,0.04);
+      color:var(--text);
+      font-size:14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card hero">
+      <div>
+        <h1>Настройка сканеров</h1>
+        <p class="muted">Рекомендации по режиму работы, суффиксам и тесту ввода.</p>
+      </div>
+      <div class="actions">
+        <a class="btn primary" href="/scanner-test/">Открыть тест сканера</a>
+        <a class="btn" href="/scanner/ims-2290hd/">Proton IMS-2290HD_K</a>
+        <a class="btn" id="scanner-back" href="/head-manager/">В кабинет</a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>1. Режим подключения</h2>
+        <p class="muted">Для браузера проще всего режим клавиатуры.</p>
+        <ul>
+          <li>Выберите USB-HID или Keyboard Mode.</li>
+          <li>Если нужен COM, используйте Web Serial ниже.</li>
+          <li>Проверьте, что активна нужная раскладка.</li>
+        </ul>
+        <span class="pill">Рекомендуется: Keyboard (HID)</span>
+      </div>
+      <div class="card">
+        <h2>2. Суффикс после скана</h2>
+        <p class="muted">Суффикс завершает ввод и отправляет значение в форму.</p>
+        <ul>
+          <li>Настройте Enter или Tab после штрихкода.</li>
+          <li>Если суффикса нет, данные останутся в поле.</li>
+        </ul>
+        <span class="pill">Рекомендуется: Enter</span>
+      </div>
+      <div class="card">
+        <h2>3. Быстрый тест</h2>
+        <input id="scan-input" class="input-box" placeholder="Фокус здесь - сканируйте" autofocus>
+        <div class="status">
+          <div>Последний скан: <span id="scan-value">-</span></div>
+          <div>Суффикс: <span id="scan-suffix">—</span></div>
+          <div>Время: <span id="scan-time">—</span></div>
+        </div>
+        <div class="actions">
+          <button class="btn" id="clear-btn" type="button">Очистить</button>
+        </div>
+        <div class="hint">Если скан не завершается, включите суффикс Enter/Tab в настройках сканера.</div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Частые проблемы</h2>
+        <ul>
+          <li>Скан “печатает” не туда — верните фокус в поле.</li>
+          <li>Символы выглядят странно — проверьте раскладку.</li>
+          <li>Нет данных — проверьте кабель или режим.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2>WebHID режим</h2>
+        <p class="muted">Для некоторых устройств можно подключиться напрямую в браузере.</p>
+        <ul>
+          <li>Работает в Chrome/Edge.</li>
+          <li>Откройте страницу теста и нажмите «Подключить сканер».</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2>Proton IMS-2290HD_K</h2>
+        <p class="muted">Полная страница с настройками, профилями подключения и штрихкодами.</p>
+        <div class="actions">
+          <a class="btn primary" href="/scanner/ims-2290hd/">Открыть настройки</a>
+        </div>
+      </div>
+      <div class="card">
+        <h2>COM (Web Serial)</h2>
+        <p class="muted">Подключение сканера в режиме COM прямо из браузера.</p>
+        <div class="field-grid">
+          <label class="field">
+            <span>Скорость (baud)</span>
+            <select id="serial-baud" class="select">
+              <option value="9600" selected>9600</option>
+              <option value="19200">19200</option>
+              <option value="38400">38400</option>
+              <option value="57600">57600</option>
+              <option value="115200">115200</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Окончание скана</span>
+            <select id="serial-eol" class="select">
+              <option value="crlf" selected>CRLF</option>
+              <option value="cr">CR</option>
+              <option value="lf">LF</option>
+              <option value="tab">TAB</option>
+              <option value="none">Без суффикса</option>
+            </select>
+          </label>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="serial-connect" type="button">Подключить COM</button>
+          <button class="btn" id="serial-disconnect" type="button" disabled>Отключить</button>
+        </div>
+        <div class="status">
+          <div>Web Serial: <span id="serial-status">не подключено</span></div>
+          <div>Последний COM скан: <span id="serial-value">-</span></div>
+        </div>
+        <div class="hint">Если данные не приходят, проверьте порт и скорость; Web Serial работает в Chrome/Edge.</div>
+      </div>
+    </section>
+  </div>
+  <script>
+    (function(){
+      const input = document.getElementById('scan-input');
+      const valueEl = document.getElementById('scan-value');
+      const suffixEl = document.getElementById('scan-suffix');
+      const timeEl = document.getElementById('scan-time');
+      const clearBtn = document.getElementById('clear-btn');
+      const serialBaud = document.getElementById('serial-baud');
+      const serialEol = document.getElementById('serial-eol');
+      const serialConnect = document.getElementById('serial-connect');
+      const serialDisconnect = document.getElementById('serial-disconnect');
+      const serialStatus = document.getElementById('serial-status');
+      const serialValue = document.getElementById('serial-value');
+      const serialIdleMs = 200;
+      let serialPort = null;
+      let serialReader = null;
+      let serialBuffer = '';
+      let serialTimer = null;
+
+      const updateStatus = (value, suffix) => {
+        valueEl.textContent = value || '-';
+        suffixEl.textContent = suffix || '-';
+        timeEl.textContent = new Date().toLocaleTimeString();
+      };
+
+      const updateSerialUi = (state) => {
+        serialStatus.textContent = state || 'не подключено';
+      };
+
+      const formatControlChars = (value) => {
+        if (!value) return value;
+        return value
+          .replace(/\x1D/g, '<GS>')
+          .replace(/\r/g, '<CR>')
+          .replace(/\n/g, '<LF>')
+          .replace(/\t/g, '<TAB>');
+      };
+
+      const getDelimiter = () => {
+        const mode = serialEol.value;
+        if (mode === 'crlf') return '\r\n';
+        if (mode === 'cr') return '\r';
+        if (mode === 'lf') return '\n';
+        if (mode === 'tab') return '\t';
+        return '';
+      };
+
+      const flushSerial = (suffix) => {
+        const trimmed = serialBuffer.trim();
+        const displayValue = formatControlChars(trimmed);
+        if (displayValue) {
+          serialValue.textContent = displayValue;
+          updateStatus(displayValue, suffix || 'COM');
+        }
+        serialBuffer = '';
+      };
+
+      const scheduleSerialFlush = () => {
+        if (serialTimer) {
+          clearTimeout(serialTimer);
+        }
+        serialTimer = setTimeout(() => {
+          if (serialBuffer) {
+            flushSerial('COM (pause)');
+          }
+        }, serialIdleMs);
+      };
+
+      const closeSerial = async () => {
+        if (serialTimer) {
+          clearTimeout(serialTimer);
+          serialTimer = null;
+        }
+        if (serialReader) {
+          try {
+            await serialReader.cancel();
+          } catch (e) {
+            // Ignore cancel errors.
+          }
+          serialReader.releaseLock();
+          serialReader = null;
+        }
+        if (serialPort) {
+          try {
+            await serialPort.close();
+          } catch (e) {
+            // Ignore close errors.
+          }
+          serialPort = null;
+        }
+        serialDisconnect.disabled = true;
+        serialConnect.disabled = false;
+        updateSerialUi('не подключено');
+      };
+
+      const readSerialLoop = async () => {
+        const decoder = new TextDecoder();
+        while (serialPort && serialPort.readable) {
+          try {
+            const result = await serialReader.read();
+            if (result.done) break;
+            if (result.value) {
+              serialBuffer += decoder.decode(result.value, { stream: true });
+              const delimiter = getDelimiter();
+              if (delimiter) {
+                let idx = serialBuffer.indexOf(delimiter);
+                while (idx >= 0) {
+                  const part = serialBuffer.slice(0, idx);
+                  serialBuffer = serialBuffer.slice(idx + delimiter.length);
+                  const trimmed = part.trim();
+                  const displayValue = formatControlChars(trimmed);
+                  if (displayValue) {
+                    serialValue.textContent = displayValue;
+                    updateStatus(displayValue, 'COM');
+                  }
+                  idx = serialBuffer.indexOf(delimiter);
+                }
+              }
+              scheduleSerialFlush();
+            }
+          } catch (err) {
+            updateSerialUi('ошибка: ' + err.message);
+            break;
+          }
+        }
+        await closeSerial();
+      };
+
+      const connectSerial = async () => {
+        if (!('serial' in navigator)) {
+          updateSerialUi('Web Serial не поддерживается');
+          return;
+        }
+        try {
+          serialPort = await navigator.serial.requestPort();
+          await serialPort.open({
+            baudRate: parseInt(serialBaud.value, 10) || 9600,
+            dataBits: 8,
+            stopBits: 1,
+            parity: 'none',
+          });
+          serialReader = serialPort.readable.getReader();
+          updateSerialUi('подключено');
+          serialConnect.disabled = true;
+          serialDisconnect.disabled = false;
+          readSerialLoop();
+        } catch (err) {
+          updateSerialUi('ошибка: ' + err.message);
+          await closeSerial();
+        }
+      };
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== 'Tab') {
+          return;
+        }
+        e.preventDefault();
+        const val = input.value.trim();
+        if (val) {
+          updateStatus(val, e.key === 'Enter' ? 'Enter' : 'Tab');
+        }
+        input.value = '';
+      });
+
+      clearBtn.addEventListener('click', () => {
+        updateStatus('-', '-');
+        input.value = '';
+        input.focus();
+      });
+
+      serialConnect.addEventListener('click', connectSerial);
+      serialDisconnect.addEventListener('click', closeSerial);
+
+      if (!('serial' in navigator)) {
+        serialConnect.disabled = true;
+        updateSerialUi('Web Serial не поддерживается');
+      }
+
+      const backLink = document.getElementById('scanner-back');
+      if (backLink) {
+        const referrer = document.referrer;
+        const sameOrigin = referrer && referrer.startsWith(window.location.origin);
+        if (sameOrigin) {
+          backLink.href = referrer;
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

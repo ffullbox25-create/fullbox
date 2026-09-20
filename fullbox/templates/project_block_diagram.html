@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} | FULLBOX</title>
+  <link href="/static/vendor/space-grotesk.css" rel="stylesheet">
+  <link href="/static/tilda/project9154751/css/fonts-local.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07090f;
+      --panel: rgba(14, 19, 34, 0.78);
+      --stroke: rgba(255, 255, 255, 0.14);
+      --text: #f2f5ff;
+      --muted: #94a1bd;
+      --blue: #66a4ff;
+      --teal: #39d3c0;
+      --amber: #f0ba57;
+      --rose: #ff8cab;
+      --violet: #a88dff;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: "Space Grotesk", sans-serif;
+      background:
+        radial-gradient(1200px 700px at 0% 0%, rgba(102, 164, 255, 0.26), transparent 48%),
+        radial-gradient(900px 550px at 100% 15%, rgba(57, 211, 192, 0.2), transparent 52%),
+        radial-gradient(780px 520px at 55% 100%, rgba(168, 141, 255, 0.2), transparent 58%),
+        linear-gradient(170deg, #06080e 0%, #0b1020 100%);
+      overflow-x: hidden;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 36px 36px;
+      opacity: .2;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      min-height: 100vh;
+      padding: 14px;
+    }
+    .shell {
+      width: 100%;
+      min-height: calc(100vh - 28px);
+      border-radius: 24px;
+      border: 1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+      box-shadow: 0 30px 80px rgba(0,0,0,.45);
+      backdrop-filter: blur(7px);
+      padding: 18px 18px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    h1 {
+      margin: 0 0 4px;
+      font-family: "Unbounded", sans-serif;
+      font-size: clamp(24px, 3.4vw, 42px);
+      letter-spacing: -.7px;
+      line-height: 1.1;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: clamp(14px, 1.3vw, 18px);
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .btn {
+      min-height: 42px;
+      padding: 9px 14px;
+      border-radius: 11px;
+      border: 1px solid var(--stroke);
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 14px;
+      background: rgba(255,255,255,0.05);
+      transition: .2s ease;
+      display: inline-flex;
+      align-items: center;
+    }
+    .btn:hover { transform: translateY(-2px); border-color: var(--blue); box-shadow: 0 12px 24px rgba(102,164,255,.2); }
+    .btn.primary {
+      background: linear-gradient(125deg, #f0ba57, #ffcf73);
+      color: #121212;
+      border-color: transparent;
+    }
+    .legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 2px;
+    }
+    .legend span { display: inline-flex; align-items: center; gap: 8px; }
+    .dot { width: 9px; height: 9px; border-radius: 999px; display: inline-block; }
+
+    .stage {
+      position: relative;
+      flex: 1;
+      min-height: 640px;
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      background:
+        radial-gradient(700px 350px at 50% 55%, rgba(102,164,255,0.08), transparent 70%),
+        linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005));
+      overflow: hidden;
+      padding: 12px;
+    }
+    .links {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      opacity: .9;
+    }
+    .links path {
+      stroke-dasharray: 8 7;
+      animation: flow 12s linear infinite;
+    }
+    @keyframes flow {
+      to { stroke-dashoffset: -280; }
+    }
+
+    .canvas {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-height: 620px;
+      z-index: 2;
+    }
+    .ring {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(56vw, 760px);
+      aspect-ratio: 1 / 1;
+      transform: translate(-50%, -50%);
+      border: 1px dashed rgba(102,164,255,.35);
+      border-radius: 999px;
+      box-shadow: inset 0 0 80px rgba(102,164,255,.07);
+      animation: pulse 6s ease-in-out infinite;
+    }
+    .ring::after {
+      content: "";
+      position: absolute;
+      inset: 34px;
+      border-radius: 999px;
+      border: 1px dashed rgba(57,211,192,.25);
+    }
+    @keyframes pulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.02); }
+    }
+
+    .node {
+      position: absolute;
+      width: clamp(190px, 17vw, 280px);
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: 10px 11px;
+      background: var(--panel);
+      box-shadow: 0 14px 30px rgba(0,0,0,.35);
+      transition: .22s ease;
+    }
+    .node:hover { transform: translateY(-3px) scale(1.015); }
+    .node .title { font-weight: 700; font-size: 16px; margin-bottom: 5px; }
+    .node .body { color: var(--muted); font-size: 13px; line-height: 1.35; }
+    .node.core {
+      left: 50%;
+      top: 50%;
+      width: clamp(250px, 21vw, 340px);
+      transform: translate(-50%, -50%);
+      text-align: center;
+      padding: 14px 14px;
+      border-color: rgba(240,186,87,.7);
+      background: linear-gradient(170deg, rgba(240,186,87,.28), rgba(20,26,41,.92));
+      box-shadow: 0 22px 60px rgba(240,186,87,.2);
+    }
+    .node.core .title {
+      font-family: "Unbounded", sans-serif;
+      font-size: clamp(18px, 1.35vw, 24px);
+    }
+    .node.blue { border-color: rgba(102,164,255,.55); background: linear-gradient(170deg, rgba(102,164,255,.18), rgba(20,26,41,.9)); }
+    .node.teal { border-color: rgba(57,211,192,.55); background: linear-gradient(170deg, rgba(57,211,192,.16), rgba(20,26,41,.9)); }
+    .node.amber { border-color: rgba(240,186,87,.55); background: linear-gradient(170deg, rgba(240,186,87,.14), rgba(20,26,41,.9)); }
+    .node.rose { border-color: rgba(255,140,171,.55); background: linear-gradient(170deg, rgba(255,140,171,.15), rgba(20,26,41,.9)); }
+    .node.violet { border-color: rgba(168,141,255,.6); background: linear-gradient(170deg, rgba(168,141,255,.17), rgba(20,26,41,.9)); }
+
+    .n1 { left: 3.2%; top: 10%; }
+    .n2 { left: 5%; top: 42%; }
+    .n3 { left: 3.5%; top: 74%; }
+    .n4 { left: 28%; top: 8%; }
+    .n5 { left: 29%; top: 74%; }
+    .n6 { right: 28%; top: 8%; }
+    .n7 { right: 29%; top: 74%; }
+    .n8 { right: 3.2%; top: 10%; }
+    .n9 { right: 5%; top: 42%; }
+    .n10 { right: 3.5%; top: 74%; }
+
+    .bottom-note {
+      margin-top: 8px;
+      border: 1px dashed rgba(240,186,87,.52);
+      border-radius: 12px;
+      padding: 10px 12px;
+      color: #f8df98;
+      background: rgba(240,186,87,.08);
+      font-size: 13px;
+    }
+
+    .mobile-map { display: none; }
+    @media (max-width: 1080px) {
+      .stage { min-height: 420px; }
+      .canvas { display: none; }
+      .mobile-map {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        max-height: 68vh;
+        overflow: auto;
+        padding: 2px;
+      }
+      .mobile-map .node {
+        position: static;
+        width: 100%;
+        transform: none;
+      }
+      .ring, .links { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="shell">
+      <header class="header">
+        <div>
+          <div class="meta">FULLBOX · {% include "partials/current_user.html" %}</div>
+          <h1>{{ title }}</h1>
+          <div class="subtitle">{{ subtitle }}</div>
+        </div>
+        <div class="actions">
+          <a class="btn primary" href="/project-structure/">Описание структуры</a>
+          <a class="btn" href="/development-journal/">Журнал разработки</a>
+          <a class="btn" href="/cabinet/director/">В кабинет директора</a>
+        </div>
+      </header>
+
+      <div class="legend">
+        <span><i class="dot" style="background:var(--blue)"></i> Роли</span>
+        <span><i class="dot" style="background:var(--teal)"></i> Процессы</span>
+        <span><i class="dot" style="background:var(--amber)"></i> Данные</span>
+        <span><i class="dot" style="background:var(--rose)"></i> Интеграции</span>
+        <span><i class="dot" style="background:var(--violet)"></i> Управление и аналитика</span>
+      </div>
+
+      <section class="stage">
+        <svg class="links" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill="rgba(102,164,255,.75)"></path>
+            </marker>
+          </defs>
+          <path d="M240,130 C520,220 600,290 765,420" stroke="rgba(102,164,255,.48)" stroke-width="2" fill="none" marker-end="url(#arr)"></path>
+          <path d="M240,430 C500,420 580,430 765,450" stroke="rgba(57,211,192,.48)" stroke-width="2" fill="none" marker-end="url(#arr)"></path>
+          <path d="M240,760 C500,640 580,560 770,500" stroke="rgba(240,186,87,.45)" stroke-width="2" fill="none" marker-end="url(#arr)"></path>
+          <path d="M510,120 C640,210 690,290 780,390" stroke="rgba(102,164,255,.4)" stroke-width="2" fill="none" marker-end="url(#arr)"></path>
+          <path d="M520,760 C650,700 720,620 790,530" stroke="rgba(168,141,255,.46)" stroke-width="2" fill="none" marker-end="url(#arr)"></path>
+          <path d="M1080,120 C980,230 940,300 845,400" stroke="rgba(240,186,87,.43)" stroke-width="2" fill="none" marker-end="url(#arr)"></path>
+          <path d="M1080,760 C980,690 920,610 845,520" stroke="rgba(255,140,171,.43)" stroke-width="2" fill="none" marker-end="url(#arr)"></path>
+          <path d="M1360,130 C1120,240 980,330 860,420" stroke="rgba(255,140,171,.48)" stroke-width="2" fill="none" marker-end="url(#arr)"></path>
+          <path d="M1360,430 C1120,440 990,450 860,450" stroke="rgba(57,211,192,.45)" stroke-width="2" fill="none" marker-end="url(#arr)"></path>
+          <path d="M1360,760 C1100,640 980,560 860,500" stroke="rgba(102,164,255,.44)" stroke-width="2" fill="none" marker-end="url(#arr)"></path>
+        </svg>
+
+        <div class="canvas">
+          <div class="ring"></div>
+
+          <article class="node blue n1">
+            <div class="title">Клиентский кабинет</div>
+            <div class="body">Заявки, контроль статусов, остатки и документы</div>
+          </article>
+          <article class="node teal n2">
+            <div class="title">Приемка / Обработка / Размещение</div>
+            <div class="body">Операционные шаги склада с фиксацией каждого этапа</div>
+          </article>
+          <article class="node violet n3">
+            <div class="title">Роли и кабинеты сотрудников</div>
+            <div class="body">Менеджер, кладовщик, ричтракер, обработчик, руководитель</div>
+          </article>
+
+          <article class="node blue n4">
+            <div class="title">Orders + Processing App</div>
+            <div class="body">Центр бизнес-логики заявок и потоков операций</div>
+          </article>
+          <article class="node violet n5">
+            <div class="title">Todo / SLA / Контроль</div>
+            <div class="body">Поручения по ролям, просрочки, исполнение задач</div>
+          </article>
+
+          <article class="node amber n6">
+            <div class="title">OrderAuditEntry</div>
+            <div class="body">Единая событийная лента по заявкам (источник истории)</div>
+          </article>
+          <article class="node amber n7">
+            <div class="title">SKU / Agency / InventoryState</div>
+            <div class="body">Справочники и оперативные резервы/остатки</div>
+          </article>
+
+          <article class="node rose n8">
+            <div class="title">Agent + COM + Печать</div>
+            <div class="body">Сканер, очереди печати, статус оборудования</div>
+          </article>
+          <article class="node rose n9">
+            <div class="title">Marking / Честный знак</div>
+            <div class="body">Импорт, печать, привязка к коробам и контроль использования</div>
+          </article>
+          <article class="node rose n10">
+            <div class="title">Market Sync</div>
+            <div class="body">Интеграции маркетплейсов и внешние данные</div>
+          </article>
+
+          <article class="node core">
+            <div class="title">FULLBOX CORE</div>
+            <div class="body">
+              Событийный контур: действия ролей -> бизнес-процессы -> аудит и остатки -> контроль и документы
+            </div>
+          </article>
+        </div>
+
+        <div class="mobile-map">
+          <article class="node core"><div class="title">FULLBOX CORE</div><div class="body">Событийный контур и единая бизнес-логика склада.</div></article>
+          <article class="node blue"><div class="title">Клиентский кабинет</div><div class="body">Заявки, статусы, документы, остатки.</div></article>
+          <article class="node violet"><div class="title">Роли сотрудников</div><div class="body">Операционные кабинеты и доступы.</div></article>
+          <article class="node teal"><div class="title">Процессы</div><div class="body">Приемка -> Обработка -> Размещение.</div></article>
+          <article class="node amber"><div class="title">Ядро данных</div><div class="body">OrderAuditEntry, SKU, InventoryState.</div></article>
+          <article class="node rose"><div class="title">Интеграции</div><div class="body">Agent, COM, Marking, Market Sync.</div></article>
+        </div>
+      </section>
+
+      <div class="bottom-note">
+        Архитектурная идея схемы: все роли работают с единым процессным контуром, а расчеты и контроль строятся
+        поверх событийной истории и фактических движений товара.
+      </div>
+    </section>
+  </div>
+</body>
+</html>

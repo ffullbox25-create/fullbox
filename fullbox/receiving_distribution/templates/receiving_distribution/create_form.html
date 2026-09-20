@@ -1,0 +1,1161 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Приёмка с распределением — Fullbox</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <style>
+    :root { --blue: #0e6b5b; --orange: #f2b747; --line: rgba(28,31,26,0.12); }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: Manrope, system-ui, sans-serif; color: var(--ink);
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input, select, textarea { font: inherit; }
+    .wrap { max-width: 1480px; margin: 0 auto; padding: 24px; }
+    .layout { display: grid; grid-template-columns: 260px minmax(0,1fr); gap: 20px; }
+    @media (max-width: 1100px){ .layout { grid-template-columns: 1fr; } }
+    .side, .card {
+      background: var(--surface); border: 1px solid var(--stroke);
+      border-radius: 20px; box-shadow: var(--shadow);
+    }
+    .side { padding: 18px; display: grid; gap: 12px; align-content: start; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; }
+    .brand { font-family: "Bricolage Grotesque", Manrope, sans-serif; font-size: 22px; }
+    .nav-link {
+      display: grid; gap: 4px; padding: 12px; border-radius: 16px;
+      border: 1px solid var(--stroke); background: var(--surface-2);
+    }
+    .nav-link.primary { background: linear-gradient(135deg, rgba(242,183,71,0.45), rgba(14,107,91,0.15)); border-color: transparent; }
+    .nav-title { font-weight: 700; }
+    .nav-sub { font-size: 12px; color: var(--muted); }
+    .content { display: grid; gap: 18px; min-width: 0; }
+    .crumbs { color: var(--muted); font-size: 13px; }
+    .crumbs a { color: var(--accent); font-weight: 700; }
+    h1 { margin: 0; font-family: "Bricolage Grotesque", Manrope, sans-serif; font-size: 32px; line-height: 1.15; }
+    .sub { margin: 8px 0 0; color: var(--muted); font-size: 15px; line-height: 1.5; max-width: 920px; }
+    .info-banner {
+      margin-top: 12px; padding: 12px 14px; border-radius: 14px;
+      background: rgba(14,107,91,0.08); border: 1px solid rgba(14,107,91,0.18);
+      color: var(--accent-strong, #0b5246); font-size: 14px; line-height: 1.45;
+    }
+    .card { padding: 20px 22px; }
+    .card-title {
+      margin: 0 0 16px; display: flex; align-items: center; gap: 10px;
+      font-family: "Bricolage Grotesque", Manrope, sans-serif; font-size: 22px;
+    }
+    .num {
+      width: 28px; height: 28px; border-radius: 999px; display: inline-grid; place-items: center;
+      background: rgba(14,107,91,0.12); color: var(--accent); font-size: 13px; font-weight: 900;
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 800px){ .row { grid-template-columns: 1fr; } }
+    .field { display: grid; gap: 7px; }
+    .field label { font-size: 13px; font-weight: 700; color: var(--muted); }
+    .required { color: var(--danger, #d4543c); }
+    .field input, .field textarea, .field select {
+      width: 100%; min-height: 46px; border: 1px solid var(--stroke); border-radius: 12px;
+      padding: 11px 13px; background: #fff; color: inherit; font-size: 15px;
+    }
+    .field textarea { min-height: 96px; resize: vertical; }
+    .field input.is-invalid, .field textarea.is-invalid { border-color: #d4543c; background: #fff6f4; }
+    .field-error { color: #8a2b1d; font-size: 12px; font-weight: 700; display: none; }
+    .field.has-error .field-error { display: block; }
+    .char-count { font-size: 12px; color: var(--muted); text-align: right; }
+    .hint { color: var(--muted); font-size: 14px; line-height: 1.45; margin: 0 0 14px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .btn {
+      border: 1px solid var(--stroke); background: #f7f2ea; border-radius: 12px;
+      padding: 12px 16px; font-weight: 800; cursor: pointer; color: var(--ink);
+      display: inline-flex; align-items: center; justify-content: center; min-height: 46px; font-size: 15px;
+    }
+    .btn.primary { background: linear-gradient(120deg, var(--sun), #ffd88a); border-color: transparent; }
+    .btn.accent { background: var(--accent); color: #fff; border-color: transparent; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn.ghost { background: transparent; }
+    .file-box {
+      border: 1.5px dashed rgba(14,107,91,0.35); border-radius: 14px; padding: 16px;
+      background: rgba(14,107,91,0.05); display: grid; gap: 10px;
+    }
+    .file-meta { display: grid; gap: 4px; font-size: 14px; }
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px;
+      font-size: 13px; font-weight: 800; background: rgba(28,31,26,0.06);
+    }
+    .status-pill.ok { background: rgba(14,107,91,0.12); color: #0b5246; }
+    .status-pill.err { background: rgba(212,84,60,0.14); color: #8a2b1d; }
+    .status-pill.warn { background: rgba(242,183,71,0.25); color: #7a5a10; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
+    @media (max-width: 900px){ .kpi-grid { grid-template-columns: 1fr 1fr; } }
+    .kpi {
+      border: 1px solid var(--stroke); border-radius: 14px; padding: 12px; background: var(--surface-2);
+    }
+    .kpi strong { display: block; font-size: 22px; margin-top: 4px; }
+    .kpi span { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .table-wrap { overflow: auto; max-height: 420px; border: 1px solid var(--stroke); border-radius: 14px; }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid rgba(28,31,26,0.08); text-align: left; white-space: nowrap; }
+    thead th { position: sticky; top: 0; background: #f7f2ea; z-index: 1; color: var(--muted); font-size: 12px; }
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .filters input, .filters select { min-height: 42px; border: 1px solid var(--stroke); border-radius: 10px; padding: 8px 10px; background: #fff; }
+    .issues { display: grid; gap: 8px; max-height: 320px; overflow: auto; }
+    .issue {
+      border: 1px solid rgba(212,84,60,0.25); background: rgba(212,84,60,0.08);
+      border-radius: 12px; padding: 12px; font-size: 13px; line-height: 1.4;
+    }
+    .issue.warn { border-color: rgba(242,183,71,0.45); background: rgba(242,183,71,0.14); }
+    .issue strong { display: block; margin-bottom: 4px; }
+    .what-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+    @media (max-width: 900px){ .what-grid { grid-template-columns: 1fr; } }
+    .what-item { border: 1px solid var(--stroke); border-radius: 14px; padding: 14px; background: var(--surface-2); }
+    .what-item h3 { margin: 0 0 6px; font-size: 16px; }
+    .what-item p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
+    .footer-actions {
+      position: sticky; bottom: 0; display: flex; flex-wrap: wrap; gap: 10px;
+      padding: 14px; background: rgba(255,253,248,0.94); border: 1px solid var(--stroke);
+      border-radius: 16px; backdrop-filter: blur(6px);
+    }
+    .err-banner {
+      background: #fde8e4; color: #8a2b1d; border-radius: 12px; padding: 12px 14px; font-weight: 700;
+    }
+    .ok-banner {
+      background: #e7f5f1; color: #0b5246; border-radius: 12px; padding: 12px 14px; font-weight: 700;
+    }
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(28,31,26,0.45); display: none;
+      align-items: center; justify-content: center; z-index: 50; padding: 16px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      width: min(520px, 100%); background: var(--surface); border-radius: 18px;
+      border: 1px solid var(--stroke); padding: 20px; box-shadow: var(--shadow);
+    }
+    .modal h2 { margin: 0 0 8px; font-family: "Bricolage Grotesque", Manrope, sans-serif; font-size: 22px; }
+    .modal p { margin: 0 0 10px; color: var(--muted); line-height: 1.45; }
+    .modal.wide {
+      width: min(1440px, 100%); max-height: calc(100vh - 32px);
+      display: flex; flex-direction: column; padding: 18px 20px;
+    }
+    .modal.wide .modal-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+    .modal.wide .modal-head h2 { margin: 0; }
+    .modal.wide .modal-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .modal.wide .modal-body { min-height: 0; flex: 1; overflow: auto; border: 1px solid var(--stroke); border-radius: 14px; }
+    .modal.wide .modal-foot { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; align-items: center; }
+    .modal.wide table { font-size: 13px; }
+    .modal.wide th, .modal.wide td { padding: 8px 8px; vertical-align: middle; }
+    .modal.wide thead th { position: sticky; top: 0; background: #f7f2ea; z-index: 2; }
+    .modal.wide input.qty-edit, .modal.wide input.total-edit {
+      width: 88px; min-height: 36px; border: 1px solid var(--stroke); border-radius: 8px;
+      padding: 6px 8px; background: #fff; font-size: 14px; font-weight: 700;
+    }
+    .modal.wide select.dir-edit {
+      min-width: 180px; min-height: 36px; border: 1px solid var(--stroke); border-radius: 8px;
+      padding: 6px 8px; background: #fff; font-size: 13px;
+    }
+    tr.row-dup td { background: rgba(212,84,60,0.12); }
+    tr.row-dup td:first-child { box-shadow: inset 4px 0 0 #d4543c; }
+    tr.row-mismatch td { background: rgba(242,183,71,0.18); }
+    tr.row-mismatch.row-dup td { background: rgba(212,84,60,0.16); }
+    .dup-badge {
+      display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px;
+      background: rgba(212,84,60,0.16); color: #8a2b1d; font-size: 11px; font-weight: 800;
+    }
+    .mismatch-badge {
+      display: inline-flex; padding: 3px 8px; border-radius: 999px;
+      background: rgba(242,183,71,0.28); color: #7a5a10; font-size: 11px; font-weight: 800;
+    }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+    .swatch.dup { background: rgba(212,84,60,0.35); }
+    .swatch.mis { background: rgba(242,183,71,0.45); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand">Fullbox</div>
+        <a class="nav-link" href="{{ cabinet_url }}"><span class="nav-title">Кабинет</span><span class="nav-sub">Главная</span></a>
+        <a class="nav-link" href="{{ choose_url }}"><span class="nav-title">Приёмка</span><span class="nav-sub">Выбор типа</span></a>
+        <a class="nav-link" href="{{ sku_url }}"><span class="nav-title">Номенклатура</span><span class="nav-sub">Артикулы</span></a>
+        <a class="nav-link primary" href="#"><span class="nav-title">С распределением</span><span class="nav-sub">Текущая форма</span></a>
+      </aside>
+
+      <main class="content">
+        <div class="crumbs">
+          <a href="{{ cabinet_url }}">Кабинет</a> / <a href="{{ choose_url }}">Приёмка</a> / Приёмка с распределением
+        </div>
+        <header>
+          <h1>Приёмка с распределением</h1>
+          <p class="sub">Одна заявка на приёмку — несколько направлений и связанных отгрузок. Складская приёмка и внутренние ШК коробов не меняются.</p>
+          <div class="info-banner">После проверки файла система создаст общую заявку на приёмку и отдельные черновики отгрузки по каждому направлению.</div>
+        </header>
+
+        {% if form_error %}<div class="err-banner">{{ form_error }}</div>{% endif %}
+        {% if messages %}{% for m in messages %}<div class="{% if m.tags == 'error' %}err-banner{% else %}ok-banner{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+        <form method="post" enctype="multipart/form-data" id="dist-form">
+          {% csrf_token %}
+          <input type="hidden" name="client_request_id" id="client_request_id" value="{{ client_request_id }}">
+          <input type="hidden" name="draft_json" id="draft_json" value="">
+          <input type="hidden" name="check_payload_json" id="check_payload_json" value="">
+          <input type="hidden" name="action" id="action" value="submit">
+
+          <section class="card">
+            <h2 class="card-title"><span class="num">1</span> Общие данные</h2>
+            <div class="row">
+              <div class="field" data-field="eta_at">
+                <label>Плановая дата и время прибытия <span class="required">*</span></label>
+                <input type="datetime-local" name="eta_at" id="eta_at" required>
+                <div class="field-error">Укажите дату не раньше сегодняшнего дня</div>
+              </div>
+              <div class="field">
+                <label>Телефон водителя</label>
+                <input type="tel" name="driver_phone" id="driver_phone" placeholder="+7 (___) ___-__-__" inputmode="tel">
+              </div>
+              <div class="field">
+                <label>Машина</label>
+                <input type="text" name="vehicle_number" id="vehicle_number" placeholder="Введите марку или номер машины">
+              </div>
+              <div class="field">
+                <label>Водитель</label>
+                <input type="text" name="driver_name" id="driver_name" placeholder="ФИО водителя">
+              </div>
+              <div class="field">
+                <label>Примерно коробов</label>
+                <input type="number" name="expected_boxes" id="expected_boxes" min="0" step="1" placeholder="Введите количество">
+              </div>
+              <div class="field">
+                <label>Примерно палет</label>
+                <input type="number" name="expected_pallets" id="expected_pallets" min="0" step="1" placeholder="Введите количество">
+              </div>
+            </div>
+            <div class="field" style="margin-top:14px" data-field="comment">
+              <label>Комментарий</label>
+              <textarea name="comment" id="comment" maxlength="500" placeholder="Дополнительная информация по приёмке: особенности груза, пожелания, ограничения и т. д."></textarea>
+              <div class="char-count"><span id="comment_count">0</span>/500</div>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2 class="card-title"><span class="num">2</span> Загрузка шаблона</h2>
+            <p class="hint">Заполните один файл. В нём необходимо указать общее количество товара и распределение по направлениям. Перед созданием заявки система проверит файл.</p>
+            <div class="actions" style="margin-bottom:14px">
+              <a class="btn" href="{{ template_url }}">Скачать шаблон</a>
+              <label class="btn accent" style="cursor:pointer">
+                Загрузить файл
+                <input type="file" name="distribution_file" id="distribution_file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
+              </label>
+              <button type="button" class="btn" id="btn-check">Проверить шаблон</button>
+            </div>
+            <div class="file-box">
+              <div class="file-meta">
+                <div><strong id="file_name">Файл не выбран</strong></div>
+                <div class="hint" id="file_size">Размер: —</div>
+                <div class="hint" id="file_date">Загружен: —</div>
+              </div>
+              <div>
+                <span class="status-pill" id="file_status">Файл не загружен</span>
+              </div>
+              <div class="actions">
+                <button type="button" class="btn ghost" id="btn-clear-file">Удалить файл</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="card" id="check-card">
+            <h2 class="card-title">Проверка шаблона</h2>
+            <div id="check-empty" class="hint">Загрузите файл и нажмите «Проверить шаблон».</div>
+            <div id="check-ok" class="ok-banner hidden">Файл проверен. Ошибок не найдено. Шаблон готов к созданию заявки.</div>
+            <div id="check-checking" class="hint hidden">Файл проверяется. Это может занять некоторое время.</div>
+            <div id="check-stats" class="kpi-grid hidden"></div>
+            <div class="filters hidden" id="issue-filters">
+              <select id="issue_filter">
+                <option value="all">Все</option>
+                <option value="error">Ошибки</option>
+                <option value="warning">Предупреждения</option>
+              </select>
+              <a class="btn" id="btn-error-report" href="{{ error_report_url }}">Скачать отчёт об ошибках</a>
+              <button type="button" class="btn accent" id="btn-open-articles">Открыть таблицу артикулов</button>
+            </div>
+            <div class="issues" id="issues-list"></div>
+          </section>
+
+          <section class="card hidden" id="preview-card">
+            <h2 class="card-title"><span class="num">3</span> Предпросмотр распределения</h2>
+            <div class="kpi-grid" id="preview-kpis"></div>
+            <div class="actions" style="margin-bottom:12px">
+              <button type="button" class="btn accent" id="btn-open-articles-2">Открыть полную таблицу и исправить дубли</button>
+            </div>
+            <div class="filters">
+              <input type="search" id="preview_search" placeholder="Поиск: SKU, штрихкод, поставка">
+              <select id="preview_mp"><option value="">Все маркетплейсы</option></select>
+              <select id="preview_dir"><option value="">Все направления</option></select>
+              <select id="preview_status">
+                <option value="">Все статусы</option>
+                <option value="ok">ok</option>
+                <option value="warning">warning</option>
+                <option value="error">error</option>
+                <option value="duplicate">duplicate</option>
+              </select>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>SKU</th><th>Штрихкод</th><th>Наименование</th><th>Общее</th>
+                    <th>Направление</th><th>Маркетплейс</th><th>Склад</th><th>Поставка</th>
+                    <th>Кол-во</th><th>Дата</th><th>Слот</th><th>Статус</th>
+                  </tr>
+                </thead>
+                <tbody id="preview-tbody"></tbody>
+              </table>
+            </div>
+            <div class="actions" style="margin-top:12px">
+              <button type="button" class="btn" id="page-prev">Назад</button>
+              <span class="hint" id="page-info">Стр. 1</span>
+              <button type="button" class="btn" id="page-next">Вперёд</button>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2 class="card-title">Что будет создано</h2>
+            <div class="what-grid">
+              <div class="what-item">
+                <h3>Одна общая заявка на приёмку</h3>
+                <p>Единая заявка для складской приёмки всего поступающего товара.</p>
+              </div>
+              <div class="what-item">
+                <h3>Несколько связанных черновиков отгрузки</h3>
+                <p>По каждому направлению будет создан отдельный черновик отгрузки.</p>
+              </div>
+              <div class="what-item">
+                <h3>Текущая складская логика сохраняется</h3>
+                <p>Приёмка, внутренние ШК коробов, палеты и движения товара не изменяются.</p>
+              </div>
+              <div class="what-item">
+                <h3>Создание только после проверки</h3>
+                <p>Заявки не создаются, пока в шаблоне есть критические ошибки.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2 class="card-title">Нужна помощь с шаблоном?</h2>
+            <p class="hint">Скачайте образец и заполните его по инструкции. Не изменяйте названия и порядок обязательных колонок.</p>
+            <div class="actions">
+              <a class="btn primary" href="{{ template_url }}">Скачать образец и инструкцию</a>
+              <a class="btn" href="{{ template_url }}">Посмотреть инструкцию</a>
+            </div>
+          </section>
+
+          <div class="footer-actions">
+            <button type="button" class="btn" id="btn-save-draft">Сохранить черновик</button>
+            <button type="button" class="btn primary" id="btn-submit" disabled>Создать заявку</button>
+            <a class="btn ghost" href="{{ choose_url }}">Отменить</a>
+          </div>
+        </form>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="confirm-modal" role="dialog" aria-modal="true">
+    <div class="modal">
+      <h2>Создать заявку с распределением?</h2>
+      <p>Будет создана 1 заявка на приёмку и <strong id="confirm-ship-count">0</strong> связанных черновиков отгрузки.</p>
+      <div class="kpi-grid" id="confirm-kpis"></div>
+      <div class="actions">
+        <button type="button" class="btn" id="confirm-back">Назад к проверке</button>
+        <button type="button" class="btn primary" id="confirm-ok">Создать заявку</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="articles-modal" role="dialog" aria-modal="true">
+    <div class="modal wide">
+      <div class="modal-head">
+        <div>
+          <h2>Таблица артикулов</h2>
+          <p style="margin:6px 0 0">Дубли артикула по одному направлению подсвечены красным. Несовпадение суммы по направлениям с общим количеством — жёлтым. Можно сразу поправить количество или направление.</p>
+          <div class="legend" style="margin-top:8px">
+            <span><i class="swatch dup"></i> Дубль артикула × направление</span>
+            <span><i class="swatch mis"></i> Сумма направлений ≠ общему</span>
+          </div>
+        </div>
+        <div class="modal-tools">
+          <input type="search" id="articles_search" placeholder="Поиск артикула…" style="min-height:42px;border:1px solid var(--stroke);border-radius:10px;padding:8px 10px;background:#fff;min-width:200px">
+          <label class="hint" style="display:inline-flex;align-items:center;gap:6px;font-weight:700">
+            <input type="checkbox" id="articles_only_dup"> Только дубли / расхождения
+          </label>
+          <button type="button" class="btn" id="articles-merge-dups">Объединить дубли</button>
+        </div>
+      </div>
+      <div id="articles-summary" class="hint" style="margin-bottom:8px"></div>
+      <div class="modal-body">
+        <table>
+          <thead>
+            <tr>
+              <th>Стр.</th>
+              <th>Артикул</th>
+              <th>Штрихкод</th>
+              <th>Наименование</th>
+              <th>Общее</th>
+              <th>Сумма по напр.</th>
+              <th>Направление</th>
+              <th>Кол-во по направлению</th>
+              <th>Метка</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="articles-tbody"></tbody>
+        </table>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" id="articles-close">Закрыть</button>
+        <button type="button" class="btn primary" id="articles-apply">Применить изменения</button>
+        <span class="hint" id="articles-apply-hint"></span>
+      </div>
+    </div>
+  </div>
+
+  <script type="application/json" id="initial-state">{{ initial_json|default:"null"|safe }}</script>
+  <script>
+  (function(){
+    var checkUrl = "{{ check_url }}";
+    var maxMb = {{ max_upload_mb|default:15 }};
+    var state = {
+      file: null,
+      status: "empty",
+      payload: null,
+      page: 1,
+      pageSize: 50,
+      submitting: false
+    };
+    var STATUS_LABELS = {
+      empty: "Файл не загружен",
+      uploaded: "Файл загружен",
+      checking: "Проверяется",
+      ok: "Проверен без ошибок",
+      errors: "Обнаружены ошибки",
+      warnings: "Обнаружены предупреждения",
+      stale: "Файл изменён — требуется повторная проверка"
+    };
+
+    function $(id){ return document.getElementById(id); }
+    function csrf(){
+      var el = document.querySelector("[name=csrfmiddlewaretoken]");
+      return el ? el.value : "";
+    }
+    function setStatus(code){
+      state.status = code;
+      var pill = $("file_status");
+      pill.textContent = STATUS_LABELS[code] || code;
+      pill.className = "status-pill" + (code === "ok" ? " ok" : (code === "errors" ? " err" : (code === "warnings" || code === "stale" ? " warn" : "")));
+      updateSubmitEnabled();
+    }
+    function collectMeta(){
+      return {
+        eta_at: $("eta_at").value,
+        expected_boxes: $("expected_boxes").value || 0,
+        expected_pallets: $("expected_pallets").value || 0,
+        vehicle_number: $("vehicle_number").value || "",
+        driver_name: $("driver_name").value || "",
+        driver_phone: $("driver_phone").value || "",
+        comment: ($("comment").value || "").slice(0,500)
+      };
+    }
+    function etaValid(){
+      var v = $("eta_at").value;
+      if(!v) return false;
+      var d = new Date(v);
+      var today = new Date(); today.setHours(0,0,0,0);
+      return d >= today;
+    }
+    function updateSubmitEnabled(){
+      var ok = state.payload && state.payload.ok && (state.status === "ok" || state.status === "warnings") && etaValid() && !state.submitting;
+      $("btn-submit").disabled = !ok;
+    }
+    function formatBytes(n){
+      if(!n && n !== 0) return "—";
+      if(n < 1024) return n + " Б";
+      if(n < 1024*1024) return (n/1024).toFixed(1) + " КБ";
+      return (n/(1024*1024)).toFixed(2) + " МБ";
+    }
+    function maskPhone(raw){
+      var digits = (raw || "").replace(/\D/g, "");
+      if(digits.startsWith("8")) digits = "7" + digits.slice(1);
+      if(digits.startsWith("7")) digits = digits.slice(0,11);
+      else digits = ("7" + digits).slice(0,11);
+      var p = digits.split("");
+      var out = "+7";
+      if(p.length > 1) out += " (" + p.slice(1,4).join("");
+      if(p.length >= 4) out += ")";
+      if(p.length > 4) out += " " + p.slice(4,7).join("");
+      if(p.length > 7) out += "-" + p.slice(7,9).join("");
+      if(p.length > 9) out += "-" + p.slice(9,11).join("");
+      return out;
+    }
+
+    $("driver_phone").addEventListener("input", function(){
+      this.value = maskPhone(this.value);
+    });
+    $("comment").addEventListener("input", function(){
+      $("comment_count").textContent = String((this.value || "").length);
+    });
+    $("eta_at").addEventListener("blur", function(){
+      var field = this.closest(".field");
+      if(!etaValid()){ field.classList.add("has-error"); this.classList.add("is-invalid"); }
+      else { field.classList.remove("has-error"); this.classList.remove("is-invalid"); }
+      updateSubmitEnabled();
+    });
+    $("eta_at").addEventListener("change", updateSubmitEnabled);
+
+    $("distribution_file").addEventListener("change", function(){
+      var f = this.files && this.files[0];
+      if(!f) return;
+      var name = (f.name || "").toLowerCase();
+      if(!(name.endsWith(".xlsx") || name.endsWith(".xls"))){
+        alert("Допустимы только файлы .xlsx или .xls");
+        this.value = "";
+        return;
+      }
+      if(f.size > maxMb * 1024 * 1024){
+        alert("Файл больше " + maxMb + " МБ");
+        this.value = "";
+        return;
+      }
+      state.file = f;
+      state.payload = null;
+      $("file_name").textContent = f.name;
+      $("file_size").textContent = "Размер: " + formatBytes(f.size);
+      $("file_date").textContent = "Загружен: " + new Date().toLocaleString("ru-RU");
+      setStatus("uploaded");
+      $("check-ok").classList.add("hidden");
+      $("preview-card").classList.add("hidden");
+      $("issues-list").innerHTML = "";
+      $("check-empty").classList.remove("hidden");
+    });
+
+    $("btn-clear-file").addEventListener("click", function(){
+      $("distribution_file").value = "";
+      state.file = null;
+      state.payload = null;
+      $("file_name").textContent = "Файл не выбран";
+      $("file_size").textContent = "Размер: —";
+      $("file_date").textContent = "Загружен: —";
+      setStatus("empty");
+      $("preview-card").classList.add("hidden");
+      $("check-ok").classList.add("hidden");
+      $("check-stats").classList.add("hidden");
+      $("issue-filters").classList.add("hidden");
+      $("issues-list").innerHTML = "";
+      $("check-empty").classList.remove("hidden");
+    });
+
+    function renderIssues(){
+      var filter = $("issue_filter").value;
+      var issues = (state.payload && state.payload.issues) || [];
+      var warnings = (state.payload && state.payload.warnings) || [];
+      var all = issues.map(function(i){ return Object.assign({}, i, {severity: i.severity || "error"}); })
+        .concat(warnings.map(function(i){ return Object.assign({}, i, {severity: "warning"}); }));
+      if(filter === "error") all = all.filter(function(i){ return i.severity !== "warning"; });
+      if(filter === "warning") all = all.filter(function(i){ return i.severity === "warning"; });
+      var box = $("issues-list");
+      box.innerHTML = "";
+      if(!all.length){ box.innerHTML = "<div class='hint'>Замечаний нет.</div>"; return; }
+      all.forEach(function(i){
+        var div = document.createElement("div");
+        div.className = "issue" + (i.severity === "warning" ? " warn" : "");
+        div.innerHTML = "<strong>Строка " + (i.row_no || "—") +
+          (i.column ? " · Колонка: «" + i.column + "»" : "") + "</strong>" +
+          "<div>Ошибка: " + (i.message || "") + (i.value ? " (значение: «" + i.value + "»)" : "") + "</div>" +
+          (i.recommendation ? "<div>Как исправить: " + i.recommendation + "</div>" : "");
+        box.appendChild(div);
+      });
+    }
+
+    function renderKpis(targetId, stats){
+      var el = $(targetId);
+      if(!el || !stats) return;
+      el.innerHTML =
+        "<div class='kpi'><span>SKU</span><strong>" + (stats.sku_count||0) + "</strong></div>" +
+        "<div class='kpi'><span>Единиц</span><strong>" + (stats.units_total||0) + "</strong></div>" +
+        "<div class='kpi'><span>Направлений</span><strong>" + (stats.directions_count||0) + "</strong></div>" +
+        "<div class='kpi'><span>Черновиков отгрузки</span><strong>" + (stats.shipping_drafts_count||0) + "</strong></div>";
+      el.classList.remove("hidden");
+    }
+
+    function filteredRows(){
+      var rows = (state.payload && state.payload.preview_rows) || [];
+      var q = ($("preview_search").value || "").trim().toLowerCase();
+      var mp = $("preview_mp").value;
+      var dir = $("preview_dir").value;
+      var st = $("preview_status").value;
+      return rows.filter(function(r){
+        if(mp && (r.marketplace_name||"") !== mp) return false;
+        if(dir && (r.direction_key||"") !== dir) return false;
+        if(st && (r.status||"") !== st) return false;
+        if(!q) return true;
+        var hay = [r.sku_code, r.barcode, r.name, r.supply_number, r.direction_label].join(" ").toLowerCase();
+        return hay.indexOf(q) !== -1;
+      });
+    }
+
+    function renderPreview(){
+      if(!state.payload || !state.payload.ok){ $("preview-card").classList.add("hidden"); return; }
+      $("preview-card").classList.remove("hidden");
+      renderKpis("preview-kpis", state.payload.stats);
+      var rows = filteredRows();
+      var pages = Math.max(1, Math.ceil(rows.length / state.pageSize));
+      if(state.page > pages) state.page = pages;
+      var start = (state.page - 1) * state.pageSize;
+      var slice = rows.slice(start, start + state.pageSize);
+      var tbody = $("preview-tbody");
+      tbody.innerHTML = "";
+      slice.forEach(function(r){
+        var tr = document.createElement("tr");
+        if(r.is_duplicate) tr.classList.add("row-dup");
+        else if(r.qty_mismatch) tr.classList.add("row-mismatch");
+        tr.innerHTML = "<td>"+esc(r.sku_code)+"</td><td>"+esc(r.barcode)+"</td><td>"+esc(r.name)+"</td><td>"+esc(r.qty_total)+"</td>"+
+          "<td>"+esc(r.direction_label)+"</td><td>"+esc(r.marketplace_name)+"</td><td>"+esc(r.destination_warehouse)+"</td>"+
+          "<td>"+esc(r.supply_number)+"</td><td>"+esc(r.qty)+"</td><td>"+esc(r.slot_date)+"</td><td>"+esc(r.slot_time)+"</td><td>"+esc(r.status)+"</td>";
+        tbody.appendChild(tr);
+      });
+      $("page-info").textContent = "Стр. " + state.page + " / " + pages + " · строк: " + rows.length;
+    }
+
+    /* ---- Модалка полной таблицы артикулов ---- */
+    var editRows = [];
+    function cloneRows(rows){
+      return (rows || []).map(function(r, idx){
+        return Object.assign({}, r, { _uid: idx + "_" + (r.row_no || idx) });
+      });
+    }
+    function annotateEditRows(){
+      var pair = {};
+      var sums = {};
+      var totals = {};
+      editRows.forEach(function(r){
+        var sku = String(r.sku_code || "").toLowerCase();
+        var dkey = String(r.direction_key || "").toLowerCase();
+        pair[sku + "||" + dkey] = (pair[sku + "||" + dkey] || 0) + 1;
+        sums[sku] = (sums[sku] || 0) + (parseInt(r.qty, 10) || 0);
+        if(r.qty_total != null && r.qty_total !== "") totals[sku] = parseInt(r.qty_total, 10) || 0;
+      });
+      editRows.forEach(function(r){
+        var sku = String(r.sku_code || "").toLowerCase();
+        var dkey = String(r.direction_key || "").toLowerCase();
+        r.is_duplicate = (pair[sku + "||" + dkey] || 0) > 1;
+        r.sku_allocated = sums[sku] || 0;
+        var total = totals[sku];
+        if(total == null) total = parseInt(r.qty_total, 10) || 0;
+        r.qty_total = total;
+        r.qty_mismatch = r.sku_allocated !== total;
+        r.qty_delta = r.sku_allocated - total;
+      });
+    }
+    function directionOptionsHtml(selectedKey){
+      var dirs = {};
+      ((state.payload && state.payload.draft && state.payload.draft.directions) || []).forEach(function(d){
+        dirs[d.key] = d.title || d.key;
+      });
+      editRows.forEach(function(r){
+        if(r.direction_key) dirs[r.direction_key] = r.direction_label || r.direction_key;
+      });
+      var html = "";
+      Object.keys(dirs).sort().forEach(function(k){
+        html += "<option value=\"" + esc(k) + "\"" + (k === selectedKey ? " selected" : "") + ">" + esc(dirs[k]) + "</option>";
+      });
+      return html;
+    }
+    function renderArticlesModal(){
+      annotateEditRows();
+      var q = ($("articles_search").value || "").trim().toLowerCase();
+      var onlyDup = $("articles_only_dup").checked;
+      var dupCount = 0, misCount = 0;
+      editRows.forEach(function(r){ if(r.is_duplicate) dupCount++; if(r.qty_mismatch) misCount++; });
+      $("articles-summary").textContent =
+        "Строк: " + editRows.length +
+        " · дублей (артикул×направление): " + dupCount +
+        " · расхождений по сумме: " + misCount;
+      var tbody = $("articles-tbody");
+      tbody.innerHTML = "";
+      editRows.forEach(function(r, idx){
+        if(onlyDup && !r.is_duplicate && !r.qty_mismatch) return;
+        if(q){
+          var hay = [r.sku_code, r.barcode, r.name, r.direction_label, r.supply_number].join(" ").toLowerCase();
+          if(hay.indexOf(q) === -1) return;
+        }
+        var tr = document.createElement("tr");
+        if(r.is_duplicate) tr.classList.add("row-dup");
+        if(r.qty_mismatch) tr.classList.add("row-mismatch");
+        var badges = "";
+        if(r.is_duplicate) badges += "<span class='dup-badge'>Дубль</span> ";
+        if(r.qty_mismatch){
+          badges += "<span class='mismatch-badge'>" +
+            (r.qty_delta > 0 ? ("+" + r.qty_delta) : String(r.qty_delta)) +
+            "</span>";
+        }
+        tr.innerHTML =
+          "<td>" + esc(r.row_no || "—") + "</td>" +
+          "<td><strong>" + esc(r.sku_code) + "</strong></td>" +
+          "<td>" + esc(r.barcode) + "</td>" +
+          "<td>" + esc(r.name) + "</td>" +
+          "<td><input class='total-edit' type='number' min='0' step='1' data-idx='" + idx + "' value='" + esc(r.qty_total || 0) + "'></td>" +
+          "<td><strong>" + esc(r.sku_allocated || 0) + "</strong></td>" +
+          "<td><select class='dir-edit' data-idx='" + idx + "'>" + directionOptionsHtml(r.direction_key) + "</select></td>" +
+          "<td><input class='qty-edit' type='number' min='0' step='1' data-idx='" + idx + "' value='" + esc(r.qty || 0) + "'></td>" +
+          "<td>" + badges + "</td>" +
+          "<td><button type='button' class='btn ghost articles-del' data-idx='" + idx + "'>Удалить</button></td>";
+        tbody.appendChild(tr);
+      });
+    }
+    function openArticlesModal(){
+      if(!state.payload || !(state.payload.preview_rows || []).length){
+        alert("Сначала загрузите и проверьте шаблон");
+        return;
+      }
+      editRows = cloneRows(state.payload.preview_rows);
+      $("articles_search").value = "";
+      $("articles_only_dup").checked = !!(state.payload.stats && (state.payload.stats.duplicate_rows || 0) > 0);
+      $("articles-apply-hint").textContent = "";
+      renderArticlesModal();
+      $("articles-modal").classList.add("open");
+    }
+    function rebuildPayloadFromEditRows(){
+      annotateEditRows();
+      var itemsMap = {};
+      var dirsMap = {};
+      var allocations = [];
+      var preview = [];
+      var issues = [];
+      editRows.forEach(function(r){
+        var sku = String(r.sku_code || "").trim();
+        if(!sku) return;
+        var key = sku.toLowerCase();
+        var qty = parseInt(r.qty, 10) || 0;
+        var total = parseInt(r.qty_total, 10) || 0;
+        if(!itemsMap[key]){
+          itemsMap[key] = {
+            sku_code: sku,
+            barcode: r.barcode || "",
+            name: r.name || "",
+            qty_total: total,
+            comment: ""
+          };
+        } else if(total && itemsMap[key].qty_total && total !== itemsMap[key].qty_total){
+          issues.push({
+            code: "qty_total_conflict",
+            message: "Разное общее количество для " + sku,
+            severity: "error",
+            sku_code: sku,
+            column: "Общее количество"
+          });
+        } else if(total && !itemsMap[key].qty_total){
+          itemsMap[key].qty_total = total;
+        }
+        var dkey = String(r.direction_key || "").trim() || "unknown";
+        if(!dirsMap[dkey]){
+          var isStorage = dkey === "storage_fullbox";
+          dirsMap[dkey] = {
+            key: dkey,
+            kind: isStorage ? "storage_fullbox" : "marketplace",
+            title: r.direction_label || dkey,
+            marketplace_name: isStorage ? "" : (r.marketplace_name || ""),
+            destination_warehouse: isStorage ? "" : (r.destination_warehouse || ""),
+            supply_number: isStorage ? "" : (r.supply_number || ""),
+            slot_date: r.slot_date || "",
+            slot_time: r.slot_time || ""
+          };
+        }
+        allocations.push({
+          sku_code: sku,
+          direction_key: dkey,
+          qty: qty,
+          row_no: r.row_no,
+          barcode: r.barcode || "",
+          name: r.name || "",
+          marketplace_name: r.marketplace_name || "",
+          destination_warehouse: r.destination_warehouse || "",
+          supply_number: r.supply_number || "",
+          slot_date: r.slot_date || "",
+          slot_time: r.slot_time || "",
+          direction_label: r.direction_label || dkey
+        });
+        preview.push(Object.assign({}, r, {
+          direction_key: dkey,
+          qty: qty,
+          qty_total: itemsMap[key].qty_total
+        }));
+      });
+      // суммы vs общее
+      var allocSum = {};
+      allocations.forEach(function(a){
+        var k = String(a.sku_code || "").toLowerCase();
+        allocSum[k] = (allocSum[k] || 0) + (parseInt(a.qty, 10) || 0);
+      });
+      Object.keys(itemsMap).forEach(function(k){
+        var total = parseInt(itemsMap[k].qty_total, 10) || 0;
+        var got = allocSum[k] || 0;
+        if(got !== total){
+          var delta = got - total;
+          issues.push({
+            code: "qty_mismatch",
+            message: delta < 0
+              ? ("По товару " + itemsMap[k].sku_code + " не распределено " + (-delta) + " единиц.")
+              : ("По товару " + itemsMap[k].sku_code + " распределено на " + delta + " единиц больше общего количества."),
+            severity: "error",
+            sku_code: itemsMap[k].sku_code,
+            column: "Количество по направлению"
+          });
+        }
+      });
+      // дубли sku×направление
+      var seen = {};
+      allocations.forEach(function(a){
+        var key = String(a.sku_code || "").toLowerCase() + "||" + String(a.direction_key || "").toLowerCase();
+        if(seen[key]){
+          issues.push({
+            code: "dup_alloc",
+            message: "Дубль распределения артикула по направлению.",
+            severity: "warning",
+            sku_code: a.sku_code,
+            row_no: a.row_no
+          });
+        }
+        seen[key] = true;
+      });
+      var items = Object.keys(itemsMap).map(function(k){ return itemsMap[k]; });
+      var directions = Object.keys(dirsMap).map(function(k){ return dirsMap[k]; });
+      var shippingDrafts = directions.filter(function(d){ return d.kind !== "storage_fullbox"; }).length;
+      var units = items.reduce(function(s, it){ return s + (parseInt(it.qty_total, 10) || 0); }, 0);
+      // annotate preview
+      var pair = {}, sums = {};
+      preview.forEach(function(r){
+        var sku = String(r.sku_code || "").toLowerCase();
+        var dkey = String(r.direction_key || "").toLowerCase();
+        pair[sku + "||" + dkey] = (pair[sku + "||" + dkey] || 0) + 1;
+        sums[sku] = (sums[sku] || 0) + (parseInt(r.qty, 10) || 0);
+      });
+      preview.forEach(function(r){
+        var sku = String(r.sku_code || "").toLowerCase();
+        var dkey = String(r.direction_key || "").toLowerCase();
+        r.is_duplicate = (pair[sku + "||" + dkey] || 0) > 1;
+        r.sku_allocated = sums[sku] || 0;
+        r.qty_mismatch = r.sku_allocated !== (parseInt(r.qty_total, 10) || 0);
+        r.qty_delta = r.sku_allocated - (parseInt(r.qty_total, 10) || 0);
+        r.status = r.is_duplicate ? "duplicate" : (r.qty_mismatch ? "error" : "ok");
+      });
+      var blocking = issues.filter(function(i){ return i.severity !== "warning"; });
+      var warnings = issues.filter(function(i){ return i.severity === "warning"; });
+      var ok = blocking.length === 0 && items.length > 0;
+      var meta = (state.payload && state.payload.draft && state.payload.draft.meta) || collectMeta();
+      return {
+        ok: ok,
+        status: ok ? (warnings.length ? "warnings" : "ok") : "errors",
+        row_count: preview.length,
+        stats: {
+          row_count: preview.length,
+          sku_count: items.length,
+          units_total: units,
+          directions_count: directions.length,
+          shipping_drafts_count: shippingDrafts,
+          storage_directions: directions.length - shippingDrafts,
+          duplicate_rows: preview.filter(function(r){ return r.is_duplicate; }).length,
+          duplicate_sku_dirs: Object.keys(pair).filter(function(k){ return pair[k] > 1; }).length
+        },
+        issues: blocking,
+        warnings: warnings,
+        preview_rows: preview,
+        draft: ok ? { items: items, directions: directions, allocations: allocations, meta: meta } : null,
+        filename: state.payload && state.payload.filename,
+        filesize: state.payload && state.payload.filesize
+      };
+    }
+    function applyArticlesModal(){
+      // sync inputs into editRows
+      Array.prototype.forEach.call(document.querySelectorAll("#articles-tbody .qty-edit"), function(inp){
+        var idx = parseInt(inp.getAttribute("data-idx"), 10);
+        if(editRows[idx]) editRows[idx].qty = parseInt(inp.value, 10) || 0;
+      });
+      Array.prototype.forEach.call(document.querySelectorAll("#articles-tbody .total-edit"), function(inp){
+        var idx = parseInt(inp.getAttribute("data-idx"), 10);
+        if(editRows[idx]){
+          var val = parseInt(inp.value, 10) || 0;
+          var sku = String(editRows[idx].sku_code || "").toLowerCase();
+          editRows.forEach(function(r){
+            if(String(r.sku_code || "").toLowerCase() === sku) r.qty_total = val;
+          });
+        }
+      });
+      Array.prototype.forEach.call(document.querySelectorAll("#articles-tbody .dir-edit"), function(sel){
+        var idx = parseInt(sel.getAttribute("data-idx"), 10);
+        if(!editRows[idx]) return;
+        var key = sel.value;
+        editRows[idx].direction_key = key;
+        var opt = sel.options[sel.selectedIndex];
+        editRows[idx].direction_label = opt ? opt.textContent : key;
+        if(key === "storage_fullbox"){
+          editRows[idx].marketplace_name = "";
+          editRows[idx].destination_warehouse = "";
+          editRows[idx].supply_number = "";
+        }
+      });
+      var payload = rebuildPayloadFromEditRows();
+      state.payload = payload;
+      $("check_payload_json").value = JSON.stringify(payload);
+      setStatus(payload.status);
+      $("check-empty").classList.add("hidden");
+      $("check-checking").classList.add("hidden");
+      if(payload.ok){
+        $("check-ok").classList.remove("hidden");
+        $("check-ok").textContent = payload.warnings && payload.warnings.length
+          ? "Изменения применены. Есть предупреждения, создание возможно."
+          : "Изменения применены. Ошибок не найдено. Шаблон готов к созданию заявки.";
+        renderKpis("check-stats", payload.stats);
+        fillFilters();
+        state.page = 1;
+        renderPreview();
+      } else {
+        $("check-ok").classList.add("hidden");
+        $("preview-card").classList.add("hidden");
+        renderKpis("check-stats", payload.stats);
+      }
+      $("issue-filters").classList.remove("hidden");
+      renderIssues();
+      editRows = cloneRows(payload.preview_rows);
+      renderArticlesModal();
+      $("articles-apply-hint").textContent = payload.ok
+        ? "Готово: можно создавать заявку."
+        : "Остались ошибки — исправьте количества или дубли.";
+      if(payload.ok && !(payload.stats.duplicate_rows > 0)){
+        $("articles-modal").classList.remove("open");
+      }
+      updateSubmitEnabled();
+    }
+
+    $("btn-open-articles").addEventListener("click", openArticlesModal);
+    $("btn-open-articles-2").addEventListener("click", openArticlesModal);
+    $("articles-close").addEventListener("click", function(){ $("articles-modal").classList.remove("open"); });
+    $("articles-apply").addEventListener("click", applyArticlesModal);
+    $("articles_search").addEventListener("input", renderArticlesModal);
+    $("articles_only_dup").addEventListener("change", renderArticlesModal);
+    $("articles-tbody").addEventListener("click", function(e){
+      var btn = e.target.closest(".articles-del");
+      if(!btn) return;
+      var idx = parseInt(btn.getAttribute("data-idx"), 10);
+      if(isNaN(idx)) return;
+      editRows.splice(idx, 1);
+      renderArticlesModal();
+    });
+    $("articles-tbody").addEventListener("change", function(e){
+      var el = e.target;
+      if(!el.classList.contains("qty-edit") && !el.classList.contains("total-edit") && !el.classList.contains("dir-edit")) return;
+      var idx = parseInt(el.getAttribute("data-idx"), 10);
+      if(isNaN(idx) || !editRows[idx]) return;
+      if(el.classList.contains("qty-edit")) editRows[idx].qty = parseInt(el.value, 10) || 0;
+      if(el.classList.contains("total-edit")){
+        var val = parseInt(el.value, 10) || 0;
+        var sku = String(editRows[idx].sku_code || "").toLowerCase();
+        editRows.forEach(function(r){ if(String(r.sku_code || "").toLowerCase() === sku) r.qty_total = val; });
+      }
+      if(el.classList.contains("dir-edit")){
+        editRows[idx].direction_key = el.value;
+        var opt = el.options[el.selectedIndex];
+        editRows[idx].direction_label = opt ? opt.textContent : el.value;
+      }
+      renderArticlesModal();
+    });
+    $("articles-merge-dups").addEventListener("click", function(){
+      var map = {};
+      var next = [];
+      editRows.forEach(function(r){
+        var key = String(r.sku_code || "").toLowerCase() + "||" + String(r.direction_key || "").toLowerCase();
+        if(!map[key]){
+          map[key] = Object.assign({}, r);
+          next.push(map[key]);
+        } else {
+          map[key].qty = (parseInt(map[key].qty, 10) || 0) + (parseInt(r.qty, 10) || 0);
+        }
+      });
+      editRows = next;
+      renderArticlesModal();
+      $("articles-apply-hint").textContent = "Дубли объединены по сумме. Нажмите «Применить изменения».";
+    });
+    $("articles-modal").addEventListener("click", function(e){
+      if(e.target === $("articles-modal")) $("articles-modal").classList.remove("open");
+    });
+    function esc(v){
+      return String(v == null ? "" : v)
+        .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    }
+    function fillFilters(){
+      var rows = (state.payload && state.payload.preview_rows) || [];
+      var mps = {}, dirs = {};
+      rows.forEach(function(r){
+        if(r.marketplace_name) mps[r.marketplace_name] = 1;
+        if(r.direction_key) dirs[r.direction_key] = r.direction_label || r.direction_key;
+      });
+      var mpSel = $("preview_mp"); var dirSel = $("preview_dir");
+      mpSel.innerHTML = "<option value=''>Все маркетплейсы</option>";
+      dirSel.innerHTML = "<option value=''>Все направления</option>";
+      Object.keys(mps).sort().forEach(function(k){ mpSel.innerHTML += "<option value='"+esc(k)+"'>"+esc(k)+"</option>"; });
+      Object.keys(dirs).sort().forEach(function(k){ dirSel.innerHTML += "<option value='"+esc(k)+"'>"+esc(dirs[k])+"</option>"; });
+    }
+
+    async function runCheck(){
+      if(!state.file && !$("distribution_file").files[0]){
+        alert("Сначала загрузите файл");
+        return;
+      }
+      var file = state.file || $("distribution_file").files[0];
+      setStatus("checking");
+      $("check-empty").classList.add("hidden");
+      $("check-checking").classList.remove("hidden");
+      $("check-ok").classList.add("hidden");
+      var fd = new FormData();
+      fd.append("distribution_file", file);
+      fd.append("csrfmiddlewaretoken", csrf());
+      try {
+        var resp = await fetch(checkUrl, { method: "POST", body: fd, credentials: "same-origin", headers: {"X-CSRFToken": csrf()} });
+        var data = await resp.json();
+        state.payload = data;
+        $("check_payload_json").value = JSON.stringify(data);
+        $("check-checking").classList.add("hidden");
+        if(data.ok){
+          setStatus(data.status === "warnings" ? "warnings" : "ok");
+          $("check-ok").classList.remove("hidden");
+          renderKpis("check-stats", data.stats);
+          fillFilters();
+          state.page = 1;
+          renderPreview();
+        } else {
+          setStatus("errors");
+          $("preview-card").classList.add("hidden");
+          renderKpis("check-stats", data.stats || {sku_count:0,units_total:0,directions_count:0,shipping_drafts_count:0});
+        }
+        $("issue-filters").classList.remove("hidden");
+        renderIssues();
+        var rows = data.preview_rows || [];
+        var hasDup = !!(data.stats && (data.stats.duplicate_rows || 0) > 0) || rows.some(function(r){ return r.is_duplicate; });
+        var hasMismatch = rows.some(function(r){ return r.qty_mismatch; });
+        if(rows.length && (hasDup || hasMismatch)){
+          openArticlesModal();
+        }
+      } catch(e){
+        $("check-checking").classList.add("hidden");
+        setStatus("errors");
+        alert("Не удалось проверить файл. Попробуйте ещё раз.");
+      }
+    }
+
+    $("btn-check").addEventListener("click", runCheck);
+    $("issue_filter").addEventListener("change", renderIssues);
+    ["preview_search","preview_mp","preview_dir","preview_status"].forEach(function(id){
+      $(id).addEventListener("input", function(){ state.page = 1; renderPreview(); });
+      $(id).addEventListener("change", function(){ state.page = 1; renderPreview(); });
+    });
+    $("page-prev").addEventListener("click", function(){ if(state.page>1){ state.page--; renderPreview(); } });
+    $("page-next").addEventListener("click", function(){ state.page++; renderPreview(); });
+
+    function fillDraftHidden(){
+      if(!state.payload || !state.payload.draft){
+        alert("Сначала загрузите и проверьте шаблон");
+        return false;
+      }
+      if(!etaValid()){
+        $("eta_at").closest(".field").classList.add("has-error");
+        $("eta_at").classList.add("is-invalid");
+        $("eta_at").focus();
+        return false;
+      }
+      var data = state.payload.draft;
+      data.meta = collectMeta();
+      $("draft_json").value = JSON.stringify(data);
+      $("check_payload_json").value = JSON.stringify(state.payload);
+      return true;
+    }
+
+    $("btn-save-draft").addEventListener("click", function(){
+      if(!state.payload || !state.payload.draft){
+        alert("Сначала загрузите и проверьте шаблон");
+        return;
+      }
+      if(!fillDraftHidden()) return;
+      $("action").value = "save_draft";
+      $("dist-form").requestSubmit();
+    });
+
+    $("btn-submit").addEventListener("click", function(){
+      if(!fillDraftHidden()) return;
+      if(!state.payload.ok){ alert("Исправьте ошибки в шаблоне"); return; }
+      var stats = state.payload.stats || {};
+      $("confirm-ship-count").textContent = String(stats.shipping_drafts_count || 0);
+      renderKpis("confirm-kpis", stats);
+      $("confirm-modal").classList.add("open");
+    });
+    $("confirm-back").addEventListener("click", function(){ $("confirm-modal").classList.remove("open"); });
+    $("confirm-ok").addEventListener("click", function(){
+      if(state.submitting) return;
+      if(!fillDraftHidden()) return;
+      state.submitting = true;
+      updateSubmitEnabled();
+      $("action").value = "submit";
+      $("confirm-ok").disabled = true;
+      $("dist-form").requestSubmit();
+    });
+
+    // restore initial draft state
+    try {
+      var initialEl = $("initial-state");
+      var initial = initialEl && initialEl.textContent ? JSON.parse(initialEl.textContent) : null;
+      if(initial && initial.meta){
+        if(initial.client_request_id) $("client_request_id").value = initial.client_request_id;
+        var m = initial.meta;
+        if(m.eta_at){
+          var eta = String(m.eta_at).replace(" ", "T").slice(0,16);
+          $("eta_at").value = eta;
+        }
+        $("vehicle_number").value = m.vehicle_number || "";
+        $("driver_name").value = m.driver_name || "";
+        $("driver_phone").value = m.driver_phone || "";
+        if(m.expected_boxes) $("expected_boxes").value = m.expected_boxes;
+        if(m.expected_pallets) $("expected_pallets").value = m.expected_pallets;
+        $("comment").value = m.comment || "";
+        $("comment_count").textContent = String(($("comment").value||"").length);
+        if(initial.source_filename){
+          $("file_name").textContent = initial.source_filename;
+          setStatus(initial.check_status || "stale");
+        }
+        if(initial.check_payload && initial.check_payload.ok && !initial.needs_recheck){
+          state.payload = initial.check_payload;
+          setStatus(initial.check_status || "ok");
+          renderKpis("check-stats", state.payload.stats);
+          fillFilters();
+          renderPreview();
+          $("check-ok").classList.remove("hidden");
+          $("check-empty").classList.add("hidden");
+        } else if(initial.source_filename){
+          $("check-empty").textContent = "Черновик загружен. Выполните повторную проверку файла.";
+        }
+      }
+    } catch(e){}
+
+    // min datetime
+    var now = new Date();
+    var local = new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+    $("eta_at").min = local.slice(0,10) + "T00:00";
+    setStatus(state.status);
+  })();
+  </script>
+</body>
+</html>

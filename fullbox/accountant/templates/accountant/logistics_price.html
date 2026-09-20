@@ -1,0 +1,20 @@
+{% extends "accountant/_base.html" %}
+{% block title %}Основной прайс логистики{% endblock %}
+{% block content %}
+<div><h1 class="page-title">Основной прайс логистики</h1><div class="page-sub">Направления доставки и цена за паллету. Этот прайс отдельно от услуг склада.</div></div>
+{% for message in messages %}<div class="{% if message.tags == 'error' %}err-box{% else %}warn-box{% endif %}">{{ message }}</div>{% endfor %}
+<form method="post" class="card" style="display:grid;grid-template-columns:1fr 1.3fr 1fr 1fr 130px 90px auto;gap:8px;align-items:end">{% csrf_token %}<input type="hidden" name="action" value="create">
+  <div><label class="lbl">Маркетплейс</label><select class="field" name="marketplace">{% for key,label in marketplace_choices %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></div>
+  <div><label class="lbl">Склад / направление</label><input class="field" name="warehouse_name" required></div>
+  <div><label class="lbl">Дни забора</label><input class="field" name="pickup_days" placeholder="Пн–Ср–Пт"></div>
+  <div><label class="lbl">Дни сдачи</label><input class="field" name="delivery_days" placeholder="На след. день"></div>
+  <div><label class="lbl">Цена / паллета</label><input class="field" name="price_per_pallet" value="0.00" required></div>
+  <label style="font-size:12px;font-weight:700"><input type="checkbox" name="is_active" checked> Активно</label><button class="btn primary" type="submit">Добавить</button>
+</form>
+<div class="card" style="padding:0;overflow:auto"><table><thead><tr><th>Маркетплейс</th><th>Склад</th><th>Забор</th><th>Сдача</th><th>Цена за паллету</th><th>Активна</th><th></th></tr></thead><tbody>
+{% for line in lines %}<tr><form method="post">{% csrf_token %}<input type="hidden" name="action" value="update"><input type="hidden" name="line_id" value="{{ line.id }}">
+  <td><select class="field" name="marketplace">{% for key,label in marketplace_choices %}<option value="{{ key }}" {% if line.marketplace == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+  <td><input class="field" name="warehouse_name" value="{{ line.warehouse_name }}"></td><td><input class="field" name="pickup_days" value="{{ line.pickup_days }}"></td><td><input class="field" name="delivery_days" value="{{ line.delivery_days }}"></td><td><input class="field" name="price_per_pallet" value="{{ line.price_per_pallet }}"></td><td><input type="checkbox" name="is_active" {% if line.is_active %}checked{% endif %}></td>
+  <td style="white-space:nowrap"><button class="btn" type="submit">Сохранить</button></form><form method="post" style="display:inline" onsubmit="return confirm('Удалить направление?')">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="line_id" value="{{ line.id }}"><button class="btn danger" type="submit">Удалить</button></form></td></tr>{% empty %}<tr><td colspan="7" class="muted" style="padding:32px;text-align:center">Прайс пока пуст. Добавьте направления WB, Ozon или другие.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

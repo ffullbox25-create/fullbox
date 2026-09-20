@@ -1,0 +1,102 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}Уведомления — Биллинг{% endblock %}
+
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:8px 0 14px; }
+.table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:860px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:2px solid var(--line); }
+td { padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+.row-unread { background:#fffbeb; }
+.row-main { font-weight:800; }
+.row-sub { color:var(--muted); font-size:11px; margin-top:2px; }
+.badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900; }
+.badge.orange { background:var(--orange-soft); color:#b45309; }
+.badge.gray { background:var(--surface-2); color:var(--muted); }
+.badge.red { background:#fff0f0; color:var(--red); }
+.badge.green { background:var(--green-soft); color:var(--green-strong); }
+.badge.blue { background:#eff6ff; color:var(--blue); }
+{% endblock %}
+
+{% block content %}
+{% include "billing/_billing_nav.html" %}
+
+<div>
+  <h1 class="page-title">Уведомления</h1>
+  <div class="page-sub">События по портфелю: возвраты документов, оплаты, просрочки, расхождения.</div>
+</div>
+
+<div class="toolbar">
+  <a class="btn {% if not filter_unread %}primary{% endif %}" href="/team-manager/billing/notifications/">Все</a>
+  <a class="btn {% if filter_unread %}primary{% endif %}" href="/team-manager/billing/notifications/?unread=1">Непрочитанные ({{ unread_count }})</a>
+  <button class="btn" type="button" id="js-read-all">Отметить всё прочитанным</button>
+</div>
+
+<div class="table-card">
+  <table>
+    <thead>
+      <tr>
+        <th>Дата</th>
+        <th>Тип</th>
+        <th>Клиент</th>
+        <th>Сообщение</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for n in notifications %}
+        <tr class="{% if not n.is_read %}row-unread{% endif %}" data-id="{{ n.id }}">
+          <td>{{ n.created_at|date:"d.m.Y H:i" }}</td>
+          <td>
+            {% if n.kind == "doc_returned" or n.kind == "overdue" or n.kind == "discrepancy" %}<span class="badge red">{{ n.get_kind_display }}</span>
+            {% elif n.kind == "payment" or n.kind == "doc_accepted" %}<span class="badge green">{{ n.get_kind_display }}</span>
+            {% elif n.kind == "doc_submitted" %}<span class="badge blue">{{ n.get_kind_display }}</span>
+            {% else %}<span class="badge orange">{{ n.get_kind_display }}</span>{% endif %}
+          </td>
+          <td>{% if n.client_id %}{{ n.client.short_name|default:n.client.agn_name|truncatechars:28 }}{% else %}—{% endif %}</td>
+          <td>
+            <div class="row-main">{{ n.title }}</div>
+            {% if n.message %}<div class="row-sub">{{ n.message|truncatechars:120 }}</div>{% endif %}
+          </td>
+          <td style="white-space:nowrap">
+            {% if n.link_url %}<a class="btn" href="{{ n.link_url }}" style="font-size:11px;padding:5px 8px">Открыть</a>{% endif %}
+            {% if not n.is_read %}
+              <button class="btn js-read" data-id="{{ n.id }}" type="button" style="font-size:11px;padding:5px 8px">Прочитано</button>
+            {% else %}<span class="badge gray">прочитано</span>{% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" style="padding:36px;text-align:center;color:var(--muted);font-weight:700">Уведомлений нет</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+(function(){
+  const csrf = (document.cookie.match(/csrftoken=([^;]+)/)||[])[1] || "";
+  document.querySelectorAll(".js-read").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const resp = await fetch(`/team-manager/billing/api/notifications/${btn.dataset.id}/read/`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json", "X-CSRFToken": csrf},
+        body: "{}",
+      });
+      if (resp.ok) location.reload();
+    });
+  });
+  const all = document.getElementById("js-read-all");
+  if (all) all.addEventListener("click", async () => {
+    const resp = await fetch("/team-manager/billing/api/notifications/read-all/", {
+      method: "POST",
+      headers: {"Content-Type":"application/json", "X-CSRFToken": csrf},
+      body: "{}",
+    });
+    if (resp.ok) location.reload();
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,193 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Сборка волны {{ task.batch_id }}{% endblock %}
+{% block page_class %}tsd-page-pick{% endblock %}
+{% block page_title %}Сборка волны #{{ task.batch_id }}{% endblock %}
+
+{% block content %}
+  <style>
+    /* Экран сборщика на ТСД Urovo DT50: экран 4,7", клавиатуры нет —
+       все поля сканирования с inputmode="none". Верстка рассчитана на то,
+       чтобы место, короб и счет были видны без прокрутки. */
+    .pick-head{display:grid;gap:7px;margin:0 0 10px;padding:10px;border:2px solid #f89000;border-radius:8px;background:#fff;color:#303030}
+    .pick-head-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+    .pick-head-box:only-child{grid-column:1 / -1}
+    .pick-head-box{min-width:0;padding:7px 9px;border-radius:6px;background:rgba(248,144,0,.13)}
+    .pick-head-box span{display:block;color:#8a5200;font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.03em}
+    .pick-head-box strong{display:block;margin-top:1px;font-size:19px;line-height:1.15;overflow-wrap:anywhere}
+    .pick-head-count{display:flex;align-items:baseline;gap:8px;padding:8px 10px;border-radius:6px;background:#303030;color:#fff}
+    .pick-head-count span{flex:1 1 auto;font-size:12px;font-weight:700;color:#f8b800}
+    .pick-head-count strong{flex:0 0 auto;font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
+    .pick-head-count strong i{font-style:normal;color:#b0b0b0;padding:0 2px}
+    .pick-head-left{margin:0;font-size:13px;font-weight:700;color:#b54f00}
+    .pick-head-wave{margin:0;font-size:12px;color:#666}
+    .pick-head-sku{display:flex;align-items:baseline;gap:8px;padding:7px 9px;border-radius:6px;border:1px dashed rgba(248,104,0,.5)}
+    .pick-head-sku span{flex:0 0 auto;color:#8a5200;font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.03em}
+    .pick-head-sku strong{flex:1 1 auto;min-width:0;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:20px;line-height:1.15;letter-spacing:.02em;overflow-wrap:anywhere}
+    /* Шапка ТСД: логотип и фамилия сборщику не нужны, экран 4,7". */
+    .tsd-page-pick .brand-row{display:none}
+    .tsd-page-pick .header-copy p{display:none}
+    .tsd-page-pick .tsd-header{padding-top:6px;padding-bottom:6px;gap:6px}
+    .tsd-page-pick .header-copy h1{margin:0;font-size:16px;line-height:1.2}
+    /* Неверный скан должен быть виден, а не только слышен. */
+    .tsd-page-pick .scan-inline-error:not([hidden]){display:block;margin:8px 0;padding:10px 12px;border-radius:6px;border-left:6px solid #c34232;background:#fff2f0;color:#a12e22;font-size:16px;font-weight:700;line-height:1.3}
+    .tsd-page-pick .product-photo{max-height:74px;width:auto}
+    .tsd-page-pick .picker-current-scan input{min-height:52px;font-size:18px}
+    .tsd-page-pick .picker-current-scan .button{min-height:52px;font-size:17px}
+    .picker-box-complete-modal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:14px;background:rgba(48,48,48,.58);opacity:1;visibility:visible;pointer-events:none;transition:opacity .28s ease,visibility .28s ease;animation:picker-box-complete-autohide 3s linear forwards}
+    .picker-box-complete-modal.is-hiding{opacity:0;visibility:hidden}
+    .picker-box-complete-card{display:grid;gap:8px;width:min(100%,420px);padding:22px 16px;border:3px solid #18864b;border-radius:12px;background:#e8f8ef;color:#0d6b39;text-align:center;box-shadow:0 18px 45px rgba(0,0,0,.32)}
+    .picker-box-complete-card>strong{display:block;font-size:30px;font-weight:900;line-height:1;letter-spacing:.035em;text-transform:uppercase}
+    .picker-box-complete-card p{margin:0;font-size:15px;font-weight:700;line-height:1.35}
+    .picker-box-complete-card .picker-completed-box{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:18px;overflow-wrap:anywhere}
+    .picker-box-complete-card .picker-next-box{font-size:16px}
+    .picker-box-complete-card .picker-next-box strong{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:18px;overflow-wrap:anywhere}
+    @keyframes picker-box-complete-autohide{
+      0%,90%{opacity:1;visibility:visible}
+      100%{opacity:0;visibility:hidden}
+    }
+    @media (max-width:360px){
+      .pick-head-grid{grid-template-columns:1fr}
+      .pick-head-count strong{font-size:26px}
+      .picker-box-complete-card>strong{font-size:27px}
+    }
+    @media (prefers-reduced-motion:reduce){.picker-box-complete-modal{transition:none}}
+  </style>
+
+  {% if new_box_notice %}
+    <div id="picker-box-complete-modal" class="picker-box-complete-modal" role="status" aria-live="assertive">
+      <section class="picker-box-complete-card" aria-label="Отбор завершён">
+        <strong>{% if new_box_notice.completed_direct_cell %}ИЗ ЯЧЕЙКИ СОБРАНО{% else %}КОРОБ СОБРАН{% endif %}</strong>
+        <p class="picker-completed-box">{% if new_box_notice.completed_direct_cell %}{{ new_box_notice.completed_location_label }}{% else %}{{ new_box_notice.completed_box_code }}{% endif %}</p>
+        <p class="picker-next-box">{% if new_box_notice.next_direct_cell %}Далее: товар из ячейки{% else %}Следующий короб: <strong>{{ new_box_notice.next_box_code }}</strong>{% endif %}</p>
+        <p><strong>Место:</strong> {{ new_box_notice.next_location_label }}</p>
+      </section>
+    </div>
+    <script>
+      (function () {
+        var modal = document.getElementById("picker-box-complete-modal");
+        if (!modal) return;
+        window.setTimeout(function () {
+          modal.classList.add("is-hiding");
+        }, 2700);
+        window.setTimeout(function () {
+          modal.hidden = true;
+        }, 3000);
+      }());
+    </script>
+  {% endif %}
+
+  <section class="pick-head" aria-label="Что и откуда собирать">
+    <div class="pick-head-grid">
+      <div class="pick-head-box"><span>Место</span><strong>{{ pick_location_label }}</strong></div>
+      {% if requires_box_scan %}<div class="pick-head-box"><span>Короб</span><strong>{{ source_box_code }}</strong></div>{% endif %}
+    </div>
+    <div class="pick-head-sku"><span>ШК товара</span><strong>{{ expected_item_code }}</strong></div>
+    <div class="pick-head-count" aria-label="Прогресс сборки">
+      <span>{% if requires_box_scan %}Собрано из этого короба{% else %}Собрано из этой ячейки{% endif %}</span>
+      <strong>{{ box_picked_qty }}<i>/</i>{{ box_planned_qty }}</strong>
+    </div>
+    {% if box_remaining_qty %}
+      <p class="pick-head-left">{% if requires_box_scan %}Из этого короба{% else %}Из этой ячейки{% endif %} осталось взять {{ box_remaining_qty }} шт.</p>
+    {% else %}
+      <p class="pick-head-left">Все товары {% if requires_box_scan %}из этого короба{% else %}из этой ячейки{% endif %} для волны собраны.</p>
+    {% endif %}
+    <p class="pick-head-wave">Текущий заказ: {{ position_picked_qty }} / {{ allocation.qty_reserved }} шт.{% if allocation_remaining %} Осталось взять {{ allocation_remaining }} шт.{% else %} Заказ собран полностью.{% endif %}{% if box_order_count > 1 %} {% if requires_box_scan %}В коробе{% else %}В ячейке{% endif %} товары для {{ box_order_count }} разных заказов.{% endif %}</p>
+    <p class="pick-head-wave">Волна #{{ task.batch_id }} · всего {{ wave_picked_qty }} / {{ wave_planned_qty }} шт.</p>
+  </section>
+
+  <section class="picker-current-card" aria-labelledby="picker-current-action">
+    <div class="picker-current-reference {% if not product_photo_url %}no-photo{% endif %}">
+      {% if product_photo_url %}
+        <img class="product-photo" src="{{ product_photo_url }}" alt="{{ balance.name|default:balance.sku_code }}">
+      {% endif %}
+      <div class="picker-product-copy">
+        <span>Товар</span>
+        <strong>{{ balance.name|default:balance.sku_code }}</strong>
+        <dl>
+          <div><dt>Артикул</dt><dd>{{ balance.sku_code }}</dd></div>
+          <div><dt>ШК</dt><dd>{{ expected_item_code }}</dd></div>
+          <div><dt>Осталось</dt><dd>{{ allocation_remaining }} шт.</dd></div>
+        </dl>
+      </div>
+    </div>
+
+    {% if requires_cell_scan and not cell_confirmed %}
+      <div class="picker-current-action">
+        <span class="picker-action-number">1</span>
+        <p id="picker-current-action">Отсканируйте QR ячейки — она указана вверху.</p>
+      </div>
+      <form class="scan-form picker-current-scan" method="post" autocomplete="off" novalidate data-submit-once data-scan-feedback data-scan-focus-lock>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="scan_cell">
+        <label for="cell-scan">QR ячейки</label>
+        <input id="cell-scan" type="text" name="cell_scan" autofocus required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" enterkeyhint="done" data-scanner-only data-scan-autosubmit="250" data-scan-focus-lock>
+        <div class="scan-inline-error" role="alert" aria-live="assertive" data-scan-error {% if not scan_error %}hidden{% endif %}>{{ scan_error }}</div>
+        <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Подтвердить ячейку</button>
+      </form>
+    {% elif requires_box_scan and not box_confirmed %}
+      <div class="picker-current-action">
+        <span class="picker-action-number">1</span>
+        <p id="picker-current-action">Отсканируйте QR короба — он указан вверху.</p>
+      </div>
+      <form class="scan-form picker-current-scan" method="post" autocomplete="off" novalidate data-submit-once data-scan-feedback data-scan-focus-lock>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="scan_box">
+        <label for="box-scan">QR короба</label>
+        <input id="box-scan" type="text" name="box_scan" autofocus required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" enterkeyhint="done" data-scanner-only data-scan-autosubmit="250" data-scan-focus-lock>
+        <div class="scan-inline-error" role="alert" aria-live="assertive" data-scan-error {% if not error %}hidden{% endif %}>{{ error }}</div>
+        <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Подтвердить короб</button>
+      </form>
+    {% else %}
+      <div class="picker-current-action">
+        <span class="picker-action-number">2</span>
+        <p id="picker-current-action">Сканируйте только показанный товар: {{ expected_item_code }}. После каждого подтверждения проверяйте товар на экране — он может измениться.</p>
+      </div>
+      <form class="scan-form picker-current-scan" method="post" autocomplete="off" novalidate data-submit-once data-scan-feedback data-scan-focus-lock>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="complete">
+        <label for="item-scan">{{ item_scan_label }}</label>
+        <input id="item-scan" type="text" name="item_scan" autofocus required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" enterkeyhint="done" data-scanner-only data-scan-autosubmit="250" data-scan-focus-lock>
+        <div class="scan-inline-error" role="alert" aria-live="assertive" data-scan-error {% if not error %}hidden{% endif %}>{{ error }}</div>
+        <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Подтвердить товар</button>
+      </form>
+    {% endif %}
+  </section>
+
+  <details class="picker-problem-drawer">
+    <summary>Товара нет на месте</summary>
+    <form class="problem-form" method="post" data-submit-once>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="not_found">
+      <div class="notice notice-warning" role="note">
+        <strong>Проверьте отсутствующую позицию</strong>
+        <dl>
+          <div><dt>Артикул</dt><dd>{{ balance.sku_code }}</dd></div>
+          <div><dt>ШК</dt><dd>{{ expected_item_code }}</dd></div>
+          <div><dt>Отобрано</dt><dd>{{ position_picked_qty }} шт.</dd></div>
+          <div><dt>{% if requires_box_scan %}В этом коробе{% else %}В этой ячейке{% endif %} для волны</dt><dd>{{ missing_group_qty }} шт.</dd></div>
+        </dl>
+        <p>Введите, сколько единиц этого товара фактически отсутствует. Если указать всё количество, остаток товара {% if requires_box_scan %}в этом коробе{% else %}в этой ячейке{% endif %} будет закрыт до пересчёта.</p>
+      </div>
+      <label for="not-found-qty">Не найдено, шт.</label>
+      <input id="not-found-qty" type="number" name="missing_qty" min="1" max="{{ missing_group_qty }}" value="{{ missing_group_qty }}" inputmode="numeric" required>
+      <label for="not-found-reason">Комментарий</label>
+      <input id="not-found-reason" type="text" name="reason" maxlength="500" placeholder="Что не найдено или не совпало">
+      <label><input type="checkbox" name="confirm_not_found" value="1" required> Подтверждаю указанное отсутствующее количество</label>
+      <button class="button button-danger" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Снять отсутствующее количество</button>
+    </form>
+  </details>
+
+  <details class="picker-scan-history">
+    <summary>Последние сканы волны</summary>
+    <div class="compact-list scan-event-list">
+      {% for event in recent_scan_events %}
+        <div>
+          <span>{{ event.created_at|date:"H:i:s" }} · {% if event.stage == 'cart' %}Тара{% else %}{{ event.get_stage_display }}{% endif %}</span>
+          <strong class="{% if event.result == 'error' %}text-error{% endif %}">{{ event.get_result_display }}</strong>
+        </div>
+      {% empty %}<div><span>Сканов пока нет</span></div>{% endfor %}
+    </div>
+  </details>
+
+{% endblock %}

@@ -1,0 +1,72 @@
+<section class="or-card">
+  <h2>Сводка</h2>
+  {% if can_edit_meta and item.status != 'closed' and item.status != 'cancelled' and item.status != 'rejected' %}
+    <form method="post" class="or-summary-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="update_meta">
+      <div class="or-info-label">Статус</div>
+      <div class="or-info-value">{{ item.status_label }}</div>
+
+      <label class="or-info-label" for="or-department">Подразделение</label>
+      <select id="or-department" name="department">
+        {% for value, label in item.DEPARTMENT_CHOICES %}
+          <option value="{{ value }}" {% if item.department == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+
+      <label class="or-info-label" for="or-assignee">Ответственный</label>
+      <select id="or-assignee" name="assignee_id">
+        <option value="">Не назначен</option>
+        {% for emp in assignee_choices %}
+          <option value="{{ emp.id }}" {% if item.assignee_id == emp.id %}selected{% endif %}>{{ emp.full_name }}</option>
+        {% endfor %}
+      </select>
+
+      <div class="or-info-label">Менеджер</div>
+      <div class="or-info-value">{% if item.manager %}{{ item.manager.full_name }}{% else %}—{% endif %}</div>
+
+      <label class="or-info-label" for="or-priority">Приоритет</label>
+      <select id="or-priority" name="priority">
+        {% for value, label in item.PRIORITY_CHOICES %}
+          <option value="{{ value }}" {% if item.priority == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+
+      <label class="or-info-label" for="or-due-at">Плановый срок</label>
+      <input id="or-due-at" type="datetime-local" name="due_at" value="{{ item.due_at|date:'Y-m-d\TH:i' }}">
+
+      {% if time_left_label %}
+        <div class="or-info-label">Осталось времени</div>
+        <div class="or-info-value {% if item.is_overdue %}or-text-danger{% endif %}">{{ time_left_label }}</div>
+      {% endif %}
+
+      <button class="or-btn or-btn-primary" type="submit" style="margin-top:10px">Сохранить сводку</button>
+    </form>
+  {% else %}
+    <div class="or-info-label">Статус</div>
+    <div class="or-info-value">{{ item.status_label }}</div>
+    <div class="or-info-label">Подразделение</div>
+    <div class="or-info-value">{{ item.department_label }}</div>
+    <div class="or-info-label">Ответственный</div>
+    <div class="or-info-value">{% if item.assignee %}{{ item.assignee.full_name }}{% else %}Не назначен{% endif %}</div>
+    <div class="or-info-label">Менеджер</div>
+    <div class="or-info-value">{% if item.manager %}{{ item.manager.full_name }}{% else %}—{% endif %}</div>
+    <div class="or-info-label">Приоритет</div>
+    <div class="or-info-value">{{ item.priority_label }}</div>
+    <div class="or-info-label">Срок</div>
+    <div class="or-info-value">{% if item.due_at %}{{ item.due_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</div>
+    {% if time_left_label %}
+      <div class="or-info-label">Осталось времени</div>
+      <div class="or-info-value {% if item.is_overdue %}or-text-danger{% endif %}">{{ time_left_label }}</div>
+    {% endif %}
+  {% endif %}
+
+  {% if links %}
+    <div class="or-info-label" style="margin-top:12px">Связанные заявки</div>
+    {% for link in links %}
+      <a class="or-link-chip or-link-chip-block" href="{{ link.url|default:'#' }}" {% if link.url %}target="_blank" rel="noopener"{% endif %}>
+        {{ link.get_link_type_display|default:link.link_type }} · {{ link.label|default:link.object_key }}
+      </a>
+    {% endfor %}
+  {% endif %}
+</section>

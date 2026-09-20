@@ -1,0 +1,32 @@
+<section id="attention">
+  <div class="dir-section-head">
+    <h2 class="dir-section-title">Требует внимания</h2>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="dir-status bad">{{ attention_critical_count }} критических</span>
+      <a class="dir-section-link" href="#attention">Открыть все</a>
+    </div>
+  </div>
+  <div class="dir-card">
+    <div class="dir-attention">
+      {% for row in attention %}
+        <div class="dir-attention-row {% if row.level == 'critical' %}is-critical{% endif %}">
+          <div class="stripe" aria-hidden="true"></div>
+          <div>
+            <div class="dir-attention-title">{{ row.title }}</div>
+            <div class="dir-attention-meta">{{ row.object }} · {{ row.owner }}</div>
+          </div>
+          <div class="dir-attention-meta">Срок: {{ row.due }}</div>
+          <div class="dir-attention-meta">{{ row.impact }}</div>
+          <div>
+            <span class="dir-status {% if row.level == 'critical' %}bad{% else %}warn{% endif %}">
+              {% if row.level == 'critical' %}Критично{% else %}Риск{% endif %}
+            </span>
+          </div>
+          <a class="dir-btn-sm" href="{{ row.href }}">Открыть</a>
+        </div>
+      {% empty %}
+        <div class="dir-card-sub">Нет критических проблем. Все ключевые процессы работают в допустимых пределах.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>

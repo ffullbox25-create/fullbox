@@ -1,0 +1,60 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Этикетки FBS{% endblock %}
+
+{% block workspace_body %}
+  <section class="section-band">
+    <div class="section-heading">
+      <h2>Готовы к сканированию · первые 50</h2>
+      <span class="count">{{ ready_labels|length }}</span>
+    </div>
+    <div class="task-list">
+      {% for label in ready_labels %}
+        <a class="task-card" href="{% url 'fbs:tsd_label_detail' label_id=label.id %}">
+          <span class="task-main">
+            <strong>{{ label.order.external_order_id }}</strong>
+            <span>{{ label.order.profile.agency }}</span>
+            <span>{{ label.get_marketplace_display }} · {{ label.get_label_format_display }}</span>
+          </span>
+          <span class="task-side">
+            <strong>{{ label.external_label_id }}</strong>
+            <span class="status status-confirmed">Готова</span>
+          </span>
+        </a>
+      {% empty %}
+        <div class="empty-state">Готовых этикеток нет</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="section-band section-muted">
+    <div class="section-heading">
+      <h2>Ожидают следующего шага · первые 50</h2>
+      <span class="count count-info">{{ requested_labels|length }}</span>
+    </div>
+    <div class="compact-list">
+      {% for label in requested_labels %}
+        <div>
+          <a href="{% url 'fbs:operator_order_detail' order_id=label.order_id %}">{{ label.order.external_order_id }} · {{ label.get_marketplace_display }}</a>
+          <strong>{{ label.error|default:"Ожидается ответ маркетплейса" }}</strong>
+        </div>
+      {% empty %}
+        <div class="empty-state">Ожидающих этикеток нет</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if applied_labels %}
+    <section class="section-band section-muted">
+      <div class="section-heading"><h2>Последние подтвержденные</h2></div>
+      <div class="compact-list">
+        {% for label in applied_labels %}
+          <div>
+            <span>{{ label.order.external_order_id }}</span>
+            <strong>Этикетка подтверждена</strong>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

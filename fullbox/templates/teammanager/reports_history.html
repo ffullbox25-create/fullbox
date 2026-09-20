@@ -1,0 +1,70 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}История выгрузок{% endblock %}
+
+{% block extra_css %}
+  .head { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+  .title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:32px; line-height:1.1; letter-spacing:-.03em; }
+  .sub { margin-top:6px; color:var(--muted); font-size:14px; line-height:1.45; }
+  .panel { display:grid; gap:12px; padding:16px; border:1px solid var(--stroke); border-radius:20px; background:var(--surface); box-shadow:var(--shadow); min-width:0; }
+  .table-wrap { overflow:auto; border:1px solid var(--stroke); border-radius:16px; background:#fff; }
+  table { width:100%; min-width:860px; border-collapse:separate; border-spacing:0; font-size:12px; }
+  th { text-align:left; padding:10px; color:var(--muted); background:var(--surface-2); border-bottom:1px solid var(--stroke); font-size:10px; text-transform:uppercase; letter-spacing:.04em; }
+  td { padding:11px 10px; border-bottom:1px solid var(--stroke); vertical-align:top; }
+  tr:last-child td { border-bottom:0; }
+  .badge { border-radius:999px; padding:4px 8px; background:var(--surface-2); font-size:11px; font-weight:900; color:var(--muted); }
+  .empty { padding:22px; border:1px dashed var(--stroke); border-radius:16px; background:var(--surface-2); color:var(--muted); font-size:13px; text-align:center; line-height:1.45; }
+{% endblock %}
+
+{% block content %}
+  <div class="head">
+    <div>
+      <h1 class="title">История выгрузок</h1>
+      <div class="sub">Последние сформированные файлы отчётов. Обычный пользователь видит только свои выгрузки.</div>
+    </div>
+    <div>
+      <a class="btn" href="/team-manager/reports/">← Все отчёты</a>
+      <a class="btn" href="/team-manager/reports/saved/">Сохранённые отчёты</a>
+    </div>
+  </div>
+
+  <section class="panel">
+    {% if export_jobs %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Отчёт</th>
+              <th>Дата запуска</th>
+              <th>Завершение</th>
+              <th>Формат</th>
+              <th>Строк</th>
+              <th>Статус</th>
+              <th>Хранить до</th>
+              <th>Файл</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for job in export_jobs %}
+              <tr>
+                <td>
+                  <strong>{{ job.report_title }}</strong><br>
+                  <span class="sub">{{ job.section }}/{{ job.report_code }}</span>
+                </td>
+                <td>{{ job.created_at|date:"d.m.Y H:i" }}</td>
+                <td>{% if job.finished_at %}{{ job.finished_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</td>
+                <td>{{ job.export_format|upper }}</td>
+                <td>{{ job.row_count|default_if_none:"—" }}</td>
+                <td><span class="badge">{{ job.get_status_display }}</span></td>
+                <td>{% if job.expires_at %}{{ job.expires_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</td>
+                <td>{% if job.file %}<a class="btn" href="{{ job.file.url }}">Скачать</a>{% else %}—{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty">История выгрузок пока пустая. После подключения экспорта XLSX/CSV сформированные файлы появятся здесь.</div>
+    {% endif %}
+  </section>
+{% endblock %}

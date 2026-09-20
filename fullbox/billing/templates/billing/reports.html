@@ -1,0 +1,102 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}Отчёты — Биллинг{% endblock %}
+
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.layout { display:grid; grid-template-columns:minmax(0,260px) minmax(0,1fr); gap:14px; }
+.card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:12px; }
+.report-list { display:grid; gap:4px; }
+.report-list a {
+  display:block; padding:8px 10px; border-radius:10px; text-decoration:none; color:var(--ink);
+  font-size:12px; font-weight:700;
+}
+.report-list a:hover { background:var(--surface-2); }
+.report-list a.active { background:var(--accent-soft); color:var(--accent-strong); }
+.filter-card { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+.field { border:1px solid var(--line); border-radius:10px; background:#fff; padding:9px 12px; font:inherit; font-size:13px; }
+.table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:720px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:2px solid var(--line); }
+td { padding:10px 12px; border-bottom:1px solid var(--line); }
+.totals td { font-weight:900; background:var(--surface-2); }
+.hint { font-size:12px; color:var(--muted); margin-top:8px; }
+.report-note { margin:0 0 12px; padding:11px 13px; border-radius:12px; background:var(--accent-soft); color:var(--ink); font-size:12px; font-weight:700; }
+.report-actions { display:flex; gap:8px; flex-wrap:wrap; margin:-4px 0 12px; }
+@media (max-width:960px){ .layout { grid-template-columns:1fr; } }
+{% endblock %}
+
+{% block content %}
+{% include "billing/_billing_nav.html" %}
+
+<div>
+  <h1 class="page-title">Отчёты</h1>
+  <div class="page-sub">Портфель менеджера · фильтры · выгрузка CSV. Печать — через браузер.</div>
+</div>
+
+<div class="layout">
+  <aside class="card">
+    <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Каталог</div>
+    <div class="report-list">
+      {% for key, label in catalog %}
+        <a class="{% if report == key %}active{% endif %}"
+           href="?report={{ key }}{% if filters.client_id %}&client={{ filters.client_id }}{% endif %}{% if filters.period_from %}&period_from={{ filters.period_from|date:'Y-m-d' }}{% endif %}{% if filters.period_to %}&period_to={{ filters.period_to|date:'Y-m-d' }}{% endif %}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </aside>
+
+  <section>
+    <form class="filter-card card" method="get">
+      <input type="hidden" name="report" value="{{ report }}">
+      <select class="field" name="client">
+        <option value="">Все клиенты</option>
+        {% for c in report_clients %}
+          <option value="{{ c.id }}" {% if filters.client_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>
+        {% endfor %}
+      </select>
+      <input class="field" type="date" name="period_from" value="{% if filters.period_from %}{{ filters.period_from|date:'Y-m-d' }}{% endif %}">
+      <input class="field" type="date" name="period_to" value="{% if filters.period_to %}{{ filters.period_to|date:'Y-m-d' }}{% endif %}">
+      <button class="btn primary" type="submit">Показать</button>
+      {% if not is_fbs_period %}<a class="btn" href="?report={{ report }}&client={{ filters.client_id }}&period_from={% if filters.period_from %}{{ filters.period_from|date:'Y-m-d' }}{% endif %}&period_to={% if filters.period_to %}{{ filters.period_to|date:'Y-m-d' }}{% endif %}&export=csv">CSV</a>{% endif %}
+    </form>
+
+    {% if report_notice %}<p class="report-note">{{ report_notice }}</p>{% endif %}
+    {% if is_fbs_period and filters.client_id and table_rows %}
+      <form class="report-actions" method="post" action="/team-manager/billing/fbs/period-report/">
+        {% csrf_token %}
+        <input type="hidden" name="client" value="{{ filters.client_id }}">
+        <input type="hidden" name="date_from" value="{{ filters.period_from|date:'Y-m-d' }}">
+        <input type="hidden" name="date_to" value="{{ filters.period_to|date:'Y-m-d' }}">
+        <button class="btn primary" type="submit">Сформировать Excel и счёт</button>
+      </form>
+    {% endif %}
+
+    <h2 class="page-title" style="font-size:20px;margin-bottom:10px">{{ report_label }}</h2>
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            {% for col in columns %}<th>{{ col }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in table_rows %}
+            <tr>
+              {% for cell in row %}<td>{{ cell }}</td>{% endfor %}
+            </tr>
+          {% empty %}
+            <tr><td colspan="{{ columns|length }}" style="padding:36px;text-align:center;color:var(--muted);font-weight:700">Нет данных за выбранный период</td></tr>
+          {% endfor %}
+          {% if table_totals %}
+            <tr class="totals">
+              {% for cell in table_totals %}<td>{{ cell }}</td>{% endfor %}
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">Строк: {{ table_rows|length }}. Данные ограничены портфелем текущего пользователя.</p>
+  </section>
+</div>
+{% endblock %}

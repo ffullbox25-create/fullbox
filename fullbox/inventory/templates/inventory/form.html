@@ -1,0 +1,438 @@
+{% extends "head_manager/fbs_base.html" %}
+
+{% block title %}Новая инвентаризация{% endblock %}
+
+{% block head_extra %}
+  <style>
+    .form-card { padding: 18px; display: grid; gap: 16px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .field-errors { color: var(--danger); font-size: 12px; font-weight: 800; }
+    .field-hint { color: var(--muted); font-size: 12px; }
+    .sku-search { position: relative; display: grid; gap: 7px; }
+    .sku-search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+    .sku-results { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0; display: none; max-height: 330px; overflow: auto; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--surface); box-shadow: 0 18px 45px rgba(24, 30, 38, .16); }
+    .sku-results.open { display: grid; }
+    .sku-result { width: 100%; padding: 11px 13px; border: 0; border-bottom: 1px solid var(--stroke); background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+    .sku-result:last-child { border-bottom: 0; }
+    .sku-result:hover, .sku-result:focus { background: rgba(248, 144, 0, .10); outline: none; }
+    .sku-result strong { display: block; }
+    .sku-result span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .sku-results-note { padding: 12px 13px; color: var(--muted); font-size: 13px; }
+    .location-picker { display: grid; gap: 10px; }
+    .location-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .location-selection { min-height: 62px; padding: 10px; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--surface-2); }
+    .location-list { display: flex; gap: 8px; flex-wrap: wrap; }
+    .location-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 6px 8px 6px 10px; border: 1px solid rgba(248, 144, 0, .4); border-radius: 999px; background: rgba(248, 144, 0, .10); color: var(--ink); font-size: 13px; font-weight: 700; }
+    .location-chip button { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: rgba(30, 34, 40, .10); color: inherit; cursor: pointer; }
+    .location-empty { color: var(--muted); font-size: 13px; }
+    .location-status { color: var(--muted); font-size: 12px; }
+    .location-input-store { display: none; }
+    .hidden-by-type { display: none !important; }
+    @media (max-width: 640px) { .form-grid, .sku-search-row { grid-template-columns: 1fr; } }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="topbar">
+    <div>
+      <h1>Новая инвентаризация</h1>
+      <p class="subtitle">Сначала задайте контур. После создания его можно проверить и передать ричтракерам.</p>
+    </div>
+    <a class="btn" href="{% url 'inventory:list' %}">Назад к журналу</a>
+  </div>
+
+  <form method="post" class="panel form-card" id="inventory-create-form">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="notice error">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="form-grid">
+      <label>
+        {{ form.inventory_type.label }}
+        {{ form.inventory_type }}
+        <span class="field-errors">{{ form.inventory_type.errors }}</span>
+      </label>
+      <label id="agency-field">
+        {{ form.agency.label }}
+        {{ form.agency }}
+        <span class="field-errors">{{ form.agency.errors }}</span>
+      </label>
+      <label id="sku-field" style="grid-column:1/-1;">
+        {{ form.sku.label }}
+        <div class="sku-search" id="sku-search-wrap">
+          {{ form.sku }}
+          <div class="sku-search-row">
+            <input
+              type="search"
+              id="sku-search"
+              value="{{ form.selected_sku_label }}"
+              placeholder="Артикул, название, размер или штрихкод"
+              autocomplete="off"
+              aria-autocomplete="list"
+              aria-controls="sku-results"
+            >
+            <button class="btn" type="button" id="sku-clear">Очистить</button>
+          </div>
+          <span class="field-hint">Введите минимум 2 символа и выберите товар из найденных позиций.</span>
+          <div class="sku-results" id="sku-results" role="listbox"></div>
+        </div>
+        <span class="field-errors">{{ form.sku.errors }}</span>
+      </label>
+      <label style="grid-column:1/-1;">
+        {{ form.comment.label }}
+        {{ form.comment }}
+        <span class="field-errors">{{ form.comment.errors }}</span>
+      </label>
+    </div>
+
+    <div class="location-picker" id="locations-field">
+      <div>
+        <h2>Выберите места</h2>
+        <p class="muted">Откройте карту склада, отметьте нужные ячейки и вернитесь в инвентаризацию.</p>
+      </div>
+      <div class="location-actions">
+        <button class="btn primary" type="button" id="open-location-map">Открыть карту склада</button>
+        <strong id="location-count">Выбрано: 0</strong>
+      </div>
+      <div class="location-selection">
+        <div class="location-list" id="location-list"></div>
+      </div>
+      <div class="location-status" id="location-status">Выбранное на карте место появится здесь.</div>
+      <div class="location-input-store" id="location-input-store">
+        {% for option in location_options %}
+          <input
+            type="checkbox"
+            name="locations"
+            value="{{ option.id }}"
+            data-location-key="{{ option.key }}"
+            data-location-label="{{ option.label }}"
+            {% if option.selected %}checked{% endif %}
+          >
+        {% endfor %}
+      </div>
+      <span class="field-errors">{{ form.locations.errors }}</span>
+    </div>
+
+    <div class="action-row">
+      <button class="btn primary" type="submit">Создать</button>
+      <a class="btn" href="{% url 'inventory:list' %}">Отмена</a>
+    </div>
+  </form>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    (function () {
+      var typeField = document.getElementById("id_inventory_type");
+      var inventoryForm = document.getElementById("inventory-create-form");
+      var agencyField = document.getElementById("agency-field");
+      var agencyInput = document.getElementById("id_agency");
+      var skuField = document.getElementById("sku-field");
+      var locationsField = document.getElementById("locations-field");
+      var skuHidden = document.getElementById("id_sku");
+      var skuSearch = document.getElementById("sku-search");
+      var commentInput = document.getElementById("id_comment");
+      var skuResults = document.getElementById("sku-results");
+      var skuClear = document.getElementById("sku-clear");
+      var skuSearchWrap = document.getElementById("sku-search-wrap");
+      var locationInputs = Array.prototype.slice.call(document.querySelectorAll("#location-input-store input[name='locations']"));
+      var locationList = document.getElementById("location-list");
+      var locationCount = document.getElementById("location-count");
+      var locationStatus = document.getElementById("location-status");
+      var openLocationMap = document.getElementById("open-location-map");
+      var skuTimer = null;
+      var skuRequest = null;
+      var inventoryDraftStorageKey = "inventory_create_stockmap_draft";
+      var inventoryPickStorageKey = "inventory_create_stockmap_selection";
+
+      function syncType() {
+        var value = String(typeField && typeField.value || "");
+        agencyField.classList.toggle("hidden-by-type", value !== "by_partner");
+        skuField.classList.toggle("hidden-by-type", value !== "by_goods");
+        locationsField.classList.toggle("hidden-by-type", value !== "by_places");
+      }
+      if (typeField) {
+        typeField.addEventListener("change", syncType);
+        syncType();
+      }
+
+      function closeSkuResults() {
+        skuResults.classList.remove("open");
+        skuResults.innerHTML = "";
+      }
+
+      function showSkuNote(text) {
+        skuResults.innerHTML = "";
+        var note = document.createElement("div");
+        note.className = "sku-results-note";
+        note.textContent = text;
+        skuResults.appendChild(note);
+        skuResults.classList.add("open");
+      }
+
+      function chooseSku(item) {
+        skuHidden.value = String(item.id || "");
+        skuSearch.value = String(item.label || "");
+        closeSkuResults();
+      }
+
+      function renderSkuResults(items) {
+        skuResults.innerHTML = "";
+        if (!items.length) {
+          showSkuNote("Позиции не найдены.");
+          return;
+        }
+        items.forEach(function (item) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "sku-result";
+          button.setAttribute("role", "option");
+          var title = document.createElement("strong");
+          title.textContent = String(item.code || item.label || "");
+          var description = document.createElement("span");
+          description.textContent = String(item.label || item.name || "");
+          button.appendChild(title);
+          button.appendChild(description);
+          button.addEventListener("click", function () { chooseSku(item); });
+          skuResults.appendChild(button);
+        });
+        skuResults.classList.add("open");
+      }
+
+      function requestSkuSuggestions(query) {
+        if (skuRequest) {
+          skuRequest.abort();
+        }
+        skuRequest = new AbortController();
+        showSkuNote("Ищем позиции...");
+        fetch("{% url 'inventory:sku-search' %}?q=" + encodeURIComponent(query), {
+          credentials: "same-origin",
+          signal: skuRequest.signal
+        }).then(function (response) {
+          if (!response.ok) {
+            throw new Error("search_failed");
+          }
+          return response.json();
+        }).then(function (data) {
+          renderSkuResults(Array.isArray(data.items) ? data.items : []);
+        }).catch(function (error) {
+          if (error && error.name === "AbortError") {
+            return;
+          }
+          showSkuNote("Не удалось загрузить позиции. Повторите поиск.");
+        });
+      }
+
+      if (skuSearch && skuHidden && skuResults) {
+        skuSearch.addEventListener("input", function () {
+          skuHidden.value = "";
+          window.clearTimeout(skuTimer);
+          var query = String(skuSearch.value || "").trim();
+          if (query.length < 2) {
+            closeSkuResults();
+            return;
+          }
+          skuTimer = window.setTimeout(function () { requestSkuSuggestions(query); }, 220);
+        });
+        skuSearch.addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            var first = skuResults.querySelector(".sku-result");
+            if (first) {
+              event.preventDefault();
+              first.click();
+            }
+          }
+        });
+        skuClear.addEventListener("click", function () {
+          skuHidden.value = "";
+          skuSearch.value = "";
+          closeSkuResults();
+          skuSearch.focus();
+        });
+        document.addEventListener("click", function (event) {
+          if (!skuSearchWrap.contains(event.target)) {
+            closeSkuResults();
+          }
+        });
+      }
+
+      function renderLocations() {
+        locationList.innerHTML = "";
+        var selected = locationInputs.filter(function (input) { return input.checked; });
+        locationCount.textContent = "Выбрано: " + selected.length;
+        if (!selected.length) {
+          var empty = document.createElement("span");
+          empty.className = "location-empty";
+          empty.textContent = "Места пока не выбраны.";
+          locationList.appendChild(empty);
+          return;
+        }
+        selected.forEach(function (input) {
+          var chip = document.createElement("span");
+          chip.className = "location-chip";
+          chip.appendChild(document.createTextNode(String(input.dataset.locationLabel || input.value)));
+          var remove = document.createElement("button");
+          remove.type = "button";
+          remove.setAttribute("aria-label", "Убрать место");
+          remove.textContent = "×";
+          remove.addEventListener("click", function () {
+            input.checked = false;
+            renderLocations();
+          });
+          chip.appendChild(remove);
+          locationList.appendChild(chip);
+        });
+      }
+
+      function locationKey(location) {
+        return [
+          String(location && location.zone || "").trim().toUpperCase(),
+          Number.parseInt(location && location.row || 0, 10) || 0,
+          Number.parseInt(location && location.section || 0, 10) || 0,
+          Number.parseInt(location && location.tier || 0, 10) || 0,
+          Number.parseInt(location && location.cell || 0, 10) || 0
+        ].join(":");
+      }
+
+      function saveInventoryDraft() {
+        var draft = {
+          inventory_type: String(typeField && typeField.value || ""),
+          agency: String(agencyInput && agencyInput.value || ""),
+          sku: String(skuHidden && skuHidden.value || ""),
+          sku_label: String(skuSearch && skuSearch.value || ""),
+          comment: String(commentInput && commentInput.value || ""),
+          locations: locationInputs.filter(function (input) { return input.checked; }).map(function (input) {
+            return String(input.dataset.locationKey || "");
+          })
+        };
+        try {
+          sessionStorage.setItem(inventoryDraftStorageKey, JSON.stringify(draft));
+        } catch (error) {}
+      }
+
+      function restoreInventoryDraft() {
+        if (new URLSearchParams(window.location.search || "").get("stockmap_return") !== "1") {
+          return;
+        }
+        var raw = "";
+        try {
+          raw = sessionStorage.getItem(inventoryDraftStorageKey) || "";
+        } catch (error) {}
+        if (!raw) {
+          return;
+        }
+        try {
+          var draft = JSON.parse(raw);
+          if (typeField) { typeField.value = String(draft.inventory_type || ""); }
+          if (agencyInput) { agencyInput.value = String(draft.agency || ""); }
+          if (skuHidden) { skuHidden.value = String(draft.sku || ""); }
+          if (skuSearch) { skuSearch.value = String(draft.sku_label || ""); }
+          if (commentInput) { commentInput.value = String(draft.comment || ""); }
+          var selectedKeys = new Set(Array.isArray(draft.locations) ? draft.locations.map(String) : []);
+          locationInputs.forEach(function (input) {
+            input.checked = selectedKeys.has(String(input.dataset.locationKey || ""));
+          });
+          syncType();
+        } catch (error) {}
+      }
+
+      function acceptPendingInventorySelection() {
+        if (new URLSearchParams(window.location.search || "").get("stockmap_return") !== "1") {
+          return;
+        }
+        var raw = "";
+        try {
+          raw = sessionStorage.getItem(inventoryPickStorageKey) || "";
+          sessionStorage.removeItem(inventoryPickStorageKey);
+        } catch (error) {}
+        if (!raw) {
+          return;
+        }
+        try {
+          acceptLocationMessage(JSON.parse(raw));
+          saveInventoryDraft();
+        } catch (error) {}
+      }
+
+      function acceptLocationMessage(payload) {
+        if (!payload) {
+          return;
+        }
+        if (payload.type === "stockmap-inventory-locations-picked") {
+          locationInputs.forEach(function (input) { input.checked = false; });
+          var acceptedCount = 0;
+          var missingCount = 0;
+          (Array.isArray(payload.locations) ? payload.locations : []).forEach(function (item) {
+            var key = locationKey(item && item.location || {});
+            var input = locationInputs.find(function (candidate) {
+              return String(candidate.dataset.locationKey || "") === key;
+            });
+            if (input) {
+              input.checked = true;
+              acceptedCount += 1;
+            } else {
+              missingCount += 1;
+            }
+          });
+          renderLocations();
+          locationStatus.textContent = missingCount
+            ? "Выбрано мест: " + acceptedCount + ". Не найдено в активном справочнике: " + missingCount + "."
+            : "Выбрано мест: " + acceptedCount + ".";
+          return;
+        }
+        if (payload.type === "stockmap-location-picked") {
+          var key = locationKey(payload.location || {});
+          var input = locationInputs.find(function (candidate) {
+            return String(candidate.dataset.locationKey || "") === key;
+          });
+          if (!input) {
+            locationStatus.textContent = "Выбранное место отсутствует в справочнике активных складских мест.";
+            return;
+          }
+          input.checked = true;
+          locationStatus.textContent = "Добавлено: " + String(input.dataset.locationLabel || payload.label || key);
+          renderLocations();
+        }
+      }
+
+      if (openLocationMap) {
+        openLocationMap.addEventListener("click", function () {
+          var mapParams = new URLSearchParams({ picker: "1", purpose: "inventory" });
+          mapParams.set("return_to", window.location.pathname + "?stockmap_return=1");
+          locationInputs.filter(function (input) { return input.checked; }).forEach(function (input) {
+            mapParams.append("selected", String(input.dataset.locationKey || ""));
+          });
+          saveInventoryDraft();
+          window.location.assign("/stockmap/visual/?" + mapParams.toString());
+        });
+        window.addEventListener("message", function (event) {
+          if (event.origin !== window.location.origin) {
+            return;
+          }
+          acceptLocationMessage(event.data);
+        });
+        window.addEventListener("storage", function (event) {
+          if (
+            (event.key !== "stockmap_location_pick" && event.key !== "stockmap_inventory_location_pick")
+            || !event.newValue
+          ) {
+            return;
+          }
+          try {
+            acceptLocationMessage(JSON.parse(event.newValue));
+          } catch (error) {}
+        });
+      }
+
+      restoreInventoryDraft();
+      acceptPendingInventorySelection();
+      renderLocations();
+      if (inventoryForm) {
+        inventoryForm.addEventListener("submit", function () {
+          try {
+            sessionStorage.removeItem(inventoryDraftStorageKey);
+            sessionStorage.removeItem(inventoryPickStorageKey);
+          } catch (error) {}
+        });
+      }
+    })();
+  </script>
+{% endblock %}

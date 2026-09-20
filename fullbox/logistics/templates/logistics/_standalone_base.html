@@ -1,0 +1,92 @@
+{% comment %}Оболочка рейсов для ролей вне единого кабинета (например кладовщик).{% endcomment %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Логистика{% endblock %} | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css?v=20260718-3" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css?v=20260718-3" rel="stylesheet">
+  <style>
+    .wrap { padding: 24px; }
+    .layout {
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      gap: 20px;
+      min-height: calc(100vh - 48px);
+    }
+    .side {
+      background: rgba(255, 253, 248, 0.94);
+      border: 1px solid var(--stroke);
+      border-radius: 24px;
+      padding: 18px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      align-content: start;
+      box-shadow: var(--shadow);
+    }
+    .brand { font-size: 22px; font-weight: 800; color: var(--accent-strong); }
+    .profile {
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: var(--surface-2);
+      padding: 12px;
+    }
+    .nav { display: grid; gap: 8px; }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      text-decoration: none;
+      color: inherit;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: var(--surface-2);
+      padding: 12px;
+    }
+    .nav-link.primary {
+      background: linear-gradient(135deg, rgba(241, 191, 98, 0.38), rgba(14, 107, 91, 0.12));
+      border-color: transparent;
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub, .muted { color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .shell { min-width: 0; }
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    {% block extra_css %}{% endblock %}
+  </style>
+</head>
+<body class="lk-theme">
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand">FULLBOX</div>
+        <div class="profile">
+          <div style="font-weight:700;">{% include "partials/current_user.html" %}</div>
+          <div class="muted">Рейсы</div>
+        </div>
+        <nav class="nav">
+          <a class="nav-link {% if trips_subnav == 'pool' %}primary{% endif %}" href="/logistics/">
+            <span class="nav-title">Заявки</span>
+            <span class="nav-sub">Подбор для маршрута</span>
+          </a>
+          <a class="nav-link {% if trips_subnav == 'list' %}primary{% endif %}" href="/logistics/trips/">
+            <span class="nav-title">Все рейсы</span>
+            <span class="nav-sub">Журнал рейсов</span>
+          </a>
+          <a class="nav-link" href="{{ cabinet_url|default:'/team-manager/' }}">
+            <span class="nav-title">В кабинет</span>
+            <span class="nav-sub">Основной кабинет роли</span>
+          </a>
+        </nav>
+        <a class="btn ghost" href="/logout/">↗ Выход</a>
+      </aside>
+      <main class="shell">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+  {% block page_js %}{% endblock %}
+</body>
+</html>

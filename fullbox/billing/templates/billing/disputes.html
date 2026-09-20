@@ -1,0 +1,176 @@
+{% extends "teammanager/_base.html" %}
+{% load billing_tags %}
+
+{% block title %}Расхождения — Биллинг{% endblock %}
+
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.grid-2 { display:grid; grid-template-columns:minmax(0,360px) minmax(0,1fr); gap:14px; }
+.card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px; display:grid; gap:10px; }
+.card-title { margin:0; font-size:16px; font-weight:800; font-family:"Bricolage Grotesque","Manrope",sans-serif; }
+.field { width:100%; border:1px solid var(--line); border-radius:10px; background:#fff; padding:9px 12px; font:inherit; font-size:13px; box-sizing:border-box; }
+.label { font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; }
+.filter-card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+.filter-card .field { width:auto; }
+.table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:900px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:2px solid var(--line); }
+td { padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+.row-main { font-weight:800; }
+.row-sub { color:var(--muted); font-size:11px; margin-top:2px; }
+.money { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-weight:800; }
+.badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900; }
+.badge.orange { background:var(--orange-soft); color:#b45309; }
+.badge.green { background:var(--green-soft); color:var(--green-strong); }
+.badge.gray { background:var(--surface-2); color:var(--muted); }
+.badge.red { background:#fff0f0; color:var(--red); }
+.badge.blue { background:#eff6ff; color:var(--blue); }
+.hint { font-size:12px; color:var(--muted); }
+@media (max-width:960px){ .grid-2 { grid-template-columns:1fr; } }
+{% endblock %}
+
+{% block content %}
+{% include "billing/_billing_nav.html" %}
+
+<div>
+  <h1 class="page-title">Расхождения и корректировки</h1>
+  <div class="page-sub">Единый реестр: замечания менеджера и разногласия клиента по актам. Исправление документов — через бухгалтера.</div>
+</div>
+
+<form class="filter-card" method="get">
+  <select class="field" name="client">
+    <option value="">Все клиенты</option>
+    {% for c in dispute_clients %}
+      <option value="{{ c.id }}" {% if filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>
+    {% endfor %}
+  </select>
+  <select class="field" name="status">
+    <option value="">Все статусы</option>
+    <option value="new" {% if filter_status == "new" %}selected{% endif %}>Новое</option>
+    <option value="manager_review" {% if filter_status == "manager_review" %}selected{% endif %}>У менеджера</option>
+    <option value="accountant_review" {% if filter_status == "accountant_review" %}selected{% endif %}>У бухгалтера</option>
+    <option value="closed" {% if filter_status == "closed" %}selected{% endif %}>Закрыто</option>
+  </select>
+  <button class="btn primary" type="submit">Найти</button>
+</form>
+
+<div class="grid-2">
+  <form class="card" id="js-disc-form">
+    <h2 class="card-title">Зафиксировать расхождение</h2>
+    <div>
+      <div class="label">Клиент</div>
+      <select class="field" name="client_id" required>
+        <option value="">Выберите клиента</option>
+        {% for c in dispute_clients %}
+          <option value="{{ c.id }}">{{ c.short_name|default:c.agn_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <div class="label">Тип</div>
+      <select class="field" name="discrepancy_type">
+        {% for val, label in discrepancy_type_choices %}
+          <option value="{{ val }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <div class="label">Сумма спора (необяз.)</div>
+      <input class="field" type="number" name="disputed_amount" step="0.01">
+    </div>
+    <div>
+      <div class="label">Описание</div>
+      <textarea class="field" name="description" rows="3" required placeholder="Что не сходится"></textarea>
+    </div>
+    <div>
+      <div class="label">Комментарий менеджера</div>
+      <textarea class="field" name="manager_comment" rows="2"></textarea>
+    </div>
+    <button class="btn primary" type="submit">Создать</button>
+    <div id="js-disc-msg" class="hint"></div>
+  </form>
+
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>Клиент</th>
+          <th>Тип</th>
+          <th>Описание</th>
+          <th>Сумма</th>
+          <th>Статус</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in discrepancies %}
+          <tr>
+            <td>{{ d.created_at|date:"d.m.Y" }}</td>
+            <td>{{ d.client.short_name|default:d.client.agn_name|truncatechars:22 }}</td>
+            <td>{{ d.get_discrepancy_type_display }}</td>
+            <td>
+              <div class="row-main">{{ d.description|truncatechars:80 }}</div>
+              {% if d.act_dispute_id %}<div class="row-sub">из разногласия по акту</div>{% endif %}
+            </td>
+            <td>{% if d.disputed_amount != None %}<span class="money">{{ d.disputed_amount|money_fmt }}</span>{% else %}—{% endif %}</td>
+            <td>
+              {% if d.status == "closed" %}<span class="badge green">{{ d.get_status_display }}</span>
+              {% elif d.status == "new" or d.status == "manager_review" %}<span class="badge orange">{{ d.get_status_display }}</span>
+              {% elif d.status == "rejected" %}<span class="badge red">{{ d.get_status_display }}</span>
+              {% else %}<span class="badge blue">{{ d.get_status_display }}</span>{% endif %}
+            </td>
+            <td style="white-space:nowrap">
+              {% if d.status != "closed" %}
+                <button class="btn js-disc-status" data-id="{{ d.id }}" data-status="accountant_review" type="button" style="font-size:11px;padding:5px 8px">Бухгалтеру</button>
+                <button class="btn js-disc-status" data-id="{{ d.id }}" data-status="closed" type="button" style="font-size:11px;padding:5px 8px">Закрыть</button>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" style="padding:28px;text-align:center;color:var(--muted);font-weight:700">Расхождений нет</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function(){
+  const form = document.getElementById("js-disc-form");
+  const msg = document.getElementById("js-disc-msg");
+  const csrf = (document.cookie.match(/csrftoken=([^;]+)/)||[])[1] || "";
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    msg.textContent = "Сохраняю…";
+    const fd = new FormData(form);
+    const body = Object.fromEntries(fd.entries());
+    if (!body.disputed_amount) delete body.disputed_amount;
+    const resp = await fetch("/team-manager/billing/api/discrepancies/", {
+      method: "POST",
+      headers: {"Content-Type":"application/json", "X-CSRFToken": csrf},
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) { msg.textContent = data.error || data.detail || "Ошибка"; return; }
+    location.reload();
+  });
+  document.querySelectorAll(".js-disc-status").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const resp = await fetch(`/team-manager/billing/api/discrepancies/${btn.dataset.id}/`, {
+        method: "PATCH",
+        headers: {"Content-Type":"application/json", "X-CSRFToken": csrf},
+        body: JSON.stringify({status: btn.dataset.status}),
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        alert(data.error || data.detail || "Ошибка");
+        return;
+      }
+      location.reload();
+    });
+  });
+})();
+</script>
+{% endblock %}

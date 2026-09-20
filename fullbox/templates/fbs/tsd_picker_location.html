@@ -1,0 +1,67 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Информация о месте{% endblock %}
+{% block page_class %}tsd-page-picker-tool{% endblock %}
+{% block page_title %}Информация о месте{% endblock %}
+
+{% block content %}
+  <form class="picker-location-scan" method="post" autocomplete="off" novalidate data-submit-once data-scan-feedback data-scan-focus-lock>
+    {% csrf_token %}
+    <label for="picker-location-scan">Место, палета, короб или штрихкод товара</label>
+    <input id="picker-location-scan" type="text" name="scan" value="{{ scan }}" required autofocus autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" enterkeyhint="done" data-scanner-only data-scan-autosubmit="250" data-scan-focus-lock placeholder="Отсканируйте любой код">
+    <button type="submit">Найти на FBS</button>
+  </form>
+
+  {% if result_kind %}
+    <section class="picker-location-result">
+      <div class="picker-location-title">
+        <span>{% if result_kind == "box" %}Отсканирован короб{% elif result_kind == "pallet" %}Отсканирована палета{% elif result_kind == "product" %}Отсканирован товар{% else %}Отсканировано место{% endif %}</span>
+        <strong>{% if result_kind == "box" %}{{ box.box_code }}{% elif result_kind == "pallet" %}{{ pallet.pallet_code }}{% elif result_kind == "product" %}ШК {{ scan }}{% else %}{{ location_label }}{% endif %}</strong>
+        <small>
+          {% if result_kind == "box" %}
+            Место {{ box_location_code }}{% if box_location_label != box_location_code %} · {{ box_location_label }}{% endif %} · палета {{ box.pallet.pallet_code }} · {{ box.agency }}
+          {% elif result_kind == "pallet" %}
+            Место {{ pallet.cell.location.location_code }}{% if location_label != pallet.cell.location.location_code %} · {{ location_label }}{% endif %} · {{ pallet.agency }}
+          {% elif result_kind == "product" %}
+            Найдено: {{ totals.locations }} мест · {{ totals.boxes }} коробов · {{ totals.pallets }} палет
+          {% else %}
+            {{ cell.cell_code }} · {{ cell.get_purpose_display }}
+          {% endif %}
+        </small>
+      </div>
+      <div class="picker-location-totals">
+        <div><span>Всего</span><strong>{{ totals.qty }}</strong></div>
+        <div><span>Доступно</span><strong>{{ totals.available }}</strong></div>
+        <div><span>Резерв</span><strong>{{ totals.reserved }}</strong></div>
+        <div><span>{% if result_kind == "product" %}Мест{% elif result_kind == "box" %}Позиций{% else %}Коробов{% endif %}</span><strong>{% if result_kind == "product" %}{{ totals.locations }}{% elif result_kind == "box" %}{{ totals.positions }}{% else %}{{ totals.boxes }}{% endif %}</strong></div>
+      </div>
+      <div class="picker-location-stock">
+        {% if result_kind == "product" %}
+          {% for row in product_placements %}
+            <article>
+              <div>
+                <strong>{{ row.location_code|default:row.location_label }}</strong>
+                <small class="picker-location-placement-meta" style="font-weight: 650;">{% if row.location_label != row.location_code %}{{ row.location_label }} · {% endif %}короб {{ row.box.box_code }} · палета {{ row.pallet.pallet_code }}</small>
+                <small class="picker-location-product-meta" style="font-weight: 650;">{{ row.agency_label }} · {{ row.name }} · арт. {{ row.sku_code }}{% if row.size %} · размер {{ row.size }}{% endif %}</small>
+              </div>
+              <div>
+                <span>Остаток</span>
+                <strong>{{ row.qty }} шт.</strong>
+                <small>Доступно {{ row.available_qty }} · резерв {{ row.reserved_qty|add:row.external_reserved_qty }}</small>
+              </div>
+            </article>
+          {% endfor %}
+        {% else %}
+          {% for balance in balances %}
+            <article>
+              <div><strong>{{ balance.name|default:balance.sku_code }}</strong><small>{{ balance.agency }} · арт. {{ balance.sku_code }} · ШК {{ balance.barcode|default:"-" }}</small></div>
+              <div><span>{% if result_kind == "box" %}Осталось{% else %}{{ balance.box.box_code }}{% endif %}</span><strong>{{ balance.qty }} шт.</strong><small>Доступно {{ balance.available_qty }} · резерв {{ balance.reserved_qty|add:balance.external_reserved_qty }}</small></div>
+            </article>
+          {% empty %}
+            <div class="picker-tool-empty"><strong>{% if result_kind == "box" %}Короб пуст{% elif result_kind == "pallet" %}Палета пуста{% else %}Место пустое{% endif %}</strong></div>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

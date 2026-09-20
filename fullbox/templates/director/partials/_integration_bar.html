@@ -1,0 +1,9 @@
+<section class="dir-integ" id="integrations" aria-label="Состояние интеграций">
+  <span class="dir-integ-item"><span class="dir-dot"></span>{{ updated_label }}</span>
+  {% for item in integrations %}
+    <span class="dir-integ-item">
+      <span class="dir-dot {% if item.state == 'warn' %}warn{% elif item.state == 'bad' %}bad{% endif %}"></span>
+      {{ item.label }}
+    </span>
+  {% endfor %}
+</section>

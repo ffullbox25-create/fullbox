@@ -1,0 +1,32 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FBS короб {{ box.qr_code }}</title>
+  <style>
+    @page { size: 58mm 40mm; margin: 2mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #303030; font-family: Arial, sans-serif; }
+    .label { width: 54mm; height: 36mm; display: grid; grid-template-columns: 31mm 1fr; align-items: center; gap: 2mm; overflow: hidden; }
+    #qr { width: 30mm; height: 30mm; }
+    #qr img, #qr canvas { width: 30mm !important; height: 30mm !important; }
+    .copy { min-width: 0; }
+    .copy strong { display: block; font-size: 9pt; line-height: 1.1; overflow-wrap: anywhere; }
+    .copy span { display: block; margin-top: 1.5mm; font-size: 6.5pt; line-height: 1.2; }
+  </style>
+</head>
+<body>
+  <main class="label">
+    <div id="qr" data-code="{{ box.qr_code }}"></div>
+    <div class="copy"><strong>FBS КОРОБ</strong><strong>{{ box.qr_code }}</strong><span>Отгрузка #{{ handover.id }}</span><span>{{ handover.profile.get_marketplace_display }} · склад {{ handover.profile.external_warehouse_id|default:"-" }}</span></div>
+  </main>
+  <script src="{% static 'vendor/qrcode.min.js' %}"></script>
+  <script>
+    const target = document.getElementById('qr');
+    new QRCode(target, {text: target.dataset.code, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M});
+    window.setTimeout(() => window.print(), 350);
+  </script>
+</body>
+</html>

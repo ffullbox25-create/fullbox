@@ -1,0 +1,64 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}Передачи FBS{% endblock %} · Фуллбокс</title>
+  {% if request_role == 'storekeeper' or request_role == 'head_manager' or request_role == 'director' or request_role == 'admin' or request_role == 'developer' %}
+    <link rel="stylesheet" href="{% static 'fbs/tsd.css' %}?v=20260828-controller-simple-1&amp;workspace=10&amp;compact=3&amp;picker=3&amp;home=2&amp;shipments=5&amp;queue-groups=1&amp;restock-pickup=1&amp;stock-filter=1&amp;storekeeper-nav-density=1">
+  {% endif %}
+  <link rel="stylesheet" href="{% static 'fbs/metadata_control.css' %}?v=20260818-1&amp;compact=2">
+  <style>
+    .tsd-page-fbs-workspace .control-page{width:auto;max-width:none;min-height:0;margin:0;padding:0;background:transparent}
+    .tsd-page-fbs-workspace .responsive-table{border-radius:6px}
+  </style>
+</head>
+<body>
+  {% if request_role == 'storekeeper' or request_role == 'head_manager' or request_role == 'director' or request_role == 'admin' or request_role == 'developer' %}
+    <main class="tsd-page tsd-page-operator tsd-page-fbs-workspace tsd-page-desktop metadata-control-workspace">
+      <div class="fbs-workspace-shell">
+        {% include "fbs/operator_workspace_sidebar.html" %}
+        <section class="fbs-workspace-main">
+  {% else %}
+    <main class="control-page">
+  {% endif %}
+
+          <header class="{% if request_role == 'storekeeper' or request_role == 'head_manager' or request_role == 'director' or request_role == 'admin' or request_role == 'developer' %}fbs-workspace-topbar{% else %}control-header{% endif %}">
+            {% if request_role != 'storekeeper' and request_role != 'head_manager' and request_role != 'director' and request_role != 'admin' and request_role != 'developer' %}
+              <div class="control-brand">
+                {% include "partials/fullbox_brand.html" %}
+                <span class="contour-label">FBS</span>
+              </div>
+            {% endif %}
+            <div class="{% if request_role == 'storekeeper' or request_role == 'head_manager' or request_role == 'director' or request_role == 'admin' or request_role == 'developer' %}fbs-workspace-heading{% else %}control-heading{% endif %}">
+              {% if request_role == 'storekeeper' or request_role == 'head_manager' or request_role == 'director' or request_role == 'admin' or request_role == 'developer' %}
+                <nav class="fbs-breadcrumbs" aria-label="Навигация">
+                  <a href="{% url 'fbs:tsd_storekeeper' %}">FBS</a><span>/</span>
+                  {% if request.resolver_match.url_name == 'metadata_control_detail' %}<a href="{% url 'fbs:metadata_control' %}">КИЗ и сроки</a><span>/</span><strong>{{ order.external_order_id }}</strong>{% else %}<strong>КИЗ и сроки</strong>{% endif %}
+                </nav>
+              {% endif %}
+              <h1>{% block page_title %}{{ workspace_title|default:"КИЗ и сроки" }}{% endblock %}</h1>
+              <p>{% if request_role == 'storekeeper' or request_role == 'head_manager' or request_role == 'director' or request_role == 'admin' or request_role == 'developer' %}{{ workspace_subtitle|default:"Передача маркировки площадке" }}{% else %}{% if employee %}{{ employee.full_name }} · {% endif %}{% if request_role == "manager" %}Менеджер{% elif request_role == "storekeeper" %}Кладовщик{% else %}Контроль FBS{% endif %}{% endif %}</p>
+            </div>
+            <nav class="{% if request_role == 'storekeeper' or request_role == 'head_manager' or request_role == 'director' or request_role == 'admin' or request_role == 'developer' %}fbs-workspace-top-actions{% else %}header-actions{% endif %}" aria-label="Действия">
+              {% block header_actions %}{% endblock %}
+              {% if request_role != 'storekeeper' and request_role != 'head_manager' and request_role != 'director' and request_role != 'admin' and request_role != 'developer' %}<a class="button button-secondary" href="{{ cabinet_url }}">В кабинет</a>{% endif %}
+            </nav>
+          </header>
+
+          {% if request_role == 'storekeeper' or request_role == 'head_manager' or request_role == 'director' or request_role == 'admin' or request_role == 'developer' %}<div class="control-page">{% endif %}
+            {% if error %}<div class="message-list"><div class="notice notice-error" role="alert">{{ error }}</div></div>{% endif %}
+            {% if ok_message %}<div class="message-list"><div class="notice notice-ok" role="status">{{ ok_message }}</div></div>{% endif %}
+
+            {% block content %}{% endblock %}
+          {% if request_role == 'storekeeper' or request_role == 'head_manager' or request_role == 'director' or request_role == 'admin' or request_role == 'developer' %}
+          </div>
+        </section>
+      </div>
+    </main>
+  {% else %}
+    </main>
+  {% endif %}
+</body>
+</html>

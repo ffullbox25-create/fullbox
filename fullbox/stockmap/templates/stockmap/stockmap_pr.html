@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PR | Карта склада</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #0e6b5b;
+      --accent-strong: #0b5246;
+      --sun: #f2b747;
+      --stroke: rgba(28,31,26,0.12);
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+      --danger: #8f2d2d;
+      --ok: #0e6b5b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 1440px; margin: 0 auto; padding: 24px 16px 56px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .logo { display:flex; align-items:center; gap:10px; }
+    .logo-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(242,183,71,0.35), rgba(14,107,91,0.15));
+      color: var(--accent-strong);
+      font-weight: 700;
+    }
+    .title { margin: 0; font-size: 22px; font-family: "Bricolage Grotesque", "Manrope", sans-serif; }
+    .muted { color: var(--muted); }
+    .btn {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid var(--stroke);
+      background:rgba(28,31,26,0.04);
+      color:var(--ink);
+      font-weight:700;
+      transition:all .2s ease;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .btn:hover { border-color:rgba(14,107,91,0.4); box-shadow:0 12px 30px rgba(14,107,91,0.18); transform:translateY(-2px); }
+    .btn.primary {
+      background: linear-gradient(135deg, rgba(242,183,71,0.95), rgba(227,165,34,0.95));
+      border-color: rgba(201,146,37,0.5);
+    }
+    .note {
+      margin: 14px 0 16px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(14,107,91,0.08);
+      border: 1px solid rgba(14,107,91,0.18);
+      color: var(--accent-strong);
+      font-weight: 600;
+    }
+    .alert {
+      margin: 0 0 14px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      font-weight: 600;
+    }
+    .alert.success {
+      background: rgba(14,107,91,0.1);
+      border: 1px solid rgba(14,107,91,0.22);
+      color: var(--ok);
+    }
+    .alert.error {
+      background: rgba(143,45,45,0.1);
+      border: 1px solid rgba(143,45,45,0.22);
+      color: var(--danger);
+    }
+    .table-wrap { overflow:auto; }
+    table { width:100%; border-collapse:collapse; min-width: 1180px; }
+    th, td { padding:10px 8px; border-bottom:1px solid var(--stroke); text-align:left; vertical-align: top; }
+    th { color:var(--muted); font-weight:700; font-size:13px; }
+    td { font-size:14px; }
+    .status-ok { color: var(--ok); font-weight: 700; }
+    .status-bad { color: var(--danger); font-weight: 700; }
+    .mini-list {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 4px;
+    }
+    .mini-list li { line-height: 1.3; }
+    .empty {
+      padding:16px;
+      text-align:center;
+      color:var(--muted);
+      border:1px dashed var(--stroke);
+      border-radius:12px;
+      background: var(--surface-2);
+    }
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <div class="logo">
+          <div class="logo-mark">FX</div>
+          <div>
+            <h1 class="title">Зона приемки · занятые паллеты</h1>
+            <div class="muted">Показано, чем заняты места в `PR`, в каком процессе участвует паллета и можно ли отправить ее на основной склад.</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <a class="btn" href="/stockmap/visual/">Назад к карте</a>
+          <a class="btn" href="{{ cabinet_url }}">В кабинет</a>
+        </div>
+      </div>
+
+      {% if created_count %}
+        <div class="alert success">Создано заданий ричтраку: {{ created_count }}.</div>
+      {% endif %}
+      {% if skipped_count %}
+        <div class="alert error">Пропущено паллет: {{ skipped_count }}.</div>
+      {% endif %}
+      {% if error_message %}
+        <div class="alert error">{{ error_message }}</div>
+      {% endif %}
+
+      <div class="note">
+        Сервис сразу предлагает место в `OS` для каждой паллеты из `PR`. Если у паллеты уже есть активное задание ричтрака или не найдено свободное место в основном складе, создание нового задания блокируется.
+      </div>
+
+      {% if rows %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="destinations_json" value="{{ destinations_json|escape }}">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>В задание</th>
+                  <th>Паллета</th>
+                  <th>Клиент</th>
+                  <th>Источник</th>
+                  <th>Состав</th>
+                  <th>Всего / доступно</th>
+                  <th>Резервы</th>
+                  <th>Последнее задание</th>
+                  <th>Предложено в OS</th>
+                  <th>Можно перевезти</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                  <tr>
+                    <td>
+                      {% if row.can_move_to_os %}
+                        <input type="checkbox" name="selected_pallets" value="{{ row.pallet_code }}">
+                      {% else %}
+                        —
+                      {% endif %}
+                    </td>
+                    <td><strong>{{ row.pallet_code }}</strong><br><span class="muted">{{ row.box_count }} коробов</span></td>
+                    <td>{{ row.client_name }}</td>
+                    <td>{{ row.source_label }}<br><span class="muted">{{ row.process_hint }}</span></td>
+                    <td>
+                      <div>{{ row.items_summary }}</div>
+                      {% if row.items %}
+                        <details>
+                          <summary>Подробно</summary>
+                          <ul class="mini-list">
+                            {% for item in row.items %}
+                              <li>{{ item.sku }} · {{ item.name }} · {{ item.size }} · {{ item.qty }} шт. · {{ item.barcode }}</li>
+                            {% endfor %}
+                          </ul>
+                        </details>
+                      {% endif %}
+                    </td>
+                    <td>{{ row.total_qty }} / {{ row.available_qty }} шт.</td>
+                    <td>OBR: {{ row.processing_reserved_qty }}<br>OTG: {{ row.shipping_reserved_qty }}</td>
+                    <td>{{ row.latest_task_label }}</td>
+                    <td>{{ row.destination_label }}</td>
+                    <td class="{% if row.can_move_to_os %}status-ok{% else %}status-bad{% endif %}">
+                      {{ row.can_move_reason }}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="actions">
+            <div class="muted">Будут созданы только задания по отмеченным паллетам, для которых нет активного `stock_move` и найдено свободное место в `OS`.</div>
+            <button type="submit" class="btn primary">Создать задания ричтраку</button>
+          </div>
+        </form>
+      {% else %}
+        <div class="empty">В зоне приемки сейчас нет паллет в складском состоянии.</div>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

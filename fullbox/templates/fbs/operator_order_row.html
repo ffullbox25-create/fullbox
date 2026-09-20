@@ -1,0 +1,20 @@
+<tr class="ts-order-row {% if order.operator_problem_reason or order.operator_hold_reason %}row-problem{% elif order.is_stale_unstarted or order.is_previous_day_unpicked %}row-overdue{% elif order.is_overdue %}row-overdue{% elif order.is_urgent %}row-urgent{% endif %}" data-row-link="{% url 'fbs:operator_order_detail' order_id=order.id %}" tabindex="0">
+  {% if orders_mode == 'queue' %}<td class="check-column"><label class="row-select" title="Добавить заказ в волну"><input class="row-checkbox" type="checkbox" name="order_ids" value="{{ order.id }}" data-wave-order data-agency-id="{{ order.profile.agency_id }}"{% if article_group_index %} data-article-group="{{ article_group_index }}"{% endif %} aria-label="Выбрать заказ {{ order.external_order_id }}"{% if not order.can_queue %} disabled{% endif %}></label></td>{% endif %}
+  <td><strong>{{ order.id }}</strong></td>
+  <td><a class="table-main-link" href="{% url 'fbs:operator_order_detail' order_id=order.id %}">{{ order.external_order_id }}</a>{% if order.operator_problem_reason %}<small class="text-error">{{ order.operator_problem_reason|truncatechars:70 }}</small>{% endif %}</td>
+  <td><a href="{% url 'fbs:operator_client_detail' agency_id=order.profile.agency_id %}">{{ order.profile.agency.short_name|default:order.profile.agency.agn_name }}</a></td>
+  <td><strong>{{ order.profile.name }}</strong></td>
+  <td class="warehouse-column"><strong>{{ order.profile.external_warehouse_id|default:"Не указан" }}</strong><small>{% if order.profile.is_active %}Профиль включен{% else %}Профиль выключен{% endif %}</small></td>
+  <td title="Загружен в Fullbox {{ order.imported_at|date:'d.m.Y H:i:s' }}">{% if order.ordered_at %}<strong>{{ order.ordered_at|date:"d.m.Y" }}</strong><small>{{ order.ordered_at|date:"H:i:s" }}</small>{% else %}<strong>{{ order.imported_at|date:"d.m.Y" }}</strong><small>Дата заказа не передана</small>{% endif %}</td>
+  <td><span class="marketplace-tag marketplace-{{ order.profile.marketplace }}">{{ order.profile.get_marketplace_display }} FBS</span></td>
+  <td><code>{{ order.track_number|default:"-" }}</code></td>
+  <td><strong>{{ order.unit_count }}</strong><small>{{ order.line_count }} поз.</small></td>
+  <td><span class="status status-{{ order.internal_status }}">{{ order.internal_status_label }}</span>{% if order.is_stale_unstarted %}<small class="text-error">Не начат {{ order.attention_age_label }}</small>{% elif order.is_previous_day_unpicked %}<small class="text-error">С прошлого дня · {{ order.attention_age_label }}</small>{% endif %}{% if order.operator_hold_reason %}<small class="text-error">{{ order.operator_hold_reason }}</small>{% endif %}</td>
+  {% if orders_mode == 'queue' %}
+    <td><span class="availability-pill availability-{{ order.availability_group_css }}">{{ order.availability_group_label }}</span><small>{{ order.availability_label }}</small></td>
+    <td>{% for stock in order.availability_rows %}<div class="availability-row-detail"><strong>{{ stock.name }}</strong><code>{{ stock.barcode|default:"ШК не передан" }}</code><div class="availability-mini-grid"><span>Нужно <strong>{{ stock.required_qty }}</strong></span><span>FBS факт <strong>{{ stock.fbs_fact_qty }}</strong></span><span>FBS доступно <strong>{{ stock.fbs_available_qty }}</strong></span><span>Резерв <strong>{{ stock.fbs_reserved_qty }}</strong></span><span>В перемещении <strong>{{ stock.in_movement_qty }}</strong></span><span>Общий склад для подсорта <strong>{{ stock.general_available_qty }}</strong></span></div><small>{{ stock.reason }}</small></div>{% endfor %}</td>
+  {% else %}
+    <td><strong>{{ order.marketplace_status_label }}</strong>{% if order.marketplace_substatus_label %}<small>{{ order.marketplace_substatus_label }}</small>{% endif %}</td>
+    <td>{% if order.cutoff_at %}<strong>{{ order.cutoff_at|date:"d.m.Y H:i" }}</strong>{% if order.is_overdue %}<small class="text-error">Просрочен</small>{% elif order.is_urgent %}<small class="text-warn">Скоро отгрузка</small>{% endif %}{% else %}<span class="text-muted">Не передан</span>{% endif %}</td>
+  {% endif %}
+</tr>

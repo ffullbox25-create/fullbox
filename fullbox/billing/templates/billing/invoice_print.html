@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>{{ invoice_title }}</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: #111;
+      font: 12px/1.35 "Times New Roman", Times, serif;
+      background: #fff;
+    }
+    .sheet { max-width: 210mm; margin: 0 auto; padding: 8mm 10mm; }
+    .warn {
+      border: 1px solid #111;
+      padding: 8px 10px;
+      margin-bottom: 12px;
+      font-size: 11px;
+    }
+    .warn b { display: block; margin-bottom: 4px; }
+    h1 {
+      margin: 14px 0 10px;
+      font-size: 16px;
+      font-weight: 700;
+      text-align: center;
+    }
+    table.bank, table.parties, table.items, table.sign {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    table.bank td, table.bank th {
+      border: 1px solid #111;
+      padding: 4px 6px;
+      vertical-align: top;
+      font-size: 11px;
+    }
+    .bank-caption {
+      text-align: center;
+      font-size: 11px;
+      margin: 0 0 4px;
+      font-weight: 700;
+    }
+    .muted { color: #444; font-size: 10px; }
+    table.parties td {
+      border: 1px solid #111;
+      padding: 6px 8px;
+      vertical-align: top;
+      font-size: 11px;
+    }
+    table.parties .lbl {
+      width: 90px;
+      font-weight: 700;
+      white-space: nowrap;
+      background: #f7f7f7;
+    }
+    table.items th, table.items td {
+      border: 1px solid #111;
+      padding: 5px 6px;
+      font-size: 11px;
+      vertical-align: top;
+    }
+    table.items th {
+      background: #f3f3f3;
+      font-weight: 700;
+      text-align: center;
+    }
+    table.items tr.section td {
+      background: #f0f0f0;
+      font-weight: 700;
+      font-size: 11px;
+    }
+    table.items tr.section-total td {
+      background: #fafafa;
+      font-weight: 700;
+    }
+    .breakdown-title {
+      margin: 16px 0 6px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .num { text-align: right; white-space: nowrap; }
+    .center { text-align: center; }
+    .totals {
+      width: 320px;
+      margin-left: auto;
+      margin-top: 8px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .totals td { padding: 3px 0 3px 10px; }
+    .totals td:last-child { text-align: right; font-weight: 700; white-space: nowrap; }
+    .words {
+      margin-top: 10px;
+      font-size: 12px;
+    }
+    .words b { font-size: 12px; }
+    .comment {
+      margin-top: 12px;
+      white-space: pre-wrap;
+      font-size: 11px;
+      border-top: 1px solid #ccc;
+      padding-top: 8px;
+    }
+    table.sign {
+      margin-top: 28px;
+      font-size: 12px;
+    }
+    table.sign td {
+      padding: 10px 8px 0 0;
+      vertical-align: bottom;
+      width: 33%;
+    }
+    .sign-line {
+      border-bottom: 1px solid #111;
+      min-height: 28px;
+      margin-top: 18px;
+    }
+    .sign-hint { font-size: 10px; color: #555; margin-top: 2px; }
+    .no-print { margin: 12px 0 0; }
+    .btn {
+      display: inline-block;
+      padding: 8px 14px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      text-decoration: none;
+      color: #111;
+      font: 13px/1 Manrope, system-ui, sans-serif;
+      margin-right: 8px;
+      background: #f7f2ea;
+    }
+    .head-row {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .head-row .warn { flex: 1; margin-bottom: 0; }
+    .pay-qr {
+      flex: 0 0 118px;
+      width: 118px;
+      text-align: center;
+    }
+    .pay-qr #invoice-pay-qr {
+      width: 110px;
+      height: 110px;
+      margin: 0 auto;
+    }
+    .pay-qr #invoice-pay-qr img,
+    .pay-qr #invoice-pay-qr canvas,
+    .pay-qr #invoice-pay-qr table {
+      width: 110px !important;
+      height: 110px !important;
+    }
+    .pay-qr .qr-hint {
+      margin-top: 4px;
+      font-size: 9px;
+      line-height: 1.2;
+      color: #333;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      .sheet { padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="no-print">
+      <a class="btn" href="javascript:window.print()">Печать / PDF</a>
+      <a class="btn" href="/team-manager/billing/invoices/">← К реестру счетов</a>
+    </div>
+
+    <div class="head-row">
+      {% if payment_qr_payload %}
+      <div class="pay-qr">
+        <div id="invoice-pay-qr" aria-label="QR для оплаты"></div>
+        <div class="qr-hint">Отсканируйте QR‑код<br>в приложении банка<br>для оплаты счёта</div>
+      </div>
+      {% endif %}
+      <div class="warn">
+        <b>Внимание! Счет действителен до {{ valid_until_fmt }}.</b>
+        Оплата данного счета означает согласие с условиями оказания услуг.
+        Уведомление об оплате обязательно. Услуги оказываются / товар отпускается
+        по факту прихода денег на р/с Поставщика.
+      </div>
+    </div>
+
+    <div class="bank-caption">Образец заполнения платежного поручения</div>
+    <table class="bank">
+      <tr>
+        <td rowspan="2" style="width:58%">
+          {{ supplier.bank_name|default:"Банк получателя" }}
+          {% if supplier.bank_address %}<div class="muted">{{ supplier.bank_address }}</div>{% endif %}
+          <div class="muted" style="margin-top:18px">Банк получателя</div>
+        </td>
+        <td style="width:12%">БИК</td>
+        <td>{{ supplier.bank_bik|default:"—" }}</td>
+      </tr>
+      <tr>
+        <td>Сч. №</td>
+        <td>{{ supplier.correspondent_account|default:"—" }}</td>
+      </tr>
+      <tr>
+        <td>
+          ИНН {{ supplier.inn|default:"—" }}
+          &nbsp;&nbsp; КПП {{ supplier.kpp|default:"—" }}
+          <div style="margin-top:10px;font-weight:700">{{ supplier.name|default:"FULLBOX" }}</div>
+          <div class="muted">Получатель</div>
+        </td>
+        <td>Сч. №</td>
+        <td>{{ supplier.settlement_account|default:"—" }}</td>
+      </tr>
+      <tr>
+        <td colspan="3">
+          {{ payment_purpose }}
+          <div class="muted">Назначение платежа · код {{ purpose_code }}</div>
+        </td>
+      </tr>
+    </table>
+
+    <h1>{{ invoice_title }}</h1>
+
+    <table class="parties">
+      <tr>
+        <td class="lbl">Поставщик:</td>
+        <td>{{ supplier_block }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Покупатель:</td>
+        <td>{{ buyer_block }}</td>
+      </tr>
+    </table>
+
+    {% if is_grouped %}
+    <div class="breakdown-title">Расшифровка услуг по заявкам и актам</div>
+    {% endif %}
+    <table class="items" style="margin-top:{% if is_grouped %}0{% else %}12px{% endif %}">
+      <thead>
+        <tr>
+          <th style="width:36px">№</th>
+          <th>Товары (работы, услуги)</th>
+          <th style="width:70px">Кол-во</th>
+          <th style="width:40px">Ед.</th>
+          <th style="width:80px">Цена</th>
+          <th style="width:90px">Сумма</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for section in sections %}
+          {% if is_grouped or sections|length > 0 %}
+          <tr class="section">
+            <td colspan="6">
+              Заявка {{ section.application_label }}
+              · акт {{ section.act_number }} от {{ section.act_date_fmt }}
+            </td>
+          </tr>
+          {% endif %}
+          {% for line in section.lines %}
+          <tr>
+            <td class="center">{{ line.index }}</td>
+            <td>{{ line.name }}</td>
+            <td class="num">{{ line.qty }}</td>
+            <td class="center">{{ line.unit }}</td>
+            <td class="num">{{ line.price }}</td>
+            <td class="num">{{ line.sum }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="center">Нет строк в акте {{ section.act_number }}.</td>
+          </tr>
+          {% endfor %}
+          {% if is_grouped %}
+          <tr class="section-total">
+            <td colspan="5" class="num">Итого по заявке {{ section.application_id }}:</td>
+            <td class="num">{{ section.act_total_fmt }}</td>
+          </tr>
+          {% endif %}
+        {% empty %}
+        <tr>
+          <td colspan="6" class="center">Нет строк. Счёт создаётся по строкам подтверждённого акта.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <table class="totals">
+      <tr><td>Итого:</td><td>{{ total_fmt }}</td></tr>
+      {% if vat_rate and vat_rate != "0" %}
+      <tr><td>В т.ч. НДС ({{ vat_rate }}%):</td><td>{{ vat_fmt }}</td></tr>
+      <tr><td>Итого с НДС:</td><td>{{ total_fmt }}</td></tr>
+      {% else %}
+      <tr><td>Без НДС:</td><td>{{ total_fmt }}</td></tr>
+      {% endif %}
+    </table>
+
+    <div class="words">
+      Всего наименований {{ lines_count }}, на сумму <b>{{ total_fmt }} RUB</b><br>
+      <b>{{ total_words }}</b>
+    </div>
+
+    {% if comment %}
+    <div class="comment">{{ comment }}</div>
+    {% endif %}
+
+    <table class="sign">
+      <tr>
+        <td>
+          Генеральный директор
+          <div class="sign-line"></div>
+          <div class="sign-hint">подпись / {{ director_name }}</div>
+        </td>
+        <td>
+          Бухгалтер
+          <div class="sign-line"></div>
+          <div class="sign-hint">подпись / {{ accountant_name }}</div>
+        </td>
+        <td>
+          Менеджер
+          <div class="sign-line"></div>
+          <div class="sign-hint">подпись / расшифровка</div>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  {% if payment_qr_payload %}
+  {{ payment_qr_payload|json_script:"payment-qr-payload" }}
+  <script src="/static/vendor/qrcode.min.js"></script>
+  <script>
+    (function () {
+      var host = document.getElementById("invoice-pay-qr");
+      var payloadNode = document.getElementById("payment-qr-payload");
+      if (!host || !payloadNode || typeof QRCode === "undefined") return;
+      var text = "";
+      try { text = JSON.parse(payloadNode.textContent || '""'); } catch (e) { return; }
+      if (!text) return;
+      new QRCode(host, {
+        text: text,
+        width: 110,
+        height: 110,
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    })();
+  </script>
+  {% endif %}
+</body>
+</html>

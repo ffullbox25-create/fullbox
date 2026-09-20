@@ -1,0 +1,1161 @@
+"""Head manager UI views and marketplace helper logic."""
+
+import json
+import re
+from pathlib import Path
+from typing import Iterable
+
+import requests
+from django.db import transaction
+from django.db.models import Q
+
+from django.conf import settings
+from django.contrib import messages
+from django.http import JsonResponse
+from django.shortcuts import redirect
+from django.utils import timezone
+from django.views import View
+from django.views.generic import CreateView, ListView, TemplateView, UpdateView
+
+from employees.access import RoleRequiredMixin
+from sklad.models import WarehouseContainer, WarehouseLocation, WarehouseStockSnapshot
+from sklad.services.warehouse_stock_rows import normalize_stock_row_from_snapshot
+from sklad.ui_services import _journal_edit_lock_reason
+from sku.models import Agency, Market, MarketCredential
+
+from .forms import CarrierForm, OwnCompanyForm
+from .models import Carrier, OwnCompany
+from .services import (
+    build_marketplace_warehouses_context,
+    build_reference_form_context,
+    build_reference_list_context,
+    save_marketplace_warehouses_response,
+    sync_marketplace_warehouses_response,
+)
+
+
+class HeadManagerDashboard(RoleRequiredMixin, TemplateView):
+    template_name = 'head_manager/dashboard.html'
+    allowed_roles = ("head_manager",)
+
+
+class HeadManagerStockEditorView(RoleRequiredMixin, TemplateView):
+    allowed_roles = ("head_manager",)
+    _OS_ROW_SECTIONS = {
+        1: 9,
+        2: 9,
+        3: 9,
+        4: 9,
+        5: 9,
+        6: 8,
+        7: 6,
+        8: 6,
+        9: 6,
+        10: 6,
+    }
+    _OS_TIERS = 4
+    _OS_CELLS_PER_TIER = 3
+    _OS_TIER_OVERRIDES = {
+        (4, 9): 5,
+        (5, 9): 5,
+    }
+    _OS_PASSAGE_POSITIONS = {
+        (4, section_number, tier_number)
+        for section_number in range(1, 7)
+        for tier_number in (1, 2)
+    }
+
+    def get(self, request, *args, **kwargs):
+        from django.shortcuts import render
+        from sklad.ui_services import build_inventory_journal_page
+
+        page = build_inventory_journal_page(request=request)
+        return render(request, "head_manager/stock_editor.html", page["context"])
+
+    def post(self, request, *args, **kwargs):
+        try:
+            payload = json.loads(request.body.decode("utf-8"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return JsonResponse({"ok": False, "message": "Не удалось прочитать данные редактирования."}, status=400)
+
+        snapshot_id = int(payload.get("snapshot_id") or 0)
+        field_name = str(payload.get("field") or "").strip()
+        apply_mode = str(payload.get("apply_mode") or "single").strip().lower()
+        raw_value = payload.get("value")
+
+        if not snapshot_id or field_name not in {"pallet_code", "box_code", "qty", "location", "box_metrics"}:
+            return JsonResponse({"ok": False, "message": "Переданы неполные данные для редактирования."}, status=400)
+        if field_name == "box_metrics" and apply_mode not in {"single", "analog"}:
+            return JsonResponse({"ok": False, "message": "РџРµСЂРµРґР°РЅС‹ РЅРµРїРѕР»РЅС‹Рµ РґР°РЅРЅС‹Рµ РґР»СЏ СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ."}, status=400)
+
+        try:
+            snapshot = WarehouseStockSnapshot.objects.select_related(
+                "container",
+                "parent_container",
+                "location",
+            ).get(pk=snapshot_id)
+        except WarehouseStockSnapshot.DoesNotExist:
+            return JsonResponse({"ok": False, "message": "Строка складских остатков не найдена."}, status=404)
+
+        lock_reason = self._get_snapshot_edit_lock_reason(snapshot)
+        if lock_reason:
+            return JsonResponse({"ok": False, "message": lock_reason}, status=409)
+
+        try:
+            updated_snapshot_ids = [snapshot.pk]
+            with transaction.atomic():
+                if field_name == "pallet_code":
+                    self._update_snapshot_pallet(snapshot, raw_value)
+                elif field_name == "box_code":
+                    self._update_snapshot_box(snapshot, raw_value)
+                elif field_name == "qty":
+                    self._update_snapshot_qty(snapshot, raw_value)
+                elif field_name == "box_metrics":
+                    updated_snapshot_ids = self._update_snapshot_box_metrics(snapshot, raw_value, apply_mode=apply_mode)
+                else:
+                    self._update_snapshot_location(snapshot, raw_value)
+        except ValueError as exc:
+            return JsonResponse({"ok": False, "message": str(exc)}, status=400)
+
+        refreshed_snapshots = list(
+            WarehouseStockSnapshot.objects.select_related(
+                "container",
+                "parent_container",
+                "location",
+            ).filter(pk__in=updated_snapshot_ids).order_by("id")
+        )
+        if not refreshed_snapshots:
+            return JsonResponse({"ok": False, "message": "Не удалось обновить строку."}, status=500)
+        rows_payload = [self._serialize_editor_row(item) for item in refreshed_snapshots]
+        return JsonResponse(
+            {
+                "ok": True,
+                "message": "Изменения сохранены.",
+                "row": rows_payload[0],
+                "rows": rows_payload,
+            }
+        )
+
+    def _get_snapshot_edit_lock_reason(self, snapshot: WarehouseStockSnapshot) -> str:
+        row = normalize_stock_row_from_snapshot(snapshot)
+        return _journal_edit_lock_reason(row)
+
+    def _serialize_editor_row(self, snapshot: WarehouseStockSnapshot):
+        row = normalize_stock_row_from_snapshot(snapshot)
+        return {
+            "snapshot_id": int(row.get("id") or 0),
+            "container_id": int(row.get("container_id") or 0),
+            "parent_container_id": int(row.get("parent_container_id") or 0),
+            "pallet_code": row.get("pallet_code") or "-",
+            "box_code": row.get("box_code") or "-",
+            "qty": row.get("qty") or 0,
+            "available_qty": row.get("available_qty") or 0,
+            "location": row.get("location") or "",
+            "location_short": row.get("location_short") or "",
+            "box_size": row.get("box_size") or "",
+            "box_weight": row.get("box_weight") or "",
+            "edit_lock_reason": self._get_snapshot_edit_lock_reason(snapshot),
+        }
+
+    def _normalize_box_metrics_payload(self, raw_value):
+        if not isinstance(raw_value, dict):
+            raise ValueError("Переданы неполные данные ОВХ.")
+
+        normalized = {}
+        field_map = {
+            "gross_weight_g": "Вес",
+            "width_mm": "Ширина",
+            "height_mm": "Высота",
+            "depth_mm": "Глубина",
+        }
+        for field_name, field_label in field_map.items():
+            value = str(raw_value.get(field_name) or "").strip()
+            if not value:
+                raise ValueError(f"Поле «{field_label}» обязательно.")
+            try:
+                parsed_value = int(value)
+            except (TypeError, ValueError):
+                raise ValueError(f"Поле «{field_label}» должно быть числом.")
+            if parsed_value <= 0:
+                raise ValueError(f"Поле «{field_label}» должно быть больше нуля.")
+            normalized[field_name] = parsed_value
+        return normalized
+
+    def _build_box_signature(self, snapshot_rows):
+        signature = []
+        for item in snapshot_rows:
+            signature.append(
+                (
+                    str(item.sku_code or "").strip(),
+                    str(item.name or "").strip(),
+                    str(item.barcode or "").strip(),
+                    str(item.goods_type or "").strip(),
+                    int(item.qty or 0),
+                )
+            )
+        signature.sort()
+        return tuple(signature)
+
+    def _find_analog_box_container_ids(self, snapshot: WarehouseStockSnapshot):
+        container_id = int(snapshot.container_id or 0)
+        parent_container_id = int(snapshot.parent_container_id or 0)
+        if not container_id:
+            return []
+        if not parent_container_id:
+            return [container_id]
+
+        candidate_rows = (
+            WarehouseStockSnapshot.objects.filter(
+                agency=snapshot.agency,
+                is_archived=False,
+                parent_container_id=parent_container_id,
+                container_id__isnull=False,
+            )
+            .exclude(container_id=0)
+            .order_by("container_id", "id")
+        )
+        grouped_rows = {}
+        for item in candidate_rows:
+            current_container_id = int(item.container_id or 0)
+            grouped_rows.setdefault(current_container_id, []).append(item)
+
+        target_signature = self._build_box_signature(grouped_rows.get(container_id, []))
+        if not target_signature:
+            return [container_id]
+
+        matched_ids = []
+        for current_container_id, rows in grouped_rows.items():
+            if self._build_box_signature(rows) == target_signature:
+                matched_ids.append(current_container_id)
+        return matched_ids or [container_id]
+
+    def _update_snapshot_box_metrics(self, snapshot: WarehouseStockSnapshot, raw_value, apply_mode: str = "single"):
+        container_id = int(snapshot.container_id or 0)
+        if not container_id:
+            raise ValueError("Для этой строки не найден короб.")
+
+        box_metrics = self._normalize_box_metrics_payload(raw_value)
+        target_container_ids = [container_id]
+        if apply_mode == "analog":
+            target_container_ids = self._find_analog_box_container_ids(snapshot)
+
+        containers = list(
+            WarehouseContainer.objects.filter(
+                agency=snapshot.agency,
+                id__in=target_container_ids,
+                container_type=WarehouseContainer.TYPE_BOX,
+            )
+        )
+        if not containers:
+            raise ValueError("Не удалось найти короб для сохранения ОВХ.")
+
+        now = timezone.now()
+        for container in containers:
+            container.gross_weight_g = box_metrics["gross_weight_g"]
+            container.width_mm = box_metrics["width_mm"]
+            container.height_mm = box_metrics["height_mm"]
+            container.depth_mm = box_metrics["depth_mm"]
+            container.updated_at = now
+        WarehouseContainer.objects.bulk_update(
+            containers,
+            ["gross_weight_g", "width_mm", "height_mm", "depth_mm", "updated_at"],
+        )
+
+        return list(
+            WarehouseStockSnapshot.objects.filter(
+                agency=snapshot.agency,
+                is_archived=False,
+                container_id__in=[container.id for container in containers],
+            ).values_list("id", flat=True)
+        )
+
+    def _is_valid_os_editor_cell(self, row_no: int, section_no: int, tier_no: int, cell_no: int) -> bool:
+        row_no = int(row_no or 0)
+        section_no = int(section_no or 0)
+        tier_no = int(tier_no or 0)
+        cell_no = int(cell_no or 0)
+        sections_total = int(self._OS_ROW_SECTIONS.get(row_no) or 0)
+        if row_no <= 0 or section_no <= 0 or tier_no <= 0 or cell_no <= 0:
+            return False
+        if section_no > sections_total:
+            return False
+        if cell_no > self._OS_CELLS_PER_TIER:
+            return False
+        max_tiers = int(self._OS_TIER_OVERRIDES.get((row_no, section_no)) or self._OS_TIERS)
+        if tier_no > max_tiers:
+            return False
+        return (row_no, section_no, tier_no) not in self._OS_PASSAGE_POSITIONS
+
+    def _resolve_editor_location(self, snapshot: WarehouseStockSnapshot, raw_value: str) -> WarehouseLocation | None:
+        value = str(raw_value or "").strip()
+        if not value:
+            return None
+        location = WarehouseLocation.objects.filter(
+            Q(display_name__iexact=value)
+            | Q(location_code__iexact=value)
+            | Q(zone_code__iexact=value)
+        ).first()
+        if location:
+            return location
+
+        normalized = re.sub(r"\s+", "", value.upper().replace("\u00b7", "-"))
+        normalized = re.sub(r"^OS[-:]*", "", normalized)
+        match = re.match(r"^(?P<section>[0A-ZА-Я])-(?P<row>\d+)/(?P<tier>\d+)-(?P<cell>\d+)$", normalized)
+        if not match:
+            return None
+
+        section_map = {
+            "0": 1,
+            "A": 2,
+            "А": 2,
+            "B": 3,
+            "В": 3,
+            "C": 4,
+            "С": 4,
+            "D": 5,
+            "Д": 5,
+            "E": 6,
+            "Е": 6,
+            "F": 7,
+            "Ф": 7,
+            "G": 8,
+            "Г": 8,
+            "I": 9,
+            "И": 9,
+        }
+        section_no = section_map.get(match.group("section"))
+        if not section_no:
+            return None
+        row_no = int(match.group("row") or 0)
+        tier_no = int(match.group("tier") or 0)
+        cell_no = int(match.group("cell") or 0)
+        warehouse_code = str(getattr(snapshot.location, "warehouse_code", "") or "MSK").strip() or "MSK"
+
+        location = WarehouseLocation.objects.filter(
+            warehouse_code=warehouse_code,
+            zone_code="OS",
+            row_no=row_no,
+            section_no=section_no,
+            tier_no=tier_no,
+            cell_no=cell_no,
+        ).first()
+        if location:
+            return location
+        if not self._is_valid_os_editor_cell(row_no, section_no, tier_no, cell_no):
+            return None
+        short_code = f"{match.group('section').upper()}-{row_no}/{tier_no}-{cell_no}"
+        location, _ = WarehouseLocation.objects.get_or_create(
+            warehouse_code=warehouse_code,
+            zone_code="OS",
+            row_no=row_no,
+            section_no=section_no,
+            tier_no=tier_no,
+            cell_no=cell_no,
+            defaults={
+                "zone_kind": WarehouseLocation.ZONE_KIND_STORAGE,
+                "location_code": short_code,
+                "display_name": f"OS · {short_code}",
+                "is_active": True,
+                "is_pickable": True,
+                "is_storage": True,
+            },
+        )
+        return location
+
+    def _update_snapshot_pallet(self, snapshot: WarehouseStockSnapshot, raw_value) -> None:
+        value = str(raw_value or "").strip()
+        if not value:
+            raise ValueError("Укажите номер паллеты.")
+        pallet = snapshot.parent_container
+        if not pallet and snapshot.container and snapshot.container.container_type in {
+            WarehouseContainer.TYPE_PALLET,
+            WarehouseContainer.TYPE_MIXED_PALLET,
+        }:
+            pallet = snapshot.container
+        if not pallet:
+            raise ValueError("Для этой строки паллета не найдена.")
+        pallet.container_code = value
+        pallet.save(update_fields=["container_code", "updated_at"])
+
+    def _update_snapshot_box(self, snapshot: WarehouseStockSnapshot, raw_value) -> None:
+        value = str(raw_value or "").strip()
+        if not value:
+            raise ValueError("Укажите номер короба.")
+        if not snapshot.container_id:
+            raise ValueError("Для этой строки короб не найден.")
+        snapshot.container.container_code = value
+        snapshot.container.save(update_fields=["container_code", "updated_at"])
+
+    def _update_snapshot_qty(self, snapshot: WarehouseStockSnapshot, raw_value) -> None:
+        value_text = str(raw_value or "").strip()
+        if not value_text:
+            raise ValueError("Укажите количество в коробе.")
+        try:
+            value = int(value_text)
+        except (TypeError, ValueError):
+            raise ValueError("Количество в коробе должно быть целым числом.")
+        if value < 0:
+            raise ValueError("Количество в коробе не может быть отрицательным.")
+        snapshot.qty = value
+        snapshot.save(update_fields=["qty", "updated_at"])
+
+    def _update_snapshot_location(self, snapshot: WarehouseStockSnapshot, raw_value) -> None:
+        value = str(raw_value or "").strip()
+        if not value:
+            raise ValueError("Укажите место хранения.")
+        location = WarehouseLocation.objects.filter(
+            Q(display_name__iexact=value)
+            | Q(location_code__iexact=value)
+            | Q(zone_code__iexact=value)
+        ).first()
+        if not location:
+            raise ValueError("Место хранения не найдено.")
+        snapshot.location = location
+        snapshot.save(update_fields=["location", "updated_at"])
+        if snapshot.container_id:
+            snapshot.container.current_location = location
+            snapshot.container.save(update_fields=["current_location", "updated_at"])
+        if snapshot.parent_container_id:
+            snapshot.parent_container.current_location = location
+            snapshot.parent_container.save(update_fields=["current_location", "updated_at"])
+
+    def _update_snapshot_pallet(self, snapshot: WarehouseStockSnapshot, raw_value) -> None:
+        value = str(raw_value or "").strip()
+        if not value:
+            raise ValueError("\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u043d\u043e\u043c\u0435\u0440 \u043f\u0430\u043b\u043b\u0435\u0442\u044b.")
+        if not snapshot.container_id:
+            raise ValueError("\u0414\u043b\u044f \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u043e\u043a\u0438 \u043a\u043e\u0440\u043e\u0431 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d.")
+
+        pallet = (
+            WarehouseContainer.objects
+            .select_related("current_location")
+            .filter(
+                agency=snapshot.agency,
+                container_code__iexact=value,
+                container_type__in=[
+                    WarehouseContainer.TYPE_PALLET,
+                    WarehouseContainer.TYPE_MIXED_PALLET,
+                ],
+                status=WarehouseContainer.STATUS_ACTIVE,
+            )
+            .first()
+        )
+        if not pallet:
+            raise ValueError("\u041f\u0430\u043b\u043b\u0435\u0442\u0430 \u0441 \u0442\u0430\u043a\u0438\u043c \u043d\u043e\u043c\u0435\u0440\u043e\u043c \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u0430.")
+        if not pallet.current_location_id:
+            raise ValueError("\u0423 \u044d\u0442\u043e\u0439 \u043f\u0430\u043b\u043b\u0435\u0442\u044b \u043d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d\u043e \u043c\u0435\u0441\u0442\u043e \u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f.")
+
+        box = snapshot.container
+        box.parent_container = pallet
+        box.current_location = pallet.current_location
+        box.save(update_fields=["parent_container", "current_location", "updated_at"])
+
+        WarehouseStockSnapshot.objects.filter(
+            agency=snapshot.agency,
+            container=box,
+            is_archived=False,
+        ).update(
+            parent_container=pallet,
+            location=pallet.current_location,
+            zone_code=pallet.current_location.zone_code,
+            zone_kind=pallet.current_location.zone_kind,
+            updated_at=timezone.now(),
+        )
+
+    def _update_snapshot_box(self, snapshot: WarehouseStockSnapshot, raw_value) -> None:
+        value = str(raw_value or "").strip()
+        if not value:
+            raise ValueError("\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u043d\u043e\u043c\u0435\u0440 \u043a\u043e\u0440\u043e\u0431\u0430.")
+        if not snapshot.container_id:
+            raise ValueError("\u0414\u043b\u044f \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u043e\u043a\u0438 \u043a\u043e\u0440\u043e\u0431 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d.")
+        snapshot.container.container_code = value
+        snapshot.container.save(update_fields=["container_code", "updated_at"])
+        WarehouseStockSnapshot.objects.filter(
+            agency=snapshot.agency,
+            container=snapshot.container,
+            is_archived=False,
+        ).update(container_code=value, updated_at=timezone.now())
+
+    def _update_snapshot_location(self, snapshot: WarehouseStockSnapshot, raw_value) -> None:
+        value = str(raw_value or "").strip()
+        if not value:
+            raise ValueError("\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u043c\u0435\u0441\u0442\u043e \u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f.")
+        location = self._resolve_editor_location(snapshot, value)
+        if not location:
+            raise ValueError("\u042f\u0447\u0435\u0439\u043a\u0430 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u0430 \u0432 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a\u0435 \u043c\u0435\u0441\u0442.")
+        if snapshot.container_id:
+            container = snapshot.container
+            now = timezone.now()
+            target_pallets = WarehouseContainer.objects.filter(
+                current_location=location,
+                container_type__in=[
+                    WarehouseContainer.TYPE_PALLET,
+                    WarehouseContainer.TYPE_MIXED_PALLET,
+                ],
+                status=WarehouseContainer.STATUS_ACTIVE,
+            )
+            if target_pallets.exclude(agency=snapshot.agency).exists():
+                raise ValueError("\u041d\u0430 \u044d\u0442\u043e\u043c \u043c\u0435\u0441\u0442\u0435 \u0443\u0436\u0435 \u0441\u0442\u043e\u0438\u0442 \u043f\u0430\u043b\u043b\u0435\u0442\u0430 \u0434\u0440\u0443\u0433\u043e\u0433\u043e \u043a\u043b\u0438\u0435\u043d\u0442\u0430.")
+
+            same_agency_pallets = target_pallets.filter(agency=snapshot.agency).order_by("id")
+            same_agency_count = same_agency_pallets.count()
+            if same_agency_count > 1:
+                raise ValueError("\u041d\u0430 \u044d\u0442\u043e\u043c \u043c\u0435\u0441\u0442\u0435 \u043d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u043f\u0430\u043b\u043b\u0435\u0442. \u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u0443\u0442\u043e\u0447\u043d\u0438\u0442\u0435, \u0432 \u043a\u0430\u043a\u0443\u044e \u043f\u0430\u043b\u043b\u0435\u0442\u0443 \u043f\u0435\u0440\u0435\u043d\u0435\u0441\u0442\u0438 \u043a\u043e\u0440\u043e\u0431.")
+            target_pallet = same_agency_pallets.first()
+
+            if container.container_type == WarehouseContainer.TYPE_BOX and target_pallet:
+                container.parent_container = target_pallet
+                container.current_location = location
+                container.save(update_fields=["parent_container", "current_location", "updated_at"])
+                WarehouseStockSnapshot.objects.filter(
+                    agency=snapshot.agency,
+                    container=container,
+                    is_archived=False,
+                ).update(
+                    parent_container=target_pallet,
+                    location=location,
+                    zone_code=location.zone_code,
+                    zone_kind=location.zone_kind,
+                    updated_at=now,
+                )
+                return
+
+            if container.container_type == WarehouseContainer.TYPE_BOX and snapshot.parent_container_id:
+                pallet = snapshot.parent_container
+                pallet.current_location = location
+                pallet.save(update_fields=["current_location", "updated_at"])
+                WarehouseContainer.objects.filter(
+                    agency=snapshot.agency,
+                    parent_container=pallet,
+                    status=WarehouseContainer.STATUS_ACTIVE,
+                ).update(current_location=location, updated_at=now)
+                WarehouseStockSnapshot.objects.filter(
+                    agency=snapshot.agency,
+                    is_archived=False,
+                ).filter(
+                    Q(parent_container=pallet) | Q(container=pallet)
+                ).update(
+                    location=location,
+                    zone_code=location.zone_code,
+                    zone_kind=location.zone_kind,
+                    updated_at=now,
+                )
+                return
+
+            container.current_location = location
+            container.save(update_fields=["current_location", "updated_at"])
+            WarehouseStockSnapshot.objects.filter(
+                agency=snapshot.agency,
+                container=container,
+                is_archived=False,
+            ).update(
+                location=location,
+                zone_code=location.zone_code,
+                zone_kind=location.zone_kind,
+                updated_at=now,
+            )
+        else:
+            snapshot.location = location
+            snapshot.zone_code = location.zone_code
+            snapshot.zone_kind = location.zone_kind
+            snapshot.save(update_fields=["location", "zone_code", "zone_kind", "updated_at"])
+
+    def _update_snapshot_qty(self, snapshot: WarehouseStockSnapshot, raw_value) -> None:
+        value_text = str(raw_value or "").strip()
+        if not value_text:
+            raise ValueError("\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u043a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0432 \u043a\u043e\u0440\u043e\u0431\u0435.")
+        try:
+            value = int(value_text)
+        except (TypeError, ValueError):
+            raise ValueError("\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0432 \u043a\u043e\u0440\u043e\u0431\u0435 \u0434\u043e\u043b\u0436\u043d\u043e \u0431\u044b\u0442\u044c \u0446\u0435\u043b\u044b\u043c \u0447\u0438\u0441\u043b\u043e\u043c.")
+        if value < 0:
+            raise ValueError("\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0432 \u043a\u043e\u0440\u043e\u0431\u0435 \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u043e\u0442\u0440\u0438\u0446\u0430\u0442\u0435\u043b\u044c\u043d\u044b\u043c.")
+        snapshot.qty = value
+        snapshot.available_qty = value
+        snapshot.save(update_fields=["qty", "available_qty", "updated_at"])
+
+
+class HeadManagerReferenceMixin(RoleRequiredMixin):
+    allowed_roles = ("head_manager",)
+    success_url = "/head-manager/"
+
+    def get_success_url(self):
+        return self.success_url
+
+
+class OwnCompanyListView(HeadManagerReferenceMixin, ListView):
+    template_name = "head_manager/reference_list.html"
+    context_object_name = "items"
+    model = OwnCompany
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update(build_reference_list_context(
+            title="Наши компании",
+            subtitle="Юрлица и ИП FullBox для документов, отгрузок и транспортных накладных.",
+            create_url="/head-manager/own-companies/new/",
+            edit_base_url="/head-manager/own-companies",
+            back_url="/head-manager/",
+            type_label="компания",
+            directory_mode="own_companies",
+        ))
+        return ctx
+
+
+class OwnCompanyCreateView(HeadManagerReferenceMixin, CreateView):
+    template_name = "head_manager/reference_form.html"
+    form_class = OwnCompanyForm
+    model = OwnCompany
+    success_url = "/head-manager/own-companies/"
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, "Компания сохранена.")
+        return response
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update(build_reference_form_context(
+            title="Новая компания",
+            subtitle="Заполни реквизиты своей компании для документов и ТН.",
+            back_url="/head-manager/own-companies/",
+            submit_label="Сохранить компанию",
+        ))
+        return ctx
+
+
+class OwnCompanyUpdateView(HeadManagerReferenceMixin, UpdateView):
+    template_name = "head_manager/reference_form.html"
+    form_class = OwnCompanyForm
+    model = OwnCompany
+    success_url = "/head-manager/own-companies/"
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, "Компания обновлена.")
+        return response
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update(build_reference_form_context(
+            title="Редактирование компании",
+            subtitle="Исправь реквизиты своей компании.",
+            back_url="/head-manager/own-companies/",
+            submit_label="Сохранить изменения",
+        ))
+        return ctx
+
+
+class CarrierListView(HeadManagerReferenceMixin, ListView):
+    template_name = "head_manager/reference_list.html"
+    context_object_name = "items"
+    model = Carrier
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update(build_reference_list_context(
+            title="Перевозчики",
+            subtitle="Справочник транспортных компаний и внешних перевозчиков.",
+            create_url="/head-manager/carriers/new/",
+            edit_base_url="/head-manager/carriers",
+            back_url="/head-manager/",
+            type_label="перевозчик",
+            directory_mode="carriers",
+        ))
+        return ctx
+
+
+class CarrierCreateView(HeadManagerReferenceMixin, CreateView):
+    template_name = "head_manager/reference_form.html"
+    form_class = CarrierForm
+    model = Carrier
+    success_url = "/head-manager/carriers/"
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, "Перевозчик сохранен.")
+        return response
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update(build_reference_form_context(
+            title="Новый перевозчик",
+            subtitle="Заполни карточку транспортной компании или ИП.",
+            back_url="/head-manager/carriers/",
+            submit_label="Сохранить перевозчика",
+        ))
+        return ctx
+
+
+class CarrierUpdateView(HeadManagerReferenceMixin, UpdateView):
+    template_name = "head_manager/reference_form.html"
+    form_class = CarrierForm
+    model = Carrier
+    success_url = "/head-manager/carriers/"
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, "Перевозчик обновлен.")
+        return response
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update(build_reference_form_context(
+            title="Редактирование перевозчика",
+            subtitle="Исправь реквизиты перевозчика.",
+            back_url="/head-manager/carriers/",
+            submit_label="Сохранить изменения",
+        ))
+        return ctx
+
+
+def _marketplace_warehouses_path() -> Path:
+    return settings.BASE_DIR.parent / "marketplace_warehouses.json"
+
+
+def _normalize_lines(values: Iterable) -> list[str]:
+    lines = []
+    for value in values:
+        text = str(value).strip()
+        if text:
+            lines.append(text)
+    return list(dict.fromkeys(lines))
+
+
+def _guess_marketplace_warehouse_type(name: str, address: str = "") -> str:
+    haystack = f"{name} {address}".lower()
+    if any(token in haystack for token in ("транзит", "ппп", "рцпп", "гольёво")):
+        return "Транзитный"
+    if any(token in haystack for token in ("сц", "сортиров")):
+        return "Сортировочный"
+    if any(token in haystack for token in ("рфц", "ффц", "фулфил", "фулфилл")):
+        return "Фулфилмент"
+    return "Обычный"
+
+
+def _warehouse_row_from_legacy_line(value) -> dict | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    name = text
+    address = ""
+    for separator in (" — ", " - ", " – "):
+        if separator in text:
+            left, right = text.split(separator, 1)
+            if left.strip() and right.strip():
+                name = left.strip()
+                address = right.strip()
+                break
+    return {
+        "type": _guess_marketplace_warehouse_type(name, address),
+        "name": name,
+        "address": address,
+    }
+
+
+def _normalize_marketplace_warehouse_rows(values) -> list[dict]:
+    if isinstance(values, str):
+        values = [values]
+    if not isinstance(values, list):
+        return []
+    rows: list[dict] = []
+    seen: set[tuple[str, str, str]] = set()
+    for value in values:
+        if isinstance(value, dict):
+            row_type = str(value.get("type") or "").strip() or _guess_marketplace_warehouse_type(
+                str(value.get("name") or ""),
+                str(value.get("address") or ""),
+            )
+            name = str(value.get("name") or "").strip()
+            address = str(value.get("address") or "").strip()
+            if not name and not address:
+                continue
+            row = {"type": row_type, "name": name, "address": address}
+        else:
+            row = _warehouse_row_from_legacy_line(value)
+            if row is None:
+                continue
+        dedupe_key = (row["type"].lower(), row["name"].lower(), row["address"].lower())
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        rows.append(row)
+    return rows
+
+
+def _warehouse_display_line(row: dict) -> str:
+    warehouse_type = str(row.get("type") or "").strip()
+    name = str(row.get("name") or "").strip()
+    address = str(row.get("address") or "").strip()
+    left = " · ".join(part for part in (warehouse_type, name) if part)
+    if left and address:
+        return f"{left} — {address}"
+    return left or address
+
+
+def _load_marketplace_warehouses() -> dict:
+    base = {"wb": [], "ozon": [], "yandex": [], "sber": []}
+    path = _marketplace_warehouses_path()
+    if not path.exists():
+        return base
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return base
+    if not isinstance(data, dict):
+        return base
+    for key in base:
+        values = data.get(key) or []
+        base[key] = _normalize_marketplace_warehouse_rows(values)
+    return base
+
+
+def _save_marketplace_warehouses(data: dict, user: str = "", meta: dict | None = None) -> None:
+    payload = {
+        "wb": _normalize_marketplace_warehouse_rows(data.get("wb", [])),
+        "ozon": _normalize_marketplace_warehouse_rows(data.get("ozon", [])),
+        "yandex": _normalize_marketplace_warehouse_rows(data.get("yandex", [])),
+        "sber": _normalize_marketplace_warehouse_rows(data.get("sber", [])),
+        "meta": {
+            "updated_at": timezone.localtime().isoformat(),
+            "updated_by": user,
+        },
+    }
+    if meta:
+        payload["meta"].update(meta)
+    path = _marketplace_warehouses_path()
+    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
+
+
+def _extract_value(item: dict, keys: Iterable[str]) -> str:
+    for key in keys:
+        value = item.get(key)
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            return text
+    return ""
+
+
+def _format_address_line(item: dict, name_keys: Iterable[str], address_keys: Iterable[str], city_keys: Iterable[str]):
+    name = _extract_value(item, name_keys)
+    address = _extract_value(item, address_keys)
+    city = _extract_value(item, city_keys)
+    address_parts = []
+    if city and city.lower() not in address.lower():
+        address_parts.append(city)
+    if address:
+        address_parts.append(address)
+    address_text = ", ".join(address_parts).strip()
+    return {
+        "type": _guess_marketplace_warehouse_type(name, address_text),
+        "name": name,
+        "address": address_text,
+    }
+
+
+def _parse_items_payload(data) -> list[dict] | None:
+    if isinstance(data, list):
+        return data
+    if not isinstance(data, dict):
+        return None
+    for key in ("result", "warehouses", "data"):
+        value = data.get(key)
+        if isinstance(value, list):
+            return value
+        if isinstance(value, dict):
+            for nested_key in ("warehouses", "data", "result", "items"):
+                nested_value = value.get(nested_key)
+                if isinstance(nested_value, list):
+                    return nested_value
+    return None
+
+
+def _fetch_wb_warehouses(token: str) -> tuple[list[dict], str | None]:
+    endpoints = ["https://marketplace-api.wildberries.ru/api/v3/warehouses"]
+    errors = []
+    for url in endpoints:
+        try:
+            response = requests.get(url, headers={"Authorization": token}, timeout=20)
+        except requests.RequestException as exc:
+            errors.append(f"WB API недоступен ({url}): {exc}")
+            continue
+        if response.status_code != 200:
+            detail = ""
+            try:
+                payload = response.json()
+                detail = (payload.get("detail") or payload.get("title") or "").strip()
+            except ValueError:
+                detail = ""
+            extra = f": {detail}" if detail else ""
+            errors.append(f"WB API ошибка {response.status_code} ({url}){extra}")
+            continue
+        try:
+            data = response.json()
+        except ValueError:
+            errors.append(f"WB API вернул некорректный JSON ({url}).")
+            continue
+        items = _parse_items_payload(data)
+        if items is None:
+            errors.append(f"WB API не вернул список складов ({url}).")
+            continue
+        if not items:
+            errors.append("WB: список складов пуст.")
+            continue
+        rows = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            row = _format_address_line(
+                item,
+                name_keys=("name", "warehouseName", "officeName", "warehouse", "title"),
+                address_keys=("address", "warehouseAddress", "officeAddress", "addr", "addressFull"),
+                city_keys=("city", "town", "region"),
+            )
+            if row:
+                rows.append(row)
+        return _normalize_marketplace_warehouse_rows(rows), None
+    if errors:
+        return [], errors[0]
+    return [], "WB API не отвечает."
+
+
+def _normalize_ozon_client_id(value: str) -> str:
+    text = (value or "").strip()
+    if not text:
+        return ""
+    if text.isdigit():
+        return text
+    match = re.fullmatch(r"(\d+)(?:\.0+)?", text)
+    return match.group(1) if match else text
+
+
+def _ozon_headers(client_id: str, api_key: str) -> dict:
+    return {
+        "Client-Id": client_id,
+        "Api-Key": api_key,
+        "Content-Type": "application/json",
+    }
+
+
+def _ozon_post(path: str, client_id: str, api_key: str, payload: dict, timeout: int = 30):
+    url = f"https://api-seller.ozon.ru{path}"
+    try:
+        response = requests.post(
+            url,
+            headers=_ozon_headers(client_id, api_key),
+            json=payload,
+            timeout=timeout,
+        )
+    except requests.RequestException as exc:
+        return None, f"Ozon API недоступен: {exc}"
+    if response.status_code != 200:
+        snippet = (response.text or "").strip()
+        if len(snippet) > 200:
+            snippet = f"{snippet[:200]}..."
+        detail = f": {snippet}" if snippet else ""
+        return None, f"Ozon API ошибка {response.status_code}{detail}"
+    try:
+        data = response.json()
+    except ValueError:
+        return None, "Ozon API вернул некорректный JSON."
+    return data, None
+
+
+def _parse_ozon_clusters(data) -> list[dict] | None:
+    if not isinstance(data, dict):
+        return None
+    clusters = data.get("clusters")
+    if not isinstance(clusters, list):
+        return None
+    items = []
+    for cluster in clusters:
+        if not isinstance(cluster, dict):
+            continue
+        cluster_name = str(cluster.get("name") or "").strip()
+        logistic_clusters = cluster.get("logistic_clusters") or []
+        if not isinstance(logistic_clusters, list):
+            continue
+        for log_cluster in logistic_clusters:
+            if not isinstance(log_cluster, dict):
+                continue
+            warehouses = log_cluster.get("warehouses") or []
+            if not isinstance(warehouses, list):
+                continue
+            for warehouse in warehouses:
+                if not isinstance(warehouse, dict):
+                    continue
+                item = dict(warehouse)
+                if cluster_name:
+                    item["cluster_name"] = cluster_name
+                items.append(item)
+    return items
+
+
+def _fetch_ozon_clusters(client_id: str, api_key: str) -> tuple[list[dict], str | None]:
+    rows = []
+    errors = []
+    for cluster_type in (1, 2):
+        data, error = _ozon_post(
+            "/v1/cluster/list",
+            client_id,
+            api_key,
+            {"limit": 200, "offset": 0, "cluster_type": cluster_type},
+        )
+        if error:
+            errors.append(error)
+            continue
+        items = _parse_ozon_clusters(data or {})
+        if items is None:
+            errors.append("Ozon API не вернул список кластеров.")
+            continue
+        for item in items:
+            name = str(item.get("name") or "").strip()
+            cluster_name = str(item.get("cluster_name") or "").strip()
+            if cluster_name and name and cluster_name not in name:
+                rows.append(
+                    {
+                        "type": _guess_marketplace_warehouse_type(cluster_name, name),
+                        "name": cluster_name,
+                        "address": name,
+                    }
+                )
+            elif name:
+                rows.append(
+                    {
+                        "type": _guess_marketplace_warehouse_type(name, ""),
+                        "name": name,
+                        "address": "",
+                    }
+                )
+    return _normalize_marketplace_warehouse_rows(rows), errors[0] if errors else None
+
+
+def _fetch_ozon_warehouses(client_id: str, api_key: str) -> tuple[list[dict], str | None]:
+    data, error = _ozon_post("/v1/warehouse/list", client_id, api_key, {})
+    if error:
+        data, error = _ozon_post("/v1/warehouse/list", client_id, api_key, {"limit": 200, "offset": 0})
+    if error:
+        return [], error
+    items = _parse_items_payload(data or {})
+    if items is None:
+        return [], "Ozon API не вернул список складов."
+    if not items:
+        cluster_lines, cluster_error = _fetch_ozon_clusters(client_id, api_key)
+        if cluster_lines:
+            return cluster_lines, None
+        return [], cluster_error or "Ozon: список складов пуст."
+    rows = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        row = _format_address_line(
+            item,
+            name_keys=("name", "warehouse_name", "title"),
+            address_keys=("address", "address_full", "warehouse_address", "address_text"),
+            city_keys=("city", "region"),
+        )
+        if row:
+            rows.append(row)
+    return _normalize_marketplace_warehouse_rows(rows), None
+
+
+def _find_agency(client_id: str | None, client_name: str | None) -> Agency | None:
+    if client_id:
+        return Agency.objects.filter(pk=client_id).first()
+    tokens = []
+    if client_name:
+        tokens.append(client_name)
+    tokens.extend(["кейзи", "keizi", "keyzi", "кейз"])
+    query = Q()
+    for token in tokens:
+        token = (token or "").strip()
+        if not token:
+            continue
+        query |= Q(agn_name__icontains=token) | Q(fio_agn__icontains=token)
+    if query:
+        agency = Agency.objects.filter(query).order_by("id").first()
+        if agency:
+            return agency
+    case_query = Q()
+    for token in tokens:
+        token = (token or "").strip()
+        if not token:
+            continue
+        variants = {token, token.lower(), token.upper()}
+        for variant in variants:
+            case_query |= Q(agn_name__contains=variant) | Q(fio_agn__contains=variant)
+    if case_query:
+        return Agency.objects.filter(case_query).order_by("id").first()
+    return None
+
+
+def _sync_marketplace_warehouses(agency: Agency) -> tuple[dict, list[str]]:
+    data = _load_marketplace_warehouses()
+    errors = []
+    wb_market = Market.objects.filter(name__iexact="WB").first()
+    ozon_market = Market.objects.filter(name__iexact="OZON").first()
+
+    if wb_market:
+        credential = MarketCredential.objects.filter(agency=agency, market=wb_market).first()
+        token = (credential.market_key or "").strip() if credential else ""
+        if token:
+            wb_list, wb_error = _fetch_wb_warehouses(token)
+            if wb_list:
+                data["wb"] = wb_list
+            else:
+                errors.append(wb_error or "WB: список складов пуст.")
+        else:
+            errors.append("WB: не указан токен.")
+    else:
+        errors.append("WB: маркетплейс не найден.")
+
+    if ozon_market:
+        credential = MarketCredential.objects.filter(agency=agency, market=ozon_market).first()
+        token = (credential.market_key or "").strip() if credential else ""
+        client_id_value = _normalize_ozon_client_id(credential.client_id) if credential else ""
+        if client_id_value and token:
+            ozon_list, ozon_error = _fetch_ozon_warehouses(client_id_value, token)
+            if ozon_list:
+                data["ozon"] = ozon_list
+            else:
+                errors.append(ozon_error or "Ozon: список складов пуст.")
+        else:
+            if not client_id_value:
+                errors.append("Ozon: не указан Client ID.")
+            if not token:
+                errors.append("Ozon: не указан API ключ.")
+    else:
+        errors.append("Ozon: маркетплейс не найден.")
+
+    return data, errors
+
+
+class MarketplaceWarehousesView(RoleRequiredMixin, TemplateView):
+    template_name = "head_manager/marketplace_warehouses.html"
+    allowed_roles = ("head_manager",)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update(
+            build_marketplace_warehouses_context(
+                request=self.request,
+                saved=kwargs.get("saved", False),
+                error=kwargs.get("error", ""),
+            )
+        )
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        response, error = save_marketplace_warehouses_response(request=request)
+        if response is None:
+            return self.render_to_response(self.get_context_data(error="Не удалось сохранить список."))
+        return response
+
+
+class MarketplaceWarehousesSyncView(RoleRequiredMixin, View):
+    allowed_roles = ("head_manager",)
+
+    def post(self, request, *args, **kwargs):
+        return sync_marketplace_warehouses_response(request=request)

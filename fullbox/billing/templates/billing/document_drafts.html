@@ -1,0 +1,164 @@
+{% extends "teammanager/_base.html" %}
+{% load billing_tags %}
+
+{% block title %}Черновики документов — Биллинг{% endblock %}
+
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.summary-strip { display:flex; gap:12px; flex-wrap:wrap; }
+.stat-pill { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:12px 18px; min-width:110px; }
+.stat-pill .sp-label { font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; }
+.stat-pill .sp-value { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:20px; font-weight:900; margin-top:2px; }
+.filter-card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.field { border:1px solid var(--line); border-radius:10px; background:#fff; padding:9px 12px; font:inherit; font-size:13px; }
+.table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:980px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:2px solid var(--line); }
+td { padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+.row-main { font-weight:800; }
+.row-sub { color:var(--muted); font-size:11px; margin-top:2px; }
+.money { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-weight:800; }
+.badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900; }
+.badge.green { background:var(--green-soft); color:var(--green-strong); }
+.badge.orange { background:var(--orange-soft); color:#b45309; }
+.badge.blue { background:#eff6ff; color:var(--blue); }
+.badge.red { background:#fff0f0; color:var(--red); }
+.badge.gray { background:var(--surface-2); color:var(--muted); }
+{% endblock %}
+
+{% block content %}
+{% include "billing/_billing_nav.html" %}
+
+<div>
+  <h1 class="page-title">Черновики документов</h1>
+  <div class="page-sub">Менеджер готовит черновик → передаёт бухгалтеру → бухгалтер принимает или возвращает.</div>
+</div>
+
+<div class="summary-strip">
+  <div class="stat-pill"><div class="sp-label">Локальные</div><div class="sp-value">{{ local_count }}</div></div>
+  <div class="stat-pill"><div class="sp-label">На проверке</div><div class="sp-value">{{ submitted_count }}</div></div>
+  <div class="stat-pill"><div class="sp-label">Возвращены</div><div class="sp-value">{{ returned_count }}</div></div>
+</div>
+
+<form class="filter-card" method="get">
+  <select class="field" name="client">
+    <option value="">Все клиенты</option>
+    {% for c in draft_clients %}
+      <option value="{{ c.id }}" {% if filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>
+    {% endfor %}
+  </select>
+  <select class="field" name="review">
+    <option value="">Все статусы проверки</option>
+    <option value="local" {% if filter_review == "local" %}selected{% endif %}>Черновик менеджера</option>
+    <option value="submitted" {% if filter_review == "submitted" %}selected{% endif %}>На проверке</option>
+    <option value="returned" {% if filter_review == "returned" %}selected{% endif %}>Возвращён</option>
+    <option value="accepted" {% if filter_review == "accepted" %}selected{% endif %}>Принят</option>
+  </select>
+  <button class="btn primary" type="submit">Найти</button>
+</form>
+
+<div class="table-card">
+  <table>
+    <thead>
+      <tr>
+        <th>Тип</th>
+        <th>Документ</th>
+        <th>Клиент</th>
+        <th>Сумма</th>
+        <th>Проверка</th>
+        <th>Комментарий</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in draft_rows %}
+        {% with obj=row.obj %}
+        <tr>
+          <td>{% if row.kind == "act" %}<span class="badge blue">Акт</span>{% else %}<span class="badge green">Счёт</span>{% endif %}</td>
+          <td>
+            <div class="row-main">{{ obj.number }}</div>
+            <div class="row-sub">заявка {{ obj.application.application_id }}</div>
+          </td>
+          <td>{{ obj.client.short_name|default:obj.client.agn_name|truncatechars:28 }}</td>
+          <td><span class="money">{{ obj.total_amount|money_fmt }}</span></td>
+          <td>
+            {% if row.review_status == "submitted" %}<span class="badge orange">На проверке</span>
+            {% elif row.review_status == "returned" %}<span class="badge red">Возвращён</span>
+            {% elif row.review_status == "accepted" %}<span class="badge green">Принят</span>
+            {% else %}<span class="badge gray">Черновик</span>{% endif %}
+          </td>
+          <td>
+            {% if obj.accountant_comment %}<div class="row-sub">{{ obj.accountant_comment|truncatechars:80 }}</div>{% endif %}
+            {% if row.kind == "act" and obj.manager_comment %}<div class="row-sub">{{ obj.manager_comment|truncatechars:60 }}</div>{% endif %}
+          </td>
+          <td style="white-space:nowrap">
+            {% if row.kind == "act" %}
+              <a class="btn" href="/team-manager/billing/applications/{{ obj.application_id }}/" style="font-size:11px;padding:5px 8px">Открыть</a>
+              {% if row.review_status == "local" or row.review_status == "returned" %}
+                <button class="btn primary js-submit" data-kind="act" data-id="{{ obj.id }}" type="button" style="font-size:11px;padding:5px 8px">Бухгалтеру</button>
+              {% endif %}
+              {% if billing_can_review_docs and row.review_status == "submitted" %}
+                <button class="btn primary js-accept" data-kind="act" data-id="{{ obj.id }}" type="button" style="font-size:11px;padding:5px 8px">Принять</button>
+                <button class="btn js-return" data-kind="act" data-id="{{ obj.id }}" type="button" style="font-size:11px;padding:5px 8px">Вернуть</button>
+              {% endif %}
+            {% else %}
+              <a class="btn" href="/team-manager/billing/invoices/{{ obj.id }}/" style="font-size:11px;padding:5px 8px">Открыть</a>
+              {% if row.review_status == "local" or row.review_status == "returned" %}
+                <button class="btn primary js-submit" data-kind="invoice" data-id="{{ obj.id }}" type="button" style="font-size:11px;padding:5px 8px">Бухгалтеру</button>
+              {% endif %}
+              {% if billing_can_review_docs and row.review_status == "submitted" %}
+                <button class="btn primary js-accept" data-kind="invoice" data-id="{{ obj.id }}" type="button" style="font-size:11px;padding:5px 8px">Принять</button>
+                <button class="btn js-return" data-kind="invoice" data-id="{{ obj.id }}" type="button" style="font-size:11px;padding:5px 8px">Вернуть</button>
+              {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+        {% endwith %}
+      {% empty %}
+        <tr><td colspan="7" style="padding:36px;text-align:center;color:var(--muted);font-weight:700">Черновиков нет</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+(function(){
+  function csrf(){ return (document.cookie.match(/csrftoken=([^;]+)/)||[])[1]||''; }
+  function post(url, data){
+    return fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify(data||{})})
+      .then(function(r){ return r.json(); });
+  }
+  function url(kind, id, action){
+    if(kind==='act') return '/team-manager/billing/api/acts/'+id+'/'+action+'/';
+    return '/team-manager/billing/api/invoices/'+id+'/'+action+'/';
+  }
+  document.querySelectorAll('.js-submit').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      btn.disabled=true;
+      post(url(btn.dataset.kind, btn.dataset.id, 'submit'), {}).then(function(d){
+        if(d.ok) location.reload(); else { alert(d.error||'Ошибка'); btn.disabled=false; }
+      });
+    });
+  });
+  document.querySelectorAll('.js-accept').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      btn.disabled=true;
+      post(url(btn.dataset.kind, btn.dataset.id, 'accept'), {}).then(function(d){
+        if(d.ok) location.reload(); else { alert(d.error||'Ошибка'); btn.disabled=false; }
+      });
+    });
+  });
+  document.querySelectorAll('.js-return').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var comment = prompt('Причина возврата менеджеру:');
+      if(!comment) return;
+      btn.disabled=true;
+      post(url(btn.dataset.kind, btn.dataset.id, 'return'), {comment: comment}).then(function(d){
+        if(d.ok) location.reload(); else { alert(d.error||'Ошибка'); btn.disabled=false; }
+      });
+    });
+  });
+})();
+</script>
+{% endblock %}

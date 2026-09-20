@@ -1,0 +1,20 @@
+{% if form.non_field_errors %}
+  <div class="external-trip-alert">{{ form.non_field_errors }}</div>
+{% endif %}
+<div class="external-trip-form-grid">
+  <label class="external-trip-field external-trip-span-2">{{ form.client.label }} *{{ form.client }}{{ form.client.errors }}</label>
+  <label class="external-trip-field">{{ form.pickup_address.label }} *{{ form.pickup_address }}{{ form.pickup_address.errors }}</label>
+  <label class="external-trip-field">{{ form.delivery_address.label }} *{{ form.delivery_address }}{{ form.delivery_address.errors }}</label>
+  <label class="external-trip-field">{{ form.scheduled_at.label }} *{{ form.scheduled_at }}{{ form.scheduled_at.errors }}</label>
+  <label class="external-trip-field">{{ form.driver.label }} *{{ form.driver }}{{ form.driver.errors }}</label>
+  <label class="external-trip-field external-trip-span-2">{{ form.assignment_mode.label }} *{{ form.assignment_mode }}{{ form.assignment_mode.errors }}<small>Предварительный рейс водитель видит заранее, но начать сможет только после подтверждения.</small></label>
+  <label class="external-trip-field external-trip-span-2">{{ form.cargo_description.label }}{{ form.cargo_description }}{{ form.cargo_description.errors }}</label>
+  <label class="external-trip-field">{{ form.pickup_contact.label }}{{ form.pickup_contact }}{{ form.pickup_contact.errors }}</label>
+  <label class="external-trip-field">{{ form.pickup_phone.label }}{{ form.pickup_phone }}{{ form.pickup_phone.errors }}</label>
+  <label class="external-trip-field">{{ form.delivery_contact.label }}{{ form.delivery_contact }}{{ form.delivery_contact.errors }}</label>
+  <label class="external-trip-field">{{ form.delivery_phone.label }}{{ form.delivery_phone }}{{ form.delivery_phone.errors }}</label>
+  <label class="external-trip-field">{{ form.vehicle_type.label }}{{ form.vehicle_type }}{{ form.vehicle_type.errors }}</label>
+  <label class="external-trip-field">{{ form.vehicle_name.label }}{{ form.vehicle_name }}{{ form.vehicle_name.errors }}</label>
+  <label class="external-trip-field">{{ form.vehicle_number.label }}{{ form.vehicle_number }}{{ form.vehicle_number.errors }}</label>
+  <label class="external-trip-field external-trip-span-2">{{ form.route_comment.label }}{{ form.route_comment }}{{ form.route_comment.errors }}</label>
+</div>

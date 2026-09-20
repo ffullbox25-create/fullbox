@@ -1,0 +1,683 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Отгрузка №{{ handover.id }}{% endblock %}
+{% block page_class %}tsd-page-operator handover-detail-page handover-detail-v4{% endblock %}
+
+{% block content %}
+  <style>
+    .handover-check-dialog{width:min(960px,calc(100vw - 32px));max-height:calc(100vh - 40px);padding:0;border:0;border-radius:8px;box-shadow:0 24px 64px rgba(0,0,0,.28)}
+    .handover-check-dialog::backdrop{background:rgba(25,25,25,.52)}
+    .handover-check-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:22px 24px;border-bottom:1px solid #ddd}
+    .handover-check-head h2{margin:0}.handover-check-head p{margin:6px 0 0;color:#666}
+    .handover-check-body{padding:20px 24px;overflow:auto}
+    .handover-check-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px}
+    .handover-check-summary>div{padding:12px;border:1px solid #ddd;border-radius:6px}.handover-check-summary span{display:block;color:#666}.handover-check-summary strong{display:block;margin-top:4px;font-size:20px}
+    .handover-check-scan{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px;margin-bottom:14px;padding:14px;border:1px solid rgba(248,144,0,.45);border-radius:6px;background:rgba(248,144,0,.08)}
+    .handover-check-scan label{display:grid;gap:6px;font-weight:800}.handover-check-scan input{width:100%;min-height:46px;padding:9px 12px;border:2px solid #f89000;border-radius:6px;font:inherit}
+    .handover-check-actions{display:flex;justify-content:flex-end;padding:16px 24px;border-top:1px solid #ddd}
+    .kiz-retry-dialog{width:min(620px,calc(100vw - 32px));padding:0;border:0;border-radius:8px;box-shadow:0 24px 64px rgba(0,0,0,.28)}
+    .kiz-retry-dialog::backdrop{background:rgba(25,25,25,.52)}
+    .handover-history-dialog{width:min(1040px,calc(100vw - 32px));max-height:calc(100vh - 40px);padding:0;border:0;border-radius:8px;box-shadow:0 24px 64px rgba(0,0,0,.28)}
+    .handover-history-dialog::backdrop{background:rgba(25,25,25,.52)}
+    .handover-history-table{min-width:820px}.handover-history-table td:first-child{white-space:nowrap}.handover-history-table td:nth-child(2){min-width:250px}.handover-history-table td:nth-child(3){min-width:310px}
+    .kiz-retry-body{display:grid;gap:14px;padding:20px 24px}.kiz-retry-body p{margin:0;color:#666}.kiz-retry-body label{display:grid;gap:7px;font-weight:800}.kiz-retry-body input{width:100%;min-height:54px;padding:10px 12px;border:2px solid #f89000;border-radius:6px;font:inherit}
+    .kiz-retry-progress{padding:10px 12px;border-left:4px solid #f89000;border-radius:5px;background:rgba(248,144,0,.12);color:#303030;font-weight:800}
+    .kiz-retry-identifiers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.kiz-retry-identifiers>div{min-width:0;padding:11px 12px;border:1px solid #d8d8d8;border-radius:6px;background:#f7f7f7}.kiz-retry-identifiers span{display:block;margin-bottom:4px;color:#666;font-size:12px}.kiz-retry-identifiers strong{display:block;overflow-wrap:anywhere;font-size:16px}
+    .kiz-retry-actions{display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid #ddd}.metadata-retry-action{margin-top:7px}.metadata-retry-blocked{display:block;margin-top:6px;color:#8d5f22}
+    .invalid-kiz-route{display:grid;gap:6px;margin-top:8px;padding:8px;border:1px solid rgba(248,104,0,.35);border-radius:6px;background:rgba(248,144,0,.08)}.invalid-kiz-route form{display:flex;flex-wrap:wrap;align-items:end;gap:6px;margin:0}.invalid-kiz-route label{display:grid;flex:1 1 230px;gap:4px;font-size:12px;font-weight:800}.invalid-kiz-route input{width:100%;min-height:36px;padding:6px 8px;border:2px solid #f89000;border-radius:5px;background:#fff;font:inherit}.invalid-kiz-route small{color:#666}.invalid-kiz-route .text-error{color:#9b2d20}
+    .shipment-next-step-copy{display:grid;gap:5px;min-width:260px;flex:1}.shipment-next-step-copy strong{font-size:18px}.shipment-next-step-copy p{margin:0;color:#666;max-width:760px}.shipment-next-step-actions{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}.shipment-next-step-actions form{margin:0}.shipment-next-step-actions .shipment-inline-form{align-items:flex-end}.shipment-next-step-blocked{padding:10px 12px;border:1px solid #e8b7b7;border-radius:6px;background:#fff2f2;color:#8d2727;font-weight:700}
+    .tsd-page-controller-shell.handover-detail-v4 .shipment-v4-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:5px 7px}
+    .tsd-page-controller-shell.handover-detail-v4 .shipment-v4-toolbar>.button,.tsd-page-controller-shell.handover-detail-v4 .shipment-v4-toolbar>form,.tsd-page-controller-shell.handover-detail-v4 .shipment-v4-toolbar>form>.button{width:auto;min-width:0;flex:0 0 auto}
+    .tsd-page-controller-shell.handover-detail-v4 .shipment-v4-toolbar .button{min-height:31px;padding:4px 8px;white-space:nowrap}
+    .tsd-page-controller-shell.handover-detail-v4 .shipment-v4-toolbar .shipment-print-form{width:auto;display:flex;align-items:center;gap:5px}
+    .tsd-page-controller-shell.handover-detail-v4 .shipment-v4-toolbar .shipment-print-form select{width:180px;min-height:31px}
+    .tsd-page-controller-shell.handover-detail-v4 .shipment-v4-facts{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .tsd-page-controller-shell.handover-detail-v4 .shipment-v4-facts>div{min-height:0;padding:7px 9px;gap:1px}
+    .tsd-page-controller-shell.handover-detail-v4 .shipment-v4-facts strong{margin-top:1px;font-size:14px;line-height:1.2}
+    .tsd-page-controller-shell.handover-detail-v4 .shipment-v4-facts span,.tsd-page-controller-shell.handover-detail-v4 .shipment-v4-facts small{font-size:11px;line-height:1.2}
+    .shipment-readiness{display:grid;gap:6px}.shipment-readiness ul{margin:4px 0 0;padding-left:20px}.shipment-exclusion summary{cursor:pointer;color:#a43b24;font-weight:800}.shipment-exclusion form{display:grid;gap:8px;min-width:250px;margin-top:8px}.shipment-exclusion label{display:grid;gap:4px;font-size:12px;font-weight:800}.shipment-exclusion input,.shipment-exclusion select,.shipment-exclusion textarea{width:100%;padding:7px 9px;border:1px solid #cfcfcf;border-radius:5px;font:inherit}.shipment-cancel-confirm{grid-template-columns:auto 1fr!important;align-items:start}.shipment-cancel-confirm input{margin-top:2px}
+    .handover-override{display:grid;gap:8px}.handover-override p{margin:0}.handover-override form{display:grid;grid-template-columns:minmax(280px,1fr) auto;align-items:end;gap:10px}.handover-override label{display:grid;gap:6px;font-weight:800}.handover-override textarea{width:100%;min-height:68px;padding:9px 11px;border:1px solid #cfcfcf;border-radius:6px;resize:vertical;font:inherit}.handover-override small{color:#666}
+    .shipment-order-search{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:8px;margin:10px 0;padding:11px 12px;border:1px solid rgba(248,144,0,.45);border-left:4px solid #f89000;background:rgba(248,144,0,.08)}
+    .shipment-order-search label{display:grid;gap:5px;color:#303030;font-weight:800}.shipment-order-search input{width:100%;min-height:42px;padding:8px 11px;border:2px solid #f89000;border-radius:6px;background:#fff;font:inherit}.shipment-order-search small{grid-column:1/-1;color:#666}.shipment-order-search-row.is-search-match{outline:3px solid rgba(248,144,0,.58);outline-offset:-3px;background:rgba(248,184,0,.12)}
+    [data-order-detail-url]{cursor:pointer}[data-order-detail-url]:hover,[data-order-detail-url]:focus{outline:2px solid rgba(248,144,0,.55);outline-offset:-2px}.metadata-error-detail{display:block;margin-top:6px;max-width:380px;overflow-wrap:anywhere;white-space:normal;word-break:break-word}
+    @media (max-width:900px){.tsd-page-controller-shell.handover-detail-v4 .shipment-v4-facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media (max-width:760px){.handover-check-summary,.handover-check-scan,.handover-override form,.shipment-order-search,.kiz-retry-identifiers{grid-template-columns:1fr}.handover-check-head,.handover-check-body,.handover-check-actions{padding-left:16px;padding-right:16px}.shipment-order-search .button{width:100%}}
+  </style>
+  <section class="shipment-v4-heading">
+    <div>
+      <div class="shipment-v4-breadcrumb"><a href="{% url 'fbs:tsd_handover' %}">FBS</a><span>/</span><a href="{% url 'fbs:tsd_handover' %}">Отгрузки</a><span>/</span><strong>№{{ handover.id }}</strong></div>
+      <h2>Отгрузка №{{ handover.id }}</h2>
+      <p>Тип доставки: <strong>{{ handover.profile.get_marketplace_display }} FBS</strong></p>
+    </div>
+    <div class="shipment-v4-heading-status">
+      <span class="status status-{{ handover.status }}">{{ handover.movement_stage.label }}</span>
+      <span class="status status-{{ handover.marketplace_state }}">{% if handover.profile.marketplace == 'wb' and handover.status == 'ready' and handover.marketplace_state == 'complete' and handover.supply_label_file %}ШК поставки получен{% elif handover.profile.marketplace == 'wb' and handover.status == 'ready' and handover.marketplace_state == 'delivery_pending' %}WB готовит ШК поставки{% else %}{{ handover.get_marketplace_state_display }}{% endif %}</span>
+    </div>
+  </section>
+
+  {% if request_role == 'fbs_controller' %}{% if handover.status == 'dispatched' or handover.status == 'accepted' %}<div class="notice notice-ok">Проверка завершена. Поставка автоматически передана в доставку; печать ШК остаётся отдельным внутренним действием.</div>{% endif %}{% endif %}
+  <nav class="shipment-v5-tabs" aria-label="Разделы карточки отгрузки">
+    <a href="#shipment-summary">Сводка</a>
+    <a href="#shipment-orders">Заказы</a>
+    <a href="#shipment-boxes">Короба</a>
+    <button type="button" data-open-documents-dialog>Документы</button>
+    {% if request_role != 'fbs_controller' %}<button type="button" data-open-handover-history>История</button><a href="#shipment-services">Услуги</a>{% endif %}
+  </nav>
+
+  <section class="shipment-order-search" role="search" aria-label="Поиск заказа в отгрузке">
+    <label for="shipment-order-search">Поиск внутри отгрузки
+      <input id="shipment-order-search" type="search" autocomplete="off" spellcheck="false" placeholder="Найти заказ в этой отгрузке" data-shipment-order-search>
+    </label>
+    <button class="button button-secondary" type="button" data-shipment-order-search-clear disabled>Очистить</button>
+    <small data-shipment-order-search-status aria-live="polite">Только поиск по отгрузке. Скан в это поле находит заказ, но не засчитывает проверку.</small>
+  </section>
+
+  <section class="shipment-v4-facts" id="shipment-summary" aria-label="Реквизиты отгрузки">
+    <div><span>Клиент</span><strong>{{ handover.profile.agency }}</strong><small>{% if handover.created_by %}{{ handover.created_by.get_full_name|default:handover.created_by.username }}{% else %}Система{% endif %}</small></div>
+    <div><span>Физическое место OTG</span><strong>{% if handover.dispatch_location %}{{ handover.dispatch_location.location_code }}{% elif handover_fbs_otg_locations_configured %}Укажите сканом{% else %}Общая зона OTG{% endif %}</strong><small>{% if handover.dispatch_location %}{{ handover.dispatch_location.display_name|default:"Место FBS-отгрузки" }}{% else %}Склад {{ handover.profile.external_warehouse_id|default:"не указан" }}{% endif %}</small></div>
+    <div><span>Интеграция</span><strong>{{ handover.profile.name }}</strong><small>{{ handover.external_supply_id|default:"Номер поставки ожидается" }}</small></div>
+    <div><span>Заказы / товары</span><strong>{{ handover_order_count }} / {{ handover_unit_count }}</strong><small>{{ handover_line_count }} позиций</small></div>
+    <div><span>Общий вес</span><strong>{{ handover_weight_kg|floatformat:3 }} кг</strong><small>{% if handover_weight_complete %}Рассчитан полностью{% else %}Расчет частичный{% endif %}</small></div>
+    <div><span>Создана</span><strong>{{ handover.created_at|date:"d.m.Y H:i" }}</strong><small>Обновлена {{ handover.updated_at|date:"d.m.Y H:i" }}</small></div>
+    <div><span>В пути с</span><strong>{{ handover.dispatched_at|date:"d.m.Y H:i"|default:"Ожидает завершения проверки" }}</strong><small>{% if handover.dispatched_by %}{{ handover.dispatched_by.get_full_name|default:handover.dispatched_by.username }}{% else %}-{% endif %}</small></div>
+    <div><span>Принята</span><strong>{{ handover.accepted_at|date:"d.m.Y H:i"|default:"Ожидает" }}</strong><small>{{ handover_acceptance_label }}</small></div>
+  </section>
+
+  {% if handover.status == 'archived' %}
+    <div class="notice notice-info" role="status"><strong>Отгрузка находится в архиве.</strong> {{ handover.archive_reason }}{% if handover.archived_at %} · {{ handover.archived_at|date:"d.m.Y H:i" }}{% endif %}</div>
+  {% endif %}
+
+  {% if request_role != 'fbs_controller' and can_manage_verification_override and handover.profile.marketplace == 'wb' %}
+    {% if handover.status == 'open' or handover.status == 'ready' %}<section class="notice {% if active_verification_override %}notice-info{% elif verification_override_blocker %}notice-warning{% else %}notice-warning{% endif %} handover-override" aria-label="Передача без повторной проверки">
+      {% if active_verification_override %}
+        <strong>Передача без повторной проверки разрешена</strong>
+        <p>{{ active_verification_override.reason }}</p>
+        <small>Разрешил: {{ active_verification_override.approved_by.get_full_name|default:active_verification_override.approved_by.username }} · {{ active_verification_override.approved_at|date:"d.m.Y H:i" }}. Состав подтвержден первичными сканами; изолированные проблемные товары в передачу не включены.</small>
+      {% elif verification_override_blocker %}
+        <strong>Передача без повторной проверки сейчас недоступна</strong>
+        <p>{{ verification_override_blocker }}</p>
+        <small>Система ничего не изменила. Устраните указанную причину и обновите экран.</small>
+      {% else %}
+        <strong>Разрешить передачу без повторной проверки</strong>
+        <p>Доступно только начальнику склада для подтверждённой WB-отгрузки. Система привяжет к существующему коробу только заказы с первичным подтверждённым сканом; остатки, резервы и изолированные проблемные товары не изменятся.</p>
+        <form method="post" data-submit-once>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="approve_verification_override">
+          <label for="override-reason">Причина разрешения<textarea id="override-reason" name="override_reason" maxlength="500" required placeholder="Укажите служебную причину передачи без повторной проверки"></textarea></label>
+          <button class="button button-primary" type="submit">Разрешить передачу</button>
+        </form>
+      {% endif %}
+    </section>{% endif %}
+  {% endif %}
+
+  <section class="shipment-v4-toolbar" aria-label="Действия отгрузки">
+    {% if handover.status != 'archived' %}
+      <button class="button button-primary" type="button" data-jump-handover-action>Текущее действие</button>
+    {% endif %}
+    {% if request_role != 'fbs_controller' %}<button class="button button-secondary" type="button" data-open-handover-history>История изменений</button>{% endif %}
+    {% if handover.status != 'archived' %}
+      {% if request_role != 'fbs_controller' or handover_next_action.code == 'create_wb_boxes' or handover_next_action.code == 'add_box' %}<button class="button button-secondary" type="button" data-open-box-dialog>Добавить короб</button>{% endif %}
+      {% if handover_supply_label_available %}{% if handover_print_workstations %}<form class="shipment-print-form" method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="print_supply_label">{% if request_role == 'fbs_controller' %}<input type="hidden" name="workstation_id" value="{{ handover_print_workstations.0.id }}">{% else %}<label class="sr-only" for="supply-printer-{{ handover.id }}">Принтер</label><select id="supply-printer-{{ handover.id }}" name="workstation_id" required>{% for workstation in handover_print_workstations %}<option value="{{ workstation.id }}">{{ workstation.name }} · {{ workstation.printer_name }}</option>{% endfor %}</select>{% endif %}<button class="button button-primary" type="submit">{% if handover.profile.marketplace == 'ozon' %}Печать этикетки Ozon{% else %}Печать стикера поставки{% endif %}</button></form>{% endif %}<a class="button button-secondary" href="{% url 'fbs:tsd_handover_supply_label' batch_id=handover.id %}" target="_blank" rel="noopener">Открыть этикетку</a>{% endif %}
+      {% if request_role == 'fbs_controller' and handover.profile.marketplace == 'ozon' %}<span class="status status-done">Ozon: рабочий QR печатается и сканируется один раз</span>{% endif %}
+      {% if request_role == 'fbs_controller' %}<button class="button button-secondary" type="button" data-jump-marking-orders>Маркировка заказов</button>{% else %}<button class="button button-secondary" type="button" data-open-marking-dialog>Маркировка заказов</button>{% endif %}
+      {% if handover_kiz_retry_count %}<button class="button button-primary" type="button" data-open-kiz-retry-all data-kiz-retry-count="{{ handover_kiz_retry_count }}">Пересканировать все проблемные КИЗы ({{ handover_kiz_retry_count }})</button>{% endif %}
+    {% endif %}
+    <button class="button button-secondary" type="button" data-open-documents-dialog>Документы</button>
+    {% if handover.status != 'archived' %}
+      {% if handover.status == 'dispatched' or handover.status == 'problem' %}<form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="refresh"><button class="button button-secondary" type="submit">Обновить статусы</button></form>{% endif %}
+      {% if request_role != 'fbs_controller' and handover_archive_ready %}<details class="handover-create-panel"><summary>В архив</summary><form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="archive"><label>Причина<input name="archive_reason" required value="Нет действующих заказов"></label><button class="button button-secondary" type="submit">Архивировать</button></form></details>{% endif %}
+    {% endif %}
+  </section>
+
+  {% if request_role != 'fbs_controller' %}<dialog class="handover-history-dialog" data-handover-history-dialog aria-labelledby="handover-history-title">
+    <div class="handover-check-head">
+      <div><h2 id="handover-history-title">История отгрузки №{{ handover.id }}</h2><p>Состав, короба, проверки, marketplace и передача водителю в одной хронологии.</p></div>
+      <form method="dialog"><button class="button button-secondary button-compact" type="submit">Закрыть</button></form>
+    </div>
+    <div class="handover-check-body">
+      <div class="operator-table-scroll shipment-order-scroll">
+        <table class="operator-table handover-history-table">
+          <thead><tr><th>Когда</th><th>Событие</th><th>Подробности</th><th>Сотрудник</th></tr></thead>
+          <tbody>
+            {% for event in handover_history %}
+              <tr><td><strong>{{ event.occurred_at|date:"d.m.Y H:i:s" }}</strong></td><td><span class="status status-{{ event.state }}">{{ event.title }}</span></td><td>{{ event.detail|default:"-" }}</td><td>{{ event.actor }}</td></tr>
+            {% empty %}<tr><td class="empty-row" colspan="4">События отгрузки пока не зафиксированы.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if handover_history_total > 300 %}<p class="text-muted">Показаны последние 300 событий из {{ handover_history_total }}.</p>{% endif %}
+    </div>
+  </dialog>{% endif %}
+
+  {% if request_role != 'fbs_controller' or handover_next_action.code == 'create_wb_boxes' or handover_next_action.code == 'add_box' %}<dialog class="handover-check-dialog shipment-v4-dialog" data-box-dialog aria-labelledby="box-dialog-title">
+    <div class="handover-check-head"><div><h2 id="box-dialog-title">Добавить короб</h2><p>Короб создается только действующим способом площадки для этой отгрузки.</p></div><form method="dialog"><button class="button button-secondary button-compact" type="submit">Закрыть</button></form></div>
+    <div class="handover-check-body">
+      {% if handover_next_action.code == 'create_wb_boxes' %}
+        <form class="shipment-v4-dialog-form" method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="create_wb_boxes"><label for="dialog-box-count">Количество коробов<input id="dialog-box-count" type="number" name="box_count" min="1" max="1000" value="1" required></label><button class="button button-primary" type="submit">Получить QR коробов WB</button></form>
+      {% elif handover_next_action.code == 'add_box' %}
+        <form class="shipment-v4-dialog-form" method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="add_box"><label for="dialog-box-qr">QR короба<input id="dialog-box-qr" name="box_qr" required autocomplete="off"></label><label for="dialog-external-box-id">Номер короба<input id="dialog-external-box-id" name="external_box_id" autocomplete="off"></label><button class="button button-primary" type="submit">Добавить короб</button></form>
+      {% else %}
+        <div class="notice notice-warn"><strong>Добавление короба сейчас недоступно.</strong><br>{{ handover_next_action.description }}</div>
+      {% endif %}
+    </div>
+  </dialog>{% endif %}
+
+  {% if request_role != 'fbs_controller' %}<dialog class="handover-check-dialog shipment-v4-dialog" data-marking-dialog aria-labelledby="marking-dialog-title">
+    <div class="handover-check-head"><div><h2 id="marking-dialog-title">Маркировка заказов</h2><p>Этикетки, КИЗ и срок годности по всему составу поставки.</p></div><form method="dialog"><button class="button button-secondary button-compact" type="submit">Закрыть</button></form></div>
+    <div class="handover-check-body">
+      <div class="handover-check-summary"><div><span>Заказов</span><strong>{{ handover_order_count }}</strong></div><div><span>Этикеток с файлами</span><strong>{{ handover_label_document_count }}</strong></div><div><span>Ошибок КИЗ/сроков</span><strong>{{ handover_metadata_problem_count }}</strong></div></div>
+      <div class="operator-table-scroll shipment-order-scroll"><table class="operator-table shipment-v4-marking-table"><thead><tr><th>Заказ</th><th>Этикетка</th><th>КИЗ и срок</th><th>Документ</th></tr></thead><tbody>{% for assignment in handover_assignments %}<tr><td><strong>{{ assignment.order.external_order_id }}</strong><small>ID Fullbox {{ assignment.order.id }}</small></td><td>{% if assignment.latest_label %}<span class="status status-{{ assignment.latest_label.status }}">{{ assignment.latest_label.get_status_display }}</span><small>{{ assignment.latest_label.external_label_id|default:"ID ожидается" }}</small>{% else %}<span class="status status-pending">Не получена</span>{% endif %}</td><td><span class="status status-{{ assignment.order.metadata_state }}">{{ assignment.order.metadata_state_label }}</span></td><td>{% if assignment.uses_preconfirmed_ozon_qr %}<span class="text-muted">Официальный PDF сохранён в архиве</span><form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="reprint_ozon_order_qr"><input type="hidden" name="label_id" value="{{ assignment.latest_label.id }}"><button class="button button-secondary button-medium" type="submit">Повторить рабочий QR</button></form>{% else %}{% if assignment.latest_label.document_url %}<a class="button button-secondary button-medium" href="{{ assignment.latest_label.document_url }}" target="_blank" rel="noopener">Открыть этикетку</a>{% else %}<span class="text-muted">Файл ожидается</span>{% endif %}{% if assignment.latest_label.status == 'ready' or assignment.latest_label.status == 'applied' %}<form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="print_order_label"><input type="hidden" name="label_id" value="{{ assignment.latest_label.id }}"><button class="button button-secondary button-medium" type="submit">Печать</button></form>{% endif %}{% endif %}</td></tr>{% empty %}<tr><td class="empty-row" colspan="4">Заказы в поставку еще не добавлены.</td></tr>{% endfor %}</tbody></table></div>
+    </div>
+  </dialog>{% endif %}
+
+  <dialog class="handover-check-dialog shipment-v4-dialog" data-documents-dialog aria-labelledby="documents-dialog-title">
+    <div class="handover-check-head"><div><h2 id="documents-dialog-title">Документы отгрузки</h2><p>Все доступные документы открываются отдельно и подходят для печати.</p></div><form method="dialog"><button class="button button-secondary button-compact" type="submit">Закрыть</button></form></div>
+    <div class="handover-check-body shipment-v4-documents">
+      <a class="shipment-v4-document" href="{% url 'fbs:tsd_handover_driver_manifest' handover.id %}" target="_blank" rel="noopener"><span>Реестр водителя</span><strong>{% if handover_driver_manifest_ready %}Готов{% else %}Предварительный{% endif %}</strong></a>
+      {% if handover_supply_label_available %}<a class="shipment-v4-document" href="{% url 'fbs:tsd_handover_supply_label' batch_id=handover.id %}" target="_blank" rel="noopener"><span>{% if handover.profile.marketplace == 'ozon' %}Внутренняя этикетка Ozon: № и количество{% else %}Стикер поставки{% endif %}</span><strong>Открыть</strong></a>{% endif %}
+      {% if handover.profile.marketplace == 'ozon' %}
+        <a class="shipment-v4-document" href="{% url 'fbs:tsd_handover_ozon_document' batch_id=handover.id document_kind='barcode' %}" target="_blank" rel="noopener"><span>Официальный ШК перевозки Ozon</span><strong>Проверить и скачать</strong></a>
+        <a class="shipment-v4-document" href="{% url 'fbs:tsd_handover_ozon_document' batch_id=handover.id document_kind='pdf' %}" target="_blank" rel="noopener"><span>Лист отгрузки и накладная Ozon</span><strong>Проверить и скачать PDF</strong></a>
+        <p class="text-muted">Официальные файлы выдаются только если Ozon уже сформировал перевозку и её состав точно совпадает с этой отгрузкой Fullbox.</p>
+      {% endif %}
+      {% for box in handover_boxes %}{% if box.status != 'open' and box.label_file or box.status != 'open' and handover.profile.marketplace != 'wb' %}<a class="shipment-v4-document" href="{% url 'fbs:tsd_handover_box_label' batch_id=handover.id box_id=box.id %}" target="_blank" rel="noopener"><span>Стикер короба {{ box.external_box_id|default:box.qr_code }}</span><strong>Открыть</strong></a>{% endif %}{% endfor %}
+      {% if not handover_boxes %}<div class="empty-state">Документы коробов появятся после их создания.</div>{% endif %}
+    </div>
+  </dialog>
+
+  {% if handover_operator_metadata_issues %}
+    <section class="notice notice-warning shipment-readiness" id="shipment-metadata-errors" role="alert">
+      <strong>Ошибки КИЗ / сроков годности: {{ handover_operator_metadata_issues|length }}</strong>
+      <span>Проверьте перечисленные заказы. Не заменяйте подтверждение площадки ручным изменением статуса.</span>
+      <div class="operator-table-scroll shipment-order-scroll">
+        <table class="operator-table">
+          <thead><tr><th>Заказ</th><th>Что произошло</th><th>Что сделать контролёру</th></tr></thead>
+          <tbody>{% for issue in controller_operator_metadata_issues|default:handover_operator_metadata_issues %}
+            <tr><td><strong>{{ issue.order_number }}</strong></td><td>{{ issue.reason }}{% if issue.technical %}<details><summary>Ответ площадки / диагностика</summary>{{ issue.technical }}</details>{% endif %}</td><td>{{ issue.action }}</td></tr>
+          {% endfor %}</tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+  {% if not handover_supply_label_available %}
+    <section class="notice notice-info shipment-readiness" role="status">
+      <strong>{% if handover.profile.marketplace == 'ozon' %}Этикетка Ozon появится после формирования транспортного короба.{% else %}ШК поставки ещё не получен — печать пока недоступна.{% endif %}</strong>
+      <span>Выполните указанный на странице следующий шаг. Если есть ошибки заказов, сначала устраните их и завершите контроль состава.</span>
+    </section>
+  {% endif %}
+
+  {% if handover_next_action.code == 'pack_orders' %}
+    <section class="notice notice-info shipment-readiness" role="status">
+      <strong>Следующий этап — контроль состава транспортного короба.</strong>
+      <span>{% if handover.profile.marketplace == 'wb' %}Отсканируйте WB-этикетки {{ handover_unboxed_order_count }} действующих заказов и сразу перекладывайте товар в транспортный короб.{% else %}Остались заказы, отсканированные до включения нового режима: {{ handover_physical_missing_order_count }}. Подтвердите их QR при фактическом помещении в короб; новые заказы повторного скана не требуют.{% endif %}</span>
+    </section>
+  {% elif not handover_composition_ready %}
+    <section class="notice notice-warning shipment-readiness" role="status">
+      <strong>Отгрузка еще не готова к передаче</strong>
+      <span>{% if handover.profile.marketplace == 'ozon' %}Повторно сканировать QR заказов не нужно. Дождитесь фоновой проверки Ozon или устраните указанную ошибку.{% else %}Уже проверенные заказы можно сверять сейчас. Отправка в WB останется заблокирована до полной готовности состава.{% endif %}</span>
+      <ul>{% for blocker in handover_composition_blockers|slice:":6" %}<li>{{ blocker }}</li>{% endfor %}</ul>
+    </section>
+  {% endif %}
+
+  <section class="shipment-stage-strip" aria-label="Движение отгрузки">
+    {% for stage in handover_stages %}<div class="is-{{ stage.state }}"><span>{{ stage.number }}</span><strong>{{ stage.label }}</strong><small>{{ stage.state_label }}</small></div>{% endfor %}
+  </section>
+
+  {% if handover_command_problem_count or handover_metadata_problem_count or handover_problem_boxes %}
+    <section class="shipment-alert-strip is-problem"><strong>Требуется решение</strong><span>API: {{ handover_command_problem_count }} · КИЗ/сроки: {{ handover_metadata_problem_count }} · короба: {{ handover_problem_boxes }}</span></section>
+  {% elif handover_commands_active or handover_metadata_waiting_count %}
+    <section class="shipment-alert-strip is-waiting"{% if handover_commands_active %} data-auto-refresh="5000"{% endif %}><strong>Ожидается ответ marketplace</strong><span>Команд в работе: {% if handover_commands_active %}да{% else %}нет{% endif %} · КИЗ/сроки ожидают: {{ handover_metadata_waiting_count }}</span></section>
+  {% endif %}
+
+  {% if handover_pending_verification_rows %}
+    <section class="notice notice-warning shipment-readiness" id="shipment-pending-verification" role="status">
+      <strong>Ещё не добавлены из проверки: {{ handover_pending_verification_count }}</strong>
+      <span>Отгрузку можно просматривать. Передача останется недоступна, пока эти заказы не пройдут обязательные сканы на рабочем столе контролера.</span>
+      <div class="operator-table-scroll shipment-order-scroll">
+        <table class="operator-table">
+          <thead><tr><th>Волна</th><th>Заказ</th><th>ШК товара</th><th>Причина</th><th>Действие</th></tr></thead>
+          <tbody>
+            {% for pending_row in handover_pending_verification_rows %}
+              <tr>
+                <td><strong>#{{ pending_row.pick_batch.id }}</strong></td>
+                <td><strong>{{ pending_row.order.external_order_id }}</strong></td>
+                <td>{% if pending_row.item_barcodes %}{{ pending_row.item_barcodes|join:", " }}{% else %}не указан{% endif %}</td>
+                <td>{{ pending_row.missing_reason }}</td>
+                <td><a class="button button-secondary button-compact" href="{% url 'fbs:tsd_pick_verification' batch_id=pending_row.pick_batch.id %}">Продолжить проверку</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="operator-summary operator-summary-five shipment-summary" aria-label="Сводка отгрузки">
+    <div><span>Заказы</span><strong>{{ handover_order_count }}</strong></div><div><span>Товары</span><strong>{{ handover_unit_count }} шт.</strong></div><div><span>Короба</span><strong>{{ handover_boxes|length }}</strong></div><div><span>Вес</span><strong>{{ handover_weight_kg|floatformat:3 }} кг</strong>{% if not handover_weight_complete %}<small>расчет частичный</small>{% endif %}</div><div class="{% if handover_acceptance_class == 'problem' %}summary-problem{% endif %}"><span>Движение</span><strong>{{ handover_acceptance_label }}</strong></div>
+  </section>
+
+  <section class="shipment-action-dock" id="handover-next-action" data-current-handover-action="{{ handover_next_action.code }}">
+    {% if handover.status == 'archived' %}
+      <div class="shipment-action-title"><span class="section-kicker">Архив</span><strong>Работа завершена</strong></div>
+      <div class="shipment-next-step-copy"><strong>Активных действий нет</strong><p>История заказов и обмена с marketplace сохранена.</p></div>
+    {% elif request_role == 'fbs_controller' %}
+      <div class="shipment-action-title"><span class="section-kicker">Шаг {{ handover_next_action.step }} из 6</span><strong>Следующее действие</strong></div>
+      <div class="shipment-next-step-copy"><strong>{{ handover_next_action.title }}</strong><p>{{ handover_next_action.description }}</p></div>
+      <div class="shipment-next-step-actions">
+        {% if handover_next_action.code == 'create_wb_boxes' %}
+          <form class="shipment-inline-form" method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="create_wb_boxes"><label for="box-count">Коробов<input id="box-count" type="number" name="box_count" min="1" max="1000" value="1" required></label><button class="button button-primary" type="submit">Получить QR коробов WB</button></form>
+        {% elif handover_next_action.code == 'add_box' %}
+          <form class="shipment-inline-form shipment-inline-form-wide" method="post">{% csrf_token %}<input type="hidden" name="action" value="add_box"><label for="box-qr">QR короба<input id="box-qr" name="box_qr" required autocomplete="off"></label><label for="external-box-id">Номер короба<input id="external-box-id" name="external_box_id" autocomplete="off"></label><button class="button button-primary" type="submit">Добавить короб</button></form>
+        {% elif handover_next_action.code == 'pack_orders' %}
+          {% if handover_check_tote %}<a class="button button-primary" href="{% url 'fbs:controller_check_tote' check_tote_id=handover_check_tote.id %}">{% if handover.profile.marketplace == 'wb' %}Сканировать {{ handover_unboxed_order_count }} WB-этикетки{% else %}Подтвердить {{ handover_physical_missing_order_count }} старых QR Ozon{% endif %}</a>{% elif handover_pending_pick_batch %}<a class="button button-primary" href="{% url 'fbs:tsd_pick_verification' batch_id=handover_pending_pick_batch.id %}">Продолжить проверку волны №{{ handover_pending_pick_batch.id }}</a>{% else %}<a class="button button-primary" href="{% url 'fbs:controller_home' %}">Открыть сборку заказов</a>{% endif %}
+        {% elif handover_next_action.code == 'verify_orders' %}
+          {% if handover_check_tote %}<a class="button button-primary" href="{% url 'fbs:controller_check_tote' check_tote_id=handover_check_tote.id %}">Продолжить сканирование WB-этикеток</a>{% elif handover_pending_pick_batch %}<a class="button button-primary" href="{% url 'fbs:tsd_pick_verification' batch_id=handover_pending_pick_batch.id %}">Продолжить проверку волны №{{ handover_pending_pick_batch.id }}</a>{% else %}<a class="button button-primary" href="{% url 'fbs:controller_home' %}">Открыть сборку заказов</a>{% endif %}
+        {% elif handover_next_action.code == 'close_box' %}
+          <form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="close_box"><input type="hidden" name="box_id" value="{{ handover_next_action.box.id }}"><button class="button button-primary" type="submit">Закрыть короб {{ handover_next_action.box.qr_code }}</button></form>
+        {% elif handover_next_action.code == 'scan_box' %}
+          <form class="shipment-inline-form" method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="scan_box"><label for="handover-box-scan">QR закрытого короба<input id="handover-box-scan" name="box_qr_scan" required autocomplete="off" placeholder="{{ handover_next_action.box.qr_code }}"></label><button class="button button-primary" type="submit">Подтвердить короб</button></form>
+        {% elif handover_next_action.code == 'wait_marketplace_delivery' %}
+          <span class="status status-in_progress">Отправка в WB выполняется автоматически</span>
+        {% elif handover_next_action.code == 'wait_supply_label' %}
+          <span class="status status-in_progress">Проверено · WB готовит ШК поставки</span>
+        {% elif handover_next_action.code == 'print_supply_label' %}
+          {% if handover_print_workstations %}<form class="shipment-print-form" method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="print_supply_label"><input type="hidden" name="workstation_id" value="{{ handover_print_workstations.0.id }}"><button class="button button-primary" type="submit">Распечатать ШК</button></form>{% else %}<span class="status status-problem">Не настроен принтер ШК поставки</span>{% endif %}
+        {% elif handover_next_action.code == 'dispatch' %}
+          <form class="shipment-inline-form" method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="dispatch">{% if handover_fbs_otg_locations_configured %}<label for="dispatch-location-scan">QR места OTG<input id="dispatch-location-scan" name="dispatch_location_scan" required autocomplete="off" placeholder="Например, OTG-DOP-01"></label>{% endif %}<button class="button button-primary" type="submit">Подтвердить место и передачу</button></form>
+        {% elif handover_next_action.code == 'refresh' %}
+          <form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="refresh"><button class="button button-primary" type="submit">Обновить статусы</button></form>
+        {% elif handover_next_action.code == 'resolve_composition' and handover.profile.marketplace == 'ozon' %}
+          <span class="status status-in_progress">Проверка Ozon выполняется в фоне · повторный скан не нужен</span>
+        {% elif handover_next_action.code == 'blocked_empty_box' %}
+          <span class="shipment-next-step-blocked">Продолжение заблокировано до проверки пустого короба.</span>
+        {% elif handover_next_action.code == 'complete' %}
+          {% if handover_boxes %}<a class="button button-secondary" href="{% url 'fbs:tsd_handover_driver_manifest' handover.id %}" target="_blank" rel="noopener">Открыть реестр</a>{% endif %}
+        {% else %}
+          <a class="button button-primary" href="{% url 'fbs:tsd_handover_detail' batch_id=handover.id %}">Обновить экран</a>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="shipment-action-title"><span class="section-kicker">Текущая операция</span><strong>{% if handover.status == 'open' %}Формирование и контроль коробов{% elif handover.status == 'ready' %}Передача отгрузки{% else %}Контроль статуса движения{% endif %}</strong></div>
+      {% if handover.status == 'open' and handover.profile.marketplace == 'wb' and handover_uses_marketplace_boxes %}
+        {% if handover_all_assignments_confirmed and handover_all_orders_ready %}<form class="shipment-inline-form" method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="create_wb_boxes"><label for="box-count">Коробов<input id="box-count" type="number" name="box_count" min="1" max="1000" value="1" required></label><button class="button button-primary" type="submit">Получить QR коробов WB</button></form>{% else %}<span class="status status-in_progress">Состав WB: {{ handover_assignment_confirmed_count }} / {{ handover_assignments|length }}</span>{% endif %}
+      {% elif handover.status == 'open' and handover.profile.marketplace == 'wb' %}<span class="status status-in_progress">Склад/СЦ: открытый короб Fullbox используется до его закрытия. QR WB-GI появится после передачи поставки в WB.</span>
+      {% elif handover.status == 'open' %}<form class="shipment-inline-form shipment-inline-form-wide" method="post">{% csrf_token %}<input type="hidden" name="action" value="add_box"><label for="box-qr">QR короба<input id="box-qr" name="box_qr" required autocomplete="off"></label><label for="external-box-id">Номер короба<input id="external-box-id" name="external_box_id" autocomplete="off"></label><button class="button button-primary" type="submit">Добавить короб</button></form>{% endif %}
+      {% if handover.status == 'open' or handover.status == 'ready' %}{% if handover.profile.marketplace != 'wb' or handover_uses_marketplace_boxes %}<form class="shipment-inline-form" method="post">{% csrf_token %}<input type="hidden" name="action" value="scan_box"><label for="handover-box-scan">QR закрытого короба<input id="handover-box-scan" name="box_qr_scan" required autocomplete="off" placeholder="Сканируйте короб"></label><button class="button button-primary" type="submit">Подтвердить к отгрузке</button></form>{% endif %}{% endif %}
+      <div class="shipment-primary-actions">
+        {% if handover.status == 'ready' and handover_composition_ready %}
+          {% if handover.profile.marketplace == 'wb' and handover.marketplace_state != 'complete' %}
+            <span class="status status-in_progress">Проверено · WB готовит ШК поставки</span>
+          {% elif handover_supply_label_available and handover_print_workstations %}
+            <form class="shipment-print-form" method="post" data-submit-once>{% csrf_token %}
+              <input type="hidden" name="action" value="print_supply_label">
+              <label class="sr-only" for="supply-printer-action-{{ handover.id }}">Принтер</label>
+              <select id="supply-printer-action-{{ handover.id }}" name="workstation_id" required>{% for workstation in handover_print_workstations %}<option value="{{ workstation.id }}">{{ workstation.name }} · {{ workstation.printer_name }}</option>{% endfor %}</select>
+              <button class="button button-primary" type="submit">Распечатать ШК</button>
+            </form>
+          {% else %}<span class="status status-problem">ШК или принтер пока недоступны</span>{% endif %}
+        {% endif %}
+        {% if handover.status == 'dispatched' or handover.status == 'problem' %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="refresh"><button class="button button-secondary" type="submit">Обновить статусы</button></form>{% endif %}
+        {% if handover_boxes %}<a class="button button-secondary" href="{% url 'fbs:tsd_handover_driver_manifest' handover.id %}" target="_blank" rel="noopener">Реестр водителя</a>{% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <dialog class="kiz-retry-dialog" data-kiz-retry-dialog data-open-on-load="{% if kiz_retry_open %}true{% else %}false{% endif %}" aria-labelledby="kiz-retry-title">
+    <div class="handover-check-head">
+      <div><h2 id="kiz-retry-title">Повторное сканирование КИЗа</h2><p data-kiz-retry-caption>{% if kiz_retry_caption %}{{ kiz_retry_caption }}{% else %}Отсканируйте Data Matrix выбранного товара.{% endif %}</p></div>
+      <form method="dialog"><button class="button button-secondary button-compact" type="submit">Закрыть</button></form>
+    </div>
+    <form method="post" autocomplete="off" data-kiz-retry-form{% if agent_scan_poll_url %} data-kiz-agent-scan-url="{{ agent_scan_poll_url }}" data-kiz-agent-scan-since="{{ agent_scan_event_id }}"{% endif %}>{% csrf_token %}
+      <div class="kiz-retry-body">
+        <input type="hidden" name="action" value="retry_kiz">
+        <input type="hidden" name="order_item_id" value="{{ kiz_retry_item_id }}" data-kiz-retry-item-id>
+        <input type="hidden" name="kiz_rescan_all" value="{% if kiz_rescan_all_requested %}1{% else %}0{% endif %}" data-kiz-retry-all-mode>
+        <div class="kiz-retry-progress" data-kiz-retry-progress{% if not kiz_rescan_all_requested %} hidden{% endif %}>Осталось проблемных КИЗов: {{ kiz_retry_remaining_count }}</div>
+        <div class="kiz-retry-identifiers" aria-label="Идентификаторы товара и этикетки">
+          <div><span>Номер этикетки WB</span><strong data-kiz-retry-label-number>{{ kiz_retry_label_number|default:"Не указан" }}</strong></div>
+          <div><span>Штрихкод товара</span><strong data-kiz-retry-product-barcode>{{ kiz_retry_product_barcode|default:"Не указан" }}</strong></div>
+        </div>
+        <p>Переключите раскладку ТСД на EN и отсканируйте один Data Matrix. Технический дубль одного скана программа уберёт сама; два разных КИЗа подряд не примет. Сопоставление с каталогом не блокирует передачу наборов и старой номенклатуры.</p>
+        <label for="kiz-retry-scan">КИЗ Честного знака<input id="kiz-retry-scan" type="text" name="marking_scan" required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-agent-scan-kind="marking" data-scan-autosubmit="250" placeholder="Один Data Matrix · раскладка EN"></label>
+        {% if kiz_retry_error %}<div class="notice notice-error" role="alert">{{ kiz_retry_error }}</div>{% endif %}
+      </div>
+      <div class="kiz-retry-actions"><button class="button button-secondary" type="button" data-close-kiz-retry>Отмена</button><button class="button button-primary" type="submit" data-kiz-retry-submit>{% if kiz_rescan_all_requested %}Проверить и перейти к следующему{% else %}Проверить и передать повторно{% endif %}</button></div>
+    </form>
+  </dialog>
+
+  <div class="shipment-layout">
+    <div class="shipment-main">
+      {% if handover_assignments %}
+        <section class="operator-table-band shipment-orders-band" id="shipment-orders">
+          <div class="operator-table-heading"><div><span class="section-kicker">Состав marketplace</span><h2>Заказы поставки</h2></div><strong>{{ handover_assignment_confirmed_count }} / {{ handover_assignments|length }}</strong></div>
+          <div class="operator-table-scroll shipment-order-scroll">
+            <table class="operator-table shipment-order-table shipment-v4-order-table">
+              <thead><tr><th>ID</th><th>Номер заказа</th><th>Номер стикера</th><th>Создан</th><th>Товары</th><th>Вес</th><th>Движение заказа</th><th>КИЗ и срок</th><th>Проверка / короб</th></tr></thead>
+              <tbody>
+                {% for assignment in handover_assignments %}
+                  <tr class="shipment-order-search-row{% if assignment.client_canceled or assignment.check_state == 'problem' or assignment.order.metadata_state == 'problem' %} row-problem{% endif %}" data-order-detail-url="{% url 'fbs:operator_order_detail' assignment.order_id %}" data-shipment-order-row data-shipment-order-id="{{ assignment.order_id }}" data-shipment-check-state="{{ assignment.check_state }}" data-shipment-search="{{ assignment.order.id }} {{ assignment.order.external_order_id }} {{ assignment.order.external_sku }}{% if assignment.latest_label %} {{ assignment.latest_label.external_label_id }} {{ assignment.latest_label.barcode }}{% endif %}{% for item in assignment.order.ui_items %} {{ item.barcode }}{% endfor %}" tabindex="0">
+                    <td><strong>{{ assignment.order.id }}</strong></td>
+                    <td><a class="table-main-link" href="{% url 'fbs:operator_order_detail' assignment.order_id %}">{{ assignment.order.external_order_id }}</a><small>{{ assignment.order.external_sku|default:"Заказ marketplace" }}</small></td>
+                    <td>{% if assignment.latest_label %}<strong>{{ assignment.latest_label.external_label_id|default:"Ожидается" }}</strong><small>{{ assignment.latest_label.get_status_display }}</small>{% else %}<span class="status status-pending">Не получен</span>{% endif %}</td>
+                    <td><strong>{{ assignment.order.display_created_at|date:"d.m.Y" }}</strong><small>{{ assignment.order.display_created_at|date:"H:i" }}</small></td>
+                    <td><strong>{{ assignment.order.unit_count }} шт.</strong><small>{{ assignment.order.line_count }} поз.</small></td>
+                    <td><strong>{{ assignment.order.weight_kg|floatformat:3 }} кг</strong>{% if not assignment.order.weight_complete %}<small>частично</small>{% endif %}</td>
+                    <td><span class="status status-{{ assignment.order.acceptance_state }}">{{ assignment.order.acceptance_label }}</span><small>MP: {{ assignment.order.marketplace_status|default:"не получен" }}{% if assignment.order.marketplace_substatus %} → {{ assignment.order.marketplace_substatus }}{% endif %}</small><small>Fullbox: {{ assignment.order.get_internal_status_display }}</small></td>
+                    <td><span class="status status-{{ assignment.order.metadata_state }}">{{ assignment.order.metadata_state_label }}</span><div class="metadata-checks">{% for item in assignment.order.ui_items %}{% for check in item.metadata_checks %}{% if check.transfer.last_error %}<small class="text-error metadata-error-detail">{{ check.label }}: {{ check.transfer.last_error }}</small>{% endif %}{% if check.can_retry %}<button class="button button-secondary button-compact metadata-retry-action" type="button" data-open-kiz-retry data-order-item-id="{{ item.id }}" data-order-number="{{ assignment.order.external_order_id }}" data-product-name="{{ item.product_name|default:item.external_sku|escape }}" data-label-number="{{ item.kiz_retry_label_number|escape }}" data-product-barcode="{{ item.kiz_retry_product_barcode|escape }}">Пересканировать КИЗ</button>{% elif check.retry_block_reason %}<small class="metadata-retry-blocked">{{ check.retry_block_reason }}</small>{% endif %}{% endfor %}{% endfor %}</div>{% if assignment.can_reroute_invalid_kiz %}<div class="invalid-kiz-route"><strong>Сначала положите товар в проблемную тару {{ assignment.invalid_kiz_problem_tote.name }} ({{ assignment.invalid_kiz_problem_tote.barcode }}) и отсканируйте её QR.</strong><form method="post" data-submit-once autocomplete="off">{% csrf_token %}<input type="hidden" name="action" value="reroute_invalid_kiz"><input type="hidden" name="order_id" value="{{ assignment.order_id }}"><input type="hidden" name="route" value="rewave"><label for="problem-tote-scan-{{ assignment.order_id }}">Проблемная тара<input id="problem-tote-scan-{{ assignment.order_id }}" name="problem_tote_scan" required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only placeholder="Сканируйте QR тары"></label><button class="button button-primary button-compact" type="submit">На добор / новая волна</button><button class="button button-danger button-compact" type="submit" name="route" value="quarantine">В карантин кладовщику</button></form><small>Заказ в WB не отменяется. Эта физическая единица остаётся заблокированной в проблемной таре и не попадёт в новую отгрузку.</small></div>{% elif assignment.invalid_kiz_route_available %}<div class="invalid-kiz-route"><small class="text-error">На рабочем столе исходной волны нет активной привязанной проблемной тары. Сначала откройте смену стола и привяжите проблемную тару.</small></div>{% endif %}</td>
+                    <td>{% if assignment.client_canceled %}<span class="status status-problem">Отменён маркетплейсом</span><small class="text-error"><strong>Не класть в короб.</strong> Товар — в тару отменённых заказов{% if handover_controller_canceled_tote %} {{ handover_controller_canceled_tote.barcode }}{% endif %}.</small>{% endif %}<span class="status status-{{ assignment.check_state }}">{{ assignment.check_label }}</span><small class="{% if assignment.check_state == 'problem' %}text-error{% endif %}">{{ assignment.check_detail }}</small>{% if assignment.handover_link %}<small>Короб {{ assignment.handover_link.box.external_box_id|default:assignment.handover_link.box.qr_code }}</small>{% endif %}
+                      {% if assignment.uses_preconfirmed_ozon_qr %}<small>Официальный PDF сохранён для архива и повторно не печатается.</small><form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="reprint_ozon_order_qr"><input type="hidden" name="label_id" value="{{ assignment.latest_label.id }}"><button class="button button-secondary button-medium" type="submit">Повторить рабочий QR, если повреждён</button></form>{% elif assignment.latest_label.status == 'ready' or assignment.latest_label.status == 'applied' %}<form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="print_order_label"><input type="hidden" name="label_id" value="{{ assignment.latest_label.id }}"><button class="button button-secondary button-medium" type="submit">Печать этикетки заказа</button></form>{% endif %}
+                      {% if request_role == 'fbs_controller' and handover.profile.marketplace == 'wb' and assignment.can_controller_stage_exclusion %}
+                        <details class="shipment-exclusion"{% if forloop.first %} open{% endif %}><summary>Снять заказ {{ assignment.order.external_order_id }}</summary>
+                          <div class="notice notice-warning"><strong>Не добавляйте этот заказ в короб.</strong><br>Положите весь товар заказа в назначенную тару отменённых заказов и отсканируйте именно её. После скана заказ уйдёт из текущей проверки, а сверка WB продолжится отдельно.</div>
+                          {% if handover_controller_canceled_tote %}
+                            <form method="post" data-submit-once autocomplete="off" data-scan-feedback data-scan-focus-lock{% if agent_scan_poll_url %} data-agent-scan-poll-url="{{ agent_scan_poll_url }}" data-agent-scan-since="{{ agent_scan_event_id }}"{% endif %}>{% csrf_token %}
+                              <input type="hidden" name="action" value="release_exclusion">
+                              <input type="hidden" name="request_id" value="{{ assignment.exclusion_request.id }}">
+                              <strong>Назначенная тара: {{ handover_controller_canceled_tote.name }} ({{ handover_controller_canceled_tote.barcode }})</strong>
+                              <label for="canceled-tote-scan-{{ assignment.order_id }}">QR тары отменённых заказов<input id="canceled-tote-scan-{{ assignment.order_id }}" name="canceled_tote_scan" required{% if forloop.first %} autofocus{% endif %} autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only data-agent-scan-target data-agent-scan-kind="service-tote" data-scan-autosubmit="250" data-scan-expected-value="{{ handover_controller_canceled_tote.barcode }}" data-scan-expected-message="Отсканирована другая тара. Нужна {{ handover_controller_canceled_tote.barcode }}." placeholder="Отсканируйте {{ handover_controller_canceled_tote.barcode }}"></label>
+                              <button class="button button-danger button-compact" type="submit">Снять заказ и продолжить</button>
+                              <small>Остатки и резервы не меняются. Финальная отправка дождётся подтверждения WB.</small>
+                            </form>
+                          {% else %}
+                            <div class="notice notice-error">У текущей смены не назначена тара отменённых заказов. Вернитесь на рабочий стол контролёра и привяжите её.</div>
+                          {% endif %}
+                        </details>
+                      {% endif %}
+                      {% if request_role == 'fbs_controller' and handover.profile.marketplace == 'ozon' %}
+                        {% if assignment.can_return_ozon_canceled %}
+                          <details class="shipment-exclusion"><summary>Отменён клиентом — убрать из отгрузки</summary>
+                            <div class="notice notice-warning"><strong>Ozon уже сообщил об отмене заказа клиентом.</strong><br>Активные заказы склад отменять не может. Положите весь товар этого заказа в назначенную тару возврата и подтвердите оба скана.</div>
+                            {% if handover_controller_canceled_tote %}
+                              <form method="post" data-submit-once autocomplete="off">{% csrf_token %}
+                                <input type="hidden" name="action" value="confirm_ozon_canceled_return">
+                                <input type="hidden" name="order_id" value="{{ assignment.order_id }}">
+                                <strong>Тара отменённых заказов: {{ handover_controller_canceled_tote.name }} ({{ handover_controller_canceled_tote.barcode }})</strong>
+                                <label>QR отменённого заказа<input name="order_scan" required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only placeholder="Отсканируйте QR заказа"></label>
+                                <label>QR тары возврата<input name="canceled_tote_scan" required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="none" data-scanner-only placeholder="Отсканируйте {{ handover_controller_canceled_tote.barcode }}"></label>
+                                <label>Комментарий (необязательно)<textarea name="reason" rows="2" maxlength="500" placeholder="Например: отменён клиентом после сборки"></textarea></label>
+                                <button class="button button-danger button-compact" type="submit">Убрать отменённый заказ и передать в возврат</button>
+                              </form>
+                            {% else %}
+                              <div class="notice notice-error">У текущей смены контролёра не назначена тара отменённых заказов. Вернитесь на рабочий стол и привяжите её.</div>
+                            {% endif %}
+                          </details>
+                        {% elif assignment.ozon_client_canceled and assignment.exclusion_request %}
+                          <span class="status status-{{ assignment.exclusion_request.status }}">Возврат: {{ assignment.exclusion_request.get_status_display }}</span>
+                          {% if assignment.exclusion_request.source_tote %}<small>Тара {{ assignment.exclusion_request.source_tote.name }} ({{ assignment.exclusion_request.source_tote.barcode }})</small>{% else %}<small>Ожидается подтверждение тары контролёром.</small>{% endif %}
+                        {% endif %}
+                      {% endif %}
+                      {% if request_role != 'fbs_controller' %}{% with exclusion=assignment.exclusion_request %}
+                        {% if exclusion and exclusion.status != 'completed' and exclusion.status != 'canceled' %}
+                          <span class="status status-{{ exclusion.status }}">{{ exclusion.get_status_display }}</span>
+                          <small>{{ exclusion.get_reason_code_display }}{% if exclusion.returned_qty %} · возвращено {{ exclusion.returned_qty }} из {{ exclusion.planned_qty }}{% endif %}</small>
+                          {% if exclusion.status == 'failed' %}<form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="retry_exclusion"><input type="hidden" name="request_id" value="{{ exclusion.id }}"><button class="button button-secondary button-compact" type="submit">Повторить сверку WB</button></form>{% endif %}
+                          {% if exclusion.status == 'queued' %}<small>Ожидается скан назначенной тары отменённых заказов контролёром.</small>{% endif %}
+                        {% elif assignment.can_exclude %}
+                          <details class="shipment-exclusion"><summary>Убрать проблемный заказ</summary><form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="exclude_order"><input type="hidden" name="order_id" value="{{ assignment.order_id }}"><label>Комментарий<textarea name="reason" rows="2" required placeholder="Кратко опишите, что произошло"></textarea></label><small>Система проверит состав WB и передаст физически отобранный товар в «Возврат отбора». Сканировать ячейку или короб здесь не нужно.</small><button class="button button-danger button-compact" type="submit">Убрать и передать в возврат отбора</button></form></details>
+                        {% endif %}
+                      {% endwith %}{% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+                <tr data-shipment-search-empty hidden><td class="empty-row" colspan="9">По этому коду заказ в отгрузке не найден.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {% endif %}
+
+      <section class="shipment-boxes-head" id="shipment-boxes"><div><span class="section-kicker">Физический контроль</span><h2>{% if handover.profile.marketplace == 'wb' and handover_uses_marketplace_boxes %}Короба WB-MP для ПВЗ{% else %}Короба Fullbox{% endif %}</h2></div><strong>{{ handover_boxes|length }}</strong></section>
+      {% for box in handover_boxes %}
+        <section class="operator-table-band shipment-box-band" data-shipment-box-band>
+          <div class="shipment-box-head"><div><span class="section-kicker">Короб {% if box.external_box_id %}{{ box.external_box_id }}{% else %}#{{ forloop.counter }}{% endif %}</span><h2>{{ box.qr_code }}</h2></div><div><span class="status status-{{ box.status }}">{% if box.status == 'scanned' %}Подтвержден{% else %}{{ box.get_status_display }}{% endif %}</span><small>{% if box.scanned_at %}Подтвержден {{ box.scanned_at|date:"d.m H:i" }}{% elif box.status == 'scanned' or box.status == 'dispatched' or box.status == 'accepted' %}Состав подтвержден{% else %}Ожидает проверки состава{% endif %}</small></div></div>
+          <div class="shipment-box-toolbar">
+            <span>{{ box.order_count }} заказов · {{ box.unit_count }} шт. · {{ box.weight_kg|floatformat:3 }} кг</span>
+            {% if box.status != 'open' %}
+              {% if box.label_file or handover.profile.marketplace != 'wb' %}<a class="button button-secondary button-compact" href="{% url 'fbs:tsd_handover_box_label' batch_id=handover.id box_id=box.id %}" target="_blank" rel="noopener">Открыть QR</a>{% endif %}
+              {% if box.label_file and handover_print_workstations %}<form class="shipment-print-form" method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="print_box_label"><input type="hidden" name="box_id" value="{{ box.id }}"><label class="sr-only" for="box-printer-{{ box.id }}">Принтер</label><select id="box-printer-{{ box.id }}" name="workstation_id" required>{% for workstation in handover_print_workstations %}<option value="{{ workstation.id }}">{{ workstation.name }} · {{ workstation.printer_name }}</option>{% endfor %}</select><button class="button button-secondary button-compact" type="submit">Печать QR</button></form>{% endif %}
+            {% else %}<span class="status status-pending">QR будет доступен после закрытия короба</span>{% endif %}
+          </div>
+          <div class="operator-table-scroll shipment-order-scroll">
+            <table class="operator-table shipment-box-order-table">
+              <thead><tr><th>Скан / заказ</th><th>Товар</th><th>Этикетка</th><th>Честный знак</th><th>Срок годности</th><th>Движение</th></tr></thead>
+              <tbody>
+                {% for link in box.ui_orders %}
+                  <tr class="shipment-order-search-row{% if link.order.metadata_state == 'problem' or link.order.acceptance_state == 'problem' %} row-problem{% endif %}" data-order-detail-url="{% url 'fbs:operator_order_detail' link.order.id %}" data-shipment-order-row data-shipment-order-id="{{ link.order.id }}" data-shipment-search="{{ link.order.id }} {{ link.order.external_order_id }} {{ link.order.external_sku }}{% if link.order.latest_label %} {{ link.order.latest_label.external_label_id }} {{ link.order.latest_label.barcode }}{% endif %}{% for item in link.order.ui_items %} {{ item.barcode }}{% endfor %}" tabindex="0">
+                    <td><span class="status status-done">В коробе</span><a class="table-main-link" href="{% url 'fbs:operator_order_detail' link.order.id %}">{{ link.order.external_order_id }}</a><small>{{ link.added_at|date:"d.m H:i:s" }}</small></td>
+                    <td>{% for item in link.order.ui_items %}<div class="table-stack"><strong>{{ item.product_name|default:item.external_sku }}</strong><small>{{ item.external_sku }} · ШК {{ item.barcode|default:"-" }} · {{ item.quantity }} шт.</small></div>{% endfor %}</td>
+                    <td>{% if link.order.latest_label %}<span class="status status-{{ link.order.latest_label.status }}">{{ link.order.latest_label.get_status_display }}</span><small>{{ link.order.latest_label.external_label_id|default:"ID ожидается" }}</small>{% if link.order.latest_label.document_url %}<a href="{{ link.order.latest_label.document_url }}">Открыть</a>{% endif %}{% else %}<span class="status status-pending">Не запрошена</span>{% endif %}</td>
+                    <td>{% for item in link.order.ui_items %}{% for check in item.metadata_checks %}{% if check.label == 'КИЗ' %}<span class="status status-{{ check.state }}">{{ check.state_label }}</span>{% if check.transfer.last_error %}<small class="text-error metadata-error-detail">{{ check.transfer.last_error }}</small>{% endif %}{% if check.can_retry %}<button class="button button-secondary button-compact metadata-retry-action" type="button" data-open-kiz-retry data-order-item-id="{{ item.id }}" data-order-number="{{ link.order.external_order_id }}" data-product-name="{{ item.product_name|default:item.external_sku|escape }}" data-label-number="{{ item.kiz_retry_label_number|escape }}" data-product-barcode="{{ item.kiz_retry_product_barcode|escape }}">Пересканировать КИЗ</button>{% elif check.retry_block_reason %}<small class="metadata-retry-blocked">{{ check.retry_block_reason }}</small>{% endif %}{% endif %}{% endfor %}{% endfor %}<small>{{ link.order.metadata_state_label }}</small></td>
+                    <td>{% for item in link.order.ui_items %}{% for check in item.metadata_checks %}{% if check.label == 'Срок годности' %}<span class="status status-{{ check.state }}">{{ check.state_label }}</span>{% if check.transfer.last_error %}<small class="text-error metadata-error-detail">{{ check.transfer.last_error }}</small>{% endif %}{% endif %}{% endfor %}{% endfor %}</td>
+                    <td><span class="status status-{{ link.order.acceptance_state }}">{{ link.order.acceptance_label }}</span><small>Marketplace: {{ link.order.marketplace_status|default:"не получен" }}</small>{% if link.order.marketplace_substatus %}<small>{{ link.order.marketplace_substatus }}</small>{% endif %}</td>
+                  </tr>
+                {% empty %}<tr><td class="empty-row" colspan="6">В короб еще не добавлены заказы.</td></tr>{% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if box.status == 'open' and request_role != 'fbs_controller' %}<div class="shipment-box-actions"><form class="shipment-inline-form" method="post">{% csrf_token %}<input type="hidden" name="action" value="add_order"><input type="hidden" name="box_id" value="{{ box.id }}"><label for="order-scan-{{ box.id }}">ШК заказа<input id="order-scan-{{ box.id }}" name="order_label_scan" required autocomplete="off"></label><button class="button button-primary" type="submit">Добавить</button></form><form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="close_box"><input type="hidden" name="box_id" value="{{ box.id }}"><button class="button button-secondary" type="submit">Закрыть короб</button></form></div>{% endif %}
+        </section>
+      {% empty %}<div class="empty-state shipment-empty-boxes">Короба еще не созданы. Заказы поставки и статусы проверки видны выше.</div>{% endfor %}
+    </div>
+
+    <section class="shipment-v4-report-grid" aria-label="Отчеты отгрузки">
+      <article class="shipment-v4-report-card"><span class="section-kicker">Контроль отгрузки</span><h2>Физический факт</h2><dl><div><dt>Короба</dt><dd>{{ handover_accepted_boxes }} принято · {{ handover_problem_boxes }} проблем</dd></div><div><dt>Заказы</dt><dd>{{ handover_accepted_orders }} из {{ handover_order_count }} принято</dd></div><div><dt>Отклонено</dt><dd>{{ handover_rejected_orders }}</dd></div><div><dt>КИЗ и сроки</dt><dd>{{ handover_metadata_problem_count }} ошибок · {{ handover_metadata_waiting_count }} ожидают</dd></div></dl></article>
+      <article class="shipment-v4-report-card"><span class="section-kicker">Документы</span><h2>Комплект отгрузки</h2><dl><div><dt>Этикетки заказов</dt><dd>{{ handover_label_document_count }} из {{ handover_order_count }}</dd></div><div><dt>QR коробов</dt><dd>{{ handover_boxes|length }}</dd></div><div><dt>Поставка</dt><dd>{% if handover.external_supply_id %}ID получен{% else %}Ожидается{% endif %}</dd></div><div><dt>Реестр водителя</dt><dd>{% if handover_driver_manifest_ready %}Готов{% else %}Формируется{% endif %}</dd></div></dl><button class="button button-secondary button-compact" type="button" data-open-documents-dialog>Открыть документы</button></article>
+      {% if request_role != 'fbs_controller' %}<article class="shipment-v4-report-card"><span class="section-kicker">Обмен с площадкой</span><h2>Команды API</h2><dl><div><dt>Всего команд</dt><dd>{{ handover_commands|length }}</dd></div><div><dt>В работе</dt><dd>{% if handover_commands_active %}Есть{% else %}Нет{% endif %}</dd></div><div><dt>Ошибки</dt><dd>{{ handover_command_problem_count }}</dd></div><div><dt>Статус</dt><dd>{{ handover.get_marketplace_state_display }}</dd></div></dl><details class="shipment-v4-command-log"><summary>Последние команды</summary><div class="compact-list">{% for command in handover_commands|slice:":20" %}<div><span>{{ command.command_type }}{% if command.order %} · {{ command.order.external_order_id }}{% endif %}</span><strong class="{% if command.status == 'failed' or command.status == 'conflict' %}text-error{% endif %}">{{ command.get_status_display }}</strong></div>{% if command.error %}<small class="text-error">{{ command.error }}</small>{% endif %}{% empty %}<div><span>Команд пока нет</span></div>{% endfor %}</div></details></article>{% endif %}
+    </section>
+
+    {% if request_role != 'fbs_controller' %}<section class="operator-table-band shipment-v4-services" id="shipment-services">
+      <div class="operator-table-heading"><div><span class="section-kicker">Услуги по отгрузке</span><h2>FBS-начисления</h2></div><strong>{{ handover_billing_charged_count }} / {{ handover_billing_facts|length }}</strong></div>
+      <div class="operator-table-scroll"><table class="operator-table"><thead><tr><th>Услуга</th><th>Единица</th><th>Количество</th><th>Статус начисления</th></tr></thead><tbody>{% for fact in handover_billing_facts %}<tr><td><strong>{{ fact.display_name }}</strong></td><td>{{ fact.unit }}</td><td>{{ fact.quantity|floatformat:-3 }}</td><td><span class="status status-{{ fact.status }}">{{ fact.get_status_display }}</span></td></tr>{% empty %}<tr><td class="empty-row" colspan="4">Факты услуг появятся после сборки и передачи.</td></tr>{% endfor %}</tbody></table></div>
+    </section>{% endif %}
+  </div>
+  <script>
+    (() => {
+      const pairs = [
+        ["[data-open-box-dialog]", "[data-box-dialog]"],
+        ["[data-open-marking-dialog]", "[data-marking-dialog]"],
+        ["[data-open-documents-dialog]", "[data-documents-dialog]"],
+      ];
+      pairs.forEach(([buttonSelector, dialogSelector]) => {
+        const dialog = document.querySelector(dialogSelector);
+        if (!dialog) return;
+        document.querySelectorAll(buttonSelector).forEach((button) => {
+          button.addEventListener("click", () => {
+            if (typeof dialog.showModal === "function") dialog.showModal();
+            else dialog.setAttribute("open", "");
+          });
+        });
+        dialog.addEventListener("click", (event) => {
+          if (event.target === dialog) dialog.close();
+        });
+      });
+      document.querySelectorAll("[data-jump-handover-action]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const target = document.querySelector("#handover-next-action");
+          if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+      });
+      document.querySelectorAll("[data-jump-marking-orders]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const target = document.querySelector("#shipment-orders");
+          if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      });
+    })();
+    (() => {
+      const dialog = document.querySelector("[data-handover-history-dialog]");
+      const buttons = document.querySelectorAll("[data-open-handover-history]");
+      if (!dialog || !buttons.length) return;
+      buttons.forEach((button) => button.addEventListener("click", () => {
+          if (typeof dialog.showModal === "function") dialog.showModal();
+          else dialog.setAttribute("open", "");
+        })
+      );
+      dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) dialog.close();
+      });
+    })();
+    (() => {
+      const input = document.querySelector("[data-shipment-order-search]");
+      const clearButton = document.querySelector("[data-shipment-order-search-clear]");
+      const status = document.querySelector("[data-shipment-order-search-status]");
+      const rows = Array.from(document.querySelectorAll("[data-shipment-order-row]"));
+      const emptyRow = document.querySelector("[data-shipment-search-empty]");
+      if (!input || !clearButton || !status) return;
+
+      const normalize = (value) => String(value || "").trim().toLocaleLowerCase("ru-RU");
+      const applySearch = () => {
+        const query = normalize(input.value);
+        const matchedOrderIds = new Set();
+        let mainTableMatches = 0;
+        let firstMainMatch = null;
+        let unverifiedMatches = 0;
+
+        rows.forEach((row) => {
+          const matches = !query || normalize(row.dataset.shipmentSearch).includes(query);
+          row.hidden = !matches;
+          row.classList.toggle("is-search-match", Boolean(query && matches));
+          if (!query || !matches) return;
+          matchedOrderIds.add(row.dataset.shipmentOrderId || "");
+          const checkState = row.dataset.shipmentCheckState || "";
+          if (checkState && checkState !== "done") unverifiedMatches += 1;
+          if (row.closest("#shipment-orders")) {
+            mainTableMatches += 1;
+            if (!firstMainMatch) firstMainMatch = row;
+          }
+        });
+
+        document.querySelectorAll("[data-shipment-box-band]").forEach((band) => {
+          const hasMatch = Array.from(band.querySelectorAll("[data-shipment-order-row]"))
+            .some((row) => !row.hidden);
+          band.hidden = Boolean(query && !hasMatch);
+        });
+
+        clearButton.disabled = !query;
+        if (emptyRow) emptyRow.hidden = !query || mainTableMatches > 0 || matchedOrderIds.size > 0;
+        if (!query) {
+          status.textContent = "Только поиск по отгрузке. Скан в это поле находит заказ, но не засчитывает проверку.";
+        } else if (matchedOrderIds.size && unverifiedMatches) {
+          status.textContent = `Найдено заказов: ${matchedOrderIds.size}. Заказ ещё не проверен — проверка засчитывается сканом в таре проверки, кнопка следующего шага выше.`;
+        } else if (matchedOrderIds.size) {
+          status.textContent = `Найдено заказов: ${matchedOrderIds.size}.`;
+        } else {
+          status.textContent = "По этому коду заказ в отгрузке не найден.";
+        }
+        return { matchedOrderIds, firstMainMatch };
+      };
+
+      input.addEventListener("input", applySearch);
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          input.value = "";
+          applySearch();
+          return;
+        }
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        const result = applySearch();
+        if (result.matchedOrderIds.size === 1 && result.firstMainMatch) {
+          result.firstMainMatch.scrollIntoView({ behavior: "smooth", block: "center" });
+          result.firstMainMatch.focus({ preventScroll: true });
+        }
+      });
+      clearButton.addEventListener("click", () => {
+        input.value = "";
+        applySearch();
+        input.focus();
+      });
+    })();
+    (() => {
+      document.querySelectorAll("[data-order-detail-url]").forEach((row) => {
+        const openOrder = () => {
+          if (row.dataset.orderDetailUrl) window.location.href = row.dataset.orderDetailUrl;
+        };
+        row.addEventListener("dblclick", (event) => {
+          if (event.target.closest("a, button, input, select, form")) return;
+          openOrder();
+        });
+        row.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") openOrder();
+        });
+      });
+    })();
+    (() => {
+      const dialog = document.querySelector("[data-kiz-retry-dialog]");
+      const form = dialog && dialog.querySelector("[data-kiz-retry-form]");
+      const itemInput = form && form.querySelector("[data-kiz-retry-item-id]");
+      const scanInput = form && form.querySelector("#kiz-retry-scan");
+      const caption = dialog && dialog.querySelector("[data-kiz-retry-caption]");
+      const labelNumber = dialog && dialog.querySelector("[data-kiz-retry-label-number]");
+      const productBarcode = dialog && dialog.querySelector("[data-kiz-retry-product-barcode]");
+      const retryAllInput = form && form.querySelector("[data-kiz-retry-all-mode]");
+      const retryProgress = dialog && dialog.querySelector("[data-kiz-retry-progress]");
+      const submitButton = form && form.querySelector("[data-kiz-retry-submit]");
+      const retryAllButton = document.querySelector("[data-open-kiz-retry-all]");
+      if (!dialog || !form || !itemInput || !scanInput || !retryAllInput) return;
+      const activateScanner = () => {
+        form.setAttribute("data-scan-focus-lock", "");
+        if (form.dataset.kizAgentScanUrl) {
+          form.dataset.agentScanPollUrl = form.dataset.kizAgentScanUrl;
+          form.dataset.agentScanSince = form.dataset.kizAgentScanSince || "0";
+        }
+        if (typeof initializeTsdPage === "function") initializeTsdPage(dialog);
+      };
+      const deactivateScanner = () => {
+        form.removeAttribute("data-scan-focus-lock");
+        delete form.dataset.agentScanPollUrl;
+        if (typeof startAgentScanPolling === "function") startAgentScanPolling(document);
+      };
+      const openDialog = (button, retryAll = false) => {
+        if (button) {
+          itemInput.value = button.dataset.orderItemId || "";
+          const orderNumber = button.dataset.orderNumber || "";
+          const productName = button.dataset.productName || "";
+          if (caption) caption.textContent = `Заказ ${orderNumber} · ${productName}`;
+          if (labelNumber) labelNumber.textContent = button.dataset.labelNumber || "Не указан";
+          if (productBarcode) productBarcode.textContent = button.dataset.productBarcode || "Не указан";
+        }
+        retryAllInput.value = retryAll ? "1" : "0";
+        if (retryProgress) {
+          retryProgress.hidden = !retryAll;
+          if (retryAll && retryAllButton) {
+            retryProgress.textContent = `Осталось проблемных КИЗов: ${retryAllButton.dataset.kizRetryCount || "1"}`;
+          }
+        }
+        if (submitButton) {
+          submitButton.textContent = retryAll
+            ? "Проверить и перейти к следующему"
+            : "Проверить и передать повторно";
+        }
+        scanInput.value = "";
+        if (typeof dialog.showModal === "function") dialog.showModal();
+        else dialog.setAttribute("open", "");
+        activateScanner();
+        window.setTimeout(() => scanInput.focus({ preventScroll: true }), 0);
+      };
+      document.querySelectorAll("[data-open-kiz-retry]").forEach((button) => {
+        button.addEventListener("click", () => openDialog(button, false));
+      });
+      if (retryAllButton) {
+        retryAllButton.addEventListener("click", () => {
+          const seenItemIds = new Set();
+          const firstRetryButton = Array.from(document.querySelectorAll("[data-open-kiz-retry]")).find((button) => {
+            const itemId = button.dataset.orderItemId || "";
+            if (!itemId || seenItemIds.has(itemId)) return false;
+            seenItemIds.add(itemId);
+            return true;
+          });
+          if (firstRetryButton) openDialog(firstRetryButton, true);
+        });
+      }
+      dialog.querySelectorAll("[data-close-kiz-retry]").forEach((button) => {
+        button.addEventListener("click", () => dialog.close());
+      });
+      if (dialog.dataset.openOnLoad === "true") openDialog(null, retryAllInput.value === "1");
+      dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) dialog.close();
+      });
+      dialog.addEventListener("close", deactivateScanner);
+    })();
+  </script>
+{% include "fbs/_controller_problems.html" %}
+{% endblock %}

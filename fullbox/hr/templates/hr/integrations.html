@@ -1,0 +1,72 @@
+{% extends "hr/base.html" %}
+
+{% block title %}Интеграции{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <div class="breadcrumbs"><a href="{% url 'hr:dashboard' %}">Отдел кадров</a><span>›</span><span>Интеграции</span></div>
+      <h1 style="margin-top: 8px;">Интеграции с площадками</h1>
+      <div class="muted" style="margin-top: 6px; font-weight: 700;">Подключение каналов массового подбора в единую очередь Fullbox</div>
+    </div>
+  </div>
+
+  <section class="grid">
+    <div class="panel">
+      <div class="kpi-title">Площадок</div>
+      <div class="kpi-value">{{ integration_stats.total }}</div>
+      <div class="kpi-note">Доступны для настройки</div>
+    </div>
+    <div class="panel">
+      <div class="kpi-title">Ключи добавлены</div>
+      <div class="kpi-value">{{ integration_stats.credentials_ready }}</div>
+      <div class="kpi-note">Без вывода секретов на экран</div>
+    </div>
+    <div class="panel">
+      <div class="kpi-title">Webhook</div>
+      <div class="kpi-value">{{ integration_stats.webhook }}</div>
+      <div class="kpi-note">Канала с событиями в реальном времени</div>
+    </div>
+    <div class="panel">
+      <div class="kpi-title">Единая очередь</div>
+      <div class="kpi-value">—</div>
+      <div class="kpi-note">Появится после запуска синхронизации</div>
+    </div>
+  </section>
+
+  <div class="callout">
+    <div class="callout-icon">ℹ</div>
+    <div>
+      <strong>Сейчас подготовлен безопасный раздел настройки</strong>
+      Ключи площадок должны храниться в защищённых настройках сервера. Страница показывает только готовность параметров и никогда не выводит их значения.
+    </div>
+  </div>
+
+  <section class="integration-grid">
+    {% for integration in integrations %}
+      <article class="integration-card">
+        <div class="integration-head">
+          <div class="platform">
+            <div class="platform-logo {{ integration.tone }}">{{ integration.short_name }}</div>
+            <div class="platform-title">
+              <strong>{{ integration.name }}</strong>
+              <span class="muted" style="font-size: 12px; font-weight: 800;">{{ integration.connection_type }}</span>
+            </div>
+          </div>
+          <span class="chip {% if integration.credentials_ready %}ready{% endif %}">
+            {% if integration.credentials_ready %}Ключи добавлены{% else %}Не настроено{% endif %}
+          </span>
+        </div>
+        <div class="muted" style="font-size: 13px; line-height: 1.5;">{{ integration.summary }}</div>
+        <div class="integration-meta">
+          <span class="tag">{{ integration.sync_mode }}</span>
+          <span class="tag">{{ integration.capabilities|length }} возможности</span>
+        </div>
+        <div class="card-footer">
+          <span class="muted" style="font-size: 11px; font-weight: 800;">Синхронизация не запущена</span>
+          <a class="btn" href="{% url 'hr:integration-detail' integration.key %}">Открыть настройки</a>
+        </div>
+      </article>
+    {% endfor %}
+  </section>
+{% endblock %}

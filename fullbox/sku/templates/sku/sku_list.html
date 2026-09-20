@@ -1,0 +1,1627 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Номенклатура | FULLBOX</title>
+  <link href="/static/vendor/space-grotesk.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f6f4ed;
+      --surface: #ffffff;
+      --surface-alt: #f9f7f1;
+      --text: #1f2328;
+      --muted: #6b7280;
+      --stroke: rgba(31, 35, 40, 0.12);
+      --accent: #c79a1c;
+      --accent-soft: #f2d48c;
+      --danger: #d24d4d;
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(900px 480px at 0% -10%, rgba(199,154,28,0.14), transparent 55%),
+        radial-gradient(800px 420px at 100% 0%, rgba(15,23,42,0.06), transparent 50%),
+        var(--bg);
+      color: var(--text);
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      width: 100%;
+      max-width: none;
+      padding: 26px 24px 56px;
+    }
+    .page-shell {
+      display: grid;
+      gap: 18px;
+    }
+    .hero,
+    .panel,
+    .empty-state {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+    .hero {
+      padding: 22px 24px;
+      display: grid;
+      gap: 18px;
+    }
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .eyebrow {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    h1 {
+      margin: 4px 0 0;
+      font-size: 38px;
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+    .hero-subtitle {
+      margin: 10px 0 0;
+      max-width: 820px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .toolbar-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(15, 23, 42, 0.04);
+      color: var(--text);
+      font-weight: 600;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(199,154,28,0.45);
+      box-shadow: 0 10px 24px rgba(199,154,28,0.16);
+    }
+    .btn.primary,
+    .btn.active {
+      background: linear-gradient(120deg, var(--accent), var(--accent-soft));
+      border-color: transparent;
+      color: #1f2328;
+    }
+    .search-bar {
+      display: grid;
+      grid-template-columns: minmax(240px, 360px) minmax(220px, 280px) auto auto auto auto auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .search-field {
+      position: relative;
+    }
+    .search-input,
+    .search-select {
+      width: 100%;
+      min-height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-alt);
+      color: var(--text);
+      padding: 10px 14px;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .size-select {
+      width: 100%;
+      min-width: 96px;
+      min-height: 38px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-alt);
+      color: var(--text);
+      padding: 8px 12px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .suggest-box {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      width: 100%;
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      z-index: 20;
+    }
+    .suggest-box.open { display: block; }
+    .suggest-item {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      padding: 11px 14px;
+      font-family: inherit;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .suggest-item:hover { background: rgba(15,23,42,0.05); }
+    .panel {
+      padding: 0;
+      overflow: hidden;
+    }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: center;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.72);
+      backdrop-filter: blur(10px);
+    }
+    .panel-title {
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .panel-count {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      min-width: 1260px;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 14px 12px;
+      border-bottom: 1px solid var(--stroke);
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--surface);
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    tbody tr:nth-child(odd) { background: rgba(15,23,42,0.015); }
+    tbody tr:hover { background: rgba(199,154,28,0.08); }
+    .sort-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: inherit;
+    }
+    .sort-mark {
+      font-size: 11px;
+      color: var(--accent);
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .act-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: rgba(15,23,42,0.04);
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .act-btn:hover { border-color: rgba(199,154,28,0.45); }
+    .act-btn.danger {
+      color: var(--danger);
+      border-color: rgba(210,77,77,0.35);
+    }
+    .act-btn.print-btn {
+      color: #8a5d00;
+      border-color: rgba(199,154,28,0.35);
+      background: rgba(199,154,28,0.12);
+    }
+    .sku-main {
+      display: grid;
+      gap: 4px;
+      white-space: normal;
+      min-width: 220px;
+    }
+    .sku-code {
+      font-weight: 700;
+      font-size: 15px;
+      color: #111827;
+    }
+    .sku-name {
+      color: var(--text);
+      line-height: 1.4;
+    }
+    .sku-meta {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(15,23,42,0.04);
+      font-size: 12px;
+      line-height: 1.2;
+    }
+    .chip.is-hidden {
+      display: none;
+    }
+    .is-hidden {
+      display: none !important;
+    }
+    .chip-stack {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      white-space: normal;
+    }
+    .barcode-chip-stack {
+      min-width: 240px;
+    }
+    .barcode-empty {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 18px;
+      padding: 18px;
+    }
+    .card {
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(249,247,241,0.96));
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .card-title {
+      display: grid;
+      gap: 6px;
+    }
+    .card-title h3 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.1;
+      letter-spacing: -0.5px;
+    }
+    .card-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .thumb {
+      width: 132px;
+      height: 132px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: #eef1f4 center/cover no-repeat;
+      flex-shrink: 0;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .data-block {
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.75);
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .data-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+    .data-value {
+      color: var(--text);
+      line-height: 1.45;
+      white-space: normal;
+      word-break: break-word;
+    }
+    .description {
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: rgba(15,23,42,0.03);
+      padding: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      white-space: normal;
+    }
+    .empty-state {
+      padding: 40px 28px;
+      display: grid;
+      gap: 14px;
+      justify-items: start;
+    }
+    .empty-state h2 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -0.8px;
+    }
+    .empty-state p {
+      margin: 0;
+      max-width: 760px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .pager {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 16px 18px 20px;
+    }
+    .pager-note {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .pager-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .act-btn:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+    .print-context-menu {
+      position: fixed;
+      z-index: 70;
+      display: none;
+      width: 230px;
+      padding: 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      background: var(--surface);
+      box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
+    }
+    .print-context-menu.open {
+      display: grid;
+      gap: 10px;
+    }
+    .print-context-title {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .print-context-row {
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+    .print-context-row label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .print-context-input {
+      width: 100%;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: #fffefa;
+      padding: 8px 10px;
+      font: inherit;
+      font-weight: 700;
+    }
+    .print-context-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .print-context-actions .btn {
+      width: 100%;
+      justify-content: center;
+    }
+    .print-context-settings {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+      text-decoration: none;
+    }
+    .print-context-settings:hover {
+      color: var(--text);
+    }
+    @media (max-width: 1400px) {
+      .search-bar {
+        grid-template-columns: minmax(240px, 1fr) minmax(220px, 280px) auto auto auto auto auto;
+      }
+    }
+    @media (max-width: 1100px) {
+      .wrap { padding: 18px 14px 44px; }
+      .search-bar {
+        grid-template-columns: 1fr;
+      }
+      .cards {
+        grid-template-columns: 1fr;
+      }
+      .card-grid {
+        grid-template-columns: 1fr;
+      }
+      .card-top {
+        flex-direction: column;
+      }
+      .thumb {
+        width: 100%;
+        height: 220px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="page-shell">
+      <section class="hero">
+        <div class="hero-top">
+          <div>
+            <div class="eyebrow">FULLBOX · {% include "partials/current_user.html" %}</div>
+            <h1>{{ hero_title }}</h1>
+            <p class="hero-subtitle">{{ hero_subtitle }}</p>
+          </div>
+          <div class="toolbar">
+            <div class="toolbar-group">
+              <a class="btn {% if not is_temporary_catalog %}active{% endif %}"
+                 href="?view={{ view_mode }}{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort|urlencode }}{% endif %}{% if request.GET.dir %}&dir={{ request.GET.dir|urlencode }}{% endif %}{% if request.GET.page %}&page={{ request.GET.page|urlencode }}{% endif %}{% if request.GET.filter_field %}&filter_field={{ request.GET.filter_field|urlencode }}{% endif %}{% if request.GET.filter_value %}&filter_value={{ request.GET.filter_value|urlencode }}{% endif %}{% if request.GET.deleted and not is_temporary_catalog %}&deleted={{ request.GET.deleted|urlencode }}{% endif %}{% if agency_filter %}&agency={{ agency_filter|urlencode }}{% endif %}">
+                Номенклатура SKU
+              </a>
+              {% if temporary_catalog_available %}
+              <a class="btn {% if is_temporary_catalog %}active{% endif %}"
+                 href="?view={{ view_mode }}&catalog=temporary{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort|urlencode }}{% endif %}{% if request.GET.dir %}&dir={{ request.GET.dir|urlencode }}{% endif %}{% if request.GET.page %}&page={{ request.GET.page|urlencode }}{% endif %}{% if agency_filter %}&agency={{ agency_filter|urlencode }}{% endif %}">
+                Временная номенклатура
+              </a>
+              {% endif %}
+            </div>
+            <div class="toolbar-group">
+              <a class="btn" href="{{ label_settings_url }}">Настройки печати</a>
+              <a class="btn primary" href="/sku/new/">Создать SKU</a>
+              <a class="btn" href="/market-sync/" target="_blank" rel="noopener">Синхронизация маркетплейсов</a>
+              <a class="btn {% if view_mode == 'table' %}active{% endif %}"
+                 href="?view=table{% if is_temporary_catalog %}&catalog=temporary{% endif %}{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort|urlencode }}{% endif %}{% if request.GET.dir %}&dir={{ request.GET.dir|urlencode }}{% endif %}{% if request.GET.page %}&page={{ request.GET.page|urlencode }}{% endif %}{% if request.GET.filter_field %}&filter_field={{ request.GET.filter_field|urlencode }}{% endif %}{% if request.GET.filter_value %}&filter_value={{ request.GET.filter_value|urlencode }}{% endif %}{% if request.GET.deleted and not is_temporary_catalog %}&deleted={{ request.GET.deleted|urlencode }}{% endif %}{% if agency_filter %}&agency={{ agency_filter|urlencode }}{% endif %}">
+                Таблица
+              </a>
+              <a class="btn {% if view_mode == 'cards' %}active{% endif %}"
+                 href="?view=cards{% if is_temporary_catalog %}&catalog=temporary{% endif %}{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort|urlencode }}{% endif %}{% if request.GET.dir %}&dir={{ request.GET.dir|urlencode }}{% endif %}{% if request.GET.page %}&page={{ request.GET.page|urlencode }}{% endif %}{% if request.GET.filter_field %}&filter_field={{ request.GET.filter_field|urlencode }}{% endif %}{% if request.GET.filter_value %}&filter_value={{ request.GET.filter_value|urlencode }}{% endif %}{% if request.GET.deleted and not is_temporary_catalog %}&deleted={{ request.GET.deleted|urlencode }}{% endif %}{% if agency_filter %}&agency={{ agency_filter|urlencode }}{% endif %}">
+                Карточки
+              </a>
+              {% if show_deleted_toggle %}
+                {% if show_deleted %}
+                  <a class="btn active" href="?view={{ view_mode }}{% if is_temporary_catalog %}&catalog=temporary{% endif %}{% if agency_filter %}&agency={{ agency_filter|urlencode }}{% endif %}">Все</a>
+                {% else %}
+                  <a class="btn" href="?view={{ view_mode }}&deleted=1{% if is_temporary_catalog %}&catalog=temporary{% endif %}{% if agency_filter %}&agency={{ agency_filter|urlencode }}{% endif %}">Удаленные</a>
+                {% endif %}
+              {% endif %}
+              <a class="btn" href="{{ cabinet_url|default:'/' }}">В кабинет</a>
+            </div>
+          </div>
+        </div>
+
+        <form method="get" class="search-bar" id="search-form">
+          <div class="search-field">
+            <input id="search-input" class="search-input" type="text" name="q" value="{{ request.GET.q }}" placeholder="{{ search_placeholder }}" autocomplete="off">
+            <div class="suggest-box" id="suggest-box"></div>
+          </div>
+          <select class="search-select" name="agency" aria-label="Фильтр по клиенту">
+            <option value="">Все клиенты</option>
+            {% for agency in agency_options %}
+              <option value="{{ agency.id }}"{% if agency_filter == agency.id|stringformat:'s' %} selected{% endif %}>{{ agency.agn_name|default:agency.fio_agn|default:"Клиент" }}</option>
+            {% endfor %}
+          </select>
+          <input type="hidden" name="view" value="{{ view_mode }}">
+          {% if is_temporary_catalog %}<input type="hidden" name="catalog" value="temporary">{% endif %}
+          {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
+          {% if request.GET.dir %}<input type="hidden" name="dir" value="{{ request.GET.dir }}">{% endif %}
+          {% if request.GET.filter_field %}<input type="hidden" name="filter_field" value="{{ request.GET.filter_field }}">{% endif %}
+          {% if request.GET.filter_value %}<input type="hidden" name="filter_value" value="{{ request.GET.filter_value }}">{% endif %}
+          {% if request.GET.deleted and not is_temporary_catalog %}<input type="hidden" name="deleted" value="{{ request.GET.deleted }}">{% endif %}
+          <button class="btn" type="submit">Искать</button>
+          {% if request.GET.q or agency_filter or request.GET.filter_field or request.GET.deleted %}
+            <a class="btn" href="?view={{ view_mode }}{% if is_temporary_catalog %}&catalog=temporary{% endif %}">Сбросить</a>
+          {% endif %}
+        </form>
+      </section>
+
+      {% if items %}
+        <section class="panel">
+          <div class="panel-head">
+            <div class="panel-title">{{ panel_title }}</div>
+            <div class="panel-count">{{ panel_count_label }}: {{ page_obj.paginator.count }}</div>
+          </div>
+
+          {% if view_mode == 'table' %}
+            <div class="table-wrap">
+              <table>
+                {% if is_temporary_catalog %}
+                  <thead>
+                    <tr>
+                      <th>
+                        <a class="sort-link" href="{{ sort_info.item_code.url }}">
+                          Временный код
+                          {% if sort_info.item_code.active %}<span class="sort-mark">{% if sort_info.item_code.dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}
+                        </a>
+                      </th>
+                      <th>
+                        <a class="sort-link" href="{{ sort_info.name.url }}">
+                          Номенклатура
+                          {% if sort_info.name.active %}<span class="sort-mark">{% if sort_info.name.dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}
+                        </a>
+                      </th>
+                      <th>
+                        <a class="sort-link" href="{{ sort_info.size.url }}">
+                          Размер
+                          {% if sort_info.size.active %}<span class="sort-mark">{% if sort_info.size.dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}
+                        </a>
+                      </th>
+                      <th>
+                        <a class="sort-link" href="{{ sort_info.barcode.url }}">
+                          Штрихкод
+                          {% if sort_info.barcode.active %}<span class="sort-mark">{% if sort_info.barcode.dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}
+                        </a>
+                      </th>
+                      {% if not hide_client_column %}
+                        <th>
+                          <a class="sort-link" href="{{ sort_info.agency.url }}">
+                            Клиент
+                            {% if sort_info.agency.active %}<span class="sort-mark">{% if sort_info.agency.dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}
+                          </a>
+                        </th>
+                      {% endif %}
+                      <th>Первый источник</th>
+                      <th>Последний источник</th>
+                      <th>
+                        <a class="sort-link" href="{{ sort_info.normalized_sku_ref.url }}">
+                          Нормализованный SKU
+                          {% if sort_info.normalized_sku_ref.active %}<span class="sort-mark">{% if sort_info.normalized_sku_ref.dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}
+                        </a>
+                      </th>
+                      <th>
+                        <a class="sort-link" href="{{ sort_info.updated_at.url }}">
+                          Обновлено
+                          {% if sort_info.updated_at.active %}<span class="sort-mark">{% if sort_info.updated_at.dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}
+                        </a>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for item in items %}
+                      <tr>
+                        <td><div class="sku-code">{{ item.item_code|default:"-" }}</div></td>
+                        <td>
+                          <div class="sku-main">
+                            <div class="sku-name">{{ item.name|default:"-" }}</div>
+                            <div class="sku-meta">Тип: {{ item.goods_type|default:"op"|upper }}</div>
+                          </div>
+                        </td>
+                        <td>{{ item.size|default:"-" }}</td>
+                        <td>{{ item.barcode|default:"-" }}</td>
+                        {% if not hide_client_column %}
+                          <td>{{ item.agency|default:"-" }}</td>
+                        {% endif %}
+                        <td>{{ item.first_context_type|default:"-" }}{% if item.first_context_id %} · {{ item.first_context_id }}{% endif %}</td>
+                        <td>{{ item.last_context_type|default:"-" }}{% if item.last_context_id %} · {{ item.last_context_id }}{% endif %}</td>
+                        <td>{{ item.normalized_sku_ref.sku_code|default:"-" }}</td>
+                        <td>{{ item.updated_at|date:"d.m.Y H:i" }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                {% else %}
+                  <thead>
+                    <tr>
+                      <th>Действия</th>
+                      <th>
+                        <a class="sort-link" href="{{ sort_info.sku_code.url }}">
+                          Артикул
+                          {% if sort_info.sku_code.active %}<span class="sort-mark">{% if sort_info.sku_code.dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}
+                        </a>
+                      </th>
+                      <th>
+                        <a class="sort-link" href="{{ sort_info.name.url }}">
+                          Номенклатура
+                          {% if sort_info.name.active %}<span class="sort-mark">{% if sort_info.name.dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}
+                        </a>
+                      </th>
+                      <th>
+                        <a class="sort-link" href="{{ sort_info.brand.url }}">
+                          Бренд
+                          {% if sort_info.brand.active %}<span class="sort-mark">{% if sort_info.brand.dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}
+                        </a>
+                      </th>
+                      {% if not hide_client_column %}
+                        <th>
+                          <a class="sort-link" href="{{ sort_info.agency.url }}">
+                            Клиент
+                            {% if sort_info.agency.active %}<span class="sort-mark">{% if sort_info.agency.dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}
+                          </a>
+                        </th>
+                      {% endif %}
+                      <th>
+                        <a class="sort-link" href="{{ sort_info.market.url }}">
+                          Маркет
+                          {% if sort_info.market.active %}<span class="sort-mark">{% if sort_info.market.dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}
+                        </a>
+                      </th>
+                      <th>
+                        <a class="sort-link" href="{{ sort_info.size.url }}">
+                          Размер
+                          {% if sort_info.size.active %}<span class="sort-mark">{% if sort_info.size.dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}
+                        </a>
+                      </th>
+                      <th>Штрихкоды</th>
+                      <th>
+                        <a class="sort-link" href="{{ sort_info.updated_at.url }}">
+                          Обновлено
+                          {% if sort_info.updated_at.active %}<span class="sort-mark">{% if sort_info.updated_at.dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}
+                        </a>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for item in items %}
+                      <tr
+                        data-sku-size-scope
+                        data-sku-article="{{ item.sku_code }}"
+                        data-sku-name="{% firstof item.name_print item.name %}"
+                        data-sku-brand="{{ item.brand|default:'' }}"
+                        data-sku-subject="{% firstof item.tovar_category item.vid_tovar item.type_tovar '' %}"
+                        data-sku-color="{% firstof item.color item.color_ref '' %}"
+                        data-sku-composition="{{ item.composition|default:'' }}"
+                        data-sku-supplier="{% firstof item.agency.short_name item.agency.agn_name item.agency '' %}"
+                        data-sku-country="{{ item.made_in|default:'' }}"
+                        data-sku-default-mode="no-cz"
+                      >
+                        <td>
+                          <div class="actions">
+                            <a class="act-btn" title="Создать новый SKU" href="/sku/new/">＋</a>
+                            <a class="act-btn" title="Редактировать" href="/sku/{{ item.id }}/edit/">✎</a>
+                            <a class="act-btn" title="Создать копию" href="/sku/{{ item.id }}/duplicate/">⧉</a>
+                            <button class="act-btn print-btn" type="button" data-sku-print title="Печать штрихкода товара (без КИЗ)">🖨</button>
+                            <a class="act-btn danger delete-btn" data-id="{{ item.id }}" title="Пометить как удаленный">🗑</a>
+                          </div>
+                        </td>
+                        <td>
+                          <div class="sku-code">{{ item.sku_code }}</div>
+                          {% if item.ozon_sku_values_ui %}
+                            <div class="sku-meta">SKU Ozon: {{ item.ozon_sku_values_ui|join:", " }}</div>
+                          {% endif %}
+                        </td>
+                        <td>
+                          <div class="sku-main">
+                            <div class="sku-name">{{ item.name }}</div>
+                            <div class="sku-meta">
+                              {% if item.name_print %}Для печати: {{ item.name_print }}{% else %}Название для печати не задано{% endif %}
+                            </div>
+                            <div class="chip-stack">
+                              {% if item.color %}<span class="chip">Цвет: {{ item.color }}</span>{% endif %}
+                              {% if item.honest_sign %}<span class="chip">Честный знак</span>{% endif %}
+                              {% if item.use_nds %}<span class="chip">НДС</span>{% endif %}
+                            </div>
+                          </div>
+                        </td>
+                        <td>{{ item.brand|default:"-" }}</td>
+                        {% if not hide_client_column %}
+                          <td>{{ item.agency|default:"-" }}</td>
+                        {% endif %}
+                        <td>{{ item.market|default:"-" }}</td>
+                        <td>
+                          {% if item.has_size_selector_ui %}
+                            <select
+                              class="size-select"
+                              data-sku-size-picker
+                              data-has-sized-barcodes="{% if item.has_sized_barcodes_ui %}1{% else %}0{% endif %}"
+                            >
+                              {% for size_option in item.size_options_ui %}
+                                <option value="{{ size_option }}" {% if size_option == item.selected_size_ui %}selected{% endif %}>{{ size_option }}</option>
+                              {% endfor %}
+                            </select>
+                          {% else %}
+                            {{ item.size_display_ui|default:item.size|default:"-" }}
+                          {% endif %}
+                        </td>
+                        <td>
+                          <div class="chip-stack barcode-chip-stack" data-barcode-stack>
+                            {% for bc in item.barcode_rows_ui %}
+                              <span
+                                class="chip barcode-chip{% if not bc.visible %} is-hidden{% endif %}"
+                                data-barcode-chip
+                                data-barcode-value="{{ bc.value }}"
+                                data-size="{{ bc.size }}"
+                              >{{ bc.value }}{% if bc.is_primary %}*{% endif %}</span>
+                            {% empty %}
+                              <span class="chip">-</span>
+                            {% endfor %}
+                            <span class="barcode-empty{% if item.barcode_rows_ui %} is-hidden{% endif %}" data-barcode-empty>Нет штрихкода для выбранного размера</span>
+                          </div>
+                        </td>
+                        <td>{{ item.updated_at|date:"d.m.Y H:i" }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                {% endif %}
+              </table>
+            </div>
+          {% else %}
+            <div class="cards">
+              {% if is_temporary_catalog %}
+                {% for item in items %}
+                  <article class="card">
+                    <div class="card-top">
+                      <div class="card-title">
+                        <div class="eyebrow">Временный код {{ item.item_code|default:"-" }}</div>
+                        <h3>{{ item.name|default:"-" }}</h3>
+                        <div class="card-subtitle">
+                          {% if not hide_client_column %}Клиент: {{ item.agency|default:"-" }} · {% endif %}
+                          Размер: {{ item.size|default:"-" }}
+                        </div>
+                      </div>
+                      <div class="thumb"></div>
+                    </div>
+                    <div class="card-grid">
+                      <div class="data-block">
+                        <div class="data-label">Основное</div>
+                        <div class="data-value">
+                          Штрихкод: {{ item.barcode|default:"-" }}<br>
+                          Тип: {{ item.goods_type|default:"op"|upper }}<br>
+                          Нормализованный SKU: {{ item.normalized_sku_ref.sku_code|default:"-" }}
+                        </div>
+                      </div>
+                      <div class="data-block">
+                        <div class="data-label">Источник</div>
+                        <div class="data-value">
+                          Первый: {{ item.first_context_type|default:"-" }}{% if item.first_context_id %} · {{ item.first_context_id }}{% endif %}<br>
+                          Последний: {{ item.last_context_type|default:"-" }}{% if item.last_context_id %} · {{ item.last_context_id }}{% endif %}
+                        </div>
+                      </div>
+                      <div class="data-block">
+                        <div class="data-label">Обновление</div>
+                        <div class="data-value">
+                          Создано: {{ item.created_at|date:"d.m.Y H:i" }}<br>
+                          Обновлено: {{ item.updated_at|date:"d.m.Y H:i" }}<br>
+                          Нормализовано: {{ item.normalized_at|date:"d.m.Y H:i"|default:"-" }}
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                {% endfor %}
+              {% else %}
+                {% for item in items %}
+                  <article
+                    class="card"
+                    data-sku-size-scope
+                    data-sku-article="{{ item.sku_code }}"
+                    data-sku-name="{% firstof item.name_print item.name %}"
+                    data-sku-brand="{{ item.brand|default:'' }}"
+                    data-sku-subject="{% firstof item.tovar_category item.vid_tovar item.type_tovar '' %}"
+                    data-sku-color="{% firstof item.color item.color_ref '' %}"
+                    data-sku-composition="{{ item.composition|default:'' }}"
+                    data-sku-supplier="{% firstof item.agency.short_name item.agency.agn_name item.agency '' %}"
+                    data-sku-country="{{ item.made_in|default:'' }}"
+                    data-sku-default-mode="no-cz"
+                  >
+                    <div class="card-top">
+                      <div class="card-title">
+                        <div class="eyebrow">Артикул {{ item.sku_code }}</div>
+                        <h3>{{ item.name }}</h3>
+                        <div class="card-subtitle">
+                          {% if not hide_client_column %}Клиент: {{ item.agency|default:"-" }} · {% endif %}
+                          Маркет: {{ item.market|default:"-" }}
+                        </div>
+                      </div>
+                      {% if item.photos.all %}
+                        {% with photo=item.photos.all.0 %}
+                          <div class="thumb" style="background-image:url('{{ photo.url }}');"></div>
+                        {% endwith %}
+                      {% elif item.img %}
+                        <div class="thumb" style="background-image:url('{{ item.img }}');"></div>
+                      {% else %}
+                        <div class="thumb"></div>
+                      {% endif %}
+                    </div>
+
+                    <div class="actions">
+                      <a class="act-btn" title="Редактировать" href="/sku/{{ item.id }}/edit/">✎</a>
+                      <a class="act-btn" title="Создать копию" href="/sku/{{ item.id }}/duplicate/">⧉</a>
+                      <button class="act-btn print-btn" type="button" data-sku-print title="Печать штрихкода товара (без КИЗ)">🖨</button>
+                      <a class="act-btn danger delete-btn" data-id="{{ item.id }}" title="Пометить как удаленный">🗑</a>
+                    </div>
+
+                    <div class="card-grid">
+                      <div class="data-block">
+                        <div class="data-label">Основное</div>
+                        <div class="data-value">
+                          Бренд: {{ item.brand|default:"-" }}<br>
+                          Размер:
+                          {% if item.has_size_selector_ui %}
+                            <div style="margin-top:8px;">
+                              <select
+                                class="size-select"
+                                data-sku-size-picker
+                                data-has-sized-barcodes="{% if item.has_sized_barcodes_ui %}1{% else %}0{% endif %}"
+                              >
+                                {% for size_option in item.size_options_ui %}
+                                  <option value="{{ size_option }}" {% if size_option == item.selected_size_ui %}selected{% endif %}>{{ size_option }}</option>
+                                {% endfor %}
+                              </select>
+                            </div>
+                            <br>
+                          {% else %}
+                            {{ item.size_display_ui|default:item.size|default:"-" }}<br>
+                          {% endif %}
+                          Цвет: {{ item.color|default:"-" }}{% if item.color_ref %} ({{ item.color_ref }}){% endif %}<br>
+                          Название для печати: {{ item.name_print|default:"-" }}
+                        </div>
+                      </div>
+                      <div class="data-block">
+                        <div class="data-label">Штрихкоды</div>
+                        <div class="data-value" data-barcode-stack>
+                          {% for bc in item.barcode_rows_ui %}
+                            <div data-barcode-chip data-barcode-value="{{ bc.value }}" data-size="{{ bc.size }}"{% if not bc.visible %} class="is-hidden"{% endif %}>
+                              {{ bc.value }}{% if bc.is_primary %} · основной{% endif %}
+                            </div>
+                          {% empty %}
+                            -
+                          {% endfor %}
+                          <div class="barcode-empty{% if item.barcode_rows_ui %} is-hidden{% endif %}" data-barcode-empty>Нет штрихкода для выбранного размера</div>
+                        </div>
+                      </div>
+                      <div class="data-block">
+                        <div class="data-label">Маркировка и учет</div>
+                        <div class="data-value">
+                          Источник: {{ item.get_source_display }}<br>
+                          Честный знак: {{ item.honest_sign|yesno:"Да,Нет" }}<br>
+                          НДС: {{ item.use_nds|yesno:"Да,Нет" }}<br>
+                          Акциз: {{ item.sign_akciz|yesno:"Да,Нет" }}
+                        </div>
+                      </div>
+                      <div class="data-block">
+                        <div class="data-label">Обновление</div>
+                        <div class="data-value">
+                          Создано: {{ item.created_at|date:"d.m.Y H:i" }}<br>
+                          Обновлено: {{ item.updated_at|date:"d.m.Y H:i" }}<br>
+                          ID карточки: {{ item.source_reference|default:"-" }}<br>
+                          SKU Ozon: {{ item.ozon_sku_values_ui|join:", "|default:"-" }}
+                        </div>
+                      </div>
+                    </div>
+
+                    {% if item.description or item.img_comment %}
+                      <div class="description">{{ item.description|default:item.img_comment }}</div>
+                    {% endif %}
+                  </article>
+                {% endfor %}
+              {% endif %}
+            </div>
+          {% endif %}
+
+          <div class="pager">
+            <div class="pager-note">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</div>
+            <div class="pager-actions">
+              {% if page_obj.has_previous %}
+                <a class="btn" href="?page={{ page_obj.previous_page_number }}&view={{ view_mode }}{% if is_temporary_catalog %}&catalog=temporary{% endif %}{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort|urlencode }}{% endif %}{% if request.GET.dir %}&dir={{ request.GET.dir|urlencode }}{% endif %}{% if request.GET.filter_field %}&filter_field={{ request.GET.filter_field|urlencode }}{% endif %}{% if request.GET.filter_value %}&filter_value={{ request.GET.filter_value|urlencode }}{% endif %}{% if request.GET.deleted and not is_temporary_catalog %}&deleted={{ request.GET.deleted|urlencode }}{% endif %}{% if agency_filter %}&agency={{ agency_filter|urlencode }}{% endif %}">Назад</a>
+              {% endif %}
+              {% if page_obj.has_next %}
+                <a class="btn" href="?page={{ page_obj.next_page_number }}&view={{ view_mode }}{% if is_temporary_catalog %}&catalog=temporary{% endif %}{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort|urlencode }}{% endif %}{% if request.GET.dir %}&dir={{ request.GET.dir|urlencode }}{% endif %}{% if request.GET.filter_field %}&filter_field={{ request.GET.filter_field|urlencode }}{% endif %}{% if request.GET.filter_value %}&filter_value={{ request.GET.filter_value|urlencode }}{% endif %}{% if request.GET.deleted and not is_temporary_catalog %}&deleted={{ request.GET.deleted|urlencode }}{% endif %}{% if agency_filter %}&agency={{ agency_filter|urlencode }}{% endif %}">Вперёд</a>
+              {% endif %}
+            </div>
+          </div>
+        </section>
+      {% else %}
+        <section class="empty-state">
+          <div class="eyebrow">{{ empty_eyebrow }}</div>
+          <h2>{{ empty_title }}</h2>
+          <p>{{ empty_text }}</p>
+          <div class="toolbar">
+            {% if not is_temporary_catalog %}
+              <a class="btn primary" href="/sku/new/">Создать первый SKU</a>
+            {% else %}
+              <a class="btn primary" href="?view={{ view_mode }}">Перейти к SKU</a>
+            {% endif %}
+            {% if show_deleted_toggle %}
+              {% if show_deleted %}
+                <a class="btn" href="?view={{ view_mode }}{% if is_temporary_catalog %}&catalog=temporary{% endif %}">Показать активные</a>
+              {% else %}
+                <a class="btn" href="?view={{ view_mode }}&deleted=1{% if is_temporary_catalog %}&catalog=temporary{% endif %}">Показать удаленные</a>
+              {% endif %}
+            {% endif %}
+          </div>
+        </section>
+      {% endif %}
+    </div>
+  </div>
+  <iframe
+    id="labels-item-renderer"
+    src="{{ label_settings_renderer_url }}"
+    title=""
+    aria-hidden="true"
+    tabindex="-1"
+    style="position:fixed;left:-10000px;top:-10000px;width:1920px;height:1080px;border:0;opacity:0;pointer-events:none;"
+  ></iframe>
+  <div class="print-context-menu" id="sku-print-menu" hidden>
+    <div class="print-context-title">Печать штрихкода товара</div>
+    <p class="print-context-settings">Без КИЗ. Коды «Честного знака» печатаются отдельно через резервирование в разделе маркировки.</p>
+    <div class="print-context-row" id="sku-print-barcode-row" hidden>
+      <label for="sku-print-barcode">Штрихкод</label>
+      <select class="print-context-input" id="sku-print-barcode"></select>
+    </div>
+    <div class="print-context-row">
+      <label for="sku-print-copies">Шт.</label>
+      <input class="print-context-input" id="sku-print-copies" type="number" min="1" step="1" value="1" inputmode="numeric">
+    </div>
+    <div class="print-context-actions">
+      <button class="btn primary" type="button" id="sku-print-run">Напечатать</button>
+      <a class="print-context-settings" href="{{ label_settings_url }}">Настройки печати</a>
+    </div>
+  </div>
+  <script>
+    (function() {
+      const input = document.getElementById('search-input');
+      const box = document.getElementById('suggest-box');
+      const form = document.getElementById('search-form');
+      const deleteButtons = document.querySelectorAll('.delete-btn');
+      const sizePickers = document.querySelectorAll('[data-sku-size-picker]');
+      const printButtons = document.querySelectorAll('[data-sku-print]');
+      const labelRendererFrame = document.getElementById('labels-item-renderer');
+      const printMenu = document.getElementById('sku-print-menu');
+      const printMenuBarcodeRow = document.getElementById('sku-print-barcode-row');
+      const printMenuBarcode = document.getElementById('sku-print-barcode');
+      const printMenuCopies = document.getElementById('sku-print-copies');
+      const printMenuRun = document.getElementById('sku-print-run');
+      const pendingLabelRenders = new Map();
+      const printJobUrl = '/orders/processing/print-jobs/';
+      const desktopPrintRecordUrl = '/orders/processing/print-jobs/desktop-record/';
+      const desktopPrintCompleteUrl = '/orders/processing/print-jobs/desktop-complete/';
+      const catalogMode = '{{ catalog_mode }}';
+      let timer = null;
+      let activePrintScope = null;
+      let activePrintButton = null;
+
+      window.addEventListener('message', (event) => {
+        if (event.origin !== window.location.origin) return;
+        if (!labelRendererFrame || event.source !== labelRendererFrame.contentWindow) return;
+        const message = event.data || {};
+        if (message.type !== 'fullbox:render-item-label-result') return;
+        const requestId = String(message.requestId || '');
+        const pending = pendingLabelRenders.get(requestId);
+        if (!pending) return;
+        pendingLabelRenders.delete(requestId);
+        window.clearTimeout(pending.timeoutId);
+        if (message.ok && message.image) {
+          pending.resolve({
+            image: message.image,
+            dimensions: message.dimensions || {},
+          });
+        } else {
+          pending.reject(new Error(message.error || 'Label rendering failed'));
+        }
+      });
+
+      function getCookie(name) {
+        const cookie = document.cookie
+          .split(';')
+          .map((chunk) => chunk.trim())
+          .find((chunk) => chunk.startsWith(`${name}=`));
+        return cookie ? decodeURIComponent(cookie.slice(name.length + 1)) : '';
+      }
+
+      function getSelectedSize(scope) {
+        const picker = scope.querySelector('[data-sku-size-picker]');
+        if (picker) {
+          return (picker.value || '').trim();
+        }
+        return '';
+      }
+
+      function getAvailableBarcodes(scope) {
+        const values = Array.from(scope.querySelectorAll('[data-barcode-chip]:not(.is-hidden)'))
+          .map((chip) => String(chip.dataset.barcodeValue || '').trim())
+          .filter(Boolean);
+        return Array.from(new Set(values));
+      }
+
+      function getSelectedBarcode(scope, requestedBarcode) {
+        const requested = String(requestedBarcode || '').trim();
+        if (requested) {
+          return requested;
+        }
+        const barcodes = getAvailableBarcodes(scope);
+        return barcodes.length === 1 ? barcodes[0] : '';
+      }
+
+      function getStoredPrinter() {
+        return (
+          localStorage.getItem('fullbox_desktop_label_printer')
+          || localStorage.getItem('processing_label_printer')
+          || localStorage.getItem('label_printer')
+          || ''
+        ).trim();
+      }
+
+      function getStoredAgentId() {
+        return (
+          localStorage.getItem('labels_print_agent_id')
+          || localStorage.getItem('fullbox_agent_id')
+          || ''
+        ).trim();
+      }
+
+      function supportsDesktopDirectPrint() {
+        return Boolean(
+          window.fullboxDesktop
+          && typeof window.fullboxDesktop.printPng === 'function'
+        );
+      }
+
+      async function getDesktopRecordAgent() {
+        let workstationId = String(
+          window.fullboxDesktopWorkstation
+          && (
+            window.fullboxDesktopWorkstation.workstationId
+            || window.fullboxDesktopWorkstation.agentId
+          )
+          || ''
+        ).trim();
+        if (!workstationId && window.fullboxDesktop && typeof window.fullboxDesktop.getStatus === 'function') {
+          const status = await window.fullboxDesktop.getStatus();
+          workstationId = String(status && (status.workstationId || status.agentId) || '').trim();
+        }
+        const safeWorkstationId = workstationId
+          .replace(/[^A-Za-z0-9._-]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .slice(0, 64);
+        return safeWorkstationId ? `desktop-record-${safeWorkstationId}` : '';
+      }
+
+      async function completeDesktopPrintRecord(jobIds, recordAgent, status, errorText) {
+        const response = await fetch(desktopPrintCompleteUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+            'X-Fullbox-Desktop': '1',
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            job_ids: jobIds,
+            workstation_id: recordAgent,
+            status,
+            error: String(errorText || '').slice(0, 1000),
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.ok) {
+          throw new Error(result.error || `Сервер не подтвердил печать (${response.status}).`);
+        }
+        return result;
+      }
+
+      function resolveSkuTemplateKey(scope) {
+        // Catalogue printing is an ordinary product barcode, not a reserved KIZ.
+        const stored = String(localStorage.getItem('labels_settings_size') || '').trim();
+        const productKeys = new Set(['item', 'item_alt', 'item_5860', 'item_5860_alt', 'item_75120', 'item_75120_alt']);
+        return productKeys.has(stored) ? stored : 'item';
+      }
+
+      async function skuPrintError(response) {
+        const fallback = `Не удалось зарегистрировать печать (HTTP ${response.status}). Попробуйте ещё раз; если ошибка повторится, сообщите менеджеру.`;
+        const text = await response.text();
+        try {
+          const data = JSON.parse(text);
+          if (data && typeof data.error === 'string' && data.error.trim()) {
+            return data.error.trim();
+          }
+          return fallback;
+        } catch (_) {
+          // Do not expose an HTML error page or a malformed JSON document.
+          const message = text.trim();
+          return message && !/^(?:<|\{|\[)/.test(message) ? message.slice(0, 500) : fallback;
+        }
+      }
+
+      function requestLabelsRender(payload) {
+        return new Promise((resolve, reject) => {
+          if (!labelRendererFrame || !labelRendererFrame.contentWindow) {
+            reject(new Error('Label renderer is unavailable'));
+            return;
+          }
+          const requestId = `sku-label-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+          const timeoutId = window.setTimeout(() => {
+            pendingLabelRenders.delete(requestId);
+            reject(new Error('Label rendering timeout'));
+          }, 15000);
+          pendingLabelRenders.set(requestId, { resolve, reject, timeoutId });
+          labelRendererFrame.contentWindow.postMessage({
+            type: 'fullbox:render-item-label',
+            requestId,
+            payload,
+          }, window.location.origin);
+        });
+      }
+
+      function buildSkuPrintPayload(scope, requestedBarcode) {
+        const templateKey = resolveSkuTemplateKey(scope);
+        const mode = 'no-cz';
+        const barcode = getSelectedBarcode(scope, requestedBarcode);
+        const article = String(scope.dataset.skuArticle || '').trim();
+        const size = getSelectedSize(scope);
+        return {
+          templateKey,
+          mode,
+          article,
+          barcode,
+          size,
+          data: {
+            barcode,
+            article,
+            name: String(scope.dataset.skuName || '').trim(),
+            size,
+            brand: String(scope.dataset.skuBrand || '').trim(),
+            subject: String(scope.dataset.skuSubject || '').trim(),
+            color: String(scope.dataset.skuColor || '').trim(),
+            composition: String(scope.dataset.skuComposition || '').trim(),
+            supplier: String(scope.dataset.skuSupplier || '').trim(),
+            country: String(scope.dataset.skuCountry || '').trim(),
+          },
+        };
+      }
+
+      function withButtonBusy(button, busy) {
+        if (!button) {
+          return;
+        }
+        if (busy) {
+          button.dataset.printOriginalText = button.textContent || '';
+          button.textContent = '...';
+          button.disabled = true;
+          return;
+        }
+        button.disabled = false;
+        if (button.dataset.printOriginalText !== undefined) {
+          button.textContent = button.dataset.printOriginalText;
+          delete button.dataset.printOriginalText;
+        }
+      }
+
+      function normalizeCopies(value) {
+        const parsed = parseInt(value, 10);
+        if (!Number.isFinite(parsed) || parsed < 1) {
+          return 1;
+        }
+        return Math.min(parsed, 999);
+      }
+
+      function positionPrintMenu(button) {
+        if (!printMenu || !button) {
+          return;
+        }
+        const rect = button.getBoundingClientRect();
+        const margin = 8;
+        const width = printMenu.offsetWidth || 230;
+        let left = rect.left;
+        let top = rect.bottom + 6;
+        left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+        if (top + printMenu.offsetHeight + margin > window.innerHeight) {
+          top = Math.max(margin, rect.top - printMenu.offsetHeight - 6);
+        }
+        printMenu.style.left = `${left}px`;
+        printMenu.style.top = `${top}px`;
+      }
+
+      function openPrintMenu(scope, button) {
+        if (!printMenu || !scope || !button) {
+          return;
+        }
+        activePrintScope = scope;
+        activePrintButton = button;
+        const barcodes = getAvailableBarcodes(scope);
+        if (printMenuBarcode) {
+          printMenuBarcode.replaceChildren();
+          if (barcodes.length > 1) {
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Выберите штрихкод';
+            printMenuBarcode.appendChild(placeholder);
+          }
+          barcodes.forEach((barcode) => {
+            const option = document.createElement('option');
+            option.value = barcode;
+            option.textContent = barcode;
+            printMenuBarcode.appendChild(option);
+          });
+          printMenuBarcode.value = barcodes.length === 1 ? barcodes[0] : '';
+        }
+        if (printMenuBarcodeRow) {
+          printMenuBarcodeRow.hidden = barcodes.length <= 1;
+        }
+        const savedCopies = normalizeCopies(localStorage.getItem('sku_label_print_copies') || '1');
+        if (printMenuCopies) {
+          printMenuCopies.value = String(savedCopies);
+        }
+        printMenu.hidden = false;
+        printMenu.classList.add('open');
+        positionPrintMenu(button);
+        if (barcodes.length > 1 && printMenuBarcode) {
+          printMenuBarcode.focus();
+        } else if (printMenuCopies) {
+          printMenuCopies.focus();
+          printMenuCopies.select();
+        }
+      }
+
+      function closePrintMenu() {
+        if (!printMenu) {
+          return;
+        }
+        printMenu.classList.remove('open');
+        printMenu.hidden = true;
+        activePrintScope = null;
+        activePrintButton = null;
+      }
+
+      async function enqueueSkuPrint(scope, button, copies, requestedBarcode) {
+        if (!scope) {
+          return false;
+        }
+        const printer = getStoredPrinter();
+        const agentId = getStoredAgentId();
+        const safeCopies = normalizeCopies(copies || 1);
+        const labelPayload = buildSkuPrintPayload(scope, requestedBarcode);
+        if (!labelPayload.barcode) {
+          alert('Для выбранного размера нет штрихкода.');
+          return false;
+        }
+        if (!printer) {
+          alert('Выберите принтер в настройках печати.');
+          return false;
+        }
+        let restoreButton = true;
+        withButtonBusy(button, true);
+        try {
+          const renderResult = await requestLabelsRender({
+            labelKey: labelPayload.templateKey,
+            templateKey: labelPayload.templateKey,
+            mode: labelPayload.mode,
+            data: labelPayload.data,
+          });
+          const dataUrl = String(renderResult.image || '');
+          const base64 = dataUrl.split(',')[1] || '';
+          if (!base64) {
+            alert('Не удалось сформировать этикетку через labels.');
+            return false;
+          }
+          const dims = renderResult.dimensions || {};
+          const widthMm = Number(dims.width) || 58;
+          const heightMm = Number(dims.height) || 40;
+          const desktopDirect = supportsDesktopDirectPrint();
+          const recordAgent = desktopDirect ? await getDesktopRecordAgent() : '';
+          if (desktopDirect && !recordAgent) {
+            alert('Не определён этот компьютер Fullbox Desktop. Перезапустите приложение.');
+            return false;
+          }
+          const response = await fetch(desktopDirect ? desktopPrintRecordUrl : printJobUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCookie('csrftoken'),
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+              order_id: '',
+              card_id: '',
+              article: labelPayload.article,
+              barcode: labelPayload.barcode,
+              size: labelPayload.size,
+              agent_id: desktopDirect ? recordAgent : agentId,
+              printer_name: printer,
+              label_png_base64: base64,
+              template_key: labelPayload.templateKey,
+              copies: safeCopies,
+              label_width_mm: widthMm,
+              label_height_mm: heightMm,
+            }),
+          });
+          if (!response.ok) {
+            alert(`Ошибка очереди печати: ${await skuPrintError(response)}`);
+            return false;
+          }
+          if (desktopDirect) {
+            const queued = await response.json().catch(() => ({}));
+            const jobIds = (Array.isArray(queued.job_ids) ? queued.job_ids : [queued.job_id])
+              .map((value) => Number(value))
+              .filter((value, index, values) => value > 0 && values.indexOf(value) === index);
+            if (!queued.ok || !jobIds.length) {
+              alert(queued.error || 'Сервер не зарегистрировал задание печати.');
+              return false;
+            }
+            try {
+              let copiesLeft = safeCopies;
+              while (copiesLeft > 0) {
+                const chunkCopies = Math.min(copiesLeft, 500);
+                const result = await window.fullboxDesktop.printPng({
+                  printer,
+                  pngBase64: base64,
+                  widthMm,
+                  heightMm,
+                  copies: chunkCopies,
+                });
+                if (!result || !result.printed) {
+                  throw new Error('Windows не подтвердил печать.');
+                }
+                copiesLeft -= chunkCopies;
+              }
+            } catch (printError) {
+              try {
+                await completeDesktopPrintRecord(
+                  jobIds,
+                  recordAgent,
+                  'failed',
+                  printError && printError.message || printError,
+                );
+              } catch (_) {}
+              alert(`Ошибка прямой печати Desktop: ${printError && printError.message || printError}`);
+              return false;
+            }
+            try {
+              await completeDesktopPrintRecord(jobIds, recordAgent, 'printed', '');
+            } catch (statusError) {
+              alert(
+                'Этикетки отправлены в принтер, но сервер не записал результат. '
+                + 'Не запускайте печать повторно. Обновите страницу и сообщите администратору.',
+              );
+            }
+          }
+          if (button) {
+            restoreButton = false;
+            button.textContent = 'OK';
+            window.setTimeout(() => withButtonBusy(button, false), 900);
+          }
+          return true;
+        } catch (error) {
+          alert('Не удалось отправить этикетку через labels.');
+          return false;
+        } finally {
+          if (restoreButton) {
+            withButtonBusy(button, false);
+          }
+        }
+      }
+
+      function syncBarcodeStack(picker) {
+        const host = picker.closest('[data-sku-size-scope]');
+        if (!host) {
+          return;
+        }
+        const stack = host.querySelector('[data-barcode-stack]');
+        if (!stack) {
+          return;
+        }
+        const selectedSize = picker.value || '';
+        const hasSizedBarcodes = picker.dataset.hasSizedBarcodes === '1';
+        let visibleCount = 0;
+
+        stack.querySelectorAll('[data-barcode-chip]').forEach((chip) => {
+          const chipSize = chip.dataset.size || '';
+          const shouldShow = !hasSizedBarcodes || chipSize === selectedSize;
+          chip.classList.toggle('is-hidden', !shouldShow);
+          if (shouldShow) {
+            visibleCount += 1;
+          }
+        });
+
+        const emptyState = stack.querySelector('[data-barcode-empty]');
+        if (emptyState) {
+          emptyState.classList.toggle('is-hidden', visibleCount > 0);
+        }
+      }
+
+      function render(items) {
+        if (!box) {
+          return;
+        }
+        if (!items.length) {
+          box.classList.remove('open');
+          box.innerHTML = '';
+          return;
+        }
+        box.innerHTML = items.map((item) => (
+          `<button type="button" class="suggest-item" data-value="${item.value.replace(/"/g, '&quot;')}">${item.label}</button>`
+        )).join('');
+        box.classList.add('open');
+      }
+
+      async function fetchSuggest(query) {
+        const params = new URLSearchParams({ q: query });
+        if (catalogMode === 'temporary') {
+          params.set('catalog', 'temporary');
+        }
+        const response = await fetch(`/sku/suggest/?${params.toString()}`);
+        if (!response.ok) {
+          render([]);
+          return;
+        }
+        const data = await response.json();
+        render(data.items || []);
+      }
+
+      if (input && box && form) {
+        input.addEventListener('input', () => {
+          const query = input.value.trim();
+          if (timer) {
+            clearTimeout(timer);
+          }
+          if (query.length < 2) {
+            render([]);
+            return;
+          }
+          timer = setTimeout(() => fetchSuggest(query), 180);
+        });
+
+        box.addEventListener('click', (event) => {
+          const button = event.target.closest('.suggest-item');
+          if (!button) {
+            return;
+          }
+          input.value = button.dataset.value;
+          render([]);
+          form.submit();
+        });
+
+        document.addEventListener('click', (event) => {
+          if (!box.contains(event.target) && event.target !== input) {
+            render([]);
+          }
+        });
+      }
+
+      deleteButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = button.dataset.id;
+          if (confirm('Пометить SKU как удаленный?')) {
+            const deleteForm = document.createElement('form');
+            deleteForm.method = 'POST';
+            deleteForm.action = `/sku/${id}/delete/`;
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = '{{ csrf_token|escapejs }}';
+            deleteForm.appendChild(csrfInput);
+            document.body.appendChild(deleteForm);
+            deleteForm.submit();
+          }
+        });
+      });
+
+      sizePickers.forEach((picker) => {
+        syncBarcodeStack(picker);
+        picker.addEventListener('change', () => {
+          syncBarcodeStack(picker);
+        });
+      });
+
+      printButtons.forEach((button) => {
+        button.addEventListener('click', (event) => {
+          event.stopPropagation();
+          const scope = button.closest('[data-sku-size-scope]');
+          if (!scope) {
+            return;
+          }
+          openPrintMenu(scope, button);
+        });
+      });
+
+      if (printMenu) {
+        printMenu.addEventListener('click', (event) => {
+          event.stopPropagation();
+        });
+      }
+      if (printMenuRun) {
+        printMenuRun.addEventListener('click', async () => {
+          if (!activePrintScope) {
+            return;
+          }
+          const copies = normalizeCopies(printMenuCopies ? printMenuCopies.value : 1);
+          if (printMenuCopies) {
+            printMenuCopies.value = String(copies);
+          }
+          const availableBarcodes = getAvailableBarcodes(activePrintScope);
+          const selectedBarcode = printMenuBarcode ? String(printMenuBarcode.value || '').trim() : '';
+          if (availableBarcodes.length > 1 && !selectedBarcode) {
+            alert('Выберите штрихкод для печати.');
+            printMenuBarcode?.focus();
+            return;
+          }
+          localStorage.setItem('sku_label_print_copies', String(copies));
+          withButtonBusy(printMenuRun, true);
+          try {
+            const printed = await enqueueSkuPrint(
+              activePrintScope,
+              activePrintButton,
+              copies,
+              selectedBarcode,
+            );
+            if (printed) {
+              closePrintMenu();
+            }
+          } finally {
+            withButtonBusy(printMenuRun, false);
+          }
+        });
+      }
+      if (printMenuCopies) {
+        printMenuCopies.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' && printMenuRun) {
+            event.preventDefault();
+            printMenuRun.click();
+          }
+        });
+      }
+      document.addEventListener('click', () => {
+        closePrintMenu();
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closePrintMenu();
+        }
+      });
+      window.addEventListener('resize', closePrintMenu);
+      window.addEventListener('scroll', closePrintMenu, true);
+
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<style>
+  .todo-unread-attention {
+    position: relative;
+    border-color: #dc2626 !important;
+    background: linear-gradient(135deg, rgba(220,38,38,.22), rgba(255,241,242,.98)) !important;
+    color: #991b1b !important;
+    box-shadow: 0 0 0 2px rgba(220,38,38,.18), 0 10px 26px rgba(220,38,38,.2) !important;
+    animation: todoUnreadPulse 1.25s ease-in-out infinite;
+  }
+  .todo-unread-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    margin-left: auto;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #dc2626;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
+  }
+  @keyframes todoUnreadPulse {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(220,38,38,.16), 0 10px 26px rgba(220,38,38,.18); }
+    50% { box-shadow: 0 0 0 7px rgba(220,38,38,.2), 0 15px 34px rgba(220,38,38,.28); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .todo-unread-attention { animation: none; }
+  }
+</style>

@@ -1,0 +1,64 @@
+{% extends "accountant/_base.html" %}
+{% block title %}Наши компании{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+  <div>
+    <h1 class="page-title">Наши компании</h1>
+    <div class="page-sub">Юрлица FullBox для договоров, счетов и компании обслуживания клиента.</div>
+  </div>
+  <a class="btn primary" href="/accountant/own-companies/new/">Добавить компанию</a>
+</div>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="{% if message.tags == 'error' %}err-box{% else %}warn-box{% endif %}" style="{% if 'success' in message.tags %}background:var(--green-soft);border-color:transparent;color:var(--green-strong){% endif %}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="card" style="padding:0;overflow:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Компания</th>
+        <th>ИНН</th>
+        <th>НДС</th>
+        <th>Статус</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in companies %}
+      <tr>
+        <td>
+          <div style="font-weight:800">{{ c.short_name|default:c.name }}</div>
+          <div class="muted" style="font-size:12px;margin-top:2px">{{ c.name }}</div>
+        </td>
+        <td>{{ c.inn|default:"—" }}</td>
+        <td>
+          {% if c.tax_mode == "no_vat" %}
+            <span class="badge">Без НДС</span>
+          {% else %}
+            <span class="badge green">НДС {{ c.vat_rate }}%</span>
+          {% endif %}
+          {% if c.is_default %}<span class="badge blue" style="margin-left:4px">По умолчанию</span>{% endif %}
+        </td>
+        <td>
+          {% if c.is_active %}<span class="badge green">Активна</span>{% else %}<span class="badge">Неактивна</span>{% endif %}
+        </td>
+        <td style="text-align:right;white-space:nowrap">
+          <div style="display:inline-flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+            <a class="btn" href="/accountant/own-companies/{{ c.id }}/">Редактировать</a>
+            <form method="post" action="/accountant/own-companies/{{ c.id }}/delete/" onsubmit="return confirm('Удалить компанию «{{ c.short_name|default:c.name|escapejs }}»?');">
+              {% csrf_token %}
+              <button class="btn danger" type="submit">Удалить</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="muted">Компаний пока нет. Добавьте ИП или ООО FullBox.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

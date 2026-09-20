@@ -1,0 +1,70 @@
+{% load todo_panel %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FULLBOX - Кабинет разработчика</title>
+  <link href="/static/vendor/space-grotesk.css" rel="stylesheet">
+  <style>
+    :root { --bg: #0b0b0f; --card:#14141f; --gold:#d6a300; --gold-soft:#e7c34a; --text:#e8e8ed; --muted:#9aa0b3; --stroke: rgba(255,255,255,0.08); }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:'Space Grotesk',system-ui,sans-serif; }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 100%; margin: 0 auto; padding: 32px 20px 64px; }
+    .layout { display:grid; grid-template-columns: 220px minmax(0, 1fr); gap:16px; align-items:start; }
+    .side { background:var(--card); border:1px solid var(--stroke); border-radius:18px; padding:14px; box-shadow:0 25px 60px rgba(0,0,0,0.45); position:sticky; top:20px; align-self:start; display:grid; gap:10px; min-height: calc(100vh - 40px); }
+    .side .btn { width:100%; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      .side { position:static; }
+    }
+    .card { background:var(--card); border:1px solid var(--stroke); border-radius:18px; padding:20px; box-shadow:0 25px 60px rgba(0,0,0,0.45); }
+    .muted { color: var(--muted); }
+    h1 { margin:0 0 8px; letter-spacing:-0.5px; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:12px; margin-top:14px; }
+    .btn { display:block; padding:12px; border-radius:12px; border:1px solid var(--stroke); background:rgba(255,255,255,0.02); color:var(--text); font-weight:600; text-align:center; transition: all .2s ease; }
+    .btn:hover { border-color: var(--gold); box-shadow:0 12px 30px rgba(214,163,0,0.25); transform: translateY(-2px); }
+    .header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
+    .logo { display:flex; align-items:center; gap:10px; }
+    .logo-mark { width:44px; height:44px; border-radius:12px; border:1px solid var(--stroke); display:grid; place-items:center; background:linear-gradient(135deg, rgba(214,163,0,0.2), rgba(20,20,31,0.8)); color:var(--gold); font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="wrap layout">
+    <aside class="side">
+      <div class="muted" style="font-weight:600;">Навигация</div>
+      <a class="btn" href="/login/">Вход</a>
+      <a class="btn" href="/sku/">Номенклатура (SKU)</a>
+      <a class="btn" href="/orders/">Заявки</a>
+      <a class="btn" href="/todo/">Задачи (todo)</a>
+      <a class="btn" href="/sklad/">Склад</a>
+      <a class="btn" href="/sklad/journal/">Складские остатки</a>
+      <a class="btn" href="/client/">Клиенты (список)</a>
+      <a class="btn" href="/dev-login/admin/?next=/scanner-test/">Проверка сканера</a>
+      <a class="btn" href="/employees/">Сотрудники</a>
+      <a class="btn" href="/audit/">Аудит (UI)</a>
+      <a class="btn" href="/dev-login/admin/?next=/admin/audit/">Аудит и процессы</a>
+      <a class="btn" href="/admin/">Админка</a>
+      <a class="btn" href="/logout/">Выход</a>
+    </aside>
+
+    <main class="card">
+      <div class="header">
+        <div class="logo">
+          <div class="logo-mark">FX</div>
+          <div>
+            <div style="font-weight:700; letter-spacing:1px;">FULLBOX · {% include "partials/current_user.html" %}</div>
+            <div class="muted">Кабинет разработчика</div>
+          </div>
+        </div>
+      </div>
+      <p class="muted">Быстрые ссылки для разработки и тестирования.</p>
+      <div style="margin-top:16px;">
+        {% task_panel "developer" 8 %}
+      </div>
+    </main>
+  </div>
+</body>
+</html>
+

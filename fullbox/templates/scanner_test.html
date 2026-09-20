@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Проверка сканера | FULLBOX</title>
+  <link href="/static/vendor/space-grotesk.css" rel="stylesheet">
+  <style>
+    :root { --bg:#0b0b0f; --card:#14141f; --gold:#d6a300; --text:#e8e8ed; --muted:#9aa0b3; --stroke: rgba(255,255,255,0.08); }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:'Space Grotesk',system-ui,sans-serif; }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 32px 18px 64px; }
+    .card { background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:20px; box-shadow:0 18px 45px rgba(0,0,0,0.35); }
+    h1 { margin:0 0 8px; }
+    .muted { color: var(--muted); }
+    .btn { padding:10px 14px; border-radius:10px; border:1px solid var(--stroke); background:rgba(255,255,255,0.02); color:var(--text); font-weight:600; cursor:pointer; }
+    .btn:hover { border-color: var(--gold); box-shadow:0 8px 22px rgba(214,163,0,0.2); }
+    .input-box { width:100%; padding:12px; border-radius:12px; border:1px solid var(--stroke); background:rgba(255,255,255,0.04); color:var(--text); font-size:18px; }
+    ul { list-style:none; padding:0; margin:12px 0 0; display:grid; gap:6px; }
+    li { padding:10px; border:1px solid var(--stroke); border-radius:10px; background:rgba(255,255,255,0.02); display:flex; justify-content:space-between; align-items:center; }
+    .time { color:var(--muted); font-size:13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Проверка сканера</h1>
+      <p class="muted">Поднесите сканер к полю ниже и считайте несколько ШК. Последние значения появятся в списке.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin:12px 0;">
+        <button class="btn" id="hid-btn">Подключить сканер (WebHID)</button>
+        <span class="muted" id="hid-status">WebHID: не подключено</span>
+      </div>
+      <input id="scan-input" class="input-box" placeholder="Фокус здесь — сканируйте" autofocus>
+      <div style="margin-top:12px; display:flex; gap:8px;">
+        <button class="btn" id="clear-btn">Очистить</button>
+      </div>
+      <ul id="scan-list"></ul>
+    </div>
+  </div>
+</body>
+<script>
+  (function(){
+    const input = document.getElementById('scan-input');
+    const list = document.getElementById('scan-list');
+    const clearBtn = document.getElementById('clear-btn');
+    const hidBtn = document.getElementById('hid-btn');
+    const hidStatus = document.getElementById('hid-status');
+    const maxItems = 20;
+
+    function addItem(value){
+      const li = document.createElement('li');
+      const time = new Date().toLocaleTimeString();
+      li.innerHTML = `<span>${value}</span><span class="time">${time}</span>`;
+      list.prepend(li);
+      while(list.children.length > maxItems){
+        list.removeChild(list.lastChild);
+      }
+    }
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = input.value.trim();
+        if (val) addItem(val);
+        input.value = '';
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      list.innerHTML = '';
+      input.value = '';
+      input.focus();
+    });
+
+    async function connectHID() {
+      if (!('hid' in navigator)) {
+        hidStatus.textContent = 'WebHID не поддерживается в этом браузере';
+        return;
+      }
+      try {
+        const devices = await navigator.hid.requestDevice({ filters: [] });
+        if (!devices.length) {
+          hidStatus.textContent = 'Устройство не выбрано';
+          return;
+        }
+        const device = devices[0];
+        await device.open();
+        hidStatus.textContent = `Подключено: ${device.productName || 'Сканер'} (vendor ${device.vendorId}, product ${device.productId})`;
+        device.addEventListener('inputreport', (event) => {
+          const { data } = event;
+          if (!data) return;
+          // Попытка прочитать ASCII из полученных байт
+          const bytes = new Uint8Array(data.buffer);
+          const text = Array.from(bytes).map(b => (b >= 32 && b <= 126) ? String.fromCharCode(b) : '').join('').trim();
+          if (text) addItem(text);
+        });
+      } catch (err) {
+        hidStatus.textContent = 'Ошибка подключения: ' + err.message;
+      }
+    }
+
+    hidBtn.addEventListener('click', connectHID);
+
+    input.focus();
+  })();
+</script>
+</html>

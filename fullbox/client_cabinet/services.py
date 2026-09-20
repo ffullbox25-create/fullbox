@@ -1,0 +1,1181 @@
+import json
+import os
+import re
+from typing import Any
+from urllib.parse import quote, urlencode
+
+import requests
+from django.db import models
+from django.db.models import Case, CharField, Count, F, Value, When
+from django.http import HttpResponseForbidden, JsonResponse
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
+from django.utils import timezone
+
+from audit.models import OrderAuditEntry
+from employees.access import get_request_role, resolve_cabinet_url
+from fullbox.order_numbers import next_public_order_number, normalize_order_type_for_number
+from fullbox.timeutils import business_localtime, parse_business_datetime
+from marking.models import MarkingCode
+from sklad.models import WarehouseContainer, WarehouseStockSnapshot
+from sku.models import Agency, SKU, SKUBarcode
+
+
+DADATA_URL = "https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party"
+
+# Primary client cabinet is the LK UI. Classic dashboard is retired.
+CLIENT_CABINET_PATH = "/client/dashboard/lk/"
+CLIENT_CABINET_CLASSIC_PATH = "/client/dashboard/lk/"
+CLIENT_CABINET_STAFF_PREVIEW_PATH = "/client/dashboard/preview/"
+
+
+def build_client_cabinet_url(client_id=None, *, legacy: bool = False, verify: bool = False) -> str:
+    """Canonical URL for the client personal cabinet (new LK only)."""
+    params = []
+    if client_id:
+        params.append(f"client={int(client_id)}")
+    # legacy flag kept for call-site compatibility; classic UI is no longer served.
+    _ = legacy
+    if verify:
+        params.append("verify=1")
+    base = CLIENT_CABINET_PATH
+    if not params:
+        return base
+    return f"{base}?{'&'.join(params)}"
+
+
+def build_staff_client_cabinet_url(client_id, *, return_url: str = "/team-manager/") -> str:
+    """Safe entry point for staff viewing a client's LK with a return button."""
+    params = urlencode({"return": return_url or "/team-manager/"})
+    return f"{CLIENT_CABINET_STAFF_PREVIEW_PATH}{int(client_id)}/?{params}"
+
+
+def _views():
+    from . import views as client_views
+
+    return client_views
+
+
+def _next_client_order_number(order_type: str) -> str:
+    normalized_type = normalize_order_type_for_number(order_type)
+    order_types = [normalized_type]
+    if normalized_type == "processing":
+        order_types.append("packing")
+    order_ids = (
+        OrderAuditEntry.objects.filter(order_type__in=order_types)
+        .values_list("order_id", flat=True)
+        .distinct()
+    )
+    return next_public_order_number(order_type, order_ids)
+
+
+def build_client_list_queryset(*, request, base_queryset, sort_fields: dict[str, str], filter_fields: dict[str, str], default_sort: str):
+    if not _views()._staff_allowed(request):
+        return Agency.objects.none()
+    qs = base_queryset
+    archived_param = request.GET.get("archived")
+    if archived_param == "1":
+        qs = qs.filter(archived=True)
+    elif archived_param == "0":
+        qs = qs.filter(archived=False)
+
+    search = (request.GET.get("q") or "").strip()
+    if search:
+        qs = qs.filter(
+            models.Q(agn_name__icontains=search)
+            | models.Q(short_name__icontains=search)
+            | models.Q(inn__icontains=search)
+            | models.Q(pref__icontains=search)
+            | models.Q(email__icontains=search)
+            | models.Q(phone__icontains=search)
+        )
+
+    filter_field = request.GET.get("filter_field")
+    filter_value = (request.GET.get("filter_value") or "").strip()
+    if filter_field in filter_fields and filter_value:
+        lookup = filter_fields[filter_field]
+        qs = qs.filter(**{f"{lookup}__icontains": filter_value})
+
+    sort_key = request.GET.get("sort", default_sort)
+    direction = request.GET.get("dir", "asc")
+    sort_field = sort_fields.get(sort_key, sort_fields[default_sort])
+    order_by = f"-{sort_field}" if direction == "desc" else sort_field
+    return qs.order_by(order_by)
+
+
+def build_client_list_sort_url(*, request, field: str, direction: str) -> str:
+    params = request.GET.copy()
+    if "view" not in params:
+        params["view"] = "table"
+    params["sort"] = field
+    params["dir"] = direction
+    return f"?{params.urlencode()}"
+
+
+def build_client_list_context(*, request, items, view_modes, sort_fields: dict[str, str], default_sort: str) -> dict[str, Any]:
+    view = request.GET.get("view", "table")
+    if view not in view_modes:
+        view = "table"
+    current_sort = request.GET.get("sort", default_sort)
+    current_dir = "desc" if request.GET.get("dir") == "desc" else "asc"
+    sort_info = {}
+    for field in sort_fields:
+        is_current = current_sort == field
+        next_dir = "desc" if is_current and current_dir == "asc" else "asc"
+        sort_info[field] = {
+            "url": build_client_list_sort_url(request=request, field=field, direction=next_dir),
+            "active": is_current,
+            "dir": current_dir if is_current else "",
+            "next_dir": next_dir,
+        }
+    return {
+        "items": items,
+        "view_mode": view,
+        "current_sort": current_sort,
+        "current_dir": current_dir,
+        "sort_info": sort_info,
+        "filter_field": request.GET.get("filter_field") or "",
+        "filter_value": request.GET.get("filter_value") or "",
+        "archived_param": request.GET.get("archived") or "",
+        "cabinet_url": resolve_cabinet_url(get_request_role(request)),
+    }
+
+
+def build_client_sku_list_queryset(*, request, agency):
+    qs = (
+        SKU.objects.filter(deleted=False, agency=agency)
+        .select_related("market", "agency")
+        .prefetch_related("barcodes", "photos", "marketplace_bindings")
+    )
+    search = (request.GET.get("q") or "").strip()
+    if search:
+        qs = qs.filter(
+            models.Q(sku_code__icontains=search)
+            | models.Q(name__icontains=search)
+            | models.Q(barcodes__value__icontains=search)
+        ).distinct()
+    filter_sku = (request.GET.get("filter_sku") or "").strip()
+    if filter_sku:
+        qs = qs.filter(sku_code__icontains=filter_sku)
+    filter_name = (request.GET.get("filter_name") or "").strip()
+    if filter_name:
+        qs = qs.filter(name__icontains=filter_name)
+    filter_brand = (request.GET.get("filter_brand") or "").strip()
+    if filter_brand:
+        escaped = re.escape(filter_brand)
+        qs = qs.filter(brand__iregex=rf"^\s*{escaped}\s*$")
+    filter_market = (request.GET.get("filter_market") or "").strip()
+    if filter_market:
+        escaped = re.escape(filter_market)
+        qs = qs.filter(market__name__iregex=rf"^\s*{escaped}\s*$")
+    filter_size = (request.GET.get("filter_size") or "").strip()
+    if filter_size:
+        match = re.fullmatch(r"\d+(?:[.,]0+)?", filter_size)
+        if match:
+            num = re.match(r"\d+", filter_size).group(0)
+            size_pattern = rf"^\s*{re.escape(num)}(?:[.,]0+)?\s*$"
+        else:
+            size_pattern = rf"^\s*{re.escape(filter_size)}\s*$"
+        qs = qs.filter(
+            models.Q(size__iregex=size_pattern)
+            | models.Q(barcodes__size__iregex=size_pattern)
+        ).distinct()
+    filter_weight_net = (request.GET.get("filter_weight_net") or "").strip().replace(",", ".")
+    filter_weight_gross = (
+        request.GET.get("filter_weight_gross")
+        or request.GET.get("filter_weight")
+        or ""
+    ).strip().replace(",", ".")
+    if filter_weight_net:
+        if re.fullmatch(r"\d+(?:\.\d+)?", filter_weight_net):
+            qs = qs.filter(weight_net_kg=filter_weight_net)
+        else:
+            qs = qs.none()
+    if filter_weight_gross:
+        if re.fullmatch(r"\d+(?:\.\d+)?", filter_weight_gross):
+            qs = qs.filter(weight_gross_kg=filter_weight_gross)
+        else:
+            qs = qs.none()
+    filter_barcode = (request.GET.get("filter_barcode") or "").strip()
+    if filter_barcode:
+        qs = qs.filter(barcodes__value__icontains=filter_barcode).distinct()
+    filter_date = (request.GET.get("filter_date") or "").strip()
+    if filter_date:
+        parsed_date = None
+        match = re.fullmatch(r"(\d{2})\.(\d{2})\.(\d{4})", filter_date)
+        if match:
+            parsed_date = f"{match.group(3)}-{match.group(2)}-{match.group(1)}"
+        elif re.fullmatch(r"\d{4}-\d{2}-\d{2}", filter_date):
+            parsed_date = filter_date
+        if parsed_date:
+            qs = qs.filter(updated_at__date=parsed_date)
+    return qs.order_by("-updated_at")
+
+
+def _normalize_sku_option(value):
+    if value is None:
+        return None
+    text = re.sub(r"\s+", " ", str(value).strip())
+    return text or None
+
+
+def _normalize_sku_size_option(value):
+    text = _normalize_sku_option(value)
+    if not text:
+        return None
+    match = re.fullmatch(r"(\d+)(?:[.,]0+)?", text)
+    if match:
+        return match.group(1)
+    return text
+
+
+def _client_sku_size_sort_key(value):
+    text = str(value or "").strip()
+    upper = text.upper()
+    size_order = [
+        "XXXS",
+        "XXS",
+        "XS",
+        "S",
+        "M",
+        "L",
+        "XL",
+        "XXL",
+        "XXXL",
+        "XXXXL",
+    ]
+    match = re.match(r"^(\d+(?:[.,]\d+)?)", upper)
+    if match:
+        return (0, float(match.group(1).replace(",", ".")), upper)
+    if upper in size_order:
+        return (1, size_order.index(upper), upper)
+    return (2, upper)
+
+
+def _marketplace_code(value: str | None) -> str:
+    text = str(value or "").strip().upper()
+    if text in {"WB", "WILDBERRIES", "WILDBERRIES (WB)"}:
+        return "WB"
+    if text in {"OZON", "O-ZON"}:
+        return "OZON"
+    return ""
+
+
+def _marketplace_product_url(*, marketplace: str, external_id: str | None) -> str:
+    external = str(external_id or "").strip()
+    if not external:
+        return ""
+    code = _marketplace_code(marketplace)
+    if code == "WB":
+        if not external.isdigit():
+            return ""
+        return f"https://www.wildberries.ru/catalog/{external}/detail.aspx"
+    if code == "OZON":
+        return f"https://www.ozon.ru/product/{quote(external)}/"
+    return ""
+
+
+def _attach_marketplace_url(item) -> None:
+    market_code = _marketplace_code(getattr(getattr(item, "market", None), "name", ""))
+    bindings = list(getattr(item, "marketplace_bindings", []).all())
+    if market_code:
+        bindings.sort(
+            key=lambda binding: (
+                _marketplace_code(binding.marketplace) != market_code,
+                {"WB": 0, "OZON": 1}.get(_marketplace_code(binding.marketplace), 2),
+                binding.id,
+            )
+        )
+    else:
+        bindings.sort(
+            key=lambda binding: (
+                {"WB": 0, "OZON": 1}.get(_marketplace_code(binding.marketplace), 2),
+                binding.id,
+            )
+        )
+
+    for binding in bindings:
+        code = _marketplace_code(binding.marketplace)
+        url = _marketplace_product_url(marketplace=code, external_id=binding.external_id)
+        if url:
+            item.marketplace_url = url
+            item.marketplace_label = code or binding.marketplace
+            return
+
+    fallback_url = _marketplace_product_url(
+        marketplace=market_code,
+        external_id=getattr(item, "source_reference", ""),
+    )
+    item.marketplace_url = fallback_url
+    item.marketplace_label = market_code if fallback_url else ""
+
+
+def build_client_sku_list_context(*, request, agency, items, view_modes) -> dict[str, Any]:
+    view = request.GET.get("view", "table")
+    if view not in view_modes:
+        view = "table"
+    params = request.GET.copy()
+    if "page" in params:
+        params.pop("page")
+    if "view" in params:
+        params.pop("view")
+
+    brand_seen = {}
+    for value in (
+        SKU.objects.filter(agency=agency, deleted=False)
+        .exclude(brand__isnull=True)
+        .exclude(brand__exact="")
+        .values_list("brand", flat=True)
+        .distinct()
+    ):
+        normalized = _normalize_sku_option(value)
+        if not normalized:
+            continue
+        key = normalized.lower()
+        brand_seen.setdefault(key, normalized)
+
+    market_seen = {}
+    for value in (
+        SKU.objects.filter(agency=agency, deleted=False)
+        .exclude(market__name__isnull=True)
+        .exclude(market__name__exact="")
+        .values_list("market__name", flat=True)
+        .distinct()
+    ):
+        normalized = _normalize_sku_option(value)
+        if not normalized:
+            continue
+        key = normalized.lower()
+        market_seen.setdefault(key, normalized)
+
+    size_values = set()
+    for value in (
+        SKU.objects.filter(agency=agency, deleted=False)
+        .exclude(size__isnull=True)
+        .exclude(size__exact="")
+        .values_list("size", flat=True)
+    ):
+        normalized = _normalize_sku_size_option(value)
+        if normalized:
+            size_values.add(normalized)
+    for value in (
+        SKUBarcode.objects.filter(sku__agency=agency, sku__deleted=False)
+        .exclude(size__isnull=True)
+        .exclude(size__exact="")
+        .values_list("size", flat=True)
+    ):
+        normalized = _normalize_sku_size_option(value)
+        if normalized:
+            size_values.add(normalized)
+
+    for item in items or []:
+        _attach_marketplace_url(item)
+        barcode_rows = list(item.barcodes.all())
+        primary_barcode = next((barcode for barcode in barcode_rows if barcode.is_primary), None)
+        fallback_barcode = primary_barcode.value if primary_barcode is not None else (barcode_rows[0].value if barcode_rows else "")
+        item.primary_barcode_display = (item.code or "").strip() or fallback_barcode or "-"
+        size_map = {}
+        for barcode in barcode_rows:
+            size_value = (barcode.size or "").strip()
+            if not size_value:
+                continue
+            size_map.setdefault(size_value, []).append(barcode.value)
+        item.size_map_json = json.dumps(size_map, ensure_ascii=True)
+
+    return {
+        "agency": agency,
+        "search_value": request.GET.get("q", ""),
+        "view_mode": view,
+        "filter_values": {
+            "sku": request.GET.get("filter_sku", ""),
+            "name": request.GET.get("filter_name", ""),
+            "brand": request.GET.get("filter_brand", ""),
+            "market": request.GET.get("filter_market", ""),
+            "size": request.GET.get("filter_size", ""),
+            "weight_net": request.GET.get("filter_weight_net", ""),
+            "weight_gross": request.GET.get("filter_weight_gross", "") or request.GET.get("filter_weight", ""),
+            "barcode": request.GET.get("filter_barcode", ""),
+            "date": request.GET.get("filter_date", ""),
+        },
+        "client_view": True,
+        "filter_query": params.urlencode(),
+        "brand_options": sorted(brand_seen.values(), key=lambda value: value.lower()),
+        "market_options": sorted(market_seen.values(), key=lambda value: value.lower()),
+        "size_options": sorted(size_values, key=_client_sku_size_sort_key),
+    }
+
+
+def _safe_staff_next_url(request, *, default: str = "/client/") -> str:
+    """Allow return to manager/head cabinets after client create/edit."""
+    raw = (request.GET.get("next") or request.POST.get("next") or "").strip()
+    if raw.startswith("/team-manager/") or raw.startswith("/head-manager/") or raw.startswith("/client/"):
+        return raw
+    role = get_request_role(request)
+    if role == "manager":
+        return "/team-manager/clients/"
+    if role == "head_manager":
+        return "/client/"
+    return default
+
+
+def build_agency_form_context(*, request, mode: str, title: str, submit_label: str, agency=None) -> dict[str, Any]:
+    staff_view = _views()._staff_allowed(request)
+    client_id = getattr(agency, "id", None)
+    role = get_request_role(request)
+    if staff_view:
+        cancel_url = _safe_staff_next_url(request, default="/client/")
+        # Existing client → open that client's LK; create mode → manager/clients home.
+        if client_id:
+            cabinet_url = build_client_cabinet_url(client_id)
+        elif role == "manager":
+            cabinet_url = "/team-manager/clients/"
+        else:
+            cabinet_url = "/client/"
+    else:
+        cancel_url = build_client_cabinet_url(client_id)
+        cabinet_url = build_client_cabinet_url(client_id)
+    return {
+        "mode": mode,
+        "title": title,
+        "submit_label": submit_label,
+        "staff_view": staff_view,
+        "client_view": not staff_view,
+        "cabinet_url": cabinet_url,
+        "cancel_url": cancel_url,
+        "next_url": cancel_url if staff_view else "",
+        "card_title": "Карточка клиента" if staff_view else "Карточка компании",
+    }
+
+
+def toggle_agency_archive_response(*, request, pk: int):
+    if not _views()._staff_allowed(request):
+        return HttpResponseForbidden("Доступ запрещен")
+    agency = get_object_or_404(Agency, pk=pk)
+    agency.archived = not agency.archived
+    agency.save(update_fields=["archived"])
+    action_label = "Архивирован клиент" if agency.archived else "Разархивирован клиент"
+    _views().log_agency_change(
+        "update",
+        agency,
+        user=request.user if request.user.is_authenticated else None,
+        description=f"{action_label}: {agency.agn_name or agency.inn or agency.id}",
+        snapshot=_views().agency_snapshot(agency),
+    )
+    next_url = _safe_staff_next_url(request, default=reverse("client-list"))
+    return redirect(next_url)
+
+
+def fetch_party_by_inn_response(*, request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"ok": False, "error": "Доступ запрещен"}, status=403)
+    from .portal_members import resolve_portal_agency_for_user
+
+    direct_client = resolve_portal_agency_for_user(request.user)
+    if not _views()._staff_allowed(request) and not direct_client:
+        return JsonResponse({"ok": False, "error": "Доступ запрещен"}, status=403)
+    inn = (request.GET.get("inn") or "").strip()
+    if not inn:
+        return JsonResponse({"ok": False, "error": "ИНН обязателен"}, status=400)
+    try:
+        data = fetch_party_by_inn(inn)
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=502)
+    if not data:
+        return JsonResponse({"ok": False, "error": "Данные не найдены"}, status=404)
+    return JsonResponse({"ok": True, "data": data})
+
+
+def build_client_sku_form_context(*, agency) -> dict[str, Any]:
+    return {
+        "agency": agency,
+        "client_view": True,
+    }
+
+
+def build_client_sku_duplicate_initial(*, agency, sku_id: int) -> dict[str, Any]:
+    orig = get_object_or_404(SKU, pk=sku_id, agency=agency)
+    initial = {
+        "name": orig.name,
+        "brand": orig.brand,
+        "agency": agency.id,
+        "market": orig.market_id,
+        "color": orig.color,
+        "color_ref": orig.color_ref_id,
+        "size": orig.size,
+        "name_print": orig.name_print,
+        "img": orig.img,
+        "img_comment": orig.img_comment,
+        "gender": orig.gender,
+        "season": orig.season,
+        "additional_name": orig.additional_name,
+        "composition": orig.composition,
+        "made_in": orig.made_in,
+        "cr_product_date": orig.cr_product_date,
+        "end_product_date": orig.end_product_date,
+        "sign_akciz": orig.sign_akciz,
+        "tovar_category": orig.tovar_category,
+        "use_nds": orig.use_nds,
+        "vid_tovar": orig.vid_tovar,
+        "type_tovar": orig.type_tovar,
+        "stor_unit": orig.stor_unit_id,
+        "weight_kg": orig.weight_kg,
+        "weight_net_kg": orig.weight_net_kg,
+        "weight_gross_kg": orig.weight_gross_kg,
+        "volume": orig.volume,
+        "length_mm": orig.length_mm,
+        "width_mm": orig.width_mm,
+        "height_mm": orig.height_mm,
+        "honest_sign": orig.honest_sign,
+        "description": orig.description,
+        "source": orig.source,
+        "source_reference": None,
+        "deleted": False,
+    }
+    base_code = f"{orig.sku_code}-copy"
+    candidate = base_code
+    counter = 1
+    while SKU.objects.filter(sku_code=candidate).exists():
+        candidate = f"{base_code}{counter}"
+        counter += 1
+    initial["sku_code"] = candidate
+    return initial
+
+
+def fetch_party_by_inn(inn: str) -> dict[str, Any]:
+    """
+    Получает карточку организации из DaData по ИНН.
+    Возвращает словарь с ключами под Agency.
+    """
+    token = os.environ.get("DADATA_TOKEN") or os.environ.get("DADATA_API_KEY")
+    if not token:
+        raise RuntimeError("Сервис проверки ИНН временно недоступен")
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": f"Token {token}",
+    }
+    payload = {"query": inn}
+    resp = requests.post(DADATA_URL, json=payload, headers=headers, timeout=10)
+    resp.raise_for_status()
+    data = resp.json()
+    suggestions = data.get("suggestions") or []
+    if not suggestions:
+        return {}
+    item = suggestions[0].get("data") or {}
+
+    address = (item.get("address") or {}).get("unrestricted_value")
+    mgmt = item.get("management") or {}
+
+    return {
+        "agn_name": (item.get("name") or {}).get("full_with_opf") or item.get("value"),
+        "inn": item.get("inn"),
+        "kpp": item.get("kpp"),
+        "ogrn": item.get("ogrn"),
+        "adres": address,
+        "fakt_adres": address,
+        "fio_agn": mgmt.get("name"),
+        "pref": (item.get("opf") or {}).get("short"),
+        "sign_oferta": True,
+    }
+
+
+def build_dashboard_context(*, request, selected_client, client_view: bool, run_inventory_check: bool) -> dict[str, Any]:
+    client_views = _views()
+    orders_panel_columns = []
+    orders_panel_stats = []
+    orders_panel_total = 0
+    client_messages = []
+    act_attention_cards = []
+    act_attention_first_url = ""
+    inventory_check = None
+    if selected_client:
+        dashboard_return_url = build_client_cabinet_url(selected_client.id)
+        dashboard_order_types = ("receiving", "processing", "packing", "shipping", "other")
+        # Cap audit scan: full history for large clients was timing out LK SSR (~80s).
+        client_views.clear_lk_shipping_status_caches()
+        raw_entries = list(
+            client_views.OrderAuditEntry.objects.filter(
+                agency=selected_client,
+                order_type__in=dashboard_order_types,
+            ).order_by("-created_at")[:2500]
+        )
+        entries_by_order = {}
+        for entry in raw_entries:
+            key = (entry.order_type, entry.order_id)
+            entries_by_order.setdefault(key, []).append(entry)
+        for order_entries in entries_by_order.values():
+            order_entries.sort(
+                key=lambda item: (
+                    getattr(item, "created_at", None) or timezone.localtime(),
+                    getattr(item, "id", 0),
+                )
+            )
+
+        def _dashboard_order_title(entry) -> str:
+            order_entries = entries_by_order.get((entry.order_type, entry.order_id)) or [entry]
+            created_at = order_entries[0].created_at if order_entries else getattr(entry, "created_at", None)
+            return client_views._order_title_label(
+                entry.order_type,
+                entry.order_id,
+                entry.payload or {},
+                entries=order_entries,
+                created_at=created_at,
+                variant="full",
+            )
+
+        latest_by_order = {}
+        status_by_order = {}
+        act_info_by_order = {}
+        shipping_act_info_by_order = {}
+        for entry in raw_entries:
+            key = (entry.order_type, entry.order_id)
+            if key not in latest_by_order:
+                latest_by_order[key] = entry
+            if key not in status_by_order and client_views._is_status_entry(entry):
+                status_by_order[key] = entry
+            payload = entry.payload or {}
+            if key not in act_info_by_order and entry.order_type == "receiving":
+                if payload.get("act_sent"):
+                    act_info_by_order[key] = entry
+            if key not in shipping_act_info_by_order and entry.order_type == "shipping":
+                if payload.get("act_sent") or payload.get("act_manager_signed"):
+                    shipping_act_info_by_order[key] = entry
+        selected_entries = [
+            status_by_order.get(key, latest_entry)
+            for key, latest_entry in latest_by_order.items()
+        ]
+        selected_entries.sort(key=lambda item: item.created_at, reverse=True)
+        if not client_view:
+            selected_entries = [entry for entry in selected_entries if not client_views._is_draft_entry(entry)]
+        selected_entries = selected_entries[:120]
+        order_titles = {
+            (entry.order_type, entry.order_id): client_views._repair_mojibake_text(_dashboard_order_title(entry))
+            for entry in selected_entries
+        }
+        buckets = {
+            "client": {"label": "У клиента", "orders": []},
+            "manager": {"label": "У менеджера", "orders": []},
+            "warehouse": {"label": "В работе", "orders": []},
+            "done": {"label": "Выполнена", "orders": []},
+        }
+        act_cards = []
+        visible_order_keys = {(entry.order_type, entry.order_id) for entry in selected_entries}
+        for entry in selected_entries:
+            bucket = client_views._order_bucket(entry)
+            status_label = client_views._repair_mojibake_text(client_views._order_status_label(entry))
+            if status_label == "Отменена":
+                status_label = "ОТМЕНЕНА"
+            # Shipping keeps live labels from shipping_ui_status_label (incl. trip stages).
+            # Other order types collapse terminal states for client UX.
+            if (
+                client_view
+                and bucket == "done"
+                and entry.order_type != "shipping"
+                and status_label != "ОТМЕНЕНА"
+            ):
+                status_label = "Выполнена"
+            if client_view:
+                from .client_visibility import client_facing_status_label
+
+                status_label = client_facing_status_label(status_label, bucket=bucket)
+            buckets[bucket]["orders"].append(
+                {
+                    "order_id": entry.order_id,
+                    "order_type": entry.order_type,
+                    "type_label": client_views._order_type_label(entry.order_type),
+                    "title": client_views._repair_mojibake_text(_dashboard_order_title(entry)),
+                    "status_label": status_label,
+                    "status_tone": "danger" if status_label == "ОТМЕНЕНА" else "",
+                    "created_at": entry.created_at,
+                    "detail_url": client_views._order_detail_url(entry, selected_client.id if selected_client else None, client_view),
+                }
+            )
+        for key, act_entry in act_info_by_order.items():
+            status_entry = status_by_order.get(key)
+            if not client_views._receiving_act_needs_client_attention(act_entry, status_entry):
+                continue
+            payload = act_entry.payload or {}
+            act_label = client_views._repair_mojibake_text(payload.get("act_sent"))
+            if not act_label:
+                continue
+            from .lk_requests import lk_request_hash
+
+            act_cards.append(
+                {
+                    "bucket": "client",
+                    "order_id": act_entry.order_id,
+                    "order_type": act_entry.order_type,
+                    "type_label": "Акт",
+                    "title": f"{act_label} по заявке №{act_entry.order_id}",
+                    "status_label": "Акт отправлен клиенту",
+                    "created_at": act_entry.created_at,
+                    "detail_url": lk_request_hash("receiving", act_entry.order_id),
+                    "attention": True,
+                }
+            )
+        # Акты отгрузки: клиент видит акт после подписи менеджера (без confirm в ЛК).
+        shipping_pk_by_number: dict[str, int] = {}
+        if shipping_act_info_by_order and selected_client:
+            try:
+                from shipping.models import ShippingOrder
+
+                numbers = [str(order_id) for (_, order_id) in shipping_act_info_by_order.keys()]
+                for order in ShippingOrder.objects.filter(
+                    agency_id=selected_client.id,
+                    number__in=numbers,
+                ).only("id", "number"):
+                    shipping_pk_by_number[str(order.number)] = order.pk
+            except Exception:
+                shipping_pk_by_number = {}
+        for key, act_entry in shipping_act_info_by_order.items():
+            status_entry = status_by_order.get(key)
+            if not client_views._shipping_act_needs_client_attention(act_entry, status_entry):
+                continue
+            order_id = str(act_entry.order_id or "")
+            shipping_pk = shipping_pk_by_number.get(order_id)
+            if not shipping_pk or not selected_client:
+                continue
+            from .lk_requests import lk_request_hash
+
+            act_cards.append(
+                {
+                    "bucket": "client",
+                    "order_id": order_id,
+                    "order_type": "shipping",
+                    "type_label": "Акт",
+                    "title": f"Акт отгрузки по заявке №{order_id}",
+                    "status_label": "Акт отгрузки отправлен",
+                    "created_at": act_entry.created_at,
+                    "detail_url": lk_request_hash("shipping", order_id),
+                    "attention": True,
+                }
+            )
+        for card in act_cards:
+            buckets[card["bucket"]]["orders"].append(card)
+        act_attention_cards = act_cards
+        if act_attention_cards:
+            act_attention_first_url = str(act_attention_cards[0].get("detail_url") or "")
+        orders_panel_columns = [
+            {
+                "status": key,
+                "label": value["label"],
+                "orders": value["orders"],
+                "count": len(value["orders"]),
+            }
+            for key, value in buckets.items()
+        ]
+        orders_panel_stats = [
+            {"status": column["status"], "label": column["label"], "count": column["count"]}
+            for column in orders_panel_columns
+        ]
+        orders_panel_total = sum(column["count"] for column in orders_panel_columns)
+        message_qs = client_views.OrderAuditEntry.objects.filter(
+            agency=selected_client,
+            action="update",
+        ).order_by("-created_at")
+        if not client_view:
+            if visible_order_keys:
+                key_filter = models.Q()
+                for order_type, order_id in visible_order_keys:
+                    key_filter |= models.Q(order_type=order_type, order_id=order_id)
+                message_qs = message_qs.filter(key_filter)
+            else:
+                message_qs = message_qs.none()
+        client_messages = [
+            {
+                "created_at": entry.created_at,
+                "text": client_views._format_message_text(entry.description) or "Исправление заявки",
+                "title": client_views._repair_mojibake_text(
+                    order_titles.get(
+                        (entry.order_type, entry.order_id),
+                        _dashboard_order_title(entry),
+                    )
+                ),
+                "detail_url": client_views._order_detail_url(
+                    entry,
+                    selected_client.id if selected_client else None,
+                    client_view,
+                ),
+            }
+            for entry in message_qs[:30]
+        ]
+        if run_inventory_check:
+            inventory_check = client_views._inventory_check_for_agency(selected_client)
+    else:
+        orders_panel_columns = [
+            {"status": "client", "label": "У клиента", "orders": [], "count": 0},
+            {"status": "manager", "label": "У менеджера", "orders": [], "count": 0},
+            {"status": "warehouse", "label": "В работе", "orders": [], "count": 0},
+            {"status": "done", "label": "Выполнена", "orders": [], "count": 0},
+        ]
+        orders_panel_stats = [
+            {"status": column["status"], "label": column["label"], "count": column["count"]}
+            for column in orders_panel_columns
+        ]
+    return {
+        "selected_client": selected_client,
+        "client_filter_param": f"?agency={selected_client.id}" if selected_client else "",
+        "client_view": client_view,
+        "orders_panel_columns": orders_panel_columns,
+        "orders_panel_stats": orders_panel_stats,
+        "orders_panel_total": orders_panel_total,
+        "client_messages": client_messages,
+        "act_attention_cards": act_attention_cards,
+        "act_attention_count": len(act_attention_cards),
+        "act_attention_first_url": act_attention_first_url,
+        "inventory_check": inventory_check,
+        "run_inventory_check": run_inventory_check,
+    }
+
+
+def build_marking_tools_context(*, selected_client) -> dict[str, Any]:
+    base_qs = MarkingCode.objects.filter(agency=selected_client, order_type="processing")
+    available_filter = models.Q(order_id__isnull=True) | models.Q(order_id="")
+    available_qs = base_qs.filter(used_at__isnull=True).filter(available_filter)
+    reserved_qs = base_qs.filter(used_at__isnull=True).exclude(available_filter)
+    used_qs = base_qs.filter(used_at__isnull=False)
+    available_map = {
+        row["barcode"]: row["count"]
+        for row in available_qs.values("barcode").annotate(count=Count("id"))
+    }
+    reserved_map = {
+        row["barcode"]: row["count"]
+        for row in reserved_qs.values("barcode").annotate(count=Count("id"))
+    }
+    used_map = {
+        row["barcode"]: row["count"]
+        for row in used_qs.values("barcode").annotate(count=Count("id"))
+    }
+    barcodes = set(available_map) | set(reserved_map) | set(used_map)
+    sorted_barcodes = sorted(barcodes, key=lambda value: (value == "", value))
+    cz_rows = [
+        {
+            "barcode": barcode or "-",
+            "free": available_map.get(barcode, 0),
+            "reserved": reserved_map.get(barcode, 0),
+            "used": used_map.get(barcode, 0),
+        }
+        for barcode in sorted_barcodes
+    ]
+    status_expr = Case(
+        When(used_at__isnull=False, then=Value("used")),
+        When(order_id__isnull=True, then=Value("free")),
+        When(order_id="", then=Value("free")),
+        default=Value("reserved"),
+        output_field=CharField(),
+    )
+    order_group_expr = Case(
+        When(order_id__isnull=True, then=Value("Без заявки")),
+        When(order_id="", then=Value("Без заявки")),
+        default=F("order_id"),
+        output_field=CharField(),
+    )
+    status_labels = {
+        "used": "Использован",
+        "reserved": "Забронирован",
+        "free": "Свободен",
+    }
+    history_rows = []
+    history_qs = (
+        base_qs.annotate(status=status_expr, order_group=order_group_expr)
+        .values("status", "order_group", "barcode")
+        .annotate(count=Count("id"))
+    )
+    for row in history_qs:
+        status_key = row["status"]
+        if status_key == "free":
+            order_label = "Свободные"
+        else:
+            order_label = row["order_group"] or "Без заявки"
+        history_rows.append(
+            {
+                "order_label": order_label,
+                "barcode": row["barcode"] or "-",
+                "status_key": status_key,
+                "status_label": status_labels.get(status_key, status_key),
+                "count": row["count"],
+            }
+        )
+    status_order = {"used": 0, "reserved": 1, "free": 2}
+    history_rows.sort(
+        key=lambda item: (
+            status_order.get(item["status_key"], 9),
+            item["order_label"],
+            item["barcode"],
+        )
+    )
+
+    pallet_rows = []
+    box_codes_by_order: dict[str, set[str]] = {}
+    cz_counts_by_order_box: dict[str, dict[str, int]] = {}
+    pallet_orders = (
+        base_qs.exclude(order_id__isnull=True)
+        .exclude(order_id="")
+        .exclude(box_barcode__isnull=True)
+        .exclude(box_barcode="")
+        .values("order_id", "box_barcode")
+        .distinct()
+    )
+    for row in pallet_orders:
+        order_id = str(row.get("order_id") or "").strip()
+        box_code = str(row.get("box_barcode") or "").strip()
+        if not order_id or not box_code:
+            continue
+        box_codes_by_order.setdefault(order_id, set()).add(box_code)
+
+    box_counts_qs = (
+        base_qs.exclude(order_id__isnull=True)
+        .exclude(order_id="")
+        .exclude(box_barcode__isnull=True)
+        .exclude(box_barcode="")
+        .values("order_id", "box_barcode")
+        .annotate(count=Count("id"))
+    )
+    for row in box_counts_qs:
+        order_id = str(row.get("order_id") or "").strip()
+        box_code = str(row.get("box_barcode") or "").strip()
+        if not order_id or not box_code:
+            continue
+        cz_counts_by_order_box.setdefault(order_id, {})[box_code] = int(row.get("count") or 0)
+
+    if box_codes_by_order and selected_client:
+        order_ids = list(box_codes_by_order.keys())
+        stock_qs = (
+            WarehouseStockSnapshot.objects.select_related("container", "parent_container")
+            .filter(
+                agency=selected_client,
+                source_context_type="processing",
+                source_context_id__in=order_ids,
+                is_archived=False,
+            )
+            .exclude(container_code__isnull=True)
+            .exclude(container_code="")
+        )
+
+        pallet_boxes_map: dict[tuple[str, str], set[str]] = {}
+        for snapshot in stock_qs:
+            order_id = str(snapshot.source_context_id or "").strip()
+            container = snapshot.container
+            parent = snapshot.parent_container
+            box_code = ""
+            pallet_code = ""
+            if container is not None and container.container_type == WarehouseContainer.TYPE_BOX:
+                box_code = str(container.container_code or "").strip()
+                if parent is not None:
+                    pallet_code = str(parent.container_code or "").strip()
+            elif parent is not None:
+                pallet_code = str(parent.container_code or "").strip()
+                if container is not None:
+                    box_code = str(container.container_code or "").strip()
+            elif container is not None:
+                pallet_code = str(container.container_code or "").strip()
+            if not box_code and container is not None and container.container_type == WarehouseContainer.TYPE_BOX:
+                box_code = str(snapshot.container_code or "").strip()
+            if not order_id or not pallet_code or not box_code:
+                continue
+            order_boxes = box_codes_by_order.get(order_id, set())
+            if box_code not in order_boxes:
+                continue
+            key = (order_id, pallet_code)
+            pallet_boxes_map.setdefault(key, set()).add(box_code)
+
+        for (order_id, pallet_code), boxes in pallet_boxes_map.items():
+            per_box = cz_counts_by_order_box.get(order_id, {})
+            cz_count = sum(per_box.get(code, 0) for code in boxes)
+            pallet_rows.append(
+                {
+                    "order_id": order_id,
+                    "pallet_code": pallet_code or "-",
+                    "boxes_count": len(boxes),
+                    "cz_count": cz_count,
+                }
+            )
+    pallet_rows.sort(key=lambda item: (item["order_id"], item["pallet_code"]))
+    return {
+        "client_agency": selected_client,
+        "total_count": base_qs.count(),
+        "available_count": available_qs.count(),
+        "reserved_count": reserved_qs.count(),
+        "used_count": used_qs.count(),
+        "cz_rows": cz_rows,
+        "history_rows": history_rows,
+        "pallet_rows": pallet_rows,
+    }
+
+
+def import_marking_codes_response(*, request, selected_client):
+    file = request.FILES.get("file") or request.FILES.get("marking_cz_file")
+    if not file:
+        return JsonResponse({"ok": False, "error": "Файл не выбран."}, status=400)
+    ok, result = _views()._import_marking_codes(file, {}, "", selected_client, request.user)
+    if not ok:
+        return JsonResponse({"ok": False, "error": result.get("error") or "Ошибка импорта."}, status=400)
+    return JsonResponse({"ok": True, **result})
+
+
+def resolve_client_order_redirect_response(*, request, pk: int, destination: str):
+    agency = Agency.objects.filter(pk=pk).first()
+    if not agency:
+        return redirect("/client/")
+    if not _views()._check_agency_access(request, agency):
+        return HttpResponseForbidden("Доступ запрещен")
+    from .client_drafts import find_client_draft
+
+    destination_key = {
+        "receiving": "receiving",
+        "packing": "processing",
+        "shipping": "shipping",
+    }.get(destination, "")
+    if destination_key and destination_key != "shipping":
+        draft = find_client_draft(
+            agency=agency,
+            order_type=destination_key,
+            user=request.user,
+        )
+        if draft and draft.get("continue_url"):
+            return redirect(draft["continue_url"])
+    destination_map = {
+        # Выбор типа: обычная приёмка или приёмка с распределением.
+        # Прямой URL /orders/receiving/?client=… по-прежнему открывает обычную форму.
+        "receiving": f"/client/{pk}/receiving/choose/",
+        # Same stock+params flow as warehouse processing; client UI orders params first.
+        "packing": f"/orders/processing/?client={pk}",
+        "shipping": f"/shipping/new/?client={pk}",
+    }
+    return redirect(destination_map.get(destination, "/client/"))
+
+
+def submit_client_packing_order(*, request, agency):
+    payload = {
+        "email": request.POST.get("email"),
+        "fio": request.POST.get("fio"),
+        "org": request.POST.get("org"),
+        "plan_date": request.POST.get("plan_date"),
+        "marketplaces": request.POST.getlist("mp[]"),
+        "mp_other": request.POST.get("mp_other"),
+        "subject": request.POST.get("subject"),
+        "total_qty": request.POST.get("total_qty"),
+        "box_mode": request.POST.get("box_mode"),
+        "box_mode_other": request.POST.get("box_mode_other"),
+        "tasks": request.POST.getlist("tasks[]"),
+        "tasks_other": request.POST.get("tasks_other"),
+        "marking": request.POST.get("marking"),
+        "marking_other": request.POST.get("marking_other"),
+        "ship_as": request.POST.get("ship_as"),
+        "ship_other": request.POST.get("ship_other"),
+        "has_distribution": request.POST.get("has_distribution"),
+        "comments": request.POST.get("comments"),
+        "files_report": [f.name for f in request.FILES.getlist("files_report")],
+        "files_distribution": [f.name for f in request.FILES.getlist("files_distribution")],
+        "files_cz": [f.name for f in request.FILES.getlist("files_cz")],
+    }
+    order_id = _next_client_order_number("processing")
+    _views().log_order_action(
+        "create",
+        order_id=order_id,
+        order_type="packing",
+        user=request.user if request.user.is_authenticated else None,
+        agency=agency,
+        description="Заявка на упаковку",
+        payload=payload,
+    )
+    return {"order_id": order_id, "payload": payload, "submitted": True}
+
+
+def build_client_packing_form_context(*, agency, submitted: bool) -> dict[str, Any]:
+    return {
+        "agency": agency,
+        "submitted": submitted,
+        "current_time": timezone.now(),
+        "client_view": True,
+    }
+
+
+def submit_client_receiving_order(*, request, agency):
+    eta_raw = request.POST.get("eta_at")
+    try:
+        normalized_eta = parse_business_datetime(eta_raw).isoformat()
+    except ValueError:
+        normalized_eta = str(eta_raw or "").strip()
+    sku_codes = request.POST.getlist("sku_code[]")
+    sku_ids = request.POST.getlist("sku_id[]")
+    names = request.POST.getlist("item_name[]")
+    qtys = request.POST.getlist("qty[]")
+    position_comments = request.POST.getlist("position_comment[]")
+    items = []
+    row_count = max(len(sku_codes), len(qtys), len(names), len(position_comments), len(sku_ids))
+    for idx in range(row_count):
+        sku_code = sku_codes[idx] if idx < len(sku_codes) else ""
+        qty = qtys[idx] if idx < len(qtys) else ""
+        if not sku_code and not qty:
+            continue
+        items.append(
+            {
+                "sku_id": sku_ids[idx] if idx < len(sku_ids) else "",
+                "sku_code": sku_code,
+                "name": names[idx] if idx < len(names) else "",
+                "qty": qty,
+                "comment": position_comments[idx] if idx < len(position_comments) else "",
+            }
+        )
+    submit_action = request.POST.get("submit_action")
+    status_value = "draft" if submit_action == "draft" else "sent_unconfirmed"
+    status_label = "Черновик" if status_value == "draft" else "Ждет подтверждения"
+    payload = {
+        "eta_at": normalized_eta,
+        "expected_boxes": request.POST.get("expected_boxes"),
+        "comment": request.POST.get("comment"),
+        "submit_action": submit_action,
+        "status": status_value,
+        "status_label": status_label,
+        "items": items,
+        "documents": [f.name for f in request.FILES.getlist("documents")],
+    }
+    action_label = "черновик" if submit_action == "draft" else "заявка"
+    order_id = _next_client_order_number("receiving")
+    _views().log_order_action(
+        "create",
+        order_id=order_id,
+        order_type="receiving",
+        user=request.user if request.user.is_authenticated else None,
+        agency=agency,
+        description=f"Заявка на приемку ({action_label})",
+        payload=payload,
+    )
+    if submit_action != "draft":
+        _views()._create_manager_task(order_id, agency, request, timezone.localtime())
+    return {
+        "order_id": order_id,
+        "payload": payload,
+        "submitted": submit_action == "draft",
+        "redirect_to_dashboard": submit_action != "draft",
+    }
+
+
+def build_client_receiving_form_context(*, agency, submitted: bool) -> dict[str, Any]:
+    skus = (
+        SKU.objects.filter(agency=agency, deleted=False)
+        .prefetch_related("barcodes")
+        .order_by("sku_code")
+    )
+    current_time = business_localtime()
+    sku_options = []
+    for sku in skus:
+        barcodes = [barcode.value for barcode in sku.barcodes.all()]
+        sku_options.append(
+            {
+                "id": sku.id,
+                "code": sku.sku_code,
+                "name": sku.name,
+                "barcodes_joined": "|".join(barcodes),
+            }
+        )
+    return {
+        "agency": agency,
+        "submitted": submitted,
+        "client_view": True,
+        "sku_options": sku_options,
+        "current_time": current_time,
+        "current_time_input": current_time.strftime("%Y-%m-%dT%H:%M"),
+        "min_past_hours": 0,
+    }

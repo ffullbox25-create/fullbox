@@ -1,0 +1,89 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Вход | ФУЛЛБОКС</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  {% if qr_login_available %}<script defer src="{% static 'fbs/tsd.js' %}?v=20260829-1"></script>{% endif %}
+  <style>
+    :root { --bg:#fff7ed; --card:#fffdf8; --accent:#f89000; --accent-strong:#f86800; --sun:#f8b800; --text:#303030; --muted:#756f68; --stroke:rgba(48,48,48,0.14); }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:'Manrope',system-ui,sans-serif; }
+    .wrap { max-width: 520px; margin: 0 auto; padding: 32px 18px 64px; }
+    .card { background:var(--card); border:1px solid var(--stroke); border-radius:8px; padding:24px; box-shadow:0 20px 50px rgba(48,48,48,0.12); }
+    .layout { display:block; }
+    .brand { margin-bottom:18px; }
+    .fullbox-brand-img { display:block; width:172px; height:auto; }
+    h1 { margin:0 0 8px; letter-spacing:0; font-family:'Bricolage Grotesque','Manrope',system-ui,sans-serif; }
+    .muted { color: var(--muted); }
+    label { display:block; font-weight:600; margin:12px 0 6px; }
+    input { width:100%; padding:12px; border-radius:8px; border:1px solid var(--stroke); background:#fff; color:var(--text); font-family:inherit; }
+    input:focus { outline:3px solid rgba(248,144,0,0.22); border-color:var(--accent); }
+    .btn { width:100%; margin-top:16px; padding:12px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:#fff; font-weight:800; cursor:pointer; }
+    .btn:disabled { opacity:.65; cursor:wait; }
+    .qr-panel { margin:18px 0; padding:16px; border:1px solid rgba(248,144,0,0.3); border-radius:8px; background:rgba(248,144,0,0.09); }
+    .qr-panel h2 { margin:0 0 6px; font-size:18px; letter-spacing:0; }
+    .divider { display:flex; align-items:center; gap:10px; margin:18px 0; color:var(--muted); font-size:12px; font-weight:700; }
+    .divider::before, .divider::after { content:""; flex:1; height:1px; background:var(--stroke); }
+    .error { margin-top:12px; padding:10px 12px; border-radius:8px; background:rgba(194,65,12,0.12); color:#9a3412; border:1px solid rgba(194,65,12,0.35); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="layout">
+        <div>
+          <div class="brand">{% include "partials/fullbox_brand.html" %}</div>
+          <h1>Вход</h1>
+          {% if qr_login_available %}
+            <section class="qr-panel" aria-labelledby="qr-login-title">
+              <h2 id="qr-login-title">Вход сотрудника по бейджу</h2>
+              <p class="muted">Отсканируйте QR-бейдж.</p>
+              <form method="post" action="/login/qr/" autocomplete="off" data-qr-login-form>
+                {% csrf_token %}
+                {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% endif %}
+                <label for="badge-token">QR-бейдж</label>
+                <input id="badge-token" name="badge_token" inputmode="none" data-scanner-only data-scan-autosubmit autocomplete="off" autocapitalize="off" spellcheck="false" autofocus required placeholder="Сканируйте бейдж">
+                <button class="btn" type="submit">Войти по бейджу</button>
+              </form>
+              {% if qr_error %}<div class="error">{{ qr_error }}</div>{% endif %}
+            </section>
+            <div class="divider">или</div>
+            <p class="muted">Используйте корпоративный логин и пароль.</p>
+          {% endif %}
+          <form method="post" autocomplete="on" data-login-form>
+            {% csrf_token %}
+            <label for="username">Логин</label>
+            <input id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" {% if not qr_login_available %}autofocus {% endif %}required>
+            <label for="password">Пароль</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <button class="btn" type="submit">Войти</button>
+          </form>
+          {% if request.GET.session_expired %}
+            <div class="error">Сессия завершена после 30 минут бездействия. Войдите снова.</div>
+          {% endif %}
+          {% if error %}
+            <div class="error">{{ error }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) {
+        document.querySelector('[data-login-form]')?.reset();
+        document.querySelector('[data-qr-login-form]')?.reset();
+      }
+    });
+    document.querySelectorAll('form[data-qr-login-form], form[data-login-form]').forEach((form) => {
+      form.addEventListener('submit', () => {
+        const button = form.querySelector('button[type="submit"]');
+        if (button) button.disabled = true;
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Проверка волны {{ batch.id }}{% endblock %}
+{% block page_class %}tsd-page-operator{% endblock %}
+
+{% block content %}
+  <section class="detail-hero">
+    <div><span class="section-kicker">Контроль собранной волны</span><h2>Взять волну в проверку</h2><span>Волна {{ batch.id }} · {{ batch.agency }} · {{ batch.tasks.count }} заказов</span></div>
+    <div class="detail-status"><span class="status status-verification">Ожидает контролера</span><strong>{{ batch.picked_qty }} шт.</strong></div>
+  </section>
+  <section class="operator-summary">
+    <div><span>Сборщик</span><strong>{{ batch.assigned_to.get_username }}</strong></div>
+    <div><span>Рабочее место</span><strong>{{ batch.workstation.name }}</strong></div>
+    <div><span>Тара</span><strong>{{ batch.cart.name }}</strong></div>
+    <div><span>Заказов</span><strong>{{ batch.tasks.count }}</strong></div>
+  </section>
+  <form method="post" data-submit-once>
+    {% csrf_token %}<input type="hidden" name="action" value="claim">
+    <button class="button button-primary" type="submit">Взять в работу</button>
+  </form>
+{% endblock %}

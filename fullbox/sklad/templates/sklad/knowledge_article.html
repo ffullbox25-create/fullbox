@@ -1,0 +1,218 @@
+{% extends "sklad/_kb_shell.html" %}
+{% block title %}{{ kb_article.title }} — база знаний{% endblock %}
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:26px; font-weight:900; letter-spacing:0; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.kb-back {
+  display: inline-flex;
+  margin-bottom: 10px;
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--accent-strong);
+}
+.kb-head-row {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+}
+.kb-print-actions { flex:none; }
+.kb-print-button {
+  min-height:40px;
+  padding:9px 13px;
+  border:1px solid var(--accent);
+  border-radius:7px;
+  background:var(--accent);
+  color:#fff;
+  font:inherit;
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+}
+.kb-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 16px;
+  align-items: start;
+  margin-top: 14px;
+}
+.kb-article { display: grid; gap: 16px; }
+.kb-article h2 { margin: 0 0 8px; font-size: 16px; font-weight: 900; }
+.kb-article p { margin: 0 0 8px; font-size: 14px; line-height: 1.5; }
+.kb-article ol, .kb-article ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.kb-article li + li { margin-top: 5px; }
+.kb-checklist {
+  display:grid;
+  gap:8px;
+  margin:0;
+  padding:0;
+  list-style:none;
+}
+.kb-checklist li {
+  position:relative;
+  min-height:24px;
+  padding-left:30px;
+}
+.kb-checklist li::before {
+  content:"";
+  position:absolute;
+  left:0;
+  top:2px;
+  width:18px;
+  height:18px;
+  border:2px solid var(--accent);
+  border-radius:3px;
+  background:#fff;
+}
+.kb-section {
+  padding-top: 12px;
+  border-top: 1px solid rgba(28,31,26,0.08);
+}
+.kb-section:first-child { border-top: 0; padding-top: 0; }
+.kb-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.kb-links a {
+  display: inline-flex;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+.kb-side {
+  position: sticky;
+  top: 12px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--stroke);
+  background: var(--surface-2);
+}
+.kb-side-title { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; }
+.kb-side a {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 8px;
+  border-radius: 10px;
+}
+.kb-side a.active, .kb-side a:hover { background: rgba(242,183,71,0.22); }
+.kb-signoff {
+  display:none;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+  margin-top:22px;
+  padding-top:18px;
+  border-top:1px solid #303030;
+  font-size:12px;
+}
+.kb-signoff div { min-height:34px; border-bottom:1px solid #303030; }
+@media (max-width: 960px) {
+  .kb-layout { grid-template-columns: 1fr; }
+  .kb-side { position: static; }
+}
+@media print {
+  @page { size:A4; margin:14mm 13mm 16mm; }
+  body { background:#fff !important; color:#303030 !important; }
+  .wrap { max-width:none !important; margin:0 !important; padding:0 !important; }
+  .layout { display:block !important; }
+  .side,
+  .kb-back,
+  .kb-print-actions,
+  .kb-side,
+  .kb-links { display:none !important; }
+  .content {
+    padding:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    background:#fff !important;
+  }
+  .kb-layout { display:block !important; margin-top:8mm; }
+  .page-title { font-size:22pt; color:#303030; }
+  .page-sub { font-size:10pt; color:#555; }
+  .kb-article { display:block; }
+  .kb-section {
+    break-inside:avoid;
+    page-break-inside:avoid;
+    margin:0 0 6mm;
+    padding-top:5mm;
+    border-top:1px solid #c9c9c9;
+  }
+  .kb-section:first-child { border-top:3px solid #f89000; padding-top:5mm; }
+  .kb-section h2 { font-size:13pt; }
+  .kb-article p,
+  .kb-article ol,
+  .kb-article ul { font-size:9.5pt; line-height:1.42; }
+  .kb-checklist li::before { border-color:#303030; }
+  .kb-signoff { display:grid; }
+}
+{% endblock %}
+{% block content %}
+<a class="kb-back" href="/sklad/knowledge/">← К базе знаний</a>
+<div class="kb-head-row">
+  <div>
+    <h1 class="page-title">{{ kb_article.title }}</h1>
+    <div class="page-sub">{{ kb_article.summary }}</div>
+  </div>
+  {% if kb_article.printable %}
+    <div class="kb-print-actions">
+      <button class="kb-print-button" type="button" onclick="window.print()">Печать инструкции</button>
+    </div>
+  {% endif %}
+</div>
+
+<div class="kb-layout">
+  <article class="kb-article">
+    {% for section in kb_article.sections %}
+      <section class="kb-section">
+        <h2>{{ section.heading }}</h2>
+        {% if section.body %}<p>{{ section.body }}</p>{% endif %}
+        {% if section.steps %}
+          <ol>
+            {% for step in section.steps %}<li>{{ step }}</li>{% endfor %}
+          </ol>
+        {% endif %}
+        {% if section.bullets %}
+          <ul>
+            {% for item in section.bullets %}<li>{{ item }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+        {% if section.checklist %}
+          <ul class="kb-checklist">
+            {% for item in section.checklist %}<li>{{ item }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </section>
+    {% endfor %}
+    {% if kb_article.links %}
+      <div class="kb-links">
+        {% for link in kb_article.links %}
+          <a href="{{ link.href }}">{{ link.label }}</a>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% if kb_article.printable %}
+      <div class="kb-signoff" aria-label="Подписи по результатам обучения">
+        <div>Дата и смена:</div>
+        <div>Оператор-кладовщик:</div>
+        <div>Инструктаж провел:</div>
+        <div>Подпись сотрудника:</div>
+      </div>
+    {% endif %}
+  </article>
+  <aside class="kb-side">
+    <div class="kb-side-title">Разделы</div>
+    {% for article in kb_articles %}
+      <a href="/sklad/knowledge/{{ article.slug }}/" class="{% if article.slug == kb_article.slug %}active{% endif %}">
+        {{ article.num }}. {{ article.title }}
+      </a>
+    {% endfor %}
+  </aside>
+</div>
+{% endblock %}

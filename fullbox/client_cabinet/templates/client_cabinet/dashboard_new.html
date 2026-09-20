@@ -1,0 +1,1027 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <link href="{% static 'vendor/bricolage-manrope.css' %}" rel="stylesheet">
+  <link href="{% static 'client_cabinet/lk-theme.css' %}" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Новый кабинет клиента | FULLBOX</title>
+  
+  <style>
+    :root {
+      --surface-3: #f2ece1;
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --sidebar-width: 248px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(900px 440px at -10% -10%, rgba(242, 183, 71, 0.20), transparent 65%),
+        radial-gradient(880px 520px at 110% 0%, rgba(14, 107, 91, 0.16), transparent 55%),
+        var(--bg);
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    }
+
+    .sidebar {
+      background: rgba(255, 253, 248, 0.88);
+      backdrop-filter: blur(10px);
+      border-right: 1px solid var(--stroke);
+      padding: 22px 18px;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 18px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 8px;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), #1a8d78);
+      box-shadow: 0 12px 20px rgba(14, 107, 91, 0.24);
+    }
+
+    .brand-title {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+      line-height: 1.05;
+    }
+    .fullbox-brand-mark { display: inline-flex; align-items: center; min-width: 0; }
+    .fullbox-brand-img { display: block; width: auto; height: 44px; max-width: 138px; object-fit: contain; }
+
+    .brand-sub {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .company-card {
+      padding: 16px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 8px;
+    }
+
+    .eyebrow {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+    }
+
+    .company-name {
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .company-user {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .menu {
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .menu-item,
+    .menu-item-button {
+      display: grid;
+      gap: 4px;
+      width: 100%;
+      padding: 12px 14px;
+      text-align: left;
+      border-radius: 16px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .menu-item:hover,
+    .menu-item-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14, 107, 91, 0.22);
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    .menu-item.active {
+      border-color: rgba(14, 107, 91, 0.26);
+      background: linear-gradient(135deg, rgba(14, 107, 91, 0.14), rgba(242, 183, 71, 0.14));
+    }
+
+    .menu-item.stub,
+    .menu-item-button.stub {
+      cursor: default;
+      opacity: 0.84;
+    }
+
+    .menu-item.stub:hover,
+    .menu-item-button.stub:hover {
+      transform: none;
+      box-shadow: none;
+      border-color: transparent;
+      background: transparent;
+    }
+
+    .menu-title {
+      font-weight: 700;
+    }
+
+    .menu-sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      width: fit-content;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(28, 31, 26, 0.04);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .badge.stub {
+      background: var(--sun-soft);
+      color: #7b5c14;
+      border-color: rgba(242, 183, 71, 0.26);
+    }
+
+    .sidebar-actions {
+      display: grid;
+      gap: 10px;
+    }
+
+    .sidebar-link {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      font-weight: 700;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .sidebar-link:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+    }
+
+    .main {
+      min-width: 0;
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .topbar,
+    .panel,
+    .hero-alert,
+    .action-tile,
+    .metric-card,
+    .stub-card {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+    }
+
+    .topbar {
+      padding: 22px 24px;
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .topbar h1 {
+      margin: 6px 0 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: clamp(28px, 3vw, 40px);
+      line-height: 1.04;
+      letter-spacing: -0.6px;
+    }
+
+    .lead {
+      margin: 8px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+    }
+
+    .topbar-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .btn,
+    .btn-link,
+    .btn-stub {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28, 31, 26, 0.04);
+      color: inherit;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .btn:hover,
+    .btn-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14, 107, 91, 0.34);
+      box-shadow: 0 12px 22px rgba(14, 107, 91, 0.12);
+    }
+
+    .btn.primary,
+    .btn-link.primary {
+      background: linear-gradient(135deg, var(--sun), #ffd88a);
+      color: #2a2110;
+      border-color: transparent;
+    }
+
+    .btn.soft,
+    .btn-link.soft {
+      background: linear-gradient(135deg, rgba(14, 107, 91, 0.14), rgba(14, 107, 91, 0.06));
+      border-color: rgba(14, 107, 91, 0.18);
+      color: var(--accent-strong);
+    }
+
+    .btn-stub {
+      cursor: default;
+      color: var(--muted);
+      background: rgba(28, 31, 26, 0.03);
+    }
+
+    .btn-stub:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    .hero-alert {
+      overflow: hidden;
+    }
+
+    .hero-alert-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(212, 84, 60, 0.18);
+      background: linear-gradient(135deg, rgba(212, 84, 60, 0.08), rgba(242, 183, 71, 0.08));
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .hero-alert-title {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 20px;
+      margin: 0;
+    }
+
+    .hero-alert-list {
+      display: grid;
+    }
+
+    .hero-alert-row {
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      border-top: 1px solid rgba(28, 31, 26, 0.06);
+    }
+
+    .hero-alert-row:first-child {
+      border-top: 0;
+    }
+
+    .hero-alert-name {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .hero-alert-text {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .action-tile {
+      padding: 18px 16px;
+      display: grid;
+      gap: 10px;
+      align-content: space-between;
+      min-height: 132px;
+    }
+
+    .action-tile:hover {
+      transform: translateY(-2px);
+    }
+
+    .action-tile.stub:hover {
+      transform: none;
+    }
+
+    .action-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(14, 107, 91, 0.14), rgba(242, 183, 71, 0.22));
+      color: var(--accent-strong);
+      font-weight: 800;
+    }
+
+    .action-title {
+      font-weight: 700;
+    }
+
+    .action-sub {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .metric-card {
+      padding: 18px;
+      display: grid;
+      gap: 8px;
+      border-left: 4px solid transparent;
+    }
+
+    .metric-card[data-status="total"] {
+      border-left-color: var(--accent);
+      background: linear-gradient(135deg, rgba(14, 107, 91, 0.12), rgba(242, 183, 71, 0.10));
+    }
+
+    .metric-card[data-status="client"] { border-left-color: #9a7d40; }
+    .metric-card[data-status="manager"] { border-left-color: var(--accent); }
+    .metric-card[data-status="warehouse"] { border-left-color: var(--sun); }
+    .metric-card[data-status="done"] { border-left-color: #5f8d4e; }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+    }
+
+    .metric-value {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 34px;
+      line-height: 1;
+      letter-spacing: -0.8px;
+    }
+
+    .metric-sub {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      padding: 20px;
+      min-width: 0;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+    }
+
+    .panel-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .panel-link {
+      color: var(--accent-strong);
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .board-column {
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      min-height: 240px;
+    }
+
+    .board-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      font-weight: 700;
+    }
+
+    .board-count {
+      min-width: 34px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: rgba(28, 31, 26, 0.06);
+      border: 1px solid var(--stroke);
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .board-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .order-card {
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      display: grid;
+      gap: 6px;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .order-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 22px rgba(15, 23, 42, 0.08);
+    }
+
+    .order-card.attention {
+      border-color: rgba(242, 183, 71, 0.42);
+      background: linear-gradient(135deg, rgba(242, 183, 71, 0.18), rgba(14, 107, 91, 0.06));
+    }
+
+    .order-title {
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .order-meta {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .empty-box {
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px dashed var(--stroke);
+      color: var(--muted);
+      background: rgba(28, 31, 26, 0.02);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .stock-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .stock-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(28, 31, 26, 0.08);
+    }
+
+    .stock-row:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .stock-label {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .stock-value {
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    .stock-value.warn { color: var(--danger); }
+    .stock-value.ok { color: var(--accent-strong); }
+
+    .stock-note {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(14, 107, 91, 0.08), rgba(242, 183, 71, 0.08));
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .stub-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .stub-card {
+      padding: 20px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .stub-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .stub-name {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 21px;
+    }
+
+    .stub-text {
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .empty-state {
+      padding: 36px;
+      text-align: center;
+    }
+
+    .empty-state h2 {
+      margin: 0 0 10px;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 28px;
+    }
+
+    .empty-state p {
+      margin: 0 0 20px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    @media (max-width: 1320px) {
+      .actions-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .metrics-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .stub-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 1080px) {
+      .shell { grid-template-columns: 1fr; }
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--stroke);
+      }
+      .content-grid,
+      .board {
+        grid-template-columns: 1fr;
+      }
+      .main {
+        padding: 18px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .actions-grid,
+      .metrics-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .hero-alert-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .actions-grid,
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+      .topbar,
+      .panel,
+      .hero-alert,
+      .action-tile,
+      .metric-card,
+      .stub-card {
+        border-radius: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div>
+          <div class="brand-title">{% include "partials/fullbox_brand.html" %}</div>
+          <div class="brand-sub">Кабинет клиента</div>
+        </div>
+      </div>
+
+      <div class="company-card">
+        <div class="eyebrow">Текущий контур</div>
+        <div class="company-name">
+          {% if selected_client %}
+            {{ selected_client.agn_name|default:selected_client.fio_agn|default:"Клиент" }}
+          {% else %}
+            Клиент не выбран
+          {% endif %}
+        </div>
+        <div class="company-user">{% include "partials/current_user.html" %}</div>
+      </div>
+
+      <nav class="menu">
+        {% if selected_client %}
+          <a class="menu-item active" href="{{ new_dashboard_url }}">
+            <span class="menu-title">Главная</span>
+            <span class="menu-sub">Новый кабинет</span>
+          </a>
+          <a class="menu-item" href="/client/{{ selected_client.id }}/sku/">
+            <span class="menu-title">Номенклатура</span>
+            <span class="menu-sub">SKU и карточки</span>
+          </a>
+          <a class="menu-item" href="/orders/receiving/?client={{ selected_client.id }}">
+            <span class="menu-title">Заявка на приемку</span>
+            <span class="menu-sub">Реальный переход</span>
+          </a>
+          <a class="menu-item" href="/orders/processing/?client={{ selected_client.id }}">
+            <span class="menu-title">Заявка на обработку</span>
+            <span class="menu-sub">Реальный переход</span>
+          </a>
+          <a class="menu-item" href="/client/{{ selected_client.id }}/shipping/new/">
+            <span class="menu-title">Заявка на отгрузку</span>
+            <span class="menu-sub">Реальный переход</span>
+          </a>
+          <a class="menu-item" href="/client/marking/?client={{ selected_client.id }}">
+            <span class="menu-title">Маркировка</span>
+            <span class="menu-sub">Коды и история</span>
+          </a>
+          <a class="menu-item" href="/sklad/journal/?client={{ selected_client.id }}">
+            <span class="menu-title">Остатки</span>
+            <span class="menu-sub">Складской журнал</span>
+          </a>
+          <a class="menu-item" href="/market-sync/?client={{ selected_client.id }}">
+            <span class="menu-title">Маркетплейсы</span>
+            <span class="menu-sub">Синхронизация</span>
+          </a>
+          <div class="menu-item stub">
+            <span class="menu-title">Финансы</span>
+            <span class="menu-sub">В разработке</span>
+          </div>
+          <div class="menu-item stub">
+            <span class="menu-title">Документы</span>
+            <span class="menu-sub">В разработке</span>
+          </div>
+        {% else %}
+          <a class="menu-item active" href="{{ new_dashboard_url }}">
+            <span class="menu-title">Главная</span>
+            <span class="menu-sub">Новый кабинет</span>
+          </a>
+          <a class="menu-item" href="/client/">
+            <span class="menu-title">Список клиентов</span>
+            <span class="menu-sub">Выбрать кабинет</span>
+          </a>
+          <a class="menu-item" href="/sku/">
+            <span class="menu-title">Номенклатура</span>
+            <span class="menu-sub">Общий каталог</span>
+          </a>
+        {% endif %}
+      </nav>
+
+      <div class="sidebar-actions">
+        <a class="sidebar-link" href="{{ legacy_dashboard_url }}">Текущий кабинет</a>
+        <a class="sidebar-link" href="/logout/">Выход</a>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="topbar">
+        <div>
+          <div class="eyebrow">Новый дизайн</div>
+          <h1>
+            {% if selected_client %}
+              Добрый день, {{ selected_client.agn_name|default:selected_client.fio_agn|default:"клиент" }}
+            {% else %}
+              Новый кабинет клиента
+            {% endif %}
+          </h1>
+          <p class="lead">
+            Собрали новый экран как аккуратную витрину поверх уже работающих разделов. Где данных или сценария пока нет, мы ничего не выдумываем и честно помечаем блок как разработку.
+          </p>
+        </div>
+        <div class="topbar-actions">
+          <span class="badge stub">Preview</span>
+          <a class="btn soft" href="{{ legacy_dashboard_url }}">Текущий кабинет</a>
+        </div>
+      </section>
+
+      {% if selected_client %}
+        <section class="hero-alert">
+          <div class="hero-alert-head">
+            <div>
+              <h2 class="hero-alert-title">Что требует внимания</h2>
+              <div class="panel-subtitle">Показываем только то, что уже умеем собрать из реальных сообщений и действий.</div>
+            </div>
+            <a class="btn-link soft" href="/orders/?client={{ selected_client.id }}">Открыть журнал</a>
+          </div>
+          <div class="hero-alert-list">
+            {% if client_messages %}
+              {% for message in client_messages|slice:":4" %}
+                <div class="hero-alert-row">
+                  <div>
+                    <div class="hero-alert-name">{{ message.title }}</div>
+                    <div class="hero-alert-text">{{ message.text }}</div>
+                  </div>
+                  <a class="btn-link" href="{{ message.detail_url }}">Открыть</a>
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="hero-alert-row">
+                <div>
+                  <div class="hero-alert-name">Событий нет</div>
+                  <div class="hero-alert-text">Когда появятся новые сообщения или изменения по заявкам, они будут показаны здесь.</div>
+                </div>
+                <span class="badge">Спокойно</span>
+              </div>
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="actions-grid">
+          <a class="action-tile" href="/orders/receiving/?client={{ selected_client.id }}">
+            <div class="action-icon">PR</div>
+            <div class="action-title">Заявка на приемку</div>
+            <div class="action-sub">Переход в рабочий журнал приемки по клиенту.</div>
+          </a>
+          <a class="action-tile" href="/client/{{ selected_client.id }}/shipping/new/">
+            <div class="action-icon">OT</div>
+            <div class="action-title">Заявка на отгрузку</div>
+            <div class="action-sub">Текущая клиентская форма отгрузки.</div>
+          </a>
+          <a class="action-tile" href="/orders/processing/?client={{ selected_client.id }}">
+            <div class="action-icon">OB</div>
+            <div class="action-title">Заявка на обработку</div>
+            <div class="action-sub">Переход в общий модуль обработки.</div>
+          </a>
+          <a class="action-tile" href="/client/{{ selected_client.id }}/sku/">
+            <div class="action-icon">SKU</div>
+            <div class="action-title">Номенклатура</div>
+            <div class="action-sub">SKU, карточки, штрихкоды и печать.</div>
+          </a>
+          <a class="action-tile" href="/sklad/journal/?client={{ selected_client.id }}">
+            <div class="action-icon">OS</div>
+            <div class="action-title">Остатки</div>
+            <div class="action-sub">Складской журнал и фактический сток.</div>
+          </a>
+          <div class="action-tile stub">
+            <div class="action-icon">DOC</div>
+            <div class="action-title">Документы</div>
+            <div class="action-sub">Отдельный реестр документов пока в разработке.</div>
+            <span class="badge stub">В разработке</span>
+          </div>
+        </section>
+
+        <section class="metrics-grid">
+          <article class="metric-card" data-status="total">
+            <div class="metric-label">Всего заявок</div>
+            <div class="metric-value">{{ orders_panel_total }}</div>
+            <div class="metric-sub">Все видимые заказы клиента в кабинете.</div>
+          </article>
+          {% for stat in orders_panel_stats %}
+            <article class="metric-card" data-status="{{ stat.status }}">
+              <div class="metric-label">{{ stat.label }}</div>
+              <div class="metric-value">{{ stat.count }}</div>
+              <div class="metric-sub">Текущее количество в этом состоянии.</div>
+            </article>
+          {% endfor %}
+        </section>
+
+        <section class="content-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Мои заявки</h2>
+                <div class="panel-subtitle">Оставили живую бизнес-логику из текущего кабинета, но подали ее чище.</div>
+              </div>
+              <a class="panel-link" href="/orders/?client={{ selected_client.id }}">Открыть журнал</a>
+            </div>
+            <div class="board">
+              {% for column in orders_panel_columns %}
+                <section class="board-column">
+                  <div class="board-head">
+                    <span>{{ column.label }}</span>
+                    <span class="board-count">{{ column.count }}</span>
+                  </div>
+                  <div class="board-list">
+                    {% if column.orders %}
+                      {% for order in column.orders %}
+                        <article class="order-card{% if order.attention %} attention{% endif %}">
+                          <div class="order-title">
+                            <a href="{{ order.detail_url }}">{{ order.title }}</a>
+                          </div>
+                          <div class="order-meta">{{ order.type_label }} · {{ order.status_label }}</div>
+                          <div class="order-meta">{{ order.created_at|date:"d.m.Y, H:i" }}</div>
+                        </article>
+                      {% endfor %}
+                    {% else %}
+                      <div class="empty-box">Пока пусто.</div>
+                    {% endif %}
+                  </div>
+                </section>
+              {% endfor %}
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Остатки</h2>
+                <div class="panel-subtitle">Показываем только то, что реально умеем пересчитать сейчас.</div>
+              </div>
+              <a class="panel-link" href="/client/dashboard/new/?client={{ selected_client.id }}&verify=1">
+                {% if inventory_check %}Обновить{% else %}Проверить товар{% endif %}
+              </a>
+            </div>
+            {% if inventory_check %}
+              <div class="stock-list">
+                <div class="stock-row">
+                  <div class="stock-label">Поставлено</div>
+                  <div class="stock-value">{{ inventory_check.received_total }}</div>
+                </div>
+                <div class="stock-row">
+                  <div class="stock-label">Отгружено</div>
+                  <div class="stock-value">{{ inventory_check.shipped_total }}</div>
+                </div>
+                <div class="stock-row">
+                  <div class="stock-label">Расчетный остаток</div>
+                  <div class="stock-value">{{ inventory_check.expected_stock }}</div>
+                </div>
+                <div class="stock-row">
+                  <div class="stock-label">На складе</div>
+                  <div class="stock-value">{{ inventory_check.stock_total }}</div>
+                </div>
+                <div class="stock-row">
+                  <div class="stock-label">В обработке</div>
+                  <div class="stock-value">{{ inventory_check.processing_in_progress_total }}</div>
+                </div>
+                <div class="stock-row">
+                  <div class="stock-label">Результат</div>
+                  <div class="stock-value {% if inventory_check.status_tone == 'ok' %}ok{% else %}warn{% endif %}">
+                    {{ inventory_check.discrepancy }}
+                  </div>
+                </div>
+              </div>
+              <div class="stock-note">
+                {{ inventory_check.status_label }}. Проверка считает факт как склад + обработка. Обновлено {{ inventory_check.computed_at|date:"d.m.Y, H:i" }}.
+              </div>
+            {% else %}
+              <div class="empty-box">
+                Этот блок не рисует выдуманные цифры. Нажмите «Проверить товар», и кабинет посчитает поставку, отгрузку и текущий остаток по реальным данным.
+              </div>
+            {% endif %}
+          </section>
+        </section>
+
+        <section class="stub-grid">
+          <article class="stub-card">
+            <div class="stub-title">
+              <div class="stub-name">Финансы</div>
+              <span class="badge stub">В разработке</span>
+            </div>
+            <div class="stub-text">
+              Здесь не показываем фиктивные суммы. Подключим блок, когда согласуем настоящий источник счетов, долгов и истории оплат.
+            </div>
+            <button class="btn-stub" type="button">Раздел в разработке</button>
+          </article>
+
+          <article class="stub-card">
+            <div class="stub-title">
+              <div class="stub-name">Маркетплейсы</div>
+              <span class="badge stub">Частично</span>
+            </div>
+            <div class="stub-text">
+              Реальная синхронизация уже есть отдельным модулем. Именно витрина с карточками маркетплейсов и бизнес-метриками пока в разработке.
+            </div>
+            <a class="btn-link soft" href="/market-sync/?client={{ selected_client.id }}">Открыть синхронизацию</a>
+          </article>
+
+          <article class="stub-card">
+            <div class="stub-title">
+              <div class="stub-name">Документы</div>
+              <span class="badge stub">В разработке</span>
+            </div>
+            <div class="stub-text">
+              Реестр счетов, актов и клиентских файлов вынесем отдельным блоком, когда будет готова единая модель хранения и выдачи документов.
+            </div>
+            <button class="btn-stub" type="button">Раздел в разработке</button>
+          </article>
+        </section>
+      {% else %}
+        <section class="panel empty-state">
+          <h2>Сначала выберите клиента</h2>
+          <p>
+            Новый кабинет готов как оболочка, но без выбранного клиента мы не будем рисовать фальшивые цифры и пустые разделы.
+          </p>
+          <a class="btn primary" href="/client/">Открыть список клиентов</a>
+        </section>
+      {% endif %}
+    </main>
+  </div>
+</body>
+</html>

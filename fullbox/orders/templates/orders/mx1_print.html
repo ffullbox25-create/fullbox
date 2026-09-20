@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>МХ-1 № {{ order_id }}</title>
+  <style>
+    :root {
+      --text: #111;
+      --muted: #555;
+      --border: #000;
+      --paper: #ffffff;
+      --bg: #f1f1f1;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Times New Roman", serif;
+      font-size: 13px;
+    }
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin: 18px auto 0;
+      max-width: 900px;
+      padding: 0 12px;
+    }
+    .toolbar button {
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      background: #f7f7f7;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .toolbar .hint {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .page {
+      max-width: 900px;
+      margin: 12px auto 24px;
+      background: var(--paper);
+      padding: 24px 28px 28px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+    }
+    .page:not(:last-child) { page-break-after: always; }
+    .small { font-size: 11px; color: var(--muted); }
+    .top-grid {
+      display: grid;
+      grid-template-columns: 1fr 210px;
+      gap: 12px;
+      align-items: start;
+    }
+    .form-title {
+      font-size: 13px;
+      text-align: right;
+      line-height: 1.25;
+      margin-bottom: 6px;
+    }
+    .code-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .code-table th,
+    .code-table td {
+      border: 1px solid var(--border);
+      padding: 6px 6px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    .code-table th { font-weight: 700; }
+    .code-value { font-weight: 700; }
+    .org-block {
+      border: 1px solid var(--border);
+      padding: 6px 6px;
+      min-height: 28px;
+    }
+    .org-line { margin-bottom: 4px; }
+    .org-line:last-child { margin-bottom: 0; }
+    .contract-grid {
+      display: grid;
+      grid-template-columns: 80px 1fr 80px 1fr;
+      gap: 0;
+      border: 1px solid var(--border);
+      margin-top: 8px;
+      font-size: 12px;
+    }
+    .contract-grid div {
+      border-right: 1px solid var(--border);
+      padding: 6px 6px;
+      text-align: center;
+    }
+    .contract-grid div:last-child { border-right: none; }
+    .operation-line {
+      border: 1px solid var(--border);
+      padding: 6px 6px;
+      text-align: center;
+      margin-top: 6px;
+      font-size: 12px;
+    }
+    .act-row {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      gap: 8px;
+      align-items: center;
+      margin: 10px 0 6px;
+    }
+    .act-title {
+      border: 1px solid var(--border);
+      padding: 6px 6px;
+      font-weight: 700;
+      text-align: center;
+      font-size: 12px;
+    }
+    .act-table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 12px;
+    }
+    .act-table td {
+      border: 1px solid var(--border);
+      padding: 6px 6px;
+      text-align: center;
+    }
+    .headline {
+      text-align: center;
+      font-weight: 700;
+      font-size: 13px;
+      margin: 10px 0 6px;
+    }
+    .storage-block {
+      border: 1px solid var(--border);
+      padding: 6px 6px;
+      margin-top: 6px;
+      font-size: 12px;
+    }
+    .storage-grid {
+      display: grid;
+      grid-template-columns: 1fr 120px;
+      gap: 8px;
+      align-items: end;
+    }
+    .storage-grid .line {
+      border-bottom: 1px solid var(--border);
+      min-height: 18px;
+    }
+    .summary {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: 160px 1fr 160px 1fr;
+      gap: 6px 12px;
+      font-size: 12px;
+      align-items: end;
+    }
+    .summary .line {
+      border-bottom: 1px solid var(--border);
+      min-height: 16px;
+    }
+    .signature-block {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 120px 1fr 120px 1fr;
+      gap: 6px 12px;
+      font-size: 12px;
+      align-items: end;
+    }
+    .signature-block .line {
+      border-bottom: 1px solid var(--border);
+      min-height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .signature-block img {
+      max-height: 46px;
+      max-width: 160px;
+      display: block;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 6px 6px;
+      vertical-align: top;
+    }
+    th {
+      font-weight: 700;
+      text-align: center;
+    }
+    td.num { text-align: center; white-space: nowrap; }
+    tfoot td { font-weight: 700; }
+    @page {
+      size: A4;
+      margin: 14mm;
+    }
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none; }
+      .page {
+        box-shadow: none;
+        margin: 0;
+        max-width: 100%;
+        padding: 0;
+      }
+      thead { display: table-header-group; }
+      tfoot { display: table-footer-group; }
+      tr { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar screen-only">
+    <button type="button" onclick="window.print()">Распечатать</button>
+    <div class="hint">Распечатайте, подпишите и передайте менеджеру.</div>
+  </div>
+
+  {% for page in pages %}
+    <div class="page">
+      <div class="top-grid">
+        <div>
+          <div class="org-block">
+            <div class="org-line">{{ keeper_label }}</div>
+            <div class="small">(организация-хранитель, адрес, телефон, факс)</div>
+          </div>
+          <div class="org-block">
+            &nbsp;
+            <div class="small">(структурное подразделение)</div>
+          </div>
+          <div class="org-block">
+            <div class="org-line">{{ depositor_label }}</div>
+            <div class="small">(поклажедатель, наименование, адрес, телефон, факс, фамилия, имя, отчество)</div>
+          </div>
+        </div>
+        <div>
+          <div class="form-title">
+            Унифицированная форма № МХ-1<br>
+            Утверждена постановлением Госкомстата<br>
+            России от 09.08.99 № 66
+          </div>
+          <table class="code-table">
+            <tr><th>Код</th></tr>
+            <tr><td>Форма по ОКУД</td></tr>
+            <tr><td class="code-value">{{ okud_code }}</td></tr>
+            <tr><td>по ОКПО</td></tr>
+            <tr><td>&nbsp;</td></tr>
+            <tr><td>Вид деятельности по ОКДП</td></tr>
+            <tr><td>&nbsp;</td></tr>
+            <tr><td>по ОКПО</td></tr>
+            <tr><td>&nbsp;</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="contract-grid">
+        <div>Договор</div>
+        <div></div>
+        <div>номер</div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div>дата</div>
+        <div></div>
+      </div>
+      <div class="operation-line">Вид операции</div>
+
+      <div class="act-row">
+        <div class="act-title">АКТ</div>
+        <table class="act-table">
+          <tr>
+            <td>Номер документа</td>
+            <td>Дата составления</td>
+          </tr>
+          <tr>
+            <td>{{ order_id }}</td>
+            <td>{{ doc_date }}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="headline">О ПРИЕМЕ-ПЕРЕДАЧЕ ТОВАРНО-МАТЕРИАЛЬНЫХ ЦЕННОСТЕЙ НА ХРАНЕНИЕ</div>
+      <div class="storage-block">Акт составлен о том, что приняты на хранение</div>
+      <div class="storage-grid">
+        <div class="line"></div>
+        <div class="line"></div>
+      </div>
+      <div class="small" style="display:grid; grid-template-columns: 1fr 120px; gap: 8px;">
+        <div>(наименование, номер места хранения)</div>
+        <div>(срок хранения) дней</div>
+      </div>
+
+      <div style="margin: 10px 0 6px;">следующие товарно-материальные ценности</div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:36px;">Номер по порядку</th>
+            <th>Товарно-материальные ценности<br>наименование, вид упаковки</th>
+            <th style="width:70px;">код</th>
+            <th style="width:90px;">Характеристика</th>
+            <th style="width:60px;">Единица измерения<br>наименование</th>
+            <th style="width:60px;">код по ОКЕИ</th>
+            <th style="width:90px;">Количество<br>(масса)</th>
+            <th style="width:90px;">цена,<br>руб. коп.</th>
+            <th style="width:90px;">стоимость,<br>руб. коп.</th>
+          </tr>
+          <tr>
+            <th>1</th>
+            <th>2</th>
+            <th>3</th>
+            <th>4</th>
+            <th>5</th>
+            <th>6</th>
+            <th>7</th>
+            <th>8</th>
+            <th>9</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in page.items %}
+            <tr>
+              <td class="num">{{ page.start|add:forloop.counter }}</td>
+              <td>{{ item.name }}</td>
+              <td class="num">{{ item.sku_code }}</td>
+              <td>{{ item.size }}</td>
+              <td class="num">шт</td>
+              <td class="num">796</td>
+              <td class="num">{{ item.actual }}</td>
+              <td class="num"></td>
+              <td class="num"></td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="9">Нет данных по товарам.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        {% if forloop.last %}
+          <tfoot>
+            <tr>
+              <td colspan="6">Итого</td>
+              <td class="num">{{ total_actual }}</td>
+              <td class="num">Х</td>
+              <td class="num"></td>
+            </tr>
+          </tfoot>
+        {% endif %}
+      </table>
+
+      <div class="summary">
+        <div>Короба (кол-во)</div>
+        <div class="line">{{ total_boxes }}</div>
+        <div>Палеты (кол-во)</div>
+        <div class="line">{{ total_pallets }}</div>
+      </div>
+
+      {% if forloop.last %}
+        <div class="signature-block">
+          <div>Менеджер</div>
+          <div class="line">
+            {% if manager_facsimile_url %}
+              <img src="{{ manager_facsimile_url }}" alt="Факсимиле менеджера">
+            {% endif %}
+          </div>
+          <div>Кладовщик</div>
+          <div class="line">
+            {% if storekeeper_facsimile_url %}
+              <img src="{{ storekeeper_facsimile_url }}" alt="Факсимиле кладовщика">
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  {% endfor %}
+</body>
+</html>

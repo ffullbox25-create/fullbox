@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FULLBOX | {{ page_title|default:"Редактирование сотрудника" }}</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #fff7ed;
+      --surface: #fffdf8;
+      --surface-2: #fff4e0;
+      --ink: #303030;
+      --muted: #756f68;
+      --accent: #f89000;
+      --accent-strong: #f86800;
+      --accent-soft: rgba(248, 144, 0, 0.13);
+      --sun: #f8b800;
+      --sun-soft: rgba(248,184,0,0.18);
+      --danger: #c2410c;
+      --stroke: rgba(48,48,48,0.12);
+      --shadow: 0 18px 45px rgba(48,48,48,0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background: #fff;
+      min-height: 100vh;
+    }
+    a { color:inherit; text-decoration:none; }
+    .wrap { max-width: 100%; margin: 0 auto; padding: 32px 24px 64px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .logo { display:flex; align-items:center; gap:10px; }
+    .fullbox-brand-mark { display:inline-flex; align-items:center; }
+    .fullbox-brand-img { width:172px; height:auto; display:block; }
+    h1 { margin:0; letter-spacing:0; }
+    .muted { color:var(--muted); }
+    .btn {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 14px;
+      border-radius:8px;
+      border:1px solid var(--stroke);
+      background:rgba(28,31,26,0.04);
+      color:var(--ink);
+      font-weight:700;
+      transition:all .2s ease;
+    }
+    .btn:hover { border-color:rgba(248,104,0,0.42); box-shadow:0 12px 30px rgba(248,104,0,0.13); transform:translateY(-2px); }
+    .btn.primary { background: var(--accent); color:#fff; border-color: var(--accent); }
+    form { margin-top: 18px; display:grid; gap:14px; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+    label { display:grid; gap:6px; font-size:13px; color:var(--muted); }
+    input, select {
+      padding:10px 12px;
+      border-radius:8px;
+      border:1px solid var(--stroke);
+      background: #fff;
+      color: var(--ink);
+      font-size:14px;
+      font-family:inherit;
+    }
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      padding: 0;
+      accent-color: var(--accent);
+    }
+    .password-row {
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:8px;
+      align-items:center;
+    }
+    .access-section {
+      display:grid;
+      gap:10px;
+      padding:16px 0;
+      border-top:1px solid var(--stroke);
+      border-bottom:1px solid var(--stroke);
+    }
+    .access-section h2 {
+      margin:0;
+      font-family:"Bricolage Grotesque", "Manrope", system-ui, sans-serif;
+      font-size:18px;
+      letter-spacing:0;
+    }
+    .access-options ul {
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin:0;
+      padding:0;
+      list-style:none;
+    }
+    .access-options li label {
+      display:flex;
+      grid-template-columns:none;
+      align-items:center;
+      gap:8px;
+      min-height:42px;
+      padding:9px 12px;
+      border:1px solid var(--stroke);
+      border-radius:8px;
+      background:#fff;
+      color:var(--ink);
+      font-weight:800;
+    }
+    .signature-card {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 14px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .signature-card.is-required {
+      border-color: rgba(248, 104, 0, 0.48);
+      box-shadow: inset 4px 0 0 var(--accent);
+    }
+    .signature-title {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      color:var(--ink);
+      font-weight:900;
+    }
+    .signature-badge {
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .upload-box {
+      display:grid;
+      gap:10px;
+      padding:14px;
+      border:1px dashed rgba(48,48,48,0.22);
+      border-radius:8px;
+      background:var(--surface-2);
+    }
+    .upload-box input[type="file"] {
+      padding: 8px;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .facsimile-preview {
+      border: 1px dashed var(--stroke);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 90px;
+      max-width: 360px;
+    }
+    .facsimile-preview img {
+      max-width: 320px;
+      max-height: 120px;
+      width: auto;
+      height: auto;
+      display: block;
+      filter: contrast(1.7) brightness(0.65);
+    }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; margin-top:6px; }
+    .hint { font-size:12px; color:var(--muted); }
+    .errorlist {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      color: var(--danger);
+      font-size: 12px;
+    }
+    .badge-section {
+      max-width:1120px;
+      margin:24px auto 0;
+      padding-top:20px;
+      border-top:1px solid var(--stroke);
+      display:grid;
+      gap:16px;
+    }
+    .badge-header { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+    .badge-header h2 { margin:0 0 4px; font-family:"Bricolage Grotesque", "Manrope", system-ui, sans-serif; letter-spacing:0; }
+    .badge-state { display:inline-flex; align-items:center; min-height:34px; padding:7px 10px; border-radius:8px; font-size:12px; font-weight:900; }
+    .badge-state.none { background:rgba(48,48,48,.08); color:var(--muted); }
+    .badge-state.disabled { background:var(--sun-soft); color:#8a4b00; }
+    .badge-state.enabled { background:rgba(22,101,52,.11); color:#166534; }
+    .badge-grid { display:grid; grid-template-columns:minmax(240px,.8fr) minmax(300px,1.2fr); gap:18px; align-items:start; }
+    .badge-facts { display:grid; grid-template-columns:minmax(130px,.65fr) minmax(0,1.35fr); margin:0; border-top:1px solid var(--stroke); }
+    .badge-facts dt, .badge-facts dd { margin:0; padding:9px 0; border-bottom:1px solid var(--stroke); }
+    .badge-facts dt { color:var(--muted); font-size:12px; }
+    .badge-facts dd { font-weight:800; overflow-wrap:anywhere; }
+    .badge-once { display:grid; justify-items:center; gap:10px; padding:16px; border:2px solid var(--accent); border-radius:8px; background:#fff; text-align:center; }
+    .badge-once img { width:min(280px,100%); aspect-ratio:1; object-fit:contain; image-rendering:pixelated; }
+    .badge-warning, .badge-error { padding:11px 12px; border-radius:8px; font-size:13px; font-weight:800; }
+    .badge-warning { background:var(--sun-soft); color:#7a4300; }
+    .badge-error { background:rgba(194,65,12,.11); border:1px solid rgba(194,65,12,.35); color:var(--danger); }
+    .badge-reissue-note { margin:0 0 12px; padding:11px 12px; border-radius:8px; border-left:4px solid var(--accent); background:var(--sun-soft); color:#7a4300; font-size:13px; line-height:1.45; }
+    .badge-reissue-note strong { font-weight:900; }
+    .badge-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .badge-actions form { margin:0; display:block; }
+    .badge-actions .btn { cursor:pointer; }
+    .badge-actions .btn.danger { color:var(--danger); border-color:rgba(194,65,12,.3); background:rgba(194,65,12,.06); }
+    .badge-toggle { display:flex; align-items:center; gap:9px; min-height:42px; padding:9px 12px; border:1px solid var(--stroke); border-radius:8px; background:#fff; color:var(--ink); font-weight:800; }
+    @media (max-width:760px) { .badge-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <div class="logo">
+          {% include "partials/fullbox_brand.html" %}
+          <div>
+            <div style="font-weight:700; letter-spacing:0;">{% include "partials/current_user.html" %}</div>
+            <div class="muted">{{ page_title|default:"Редактирование сотрудника" }}</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <a class="btn" href="/employees/">Назад к списку</a>
+          <a class="btn" href="{{ cabinet_url }}">В кабинет</a>
+        </div>
+      </div>
+
+      <form method="post" enctype="multipart/form-data" style="max-width: 1120px; margin: 0 auto; display: grid; gap: 18px;">
+        {% csrf_token %}
+        <div class="grid" style="grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+          <label>
+            ФИО
+            {{ form.full_name }}
+          </label>
+          <label>
+            Роль
+            {{ form.role }}
+          </label>
+          <label>
+            Email
+            {{ form.email }}
+          </label>
+          <label>
+            Телефон
+            {{ form.phone }}
+          </label>
+        </div>
+        <section class="access-section" aria-labelledby="employee-access-title">
+          <div>
+            <h2 id="employee-access-title">Дополнительные доступы</h2>
+            <div class="hint">Основная роль определяет стартовый кабинет. Дополнительные роли открывают только выбранные рабочие контуры.</div>
+          </div>
+          <div class="access-options">
+            {{ form.access_roles }}
+            {{ form.access_roles.errors }}
+          </div>
+          {% if not can_manage_access_roles %}
+            <div class="hint">Изменять дополнительные роли может только HR, директор или администратор.</div>
+          {% endif %}
+        </section>
+        <div style="display:grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr); gap: 16px; align-items: start;">
+          <div style="display:grid; gap: 16px;">
+            <label>
+              {{ form.account_username.label }}
+              {{ form.account_username }}
+              {{ form.account_username.errors }}
+              {% if employee.user %}
+                <span class="hint">Оставьте текущий логин или введите новый.</span>
+              {% else %}
+                <span class="hint">Если оставить пустым, логин создастся автоматически вместе с учетной записью.</span>
+              {% endif %}
+            </label>
+            <label>
+              {{ form.account_password.label }}
+              <span class="password-row">
+                {{ form.account_password }}
+                <button class="btn" type="button" data-generate-password>Сгенерировать</button>
+              </span>
+              {{ form.account_password.errors }}
+              {% if employee.user %}
+                <span class="hint">Текущий пароль хранится в зашифрованном виде. Введите новый временный пароль, если его нужно показать и выдать сотруднику.</span>
+              {% else %}
+                <span class="hint">Пароль виден на экране, чтобы его можно было передать менеджеру или кладовщику.</span>
+              {% endif %}
+            </label>
+            <label>
+              Активен
+              {{ form.is_active }}
+            </label>
+          </div>
+          <label class="signature-card {% if signature_required %}is-required{% endif %}" id="signature-card">
+            <span class="signature-title">
+              <span>Подпись для актов</span>
+              <span class="signature-badge" id="signature-badge">{% if signature_required %}Нужна для роли{% else %}PNG{% endif %}</span>
+            </span>
+            <span class="hint" id="signature-role-note">
+              {% if signature_required %}
+                Для менеджера и кладовщика подпись используется в актах. Загрузите фото или скан подписи в PNG.
+              {% else %}
+                Для менеджеров и кладовщика подпись будет использоваться в актах. Можно загрузить фото или скан подписи в PNG.
+              {% endif %}
+            </span>
+            <span class="upload-box">
+              {{ form.facsimile.errors }}
+              {% if employee.facsimile %}
+                <label for="facsimile-clear_id" class="hint">
+                  <input type="checkbox" name="facsimile-clear" id="facsimile-clear_id">
+                  Удалить текущую подпись
+                </label>
+              {% endif %}
+              <input type="file" name="facsimile" accept="image/png" id="id_facsimile">
+              <span class="hint">Файл будет приведен к формату PNG 320×120.</span>
+            </span>
+            {% if employee.facsimile %}
+              <span class="facsimile-preview">
+                <img src="{% url 'employees:facsimile' employee.pk %}" alt="Подпись {{ employee.full_name }}">
+              </span>
+              <span class="hint">Текущая подпись уже загружена. Чтобы заменить её, выберите новый PNG-файл.</span>
+            {% else %}
+              <span class="hint">Подпись пока не загружена.</span>
+            {% endif %}
+          </label>
+        </div>
+        <div class="actions">
+          {% if employee.id %}<span class="hint">ID {{ employee.id }}</span>{% endif %}
+          <button class="btn primary" type="submit">{{ submit_label|default:"Сохранить" }}</button>
+        </div>
+      </form>
+      {% if employee.pk %}
+        <section class="badge-section" aria-labelledby="employee-badge-title">
+          <div class="badge-header">
+            <div>
+              <h2 id="employee-badge-title">QR-бейдж сотрудника</h2>
+              <div class="hint">Работает в браузере, на ТСД и в Fullbox Desktop только из сети склада.</div>
+            </div>
+            {% if not active_badge %}
+              <span class="badge-state none">Бейдж не выдан</span>
+            {% elif employee.qr_login_enabled %}
+              <span class="badge-state enabled">Вход разрешён</span>
+            {% else %}
+              <span class="badge-state disabled">Бейдж выдан, вход выключен</span>
+            {% endif %}
+          </div>
+
+          {% if badge_error %}<div class="badge-error">{{ badge_error }}</div>{% endif %}
+
+          <div class="badge-grid">
+            <div>
+              <dl class="badge-facts">
+                <dt>Сотрудник</dt><dd>{{ employee.full_name }}</dd>
+                <dt>Должность</dt><dd>{{ employee.get_role_display }}</dd>
+                <dt>Выдан</dt><dd>{% if active_badge %}{{ active_badge.issued_at|date:"d.m.Y H:i" }}{% if active_badge.issued_by %}, {{ active_badge.issued_by.username }}{% endif %}{% else %}Нет{% endif %}</dd>
+                <dt>Вход разрешён</dt><dd>{% if employee.qr_login_enabled %}{% if qr_enabled_event %}с {{ qr_enabled_event.created_at|date:"d.m.Y H:i" }}{% else %}Да{% endif %}{% else %}Нет{% endif %}</dd>
+                <dt>Последний вход</dt><dd>{% if active_badge and active_badge.last_used_at %}{{ active_badge.last_used_at|date:"d.m.Y H:i" }}, IP {{ active_badge.last_used_ip|default:"-" }}{% else %}Ещё не использовался{% endif %}</dd>
+              </dl>
+            </div>
+
+            <div style="display:grid; gap:12px;">
+              {% if badge_qr_data_uri %}
+                <div class="badge-once">
+                  <img src="{{ badge_qr_data_uri }}" alt="QR-бейдж {{ employee.full_name }}">
+                  <strong>{{ employee.full_name }}</strong>
+                  <span>{{ employee.get_role_display }}</span>
+                  <div class="badge-warning">QR показан только сейчас. После ухода со страницы восстановить его нельзя, можно только перевыпустить бейдж.</div>
+                </div>
+              {% elif active_badge %}
+                <div class="badge-warning">QR уже был показан при выдаче и не хранится в открытом виде. Для нового QR перевыпустите бейдж.</div>
+              {% endif %}
+
+              {% if can_manage_badges %}
+                {% if active_badge %}
+                  <p class="badge-reissue-note">
+                    <strong>Перевыпуск отзовёт текущий бейдж.</strong>
+                    Старый QR перестанет работать сразу, новый QR будет активирован
+                    автоматически и показывается только один раз — сохраните его сразу.
+                  </p>
+                {% else %}
+                  <p class="badge-reissue-note">
+                    Нажмите <strong>«Выдать бейдж»</strong> и сохраните QR.
+                    Учётная запись и вход по QR будут включены автоматически.
+                  </p>
+                {% endif %}
+                <div class="badge-actions">
+                  <form method="post" action="{% url 'employees:badge-issue' employee.pk %}" data-badge-action{% if active_badge %} onsubmit="return confirm('Перевыпустить бейдж? Текущий QR перестанет работать, новый QR будет активирован автоматически.');"{% endif %}>
+                    {% csrf_token %}
+                    <button class="btn primary" type="submit">{% if active_badge %}Перевыпустить бейдж{% else %}Выдать бейдж{% endif %}</button>
+                  </form>
+                  {% if active_badge %}
+                    <form method="post" action="{% url 'employees:badge-toggle' employee.pk %}" data-badge-action>
+                      {% csrf_token %}
+                      <label class="badge-toggle">
+                        <input type="checkbox" name="enabled" value="1" {% if employee.qr_login_enabled %}checked{% endif %}>
+                        Вход по QR-коду
+                      </label>
+                      <button class="btn" type="submit">Сохранить доступ</button>
+                    </form>
+                    <form method="post" action="{% url 'employees:badge-revoke' employee.pk %}" data-badge-action onsubmit="return confirm('Отозвать QR-бейдж сотрудника? Вход по нему сразу перестанет работать.');">
+                      {% csrf_token %}
+                      <button class="btn danger" type="submit">Отозвать</button>
+                    </form>
+                  {% endif %}
+                </div>
+                {% if not qr_role_allowed %}<div class="badge-error">Для этой роли вход по QR запрещён.</div>{% endif %}
+              {% else %}
+                <div class="hint">Управлять QR-бейджем может только ОК, директор или администратор.</div>
+              {% endif %}
+            </div>
+          </div>
+        </section>
+      {% endif %}
+    </div>
+  </div>
+  <script>
+    (function () {
+      var passwordInput = document.querySelector("[data-password-input]");
+      var generateButton = document.querySelector("[data-generate-password]");
+      if (passwordInput && generateButton) {
+        generateButton.addEventListener("click", function () {
+          var chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+          var password = "Fb";
+          if (window.crypto && window.crypto.getRandomValues) {
+            var values = new Uint32Array(8);
+            window.crypto.getRandomValues(values);
+            values.forEach(function (value) {
+              password += chars[value % chars.length];
+            });
+          } else {
+            for (var i = 0; i < 8; i += 1) {
+              password += chars[Math.floor(Math.random() * chars.length)];
+            }
+          }
+          password += "!";
+          passwordInput.value = password;
+          passwordInput.focus();
+        });
+      }
+
+      var roleSelect = document.getElementById("id_role");
+      var signatureCard = document.getElementById("signature-card");
+      var signatureBadge = document.getElementById("signature-badge");
+      var signatureNote = document.getElementById("signature-role-note");
+      function updateSignatureHint() {
+        if (!roleSelect || !signatureCard || !signatureBadge || !signatureNote) return;
+        var needsSignature = roleSelect.value === "manager" || roleSelect.value === "storekeeper";
+        signatureCard.classList.toggle("is-required", needsSignature);
+        signatureBadge.textContent = needsSignature ? "Нужна для роли" : "PNG";
+        signatureNote.textContent = needsSignature
+          ? "Для менеджера и кладовщика подпись используется в актах. Загрузите фото или скан подписи в PNG."
+          : "Для менеджеров и кладовщика подпись будет использоваться в актах. Можно загрузить фото или скан подписи в PNG.";
+      }
+      if (roleSelect) {
+        roleSelect.addEventListener("change", updateSignatureHint);
+        updateSignatureHint();
+      }
+      document.querySelectorAll("form[data-badge-action]").forEach(function (form) {
+        form.addEventListener("submit", function () {
+          form.querySelectorAll("button").forEach(function (button) { button.disabled = true; });
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

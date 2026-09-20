@@ -1,0 +1,449 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Остатки FBS{% endblock %}
+{% block workspace_actions %}<a class="button button-primary" href="{% url 'fbs:external_issues' %}?client={{ client_id }}">Выдать товар</a><a class="button button-secondary" href="{% url 'fbs:operator_stock_history' %}">История движения</a><a class="button button-primary" href="{{ export_url }}">Выгрузить остатки</a>{% endblock %}
+
+{% block workspace_body %}
+  <section class="operator-summary stock-summary" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))" aria-label="Сводка FBS-остатков">
+    <div><span>Всего</span><strong>{{ summary.qty }} шт.</strong></div>
+    <div><span>Доступно</span><strong>{{ summary.available_qty }} шт.</strong></div>
+    <div><span>Резерв WB/Ozon</span><strong>{{ summary.reserved_qty }} шт.</strong></div>
+    <div><span>Резерв выдачи</span><strong>{{ summary.external_reserved_qty }} шт.</strong></div>
+    <div><span>Недоступно вне резерва</span><strong>{{ summary.unavailable_unreserved_qty }} шт.</strong></div>
+    <div><span>SKU / короба / паллеты</span><strong>{{ summary.sku_count }} / {{ summary.box_count }} / {{ summary.pallet_count }}</strong></div>
+  </section>
+
+  <p class="text-muted">Всего на хранении = доступно + резерв WB/Ozon + резерв выдачи + недоступно вне резерва. Отобранное для внешней выдачи учитывается отдельно в документах «Выдать товар» до передачи получателю.</p>
+  <form id="fbsStockFilters" class="operator-filters stock-filters" method="get">
+    <input type="hidden" name="sort" value="{{ stock_sort_key }}">
+    <input type="hidden" name="dir" value="{{ stock_sort_dir }}">
+    <label>
+      <span>Поиск</span>
+      <input type="search" name="q" value="{{ q }}" placeholder="SKU, товар, ШК, ЧЗ, короб, паллета">
+    </label>
+    <label>
+      <span>Клиент</span>
+      <select name="client">
+        <option value="">Все клиенты</option>
+        {% for agency in client_options %}
+          <option value="{{ agency.id }}"{% if client_id == agency.id|stringformat:"s" %} selected{% endif %}>{{ agency.short_name|default:agency.agn_name|default:agency }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      <span>Доступность</span>
+      <select name="stock_status">
+        <option value="">Все остатки</option>
+        <option value="available"{% if stock_status == "available" %} selected{% endif %}>Есть доступный остаток</option>
+        <option value="reserved"{% if stock_status == "reserved" %} selected{% endif %}>Есть резерв</option>
+        <option value="unavailable"{% if stock_status == "unavailable" %} selected{% endif %}>Нет доступного остатка</option>
+      </select>
+    </label>
+    <label>
+      <span>Ячейка</span>
+      <input type="search" name="cell" value="{{ cell }}" placeholder="Код ячейки">
+    </label>
+    <label>
+      <span>Короб</span>
+      <input type="search" name="box" value="{{ box }}" placeholder="Короб FBS">
+    </label>
+    <label>
+      <span>Паллета</span>
+      <input type="search" name="pallet" value="{{ pallet }}" placeholder="Паллета FBS">
+    </label>
+    <div class="filter-actions">
+      <button class="button button-primary" type="submit">Применить</button>
+      <a class="button button-secondary" href="{{ reset_url }}">Сбросить</a>
+    </div>
+  </form>
+
+  <section class="operator-table-band stock-marketplace-compare" aria-label="Сверка остатков с маркетплейсами">
+    <div class="operator-table-heading">
+      <div>
+        <span class="section-kicker">Сопоставление данных</span>
+        <h2>Fullbox и маркетплейсы</h2>
+        {% if marketplace_comparison %}
+          <small>Проверено через API: {{ marketplace_comparison.checked_at }}. Для Ozon показана сумма по всем FBS-складам кабинета.</small>
+        {% else %}
+          <small>Выберите одного клиента в фильтре, чтобы получить актуальные остатки его складов Wildberries и Ozon.</small>
+        {% endif %}
+      </div>
+      {% if marketplace_refresh_url %}<a class="button button-secondary button-compact" href="{{ marketplace_refresh_url }}">Обновить WB/Ozon</a>{% endif %}
+    </div>
+    {% if marketplace_comparison %}
+      {% if marketplace_comparison.has_profiles %}
+        <div class="stock-marketplace-summary">
+          {% for profile in marketplace_comparison.profiles %}
+            <article class="stock-marketplace-card{% if profile.error or profile.mismatch_count %} has-mismatch{% else %} is-match{% endif %}">
+              <strong>{{ profile.marketplace_label }} · {{ profile.profile_name }}</strong>
+              <small>{{ profile.warehouse_note }}</small>
+              {% if profile.error %}
+                <p class="text-danger">{{ profile.error }}</p>
+              {% else %}
+                <div><span>Fullbox, сопоставлено</span><b>{{ profile.fullbox_total }} шт.</b></div>
+                <div><span>Маркетплейс, сопоставлено</span><b>{{ profile.marketplace_total }} шт.</b></div>
+                <div><span>Расхождения</span><b>{{ profile.mismatch_count }}</b></div>
+                {% if profile.mapping_missing_count %}<small class="text-warning">Без сопоставления: {{ profile.mapping_missing_count }} поз. · {{ profile.unmapped_fullbox_total }} шт.</small>{% endif %}
+              {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+        {% if marketplace_comparison.rows %}
+          <div class="operator-table-scroll">
+            <table class="operator-table stock-marketplace-table">
+              <thead>
+                <tr>
+                  <th>Маркетплейс / склад</th>
+                  <th>SKU / товар</th>
+                  <th>ШК / внешний ID</th>
+                  <th>Fullbox</th>
+                  <th>Маркетплейс</th>
+                  <th>Разница</th>
+                  <th>Состояние</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in marketplace_comparison.rows %}
+                  <tr class="{% if row.is_match %}stock-compare-match{% else %}stock-compare-mismatch{% endif %}">
+                    <td><strong>{{ row.marketplace_label }}</strong><small>{{ row.profile_name }} · {{ row.warehouse_note }}</small></td>
+                    <td><strong>{{ row.sku_code|default:"-" }}</strong><small>{{ row.name|default:"Без наименования" }}</small></td>
+                    <td><strong>{{ row.barcode|default:"-" }}</strong><small>{{ row.external_item_id|default:"не сопоставлен" }}</small></td>
+                    <td><strong>{{ row.fullbox_qty }}</strong></td>
+                    <td><strong>{% if row.marketplace_qty is None %}—{% else %}{{ row.marketplace_qty }}{% endif %}</strong></td>
+                    <td>
+                      {% if row.difference is None %}
+                        <strong class="text-warning">—</strong>
+                      {% elif row.difference == 0 %}
+                        <strong class="text-success">0</strong>
+                      {% elif row.difference > 0 %}
+                        <strong class="text-danger">+{{ row.difference }}</strong>
+                      {% else %}
+                        <strong class="text-danger">{{ row.difference }}</strong>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if row.mapping_missing %}
+                        <strong class="text-warning">Нет сопоставления</strong>
+                      {% elif row.is_match %}
+                        <strong class="text-success">Совпадает</strong>
+                      {% else %}
+                        <strong class="text-danger">Не совпадает</strong>
+                      {% endif %}
+                      <small>{{ row.export_status }}{% if row.export_error %} · {{ row.export_error }}{% endif %}</small>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+      {% else %}
+        <p class="text-muted">У выбранного клиента нет активных профилей передачи FBS-остатков.</p>
+      {% endif %}
+    {% endif %}
+  </section>
+
+  <style>
+    .stock-marketplace-summary {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      margin-bottom: 16px;
+    }
+    .stock-marketplace-card {
+      background: #fff;
+      border: 1px solid #eadfd5;
+      border-left: 4px solid #f89000;
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .stock-marketplace-card.is-match { border-left-color: #31884a; }
+    .stock-marketplace-card.has-mismatch { border-left-color: #c94b31; }
+    .stock-marketplace-card > small { display: block; margin: 3px 0 9px; }
+    .stock-marketplace-card > div { display: flex; justify-content: space-between; gap: 12px; }
+    .stock-marketplace-table .stock-compare-mismatch td { background: #fff8ef; }
+    .stock-marketplace-table .stock-compare-match td { background: #f8fff9; }
+    .stock-box-table .stock-box-summary > td {
+      vertical-align: middle;
+    }
+    .stock-box-toggle {
+      align-items: center;
+      background: transparent;
+      border: 0;
+      color: inherit;
+      cursor: pointer;
+      display: flex;
+      font: inherit;
+      gap: 10px;
+      padding: 0;
+      text-align: left;
+      width: 100%;
+    }
+    .stock-box-toggle:focus-visible {
+      outline: 2px solid #f07b22;
+      outline-offset: 4px;
+    }
+    .stock-box-toggle-icon {
+      color: #f07b22;
+      flex: 0 0 14px;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .stock-box-detail-row[hidden] {
+      display: none;
+    }
+    .stock-box-detail-row > td {
+      background: #fff8ef;
+      padding: 0 14px 16px;
+    }
+    .stock-box-detail {
+      border: 1px solid #f3d7bc;
+      border-radius: 10px;
+      overflow-x: auto;
+    }
+    .stock-box-location {
+      align-items: flex-start;
+      background: #fff3e5;
+      border-bottom: 1px solid #f3d7bc;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 14px;
+      padding: 10px 12px;
+    }
+    .stock-box-location strong {
+      color: #303030;
+    }
+    .stock-box-location span {
+      color: #6c5542;
+    }
+    .stock-box-items {
+      background: #fff;
+      border-collapse: collapse;
+      min-width: 980px;
+      width: 100%;
+    }
+    .stock-box-items th,
+    .stock-box-items td {
+      border-bottom: 1px solid #eee5dc;
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .stock-box-items th {
+      background: #fff3e5;
+      color: #6c5542;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .stock-box-items tr:last-child td {
+      border-bottom: 0;
+    }
+    .stock-marking-list summary {
+      color: #b65512;
+      cursor: pointer;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    .stock-marking-list ul {
+      list-style: none;
+      margin: 8px 0 0;
+      max-height: 180px;
+      overflow: auto;
+      padding: 0;
+    }
+    .stock-marking-list li {
+      border-top: 1px solid #f1e5da;
+      font-family: monospace;
+      font-size: 11px;
+      overflow-wrap: anywhere;
+      padding: 5px 0;
+    }
+  </style>
+
+  <section class="operator-table-band">
+    <div class="operator-table-heading">
+      <div>
+        <span class="section-kicker">Только контур FBS</span>
+        <h2>Остатки по коробам и местам</h2>
+        <small>Коробов: {{ summary.box_count }} · строк учёта: {{ summary.row_count }} · клиентов: {{ summary.client_count }}. Нажмите на короб, чтобы раскрыть состав.</small>
+      </div>
+      <a class="button button-secondary button-compact stock-report-export" href="{{ export_url }}">Выгрузить Excel</a>
+    </div>
+    <div class="operator-table-scroll">
+      <table class="operator-table stock-box-table">
+        <thead>
+          <tr>
+            <th><a href="{{ stock_sort_urls.box }}">Короб{% if stock_sort_key == "box" %} {% if stock_sort_dir == "asc" %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+            <th><a href="{{ stock_sort_urls.client }}">Клиент{% if stock_sort_key == "client" %} {% if stock_sort_dir == "asc" %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+            <th><a href="{{ stock_sort_urls.pallet }}">Паллета{% if stock_sort_key == "pallet" %} {% if stock_sort_dir == "asc" %}▲{% else %}▼{% endif %}{% endif %}</a><small>Фактическое место товара</small></th>
+            <th><a href="{{ stock_sort_urls.sku }}">Состав короба{% if stock_sort_key == "sku" %} {% if stock_sort_dir == "asc" %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+            <th><a href="{{ stock_sort_urls.qty }}">Всего{% if stock_sort_key == "qty" %} {% if stock_sort_dir == "asc" %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+            <th><a href="{{ stock_sort_urls.available }}">Доступно{% if stock_sort_key == "available" %} {% if stock_sort_dir == "asc" %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+            <th><a href="{{ stock_sort_urls.reserved }}">Резерв{% if stock_sort_key == "reserved" %} {% if stock_sort_dir == "asc" %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+            <th><a href="{{ stock_sort_urls.updated }}">Обновлено{% if stock_sort_key == "updated" %} {% if stock_sort_dir == "asc" %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+          </tr>
+          <tr class="stock-column-filter-row">
+            <th></th>
+            <th></th>
+            <th></th>
+            <th>
+              <label class="visually-hidden" for="fbsStockSkuFilter">Фильтр по SKU или товару</label>
+              <input
+                id="fbsStockSkuFilter"
+                class="stock-column-filter-input"
+                type="search"
+                name="sku"
+                value="{{ sku }}"
+                placeholder="SKU или товар"
+                list="fbsStockSkuOptions"
+                form="fbsStockFilters"
+                autocomplete="off"
+              >
+            </th>
+            <th></th>
+            <th></th>
+            <th></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for group in box_groups %}
+            <tr class="stock-box-summary">
+              <td>
+                <button
+                  class="stock-box-toggle"
+                  type="button"
+                  data-stock-box-toggle="stock-box-details-{{ group.box_id }}"
+                  aria-controls="stock-box-details-{{ group.box_id }}"
+                  aria-expanded="{% if stock_groups_expanded %}true{% else %}false{% endif %}"
+                >
+                  <span class="stock-box-toggle-icon" aria-hidden="true">{% if stock_groups_expanded %}▾{% else %}▸{% endif %}</span>
+                  <span><strong>{{ group.box.box_code }}</strong><small>{{ group.item_count }} позиций · {{ group.balance_count }} строк учёта</small></span>
+                </button>
+              </td>
+              <td><strong>{{ group.agency.short_name|default:group.agency.agn_name|default:group.agency }}</strong></td>
+              <td>
+                <strong>{{ group.box.pallet.pallet_code }}</strong>
+                <small><strong>Ячейка товара: {{ group.physical_location_code|default:"не указана" }}</strong></small>
+                <small>{{ group.physical_location_label }}</small>
+              </td>
+              <td>
+                <strong>{{ group.items.0.balance.sku_code|default:"-" }}</strong>
+                <small>{{ group.items.0.balance.name|default:"Без наименования" }}{% if group.item_count > 1 %} · ещё {{ group.item_count|add:"-1" }}{% endif %}</small>
+                <small>{% if group.marking_count %}ЧЗ: {{ group.marking_count }}{% else %}Без ЧЗ{% endif %}</small>
+              </td>
+              <td><strong>{{ group.qty }}</strong></td>
+              <td><strong>{{ group.available_qty }}</strong></td>
+              <td><strong class="{% if group.reserved_qty %}text-warning{% else %}text-muted{% endif %}">{{ group.reserved_qty }}</strong>{% if group.external_reserved_qty %}<br><small>Выдача: {{ group.external_reserved_qty }}</small>{% endif %}</td>
+              <td>{{ group.updated_at|date:"d.m.Y H:i" }}</td>
+            </tr>
+            <tr id="stock-box-details-{{ group.box_id }}" class="stock-box-detail-row"{% if not stock_groups_expanded %} hidden{% endif %}>
+              <td colspan="8">
+                <div class="stock-box-detail">
+                  <div class="stock-box-location">
+                    <strong>Фактическое место товара: {{ group.physical_location_code|default:"не указано" }}</strong>
+                    <span>{{ group.physical_location_label }}</span>
+                  </div>
+                  <table class="stock-box-items" aria-label="Состав короба {{ group.box.box_code }}">
+                    <thead>
+                      <tr>
+                        <th>SKU / товар</th>
+                        <th>ШК / ЧЗ</th>
+                        <th>Размер / тип</th>
+                        <th>Всего</th>
+                        <th>Доступно</th>
+                        <th>Резерв</th>
+                        <th>Партия / срок</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for item in group.items %}
+                        <tr>
+                          <td><strong><a class="table-main-link" href="{% url 'fbs:operator_stock_item_history' %}?agency={{ item.balance.agency_id }}&sku={{ item.balance.sku_code|urlencode }}&barcode={{ item.balance.barcode|urlencode }}">{{ item.balance.sku_code|default:"-" }}</a></strong><small>{{ item.balance.name|default:"Без наименования" }}</small></td>
+                          <td>
+                            <strong>{{ item.balance.barcode|default:"-" }}</strong>
+                            {% if item.marking_count %}
+                              <details class="stock-marking-list">
+                                <summary>ЧЗ: {{ item.marking_count }} кодов</summary>
+                                <ul>
+                                  {% for marking_code in item.marking_codes %}<li title="{{ marking_code }}">{{ marking_code }}</li>{% endfor %}
+                                </ul>
+                              </details>
+                            {% else %}
+                              <small>Без ЧЗ</small>
+                            {% endif %}
+                          </td>
+                          <td><strong>{{ item.balance.size|default:"-" }}</strong><small>{{ item.balance.goods_type|default:"-" }}</small></td>
+                          <td><strong>{{ item.qty }}</strong></td>
+                          <td><strong>{{ item.available_qty }}</strong></td>
+                          <td><strong class="{% if item.reserved_qty %}text-warning{% else %}text-muted{% endif %}">{{ item.reserved_qty }}</strong>{% if item.external_reserved_qty %}<br><small>Выдача: {{ item.external_reserved_qty }}</small>{% endif %}</td>
+                          <td><strong>{{ item.balance.lot_code|default:"-" }}</strong><small>{% if item.balance.expiry_date %}до {{ item.balance.expiry_date|date:"d.m.Y" }}{% else %}срок не указан{% endif %}</small></td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-row" colspan="8">Нет FBS-остатков по выбранным фильтрам.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <datalist id="fbsStockSkuOptions">
+        {% for option in sku_options %}
+          <option value="{{ option.value }}" label="{{ option.label }}"></option>
+        {% endfor %}
+      </datalist>
+    </div>
+  </section>
+
+  {% if page_obj.has_other_pages %}
+    <nav class="operator-pagination" aria-label="Страницы FBS-остатков">
+      {% if page_obj.has_previous %}<a class="button button-secondary button-compact" href="{% if page_query %}?{{ page_query }}&{% else %}?{% endif %}page={{ page_obj.previous_page_number }}">Назад</a>{% endif %}
+      {% for link in page_links %}
+        {% if link.ellipsis %}
+          <span>…</span>
+        {% elif link.current %}
+          <span>Страница {{ link.number }} из {{ page_obj.paginator.num_pages }}</span>
+        {% else %}
+          <a class="button button-secondary button-compact" href="{% if page_query %}?{{ page_query }}&{% else %}?{% endif %}page={{ link.number }}">{{ link.number }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}<a class="button button-secondary button-compact" href="{% if page_query %}?{{ page_query }}&{% else %}?{% endif %}page={{ page_obj.next_page_number }}">Далее</a>{% endif %}
+    </nav>
+  {% endif %}
+  <script>
+    (() => {
+      const input = document.getElementById('fbsStockSkuFilter');
+      const form = document.getElementById('fbsStockFilters');
+      const submitFilters = () => {
+        if (typeof form.requestSubmit === 'function') {
+          form.requestSubmit();
+        } else {
+          form.submit();
+        }
+      };
+      if (input && form) {
+        input.addEventListener('change', submitFilters);
+        input.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            submitFilters();
+          }
+        });
+      }
+      document.querySelectorAll('[data-stock-box-toggle]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const detailRow = document.getElementById(button.dataset.stockBoxToggle);
+          if (!detailRow) return;
+          const expanded = button.getAttribute('aria-expanded') === 'true';
+          button.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+          detailRow.hidden = expanded;
+          const icon = button.querySelector('.stock-box-toggle-icon');
+          if (icon) icon.textContent = expanded ? '▸' : '▾';
+        });
+      });
+    })();
+  </script>
+{% endblock %}

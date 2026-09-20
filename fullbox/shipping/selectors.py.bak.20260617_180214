@@ -1,0 +1,320 @@
+from __future__ import annotations
+
+from datetime import timedelta
+
+from django.urls import reverse
+from django.utils import timezone
+
+from employees.access import resolve_cabinet_url
+from reachtruck.models import MoveTask
+from sklad.services import WarehouseGoodsStateResolver
+
+from .dispatch import (
+    format_shipping_datetime,
+    shipping_dispatch_employee,
+    shipping_dispatch_stage,
+)
+from .models import ShippingOrder, ShippingOrderAttachment
+from .packing import _shipping_packing_summary
+from .workflow import is_logistician_role, is_manager_role
+
+
+def _to_int(value) -> int:
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return 0
+
+
+def _box_count_from_move_payload(payload: dict) -> int:
+    if not isinstance(payload, dict):
+        return 0
+    picked_rows = payload.get("picked_rows")
+    if isinstance(picked_rows, list):
+        codes = {
+            str(row.get("box_code") or "").strip()
+            for row in picked_rows
+            if isinstance(row, dict) and str(row.get("box_code") or "").strip()
+        }
+        if codes:
+            return len(codes)
+
+    requested_boxes = payload.get("requested_boxes")
+    if isinstance(requested_boxes, list) and requested_boxes:
+        total = 0
+        has_qty = False
+        codes: set[str] = set()
+        for entry in requested_boxes:
+            if isinstance(entry, dict):
+                qty = _to_int(entry.get("boxes") or entry.get("qty_boxes") or entry.get("qty"))
+                if qty > 0:
+                    total += qty
+                    has_qty = True
+                    continue
+                code = str(entry.get("box_code") or "").strip()
+                if code:
+                    codes.add(code)
+                    continue
+            else:
+                code = str(entry or "").strip()
+                if code:
+                    codes.add(code)
+        if has_qty and total > 0:
+            return total
+        if codes:
+            return len(codes)
+        return len(requested_boxes)
+
+    requested_box = str(payload.get("requested_box") or "").strip()
+    if requested_box:
+        return 1
+    return 0
+
+
+def shipping_task_matches_order(order: ShippingOrder, payload: dict) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    order_number = str(order.number or "").strip()
+    task_order = str(payload.get("shipping_order_id") or "").strip()
+    if task_order and task_order == order_number:
+        return True
+    return _to_int(payload.get("shipping_order_pk")) == int(order.pk or 0)
+
+
+def shipping_reachtruck_metrics(order: ShippingOrder, *, order_box_count: int | None = None) -> dict[str, int]:
+    done_tasks = (
+        MoveTask.objects.filter(
+            request__agency=order.agency,
+            status=MoveTask.STATUS_DONE,
+            to_zone="OTG",
+        )
+        .order_by("id")
+    )
+    pallets: set[str] = set()
+    boxes = 0
+    for task in done_tasks:
+        payload = task.payload if isinstance(task.payload, dict) else {}
+        if not shipping_task_matches_order(order, payload):
+            continue
+        pallet_code = str(task.pallet_code or payload.get("pallet_code") or "").strip()
+        if pallet_code and pallet_code != "-":
+            pallets.add(pallet_code)
+        task_boxes = _box_count_from_move_payload(payload)
+        if task_boxes <= 0 and task.status == MoveTask.STATUS_DONE and int(task.qty_done or 0) > 0:
+            task_boxes = 1
+        boxes += task_boxes
+    if boxes <= 0 and pallets:
+        fallback_box_count = int(order_box_count if order_box_count is not None else (order.expected_boxes or 0))
+        boxes = max(fallback_box_count, len(pallets), 1)
+    return {"pallet_count": len(pallets), "box_count": int(max(boxes, 0))}
+
+
+def shipping_otg_tasks_progress(order: ShippingOrder) -> dict[str, int]:
+    tasks = (
+        MoveTask.objects.filter(
+            request__agency=order.agency,
+            to_zone="OTG",
+        )
+        .order_by("id")
+    )
+    total = 0
+    done = 0
+    active = 0
+    for task in tasks:
+        payload = task.payload if isinstance(task.payload, dict) else {}
+        if not shipping_task_matches_order(order, payload):
+            continue
+        total += 1
+        if task.status == MoveTask.STATUS_DONE:
+            done += 1
+        elif task.status in {MoveTask.STATUS_CREATED, MoveTask.STATUS_IN_PROGRESS}:
+            active += 1
+    return {"total": total, "done": done, "active": active}
+
+
+def shipping_otg_delivery_completed(order: ShippingOrder) -> bool:
+    progress = shipping_otg_tasks_progress(order)
+    return progress["total"] > 0 and progress["done"] >= progress["total"]
+
+
+def shipping_ui_status_label(order: ShippingOrder, *, dispatch_stage: dict | None = None) -> str:
+    dispatch_stage = dispatch_stage or shipping_dispatch_stage(order)
+    payload = dispatch_stage.get("payload") or {}
+    trip_status = str(payload.get("trip_status") or "").strip()
+    base_result = WarehouseGoodsStateResolver.resolve_for_shipping_order(order, trip_status=trip_status)
+    if order.status == ShippingOrder.STATUS_PACKED:
+        if trip_status == "completed":
+            return "Рейс завершен"
+        if dispatch_stage["logistician_signed"] and not dispatch_stage["manager_signed"]:
+            return "Акт отгрузки на подписи менеджера"
+        if dispatch_stage["has_trip"] and dispatch_stage["requires_trip"] and trip_status not in {"departed", "loading"}:
+            return "Логист сформировал рейс, ожидается погрузка"
+    return base_result.label_for("default")
+
+
+def active_shipping_attachments(order: ShippingOrder):
+    cutoff = timezone.now() - timedelta(days=ShippingOrderAttachment.RETENTION_DAYS)
+    return order.attachments.select_related("uploaded_by").filter(uploaded_at__gte=cutoff).order_by("-uploaded_at")
+
+
+def shipping_attachment_names(order: ShippingOrder) -> list[str]:
+    return [attachment.filename for attachment in active_shipping_attachments(order)]
+
+
+def build_shipping_detail_context(
+    order: ShippingOrder,
+    *,
+    scope: str | None,
+    role: str | None,
+    stock_rows: list[dict],
+    available_items: list[dict],
+    order_box_count: int,
+    can_write: bool,
+    can_edit_items: bool,
+    can_submit_for_approval: bool,
+    can_manager_approve: bool,
+    can_manager_reopen: bool,
+    can_storekeeper_accept: bool,
+    can_storekeeper_pick: bool,
+    can_storekeeper_pack: bool,
+    can_storekeeper_manage_packing: bool,
+    can_cancel: bool,
+    can_edit_order_form: bool,
+) -> dict:
+    shipping_metrics = shipping_reachtruck_metrics(order, order_box_count=order_box_count)
+    packing_summary = _shipping_packing_summary(order)
+    if packing_summary:
+        shipping_metrics["pallet_count"] = int(packing_summary.get("pallet_count") or 0)
+        shipping_metrics["box_count"] = int(packing_summary.get("box_count") or 0)
+    else:
+        shipping_metrics["box_count"] = order_box_count
+    dispatch_stage = shipping_dispatch_stage(order, packing_summary=packing_summary)
+    payload = dispatch_stage.get("payload") or {}
+    order.ui_status_label = shipping_ui_status_label(order, dispatch_stage=dispatch_stage)
+    order.display_number = order.display_number if getattr(order, "display_number", None) else order.number
+    order.resolved_vehicle_number = (
+        str(payload.get("trip_vehicle_number") or payload.get("vehicle_number") or order.vehicle_number or "").strip()
+    )
+    order.resolved_driver_name = (
+        str(payload.get("trip_driver_name") or payload.get("driver_name") or "").strip()
+    )
+    order.resolved_driver_phone = (
+        str(payload.get("trip_driver_phone") or payload.get("driver_phone") or order.driver_phone or "").strip()
+    )
+    return {
+        "order": order,
+        "attachments": list(active_shipping_attachments(order)),
+        "items": order.items.order_by("id"),
+        "reserves": order.reserves.order_by("id"),
+        "stock_rows": stock_rows,
+        "available_items": available_items[:30],
+        "shipping_metrics": shipping_metrics,
+        "attachment_retention_days": ShippingOrderAttachment.RETENTION_DAYS,
+        "can_write": can_write,
+        "can_edit_items": can_edit_items,
+        "can_submit_for_approval": can_submit_for_approval,
+        "can_manager_approve": can_manager_approve,
+        "can_manager_reopen": can_manager_reopen,
+        "can_storekeeper_accept": can_storekeeper_accept,
+        "can_storekeeper_pick": can_storekeeper_pick,
+        "can_storekeeper_pack": can_storekeeper_pack,
+        "can_storekeeper_manage_packing": can_storekeeper_manage_packing,
+        "can_cancel": can_cancel,
+        "can_edit_order_form": can_edit_order_form,
+        "edit_order_url": f"/shipping/new/?order={order.pk}&edit=1",
+        "packing_url": f"/shipping/{order.pk}/packing/",
+        "packing_slips_url": f"/shipping/{order.pk}/packing-slips/",
+        "packing_summary": packing_summary,
+        "can_view_packing_slips": bool(packing_summary) and scope == "staff" and role == "storekeeper",
+        "dispatch_stage": dispatch_stage,
+        "dispatch_trip_url": reverse("logistics:trip-detail", args=[dispatch_stage["trip_link"].trip_id])
+        if dispatch_stage["trip_link"]
+        else "",
+        "dispatch_act_url": reverse("shipping:dispatch-act", args=[order.pk]),
+        "can_view_dispatch_act": order.status in {
+            ShippingOrder.STATUS_PACKED,
+            ShippingOrder.STATUS_SHIPPED,
+            ShippingOrder.STATUS_PARTIAL,
+        },
+        "scope": scope,
+        "role": role,
+        "selected_client": order.agency,
+        "cabinet_url": resolve_cabinet_url(role),
+    }
+
+
+def build_shipping_dispatch_context(
+    order: ShippingOrder,
+    *,
+    role: str | None,
+    sign_status: str = "",
+    sign_error: str = "",
+    packing_summary: dict | None = None,
+) -> dict:
+    summary = packing_summary if isinstance(packing_summary, dict) else _shipping_packing_summary(order)
+    dispatch_stage = shipping_dispatch_stage(order, packing_summary=summary)
+    payload = dispatch_stage["payload"]
+    trip_link = dispatch_stage["trip_link"]
+    trip = trip_link.trip if trip_link else None
+    logistician_employee = shipping_dispatch_employee(payload, "act_logistician_employee_id")
+    manager_employee = shipping_dispatch_employee(payload, "act_manager_employee_id")
+    signable_statuses = {
+        ShippingOrder.STATUS_PACKED,
+        ShippingOrder.STATUS_SHIPPED,
+        ShippingOrder.STATUS_PARTIAL,
+    }
+    can_logistician_sign = (
+        order.status in signable_statuses
+        and is_logistician_role(role)
+        and not dispatch_stage["logistician_signed"]
+        and not dispatch_stage["manager_signed"]
+        and (not dispatch_stage["requires_trip"] or dispatch_stage["has_trip"])
+    )
+    can_manager_sign = (
+        order.status in signable_statuses
+        and is_manager_role(role)
+        and dispatch_stage["logistician_signed"]
+        and not dispatch_stage["manager_signed"]
+    )
+    items = []
+    for item in payload.get("act_items") or []:
+        if not isinstance(item, dict):
+            continue
+        name_parts = [str(item.get("name") or "-").strip() or "-"]
+        size = str(item.get("size") or "").strip()
+        if size:
+            name_parts.append(f"р-р {size}")
+        items.append(
+            {
+                "sku_code": item.get("sku_code") or "-",
+                "barcode": item.get("barcode") or "-",
+                "name": ", ".join(name_parts),
+                "qty_requested": int(item.get("qty_requested") or 0),
+                "qty_reserved": int(item.get("qty_reserved") or 0),
+                "qty_shipped": int(item.get("qty_shipped") or 0),
+            }
+        )
+
+    return {
+        "order": order,
+        "payload": payload,
+        "dispatch_stage": dispatch_stage,
+        "trip": trip,
+        "trip_link": trip_link,
+        "items": items,
+        "pallets": payload.get("act_pallets") or [],
+        "logistician_employee": logistician_employee,
+        "manager_employee": manager_employee,
+        "logistician_signed_at": format_shipping_datetime(payload.get("act_logistician_signed_at")),
+        "manager_signed_at": format_shipping_datetime(payload.get("act_manager_signed_at")),
+        "act_sent_at": format_shipping_datetime(payload.get("act_sent_at")),
+        "can_logistician_sign": can_logistician_sign,
+        "can_manager_sign": can_manager_sign,
+        "requires_trip": dispatch_stage["requires_trip"],
+        "has_trip": dispatch_stage["has_trip"],
+        "sign_status": sign_status,
+        "sign_error": sign_error,
+        "detail_url": reverse("shipping:detail", args=[order.pk]),
+        "cabinet_url": resolve_cabinet_url(role),
+        "role": role,
+    }

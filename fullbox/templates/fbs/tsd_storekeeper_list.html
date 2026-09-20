@@ -1,0 +1,392 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}Смена FBS{% endblock %}
+{% block workspace_page_class %}tsd-page-dashboard{% endblock %}
+
+{% block workspace_body %}
+  <style>
+    @media (min-width: 901px) {
+      .tsd-page-dashboard .operation-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    .controller-tote-transfer-list { display: grid; gap: 12px; margin-top: 16px; }
+    .controller-tote-transfer-row { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(310px, 1.35fr); gap: 16px; align-items: center; padding: 16px; border: 1px solid var(--line, #e8e1d6); border-radius: 16px; background: #fff; }
+    .controller-tote-transfer-row > div { display: grid; gap: 4px; min-width: 0; }
+    .controller-tote-transfer-row strong { overflow-wrap: anywhere; }
+    .controller-tote-transfer-row small { color: var(--muted, #7a746b); }
+    .controller-tote-transfer-form { display: grid; grid-template-columns: minmax(180px, 1fr) auto; gap: 8px; align-items: end; }
+    .controller-tote-transfer-form label { display: grid; gap: 5px; margin: 0; }
+    .controller-tote-transfer-form select { min-width: 0; width: 100%; }
+    .equipment-row .equipment-controller { color: var(--text, #303030); font-weight: 700; }
+    @media (max-width: 900px) {
+      .controller-tote-transfer-row,
+      .controller-tote-transfer-form { grid-template-columns: 1fr; }
+    }
+
+    /* Keep shift headings and actions out of narrow metric columns. */
+    .tsd-page-dashboard .fbs-workspace-main .shift-overview { display: block; margin-bottom: 10px; }
+    .tsd-page-dashboard .fbs-workspace-main .shift-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; padding: 10px 12px; width: auto; border-right: 0; }
+    .tsd-page-dashboard .shift-heading > div { min-width: 0; }
+    .tsd-page-dashboard .shift-heading h2 { font-size: 17px; margin: 0; }
+    .tsd-page-dashboard .shift-heading small { display: block; max-width: 100ch; font-size: 12px; line-height: 1.4; }
+    .tsd-page-dashboard .fbs-workspace-main .shift-tools { display: flex; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .tsd-page-dashboard .fbs-workspace-main .dashboard-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; border-top: 1px solid var(--line, #e8e1d6); }
+    .tsd-page-dashboard .fbs-workspace-main .dashboard-metrics a { min-width: 0; min-height: 58px; padding: 8px 12px; }
+    .tsd-page-dashboard .dashboard-metrics strong { font-size: 24px; line-height: 1.2; }
+    .tsd-page-dashboard .dashboard-help { margin: 0 0 10px; font-size: 12px; color: var(--muted); }
+    .tsd-page-dashboard .dashboard-help summary { cursor: pointer; }
+    .tsd-page-dashboard .fbs-workspace-main > .operation-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .tsd-page-dashboard .dashboard-main .operation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tsd-page-dashboard .operation-copy small { line-height: 1.35; }
+    @media (max-width: 700px) {
+      .tsd-page-dashboard .fbs-workspace-main .dashboard-metrics,
+      .tsd-page-dashboard .fbs-workspace-main > .operation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .tsd-page-dashboard .fbs-workspace-main .dashboard-layout { grid-template-columns: minmax(0, 1fr); }
+    }
+    .tsd-page-dashboard .dashboard-shipments { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:10px 0; font-size:12px; }
+    .tsd-page-dashboard .dashboard-shipments a { padding:6px 9px; border:1px solid var(--line, #e8e1d6); border-radius:8px; color:#303030; background:#fff; text-decoration:none; }
+    .tsd-page-dashboard .dashboard-shipments a:hover { border-color:#f89000; }
+    .fbs-responsible-form { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px 12px; border-top:1px solid var(--line, #e8e1d6); }
+    .fbs-responsible-choice { display:inline-flex; align-items:center; gap:6px; min-height:34px; padding:6px 9px; border:1px solid var(--line, #e8e1d6); border-radius:8px; background:#fff; }
+    .fbs-responsible-choice input { width:auto; margin:0; }
+  </style>
+  <section class="shift-overview" aria-label="Состояние смены">
+    <div class="shift-heading">
+      <div>
+        <span class="section-kicker">Операционный экран</span>
+        <h2>Смена FBS</h2>
+      </div>
+      <div class="shift-tools">
+        <span class="profile-state {% if profile_counts.active < profile_counts.total %}profile-state-warn{% endif %}">Кабинеты {{ profile_counts.active }}/{{ profile_counts.total }}</span>
+        <a class="refresh-link" href="{% url 'fbs:operator_clients' %}">Клиенты</a>
+        <form class="inline-form" method="post" action="{% url 'fbs:operator_sync_all_orders' %}">
+          {% csrf_token %}
+          <button class="button button-primary button-compact" type="submit">Обновить заказы</button>
+        </form>
+      </div>
+    </div>
+    <div class="dashboard-metrics">
+      <a href="{% url 'fbs:operator_orders' %}">
+        <span>Новые + ждут товар</span>
+        <strong>{{ dashboard_counts.new }}</strong>
+      </a>
+      <a href="{% url 'fbs:operator_queue' %}">
+        <span>В резерве + в очереди</span>
+        <strong>{{ dashboard_counts.to_pick }}</strong>
+      </a>
+      <a href="{% url 'fbs:operator_waves' %}">
+        <span>Волны</span>
+        <strong>{{ dashboard_counts.waves }}</strong>
+      </a>
+      <a class="{% if dashboard_counts.problems %}metric-alert{% endif %}" href="{% url 'fbs:operator_problems' %}">
+        <span>Сигналы проблем*</span>
+        <strong>{{ dashboard_counts.problems }}</strong>
+      </a>
+    </div>
+  </section>
+
+  <details class="dashboard-help"><summary>Что входит в сигналы проблем</summary><p class="text-muted">*Сумма ошибок заказов, отбора, этикеток, отгрузок и КИЗ. У заказа может быть несколько сигналов. В разделе «Проблемы» также показаны заказы, ожидающие товар.</p></details>
+
+  <section class="shift-overview" aria-label="Ответственные за контроль FBS">
+    <div class="shift-heading">
+      <div>
+        <span class="section-kicker">Ответственные</span>
+        <h2>Контроль заказов FBS</h2>
+        <small>Обязательное окно получают только отмеченные сотрудники. Нерешённые сигналы повторяются каждые 4 часа и переходят на следующий день.</small>
+      </div>
+      <div class="shift-tools">
+        {% for employee in fbs_responsible_rows %}
+          {% if employee.is_fbs_responsible %}<span class="profile-state">{{ employee.full_name }}</span>{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% if can_manage_fbs_responsibles %}
+      <form class="fbs-responsible-form" method="post" data-submit-once>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_alert_responsibles">
+        {% for employee in fbs_responsible_rows %}
+          <label class="fbs-responsible-choice">
+            <input type="checkbox" name="responsible_user_ids" value="{{ employee.user_id }}"{% if employee.is_fbs_responsible %} checked{% endif %}>
+            <span>{{ employee.full_name }}</span>
+          </label>
+        {% endfor %}
+        <button class="button button-primary button-compact" type="submit">Сохранить ответственных</button>
+      </form>
+    {% endif %}
+  </section>
+
+  <section class="shift-overview" aria-label="Контроль зависших заказов FBS">
+    <div class="shift-heading">
+      <div>
+        <span class="section-kicker">Автоматический контроль</span>
+        <h2>Зависшие заказы</h2>
+        <small>Данные обновляются автоматически: «не начат» исчезает после запуска отбора, «с прошлого дня» — после завершения сборки. Время — от заказа, при отсутствии даты — от загрузки в Fullbox.</small>
+      </div>
+      <div class="shift-tools">
+        <a class="refresh-link" href="{% url 'fbs:operator_orders' %}?attention=stale_unstarted">Показать все</a>
+      </div>
+    </div>
+    <div class="dashboard-metrics">
+      <a class="{% if order_attention_counts.stale_unstarted %}metric-alert{% endif %}" href="{% url 'fbs:operator_orders' %}?attention=stale_unstarted">
+        <span>Не начаты &gt; 2 ч</span>
+        <strong>{{ order_attention_counts.stale_unstarted }}</strong>
+      </a>
+      <a class="{% if order_attention_counts.previous_day_unpicked %}metric-alert{% endif %}" href="{% url 'fbs:operator_orders' %}?attention=previous_day_unpicked">
+        <span>С прошлого дня</span>
+        <strong>{{ order_attention_counts.previous_day_unpicked }}</strong>
+      </a>
+      <a class="{% if order_attention_counts.awaiting_stock %}metric-alert{% endif %}" href="{% url 'fbs:operator_orders' %}?attention=stale_unstarted&amp;status=awaiting_stock">
+        <span>Ждут остаток</span>
+        <strong>{{ order_attention_counts.awaiting_stock }}</strong>
+      </a>
+      <a class="{% if order_attention_counts.without_cutoff %}metric-alert{% endif %}" href="{% url 'fbs:operator_orders' %}?attention=stale_unstarted&amp;deadline=none">
+        <span>Без срока отгрузки</span>
+        <strong>{{ order_attention_counts.without_cutoff }}</strong>
+      </a>
+    </div>
+  </section>
+
+  <section class="shift-overview" aria-label="Контроль SLA заказов FBS">
+    <div class="shift-heading">
+      <div>
+        <span class="section-kicker">Сроки заказов</span>
+        <h2>Контроль SLA</h2>
+        <small>
+          Сегодня: получено {{ daily_flow.received }} · передано {{ daily_flow.dispatched }} · принято {{ daily_flow.accepted }} · отменено {{ daily_flow.canceled }}
+        </small>
+      </div>
+      <div class="shift-tools">
+        <span class="profile-state {% if sla_counts.overdue %}profile-state-warn{% endif %}">Риск {{ sla_counts.risk_percent }}%</span>
+        <span class="profile-state {% if sla_counts.without_cutoff %}profile-state-warn{% endif %}">Без срока {{ sla_counts.without_cutoff }}</span>
+        {% if sla_counts.next_cutoff %}<small>Ближайший {{ sla_counts.next_cutoff|date:"d.m H:i" }}</small>{% endif %}
+      </div>
+    </div>
+    <div class="dashboard-metrics">
+      <a href="{% url 'fbs:operator_orders' %}">
+        <span>С дедлайном</span>
+        <strong>{{ sla_counts.tracked }}</strong>
+      </a>
+      <a href="{% url 'fbs:operator_orders' %}">
+        <span>В срок</span>
+        <strong>{{ sla_counts.on_time }}</strong>
+      </a>
+      <a href="{% url 'fbs:operator_orders' %}?deadline=urgent">
+        <span>До 2 часов</span>
+        <strong>{{ sla_counts.urgent }}</strong>
+      </a>
+      <a class="{% if sla_counts.overdue %}metric-alert{% endif %}" href="{% url 'fbs:operator_orders' %}?deadline=overdue">
+        <span>Просрочено</span>
+        <strong>{{ sla_counts.overdue }}</strong>
+      </a>
+    </div>
+  </section>
+
+  <section class="dashboard-shipments" aria-label="Этапы движения отгрузок">
+    <strong>Отгрузки</strong>
+    <a href="{% url 'fbs:tsd_handover' %}?status=checking">Проверяются <b>{{ shipment_counts.checking }}</b></a>
+    <a href="{% url 'fbs:tsd_handover' %}?status=checked">Проверено <b>{{ shipment_counts.checked }}</b></a>
+    <a href="{% url 'fbs:tsd_handover' %}?status=ready">Готово к отгрузке <b>{{ shipment_counts.ready }}</b></a>
+    <a href="{% url 'fbs:tsd_handover' %}?status=transit">В пути <b>{{ shipment_counts.transit }}</b></a>
+    <a href="{% url 'fbs:tsd_handover' %}?status=accepted">Принято площадкой <b>{{ shipment_counts.accepted }}</b></a>
+  </section>
+
+  <nav class="operation-grid" aria-label="Рабочие разделы FBS">
+    <a class="operation-tile operation-primary" href="{% url 'fbs:operator_orders' %}">
+      <span class="operation-index">01</span>
+      <span class="operation-copy"><strong>Заказы</strong><small>Все {{ order_counts.active }} активных заказов</small></span>
+      <span class="operation-value">{{ order_counts.active }}</span>
+    </a>
+    <a class="operation-tile" href="{% url 'fbs:operator_queue' %}">
+      <span class="operation-index">02</span>
+      <span class="operation-copy"><strong>Очередь</strong><small>Резерв + очередь; внутри также ждут товар</small></span>
+      <span class="operation-value">{{ dashboard_counts.to_pick }}</span>
+    </a>
+    <a class="operation-tile" href="{% url 'fbs:operator_waves' %}">
+      <span class="operation-index">03</span>
+      <span class="operation-copy"><strong>Волны</strong><small>Активные задания на сборку</small></span>
+      <span class="operation-value">{{ dashboard_counts.waves }}</span>
+    </a>
+    <a class="operation-tile" href="{% url 'fbs:tsd_demand' %}">
+      <span class="operation-index">04</span>
+      <span class="operation-copy"><strong>Подсорт</strong><small>На подтверждение: {{ proposed_plans|length }}</small></span>
+      <span class="operation-value">{{ proposed_plans|length }}</span>
+    </a>
+    <a class="operation-tile" href="{% url 'fbs:tsd_labels' %}">
+      <span class="operation-index">05</span>
+      <span class="operation-copy"><strong>Этикетки</strong><small>Ожидают: {{ label_counts.requested }} · готовы: {{ label_counts.ready }}</small></span>
+      <span class="operation-value">{{ label_counts.requested }}</span>
+    </a>
+    <a class="operation-tile" href="{% url 'fbs:tsd_handover' %}?status=active">
+      <span class="operation-index">06</span>
+      <span class="operation-copy"><strong>Отгрузки в работе</strong><small>Проверка: {{ shipment_counts.checking }} · готовы: {{ shipment_counts.ready }}</small></span>
+      <span class="operation-value">{{ shipment_counts.active }}</span>
+    </a>
+    <a class="operation-tile" href="{% url 'fbs:tsd_inventory' %}">
+      <span class="operation-index">07</span>
+      <span class="operation-copy"><strong>Инвентаризация</strong><small>{{ active_inventory_count }} активных сессий</small></span>
+      <span class="operation-value">{{ active_inventory_count }}</span>
+    </a>
+    <a class="operation-tile" href="{% url 'fbs:metadata_control' %}">
+      <span class="operation-index">08</span>
+      <span class="operation-copy"><strong>Контроль передач</strong><small>{{ metadata_counts.waiting }} ожидают площадку</small></span>
+      <span class="operation-value {% if metadata_counts.conflicts %}value-alert{% endif %}">{{ metadata_counts.conflicts }}</span>
+    </a>
+  </nav>
+
+  <div class="dashboard-layout">
+    <div class="dashboard-main">
+      <section class="section-band" id="order-statuses">
+        <div class="section-heading section-heading-action">
+          <div><span class="section-kicker">Быстрый переход</span><h2>Заказы по статусам</h2></div>
+          <a href="{% url 'fbs:operator_orders' %}">Открыть все</a>
+        </div>
+        <nav class="operation-grid" aria-label="Статусы заказов FBS">
+          <a class="operation-tile" href="{% url 'fbs:operator_orders' %}?status=received"><span class="operation-index">01</span><span class="operation-copy"><strong>Новые</strong><small>Ещё не обработаны системой</small></span><span class="operation-value">{{ order_counts.received }}</span></a>
+          <a class="operation-tile" href="{% url 'fbs:operator_orders' %}?status=awaiting_stock"><span class="operation-index">02</span><span class="operation-copy"><strong>Ожидают товар</strong><small>Проверить остаток или подсорт</small></span><span class="operation-value">{{ order_counts.awaiting_stock }}</span></a>
+          <a class="operation-tile" href="{% url 'fbs:operator_orders' %}?status=reserved"><span class="operation-index">03</span><span class="operation-copy"><strong>Зарезервированы</strong><small>Можно передавать в очередь</small></span><span class="operation-value">{{ order_counts.reserved }}</span></a>
+          <a class="operation-tile" href="{% url 'fbs:operator_orders' %}?status=queued_for_pick"><span class="operation-index">04</span><span class="operation-copy"><strong>В очереди сборки</strong><small>Ожидают начала волны</small></span><span class="operation-value">{{ order_counts.queued }}</span></a>
+          <a class="operation-tile" href="{% url 'fbs:operator_orders' %}?status=picking"><span class="operation-index">05</span><span class="operation-copy"><strong>Собираются</strong><small>Сейчас в работе</small></span><span class="operation-value">{{ order_counts.picking }}</span></a>
+          <a class="operation-tile" href="{% url 'fbs:operator_orders' %}?status=picked"><span class="operation-index">06</span><span class="operation-copy"><strong>Отобраны</strong><small>Ожидают следующего этапа</small></span><span class="operation-value">{{ order_counts.picked }}</span></a>
+          <a class="operation-tile" href="{% url 'fbs:operator_orders' %}?status=ready_for_handover"><span class="operation-index">07</span><span class="operation-copy"><strong>Готовы к отгрузке</strong><small>Передать в короба и поставку</small></span><span class="operation-value">{{ order_counts.ready_for_handover }}</span></a>
+          <a class="operation-tile {% if order_counts.problem %}operation-primary{% endif %}" href="{% url 'fbs:operator_problems' %}"><span class="operation-index">08</span><span class="operation-copy"><strong>Ошибки заказов</strong><small>Проверка {{ order_counts.validation_failed }} · исключения {{ order_counts.exception }}</small></span><span class="operation-value">{{ order_counts.problem }}</span></a>
+        </nav>
+      </section>
+
+      <section class="section-band section-muted" id="waves">
+        <div class="section-heading section-heading-action">
+          <div><span class="section-kicker">Отбор</span><h2>Активные волны</h2></div>
+          <a href="{% url 'fbs:operator_waves' %}">Управлять</a>
+        </div>
+        <div class="wave-list">
+          {% for batch in active_batches %}
+            <a class="wave-row" href="{% url 'fbs:operator_wave_detail' batch_id=batch.id %}">
+              <span class="wave-number">#{{ batch.id }}</span>
+              <span class="wave-main"><strong>{{ batch.agency }}</strong><small>{{ batch.order_count }} заказов · {{ batch.get_status_display }}</small></span>
+              <span class="wave-progress"><strong>{{ batch.picked_qty }}/{{ batch.planned_qty }}</strong><small>{% if batch.assigned_to %}{{ batch.assigned_to.get_username }}{% else %}Свободна{% endif %}</small></span>
+            </a>
+          {% empty %}
+            <div class="empty-state">Активных волн нет</div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="section-band" id="controller-tote-transfer">
+        <div class="section-heading section-heading-action">
+          <div>
+            <span class="section-kicker">FBS-контроль</span>
+            <h2>Передать тару на другой стол</h2>
+            <small>Переносится тара вместе с волной и сохранённым прогрессом проверки. Служебные тары столов не перемещаются.</small>
+          </div>
+          <span class="profile-state">Активных столов {{ live_controller_session_count }}</span>
+        </div>
+        <div class="controller-tote-transfer-list">
+          {% for row in controller_tote_transfer_rows %}
+            <div class="controller-tote-transfer-row">
+              <div>
+                <strong>{{ row.pick_tote.tote.name }} · {{ row.pick_tote.tote.barcode }}</strong>
+                <small>Волна #{{ row.pick_tote.pick_batch_id }} · {{ row.pick_tote.session.workstation.name }} · контролер {{ row.pick_tote.session.controller.get_full_name|default:row.pick_tote.session.controller.username }}</small>
+                <small>Проверено {{ row.pick_tote.processed_qty }} из {{ row.pick_tote.planned_qty }} · {{ row.pick_tote.get_status_display }}</small>
+              </div>
+              {% if row.targets %}
+                <form class="controller-tote-transfer-form" method="post" data-submit-once data-confirm-submit="Передать эту тару другому контролеру? Прогресс сохранится, а исходный стол сразу потеряет доступ.">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="transfer_controller_tote">
+                  <input type="hidden" name="pick_tote_id" value="{{ row.pick_tote.id }}">
+                  <label>
+                    <span>Новый стол и контролер</span>
+                    <select name="target_session_id" required>
+                      <option value="">Выберите активный стол</option>
+                      {% for session in row.targets %}
+                        <option value="{{ session.id }}">{{ session.workstation.name }} · {{ session.controller.get_full_name|default:session.controller.username }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <button class="button button-primary button-compact" type="submit"{% if not warehouse_writes_enabled %} disabled{% endif %}>Передать тару</button>
+                </form>
+              {% else %}
+                <div class="empty-state">Нет другого активного стола контролера. Сначала контролер должен открыть смену на целевом столе.</div>
+              {% endif %}
+            </div>
+          {% empty %}
+            <div class="empty-state empty-state-ok">У контролеров нет активных тар для передачи.</div>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+
+    <aside class="dashboard-side">
+      <section class="side-section" aria-labelledby="equipment-title">
+        <div class="section-heading section-heading-action">
+          <div><span class="section-kicker">Готовность</span><h2 id="equipment-title">Оборудование</h2></div>
+        </div>
+        <div class="equipment-summary">
+          <div><span>Рабочие места</span><strong>{{ equipment_summary.workstations_online }}/{{ equipment_summary.workstations }}</strong></div>
+          <div><span>Тара</span><strong>{{ equipment_summary.carts }}</strong></div>
+        </div>
+        <div class="equipment-list">
+          {% for workstation in workstations %}
+            <div class="equipment-row">
+              <span class="equipment-dot {% if workstation.agent_online %}equipment-online{% else %}equipment-offline{% endif %}"></span>
+              <span>
+                <strong>{{ workstation.name }}</strong>
+                <small class="equipment-controller">
+                  {% if workstation.shift_controller_name %}Контролёр: {{ workstation.shift_controller_name }}{% else %}Контролёр не назначен{% endif %}
+                </small>
+                <small>{{ workstation.printer_name|default:"Принтер не задан" }}</small>
+              </span>
+              <em>{% if workstation.agent_online %}В сети{% else %}Не в сети{% endif %}</em>
+            </div>
+          {% empty %}
+            <div class="empty-state">Рабочих мест нет</div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="side-section" id="problems" aria-labelledby="problems-title">
+        <div class="section-heading section-heading-action">
+          <div><span class="section-kicker">Контроль</span><h2 id="problems-title">Проблемы отбора</h2></div>
+          <a href="{% url 'fbs:operator_problems' %}">Открыть</a>
+        </div>
+        <div class="problem-overview">
+          <a href="{% url 'fbs:operator_problems' %}"><span>Проблемные заказы</span><strong>{{ problem_breakdown.orders }}</strong></a>
+          <a href="{% url 'fbs:operator_problems' %}#pick-problems"><span>Отбор</span><strong>{{ problem_breakdown.pick }}</strong></a>
+          <a href="{% url 'fbs:tsd_labels' %}"><span>Этикетки</span><strong>{{ problem_breakdown.labels }}</strong></a>
+          <a href="{% url 'fbs:tsd_handover' %}"><span>Короба</span><strong>{{ problem_breakdown.handover }}</strong></a>
+          <a href="{% url 'fbs:metadata_control' %}"><span>Передачи</span><strong>{{ problem_breakdown.metadata }}</strong></a>
+        </div>
+        <div class="problem-list">
+          {% for exception in recent_exceptions %}
+            <a href="{% url 'fbs:operator_wave_detail' batch_id=exception.task.batch_id %}">
+              <span><strong>{{ exception.get_exception_type_display }}</strong><small>{{ exception.task.order.profile.agency }} · {{ exception.task.order.external_order_id }}</small></span>
+              <em>{{ exception.created_at|date:"H:i" }}</em>
+            </a>
+          {% empty %}
+            {% if not dashboard_counts.problems %}<div class="empty-state empty-state-ok">Открытых проблем нет</div>{% endif %}
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="side-section" aria-labelledby="replenishment-title">
+        <div class="section-heading section-heading-action">
+          <div><span class="section-kicker">Остатки FBS</span><h2 id="replenishment-title">Подсорт</h2></div>
+          <a href="{% url 'fbs:tsd_demand' %}">Потребность</a>
+        </div>
+        <div class="replenishment-list">
+          {% for plan in proposed_plans|slice:":4" %}
+            <a href="{% url 'fbs:tsd_storekeeper_plan' plan_id=plan.id %}">
+              <span><strong>План #{{ plan.id }}</strong><small>{{ plan.agency }} · {{ plan.get_mode_display }}</small></span>
+              <em>{{ plan.planned_qty }} шт.</em>
+            </a>
+          {% empty %}
+            <div class="empty-state">Новых планов нет</div>
+          {% endfor %}
+          {% for plan in active_plans|slice:":3" %}
+            <a href="{% url 'fbs:tsd_storekeeper_plan' plan_id=plan.id %}">
+              <span><strong>План #{{ plan.id }}</strong><small>{{ plan.agency }} · {{ plan.get_status_display }}</small></span>
+              <em>{{ plan.moved_qty }}/{{ plan.planned_qty }}</em>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+    </aside>
+  </div>
+{% endblock %}

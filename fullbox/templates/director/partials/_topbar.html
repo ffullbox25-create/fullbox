@@ -1,0 +1,26 @@
+<header class="dir-topbar">
+  <div style="display:flex;align-items:center;gap:12px;min-width:0">
+    <button type="button" class="dir-mobile-toggle" id="js-dir-menu" aria-label="Открыть меню">☰</button>
+    <div>
+      <h1 class="dir-page-title">Панель директора</h1>
+      <div class="dir-page-sub">Основные показатели FullBox за текущий период</div>
+    </div>
+  </div>
+  <div class="dir-top-actions">
+    <div class="dir-period" role="group" aria-label="Период отчёта">
+      {% for key, label in period_choices %}
+        <a href="?period={{ key }}" class="{% if period == key %}is-active{% endif %}">{{ label }}</a>
+      {% endfor %}
+    </div>
+    <select class="dir-select" aria-label="Склад" disabled title="Фильтр склада — следующий этап">
+      <option>Все склады</option>
+    </select>
+    <button type="button" class="dir-btn" id="js-dir-refresh" aria-label="Обновить">Обновить</button>
+    <span class="dir-updated">{{ updated_label }}</span>
+    <button type="button" class="dir-icon-btn" aria-label="Уведомления">
+      🔔
+      {% if notifications_count %}<span class="dot">{{ notifications_count }}</span>{% endif %}
+    </button>
+    <div class="dir-avatar" aria-hidden="true">{{ director_initials }}</div>
+  </div>
+</header>

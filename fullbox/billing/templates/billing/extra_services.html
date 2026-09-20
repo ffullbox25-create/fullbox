@@ -1,0 +1,207 @@
+{% extends "teammanager/_base.html" %}
+{% load billing_tags %}
+
+{% block title %}Дополнительные услуги — Биллинг{% endblock %}
+
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.grid-2 { display:grid; grid-template-columns:minmax(0,340px) minmax(0,1fr); gap:14px; align-items:start; }
+.card {
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:14px; display:grid; gap:10px;
+}
+.card-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:16px; font-weight:800; }
+.field {
+  width:100%; border:1px solid var(--line); border-radius:10px; background:#fff;
+  padding:9px 12px; font:inherit; font-size:13px; box-sizing:border-box;
+}
+.label { font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; }
+.table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:900px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:2px solid var(--line); }
+td { padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+.row-main { font-weight:800; }
+.row-sub { color:var(--muted); font-size:11px; margin-top:2px; }
+.badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900; }
+.badge.green { background:var(--green-soft); color:var(--green-strong); }
+.badge.orange { background:var(--orange-soft); color:#b45309; }
+.badge.red { background:#fff0f0; color:var(--red); }
+.badge.gray { background:var(--surface-2); color:var(--muted); }
+.hint { font-size:12px; color:var(--muted); line-height:1.4; }
+@media (max-width:960px){ .grid-2 { grid-template-columns:1fr; } }
+{% endblock %}
+
+{% block content %}
+{% include "billing/_billing_nav.html" %}
+
+<div>
+  <h1 class="page-title">Дополнительные услуги</h1>
+  <div class="page-sub">Услуги вне автопотока WMS. Цену менеджер не вводит — только из опубликованного тарифа.</div>
+</div>
+
+<div class="grid-2">
+  <form class="card" id="js-extra-form">
+    <h2 class="card-title">Новый запрос</h2>
+    <div>
+      <div class="label">Клиент</div>
+      <select class="field" name="client_id" required>
+        <option value="">Выберите клиента</option>
+        {% for c in extra_clients %}
+          <option value="{{ c.id }}">{{ c.short_name|default:c.agn_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <div class="label">Услуга</div>
+      <select class="field" name="service_id" required>
+        <option value="">Выберите услугу</option>
+        {% for s in extra_services %}
+          <option value="{{ s.id }}" data-unit="{{ s.unit }}">{{ s.name }} · {{ s.code }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <div class="label">Дата</div>
+        <input class="field" type="date" name="service_date" value="{{ today|date:'Y-m-d' }}" required>
+      </div>
+      <div>
+        <div class="label">Количество</div>
+        <input class="field" type="number" step="0.001" min="0.001" name="quantity" value="1" required>
+      </div>
+    </div>
+    <div>
+      <div class="label">Описание</div>
+      <textarea class="field" name="description" rows="2" placeholder="Что сделано"></textarea>
+    </div>
+    <div>
+      <div class="label">Причина</div>
+      <textarea class="field" name="reason" rows="2" placeholder="Почему не пришло из WMS"></textarea>
+    </div>
+    <div class="hint">Если договорной цены нет — запрос останется со статусом «Требуется настройка цены». Бухгалтер публикует тариф, затем можно повторить расчёт.</div>
+    <button class="btn primary" type="submit">Создать запрос</button>
+    <div id="js-extra-msg" class="hint"></div>
+  </form>
+
+  <div style="display:grid;gap:12px">
+    <form class="card" method="get" style="grid-template-columns:1fr 1fr auto;display:grid;align-items:end">
+      <div>
+        <div class="label">Клиент</div>
+        <select class="field" name="client">
+          <option value="">Все</option>
+          {% for c in extra_clients %}
+            <option value="{{ c.id }}" {% if filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <div class="label">Статус</div>
+        <select class="field" name="status">
+          <option value="">Все</option>
+          <option value="needs_price" {% if filter_status == "needs_price" %}selected{% endif %}>Без цены</option>
+          <option value="charged" {% if filter_status == "charged" %}selected{% endif %}>Начислено</option>
+          <option value="cancelled" {% if filter_status == "cancelled" %}selected{% endif %}>Отменён</option>
+        </select>
+      </div>
+      <button class="btn" type="submit">Фильтр</button>
+    </form>
+
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>Дата</th>
+            <th>Клиент</th>
+            <th>Услуга</th>
+            <th>Кол-во</th>
+            <th>Статус</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for req in extra_requests %}
+            <tr>
+              <td>{{ req.service_date|date:"d.m.Y" }}</td>
+              <td>{{ req.client.short_name|default:req.client.agn_name|truncatechars:24 }}</td>
+              <td>
+                <div class="row-main">{{ req.service.name }}</div>
+                <div class="row-sub">{{ req.service.code }}</div>
+                {% if req.price_note %}<div class="row-sub">{{ req.price_note|truncatechars:60 }}</div>{% endif %}
+              </td>
+              <td>{{ req.quantity }} {{ req.unit }}</td>
+              <td>
+                {% if req.status == "charged" %}<span class="badge green">{{ req.get_status_display }}</span>
+                {% elif req.status == "needs_price" %}<span class="badge orange">{{ req.get_status_display }}</span>
+                {% else %}<span class="badge gray">{{ req.get_status_display }}</span>{% endif %}
+              </td>
+              <td>
+                {% if req.application_id %}
+                  <a class="btn" href="/team-manager/billing/applications/{{ req.application_id }}/" style="font-size:11px;padding:5px 8px">Заявка</a>
+                {% endif %}
+                {% if req.status == "needs_price" %}
+                  <button class="btn js-retry" data-id="{{ req.id }}" type="button" style="font-size:11px;padding:5px 8px">Повторить</button>
+                {% endif %}
+                {% if req.status != "cancelled" %}
+                  <button class="btn js-cancel" data-id="{{ req.id }}" type="button" style="font-size:11px;padding:5px 8px">Отмена</button>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" style="padding:28px;text-align:center;color:var(--muted);font-weight:700">Запросов пока нет</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function csrf(){ return (document.cookie.match(/csrftoken=([^;]+)/)||[])[1]||''; }
+  function post(url, data){
+    return fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
+      body: JSON.stringify(data||{})
+    }).then(function(r){ return r.json(); });
+  }
+  var form = document.getElementById('js-extra-form');
+  var msg = document.getElementById('js-extra-msg');
+  if(form){
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      var fd = new FormData(form);
+      var payload = {};
+      fd.forEach(function(v,k){ payload[k]=v; });
+      msg.textContent = 'Создание…';
+      post('/team-manager/billing/api/extra-services/', payload).then(function(d){
+        if(d.ok){
+          msg.textContent = d.data.status === 'charged' ? 'Начисление создано' : 'Сохранено без цены — ждём тариф бухгалтера';
+          setTimeout(function(){ location.reload(); }, 600);
+        } else {
+          msg.textContent = d.error || 'Ошибка';
+        }
+      });
+    });
+  }
+  document.querySelectorAll('.js-retry').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      btn.disabled=true;
+      post('/team-manager/billing/api/extra-services/'+btn.dataset.id+'/retry/').then(function(d){
+        if(d.ok) location.reload(); else { alert(d.error||'Ошибка'); btn.disabled=false; }
+      });
+    });
+  });
+  document.querySelectorAll('.js-cancel').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if(!confirm('Отменить запрос?')) return;
+      btn.disabled=true;
+      post('/team-manager/billing/api/extra-services/'+btn.dataset.id+'/cancel/').then(function(d){
+        if(d.ok) location.reload(); else { alert(d.error||'Ошибка'); btn.disabled=false; }
+      });
+    });
+  });
+})();
+</script>
+{% endblock %}

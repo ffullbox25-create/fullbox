@@ -1,0 +1,53 @@
+{% load fbs_workspace %}
+{% pending_fbs_movement_count as pending_movement_count %}
+<aside class="fbs-workspace-sidebar" aria-label="Рабочее пространство FBS">
+  <div class="fbs-workspace-brand">
+    {% include "partials/fullbox_brand.html" %}
+    <span>FBS</span>
+  </div>
+
+  <nav class="fbs-workspace-nav" aria-label="Разделы FBS">
+    <span class="fbs-workspace-nav-title">Смена</span>
+    <a class="{% if workspace_section == 'overview' %}is-active{% endif %}" href="{% url 'fbs:tsd_storekeeper' %}"><span class="fbs-nav-icon">П</span><span>Пульт смены</span><span class="fbs-nav-badge"></span></a>
+
+    <span class="fbs-workspace-nav-title fbs-workspace-nav-title-secondary">Поток заказов</span>
+    <a class="{% if workspace_section == 'orders' %}is-active{% endif %}" href="{% url 'fbs:operator_orders' %}"><span class="fbs-nav-icon">З</span><span>Заказы</span><span class="fbs-nav-badge"></span></a>
+    <a class="{% if workspace_section == 'queue' %}is-active{% endif %}" href="{% url 'fbs:operator_queue' %}"><span class="fbs-nav-icon">О</span><span>Очередь</span><span class="fbs-nav-badge"></span></a>
+    <a class="{% if workspace_section == 'waves' %}is-active{% endif %}" href="{% url 'fbs:operator_waves' %}"><span class="fbs-nav-icon">В</span><span>Волны</span><span class="fbs-nav-badge"></span></a>
+    <a class="{% if workspace_section == 'handover' or workspace_section == 'handover_reports' %}is-active{% endif %}" href="{% url 'fbs:tsd_handover' %}"><span class="fbs-nav-icon">Т</span><span>Отгрузки</span><span class="fbs-nav-badge"></span></a>
+
+    <span class="fbs-workspace-nav-title fbs-workspace-nav-title-secondary">Разбор</span>
+    <a class="{% if workspace_section == 'problems' %}is-active{% endif %}" href="{% url 'fbs:operator_problems' %}"><span class="fbs-nav-icon">!</span><span>Проблемы</span><span class="fbs-nav-badge"></span></a>
+
+    <span class="fbs-workspace-nav-title fbs-workspace-nav-title-secondary">Запасы</span>
+    <a class="{% if workspace_section == 'stock' %}is-active{% endif %}" href="{% url 'fbs:tsd_storekeeper_stock' %}"><span class="fbs-nav-icon">С</span><span>Остатки FBS</span><span class="fbs-nav-badge"></span></a>
+    <a class="{% if workspace_section == 'movements' %}is-active{% endif %}" href="{% url 'fbs:operator_movements' %}"{% if pending_movement_count %} title="Не взято складом в работу: {{ pending_movement_count }}" aria-label="Перемещения: не взято складом в работу — {{ pending_movement_count }}"{% endif %}><span class="fbs-nav-icon">П</span><span>Перемещения</span><span class="fbs-nav-badge{% if pending_movement_count %} is-alert{% endif %}" aria-hidden="true">{% if pending_movement_count %}{{ pending_movement_count }}{% endif %}</span></a>
+    <a class="{% if workspace_section == 'demand' %}is-active{% endif %}" href="{% url 'fbs:tsd_demand' %}"><span class="fbs-nav-icon">Д</span><span>Подсорт</span><span class="fbs-nav-badge"></span></a>
+    <a class="{% if workspace_section == 'inventory' %}is-active{% endif %}" href="{% url 'fbs:tsd_inventory' %}"><span class="fbs-nav-icon">И</span><span>Инвентаризация</span><span class="fbs-nav-badge"></span></a>
+
+    <span class="fbs-workspace-nav-title fbs-workspace-nav-title-secondary">Документы</span>
+    <a class="{% if workspace_section == 'labels' %}is-active{% endif %}" href="{% url 'fbs:tsd_labels' %}"><span class="fbs-nav-icon">Э</span><span>Этикетки</span><span class="fbs-nav-badge"></span></a>
+    <a class="{% if workspace_section == 'metadata' %}is-active{% endif %}" href="{% url 'fbs:metadata_control' %}"><span class="fbs-nav-icon">К</span><span>КИЗ и сроки</span><span class="fbs-nav-badge"></span></a>
+    <details class="fbs-workspace-reports"{% if workspace_section == 'reports' or workspace_section == 'stock_history' %} open{% endif %}>
+      <summary class="{% if workspace_section == 'reports' or workspace_section == 'stock_history' %}is-active{% endif %}"><span class="fbs-nav-icon">Р</span><span>Отчеты</span><span class="fbs-nav-badge"></span></summary>
+      <a class="{% if report_type == 'status' %}is-active{% endif %}" href="{% url 'fbs:operator_order_reports' %}?report=status">Статус сборки</a>
+      <a class="{% if report_type == 'count' %}is-active{% endif %}" href="{% url 'fbs:operator_order_reports' %}?report=count">Количество заказов</a>
+      <a class="{% if report_type == 'shipped' %}is-active{% endif %}" href="{% url 'fbs:operator_order_reports' %}?report=shipped">Отгруженные заказы</a>
+      <a class="{% if report_type == 'goods' %}is-active{% endif %}" href="{% url 'fbs:operator_order_reports' %}?report=goods">Отгруженные товары</a>
+      <a class="{% if workspace_section == 'stock_history' %}is-active{% endif %}" href="{% url 'fbs:operator_stock_history' %}">История товара</a>
+    </details>
+
+    <span class="fbs-workspace-nav-title fbs-workspace-nav-title-secondary">Настройка</span>
+    <a class="{% if workspace_section == 'totes' %}is-active{% endif %}" href="{% url 'fbs:operator_totes' %}"><span class="fbs-nav-icon">Т</span><span>Тара</span><span class="fbs-nav-badge"></span></a>
+    <a class="{% if workspace_section == 'controller_settings' %}is-active{% endif %}" href="{% url 'fbs:tsd_controller_settings' %}"><span class="fbs-nav-icon">К</span><span>FBS-контроллеры</span><span class="fbs-nav-badge"></span></a>
+    <a class="{% if workspace_section == 'wave_settings' %}is-active{% endif %}" href="{% url 'fbs:tsd_wave_settings' %}"><span class="fbs-nav-icon">В</span><span>Настройка волн</span><span class="fbs-nav-badge"></span></a>
+    <a class="{% if workspace_section == 'clients' %}is-active{% endif %}" href="{% url 'fbs:operator_clients' %}"><span class="fbs-nav-icon">Л</span><span>Клиенты</span><span class="fbs-nav-badge"></span></a>
+    <a class="{% if workspace_section == 'readiness' %}is-active{% endif %}" href="{% url 'fbs:operator_readiness' %}"><span class="fbs-nav-icon">Г</span><span>Диагностика</span><span class="fbs-nav-badge"></span></a>
+  </nav>
+
+  <div class="fbs-workspace-user">
+    <span>{{ employee.full_name|default:"Сотрудник" }}</span>
+    <small>{% if request_role == 'head_manager' %}Начальник склада{% elif request_role == 'director' %}Директор{% elif request_role == 'admin' %}Администратор{% else %}Кладовщик FBS{% endif %}</small>
+    <a href="{{ cabinet_url|default:'/' }}">В основной кабинет</a>
+  </div>
+</aside>

@@ -1,0 +1,1970 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if repack_existing_boxes %}Формирование грузомест Ozon{% else %}Упаковка товара без короба{% endif %} · заявка {{ order.display_number|default:order.number }}</title>
+  <style>
+    :root{--bg:#f6f4ed;--card:#fff;--soft:#f8f6f1;--gold:#c79a1c;--gold-soft:#f2d48c;--muted:#6b7280;--stroke:rgba(31,35,40,.12);--text:#1f2328;--success:#1f9d55;--danger:#d14343;--danger-soft:#ffe7e2;--offset:88px}
+    *{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--bg);color:var(--text);font-family:"Space Grotesk",system-ui,sans-serif}a{text-decoration:none;color:inherit}
+    .wrap{padding:24px 18px 64px;min-height:100vh}.layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px}.side,.main{display:grid;gap:12px;min-height:0}.scroll{overflow:auto;min-height:0}.side.scroll{height:calc(100vh - var(--offset))}
+    .card,.side-card{background:var(--card);border:1px solid var(--stroke);border-radius:16px;box-shadow:0 16px 30px rgba(15,23,42,.12)}.card{padding:16px}.side-card{padding:14px}.flow-card{display:flex;flex-direction:column;height:calc(100vh - var(--offset));min-height:0}
+    .muted{color:var(--muted)}.side-title,.section-title{font-weight:600}.side-title{margin:0 0 8px}.section-title{margin:12px 0 6px}
+    .side-actions{display:grid;gap:8px}.tab,.btn{padding:10px 14px;border-radius:10px;border:1px solid var(--stroke);background:rgba(15,23,42,.04);color:var(--text);font-weight:600;cursor:pointer}.side-actions .tab{width:100%;display:inline-flex;justify-content:center}.tab:hover,.btn:hover{background:rgba(15,23,42,.08)}.primary{border-color:transparent;background:linear-gradient(120deg,var(--gold),var(--gold-soft))}.danger-btn{color:#7f1d1d;border-color:rgba(209,67,67,.35);background:rgba(209,67,67,.1)}.btn.small{padding:6px 10px;font-size:12px}.btn[disabled]{opacity:.6;cursor:not-allowed}
+    .notice,.error,.warn{border-radius:12px;padding:10px 12px;margin-bottom:12px}.notice{border:1px solid rgba(31,157,85,.35);background:rgba(31,157,85,.12);color:#166534}.error{border:1px solid rgba(209,67,67,.35);background:rgba(209,67,67,.12);color:#7f1d1d}.warn{border:1px solid rgba(199,154,32,.35);background:rgba(199,154,32,.14);color:#6b4300}
+    .info-list{display:grid;gap:10px}.info-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}.info-value{font-weight:600;word-break:break-word}
+    .action-bar{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px}.action-left,.action-right{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;border:1px solid var(--stroke);background:rgba(15,23,42,.04);font-size:12px;font-weight:600}.pill span{color:var(--gold)}
+    .marking-scanner,.gm-scanner{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:12px;margin-bottom:12px;border:1px solid rgba(199,154,32,.45);border-radius:14px;background:rgba(242,212,140,.18)}.marking-scanner label,.gm-scanner label{grid-column:1/-1;font-weight:700}.marking-scanner input,.gm-scanner input{width:100%;min-height:48px;padding:10px 12px;border:2px solid var(--gold);border-radius:12px;background:#fff;font:inherit}.marking-scanner-status,.gm-scanner-status{grid-column:1/-1;color:#6b4300;font-weight:600}.gm-scanner{position:sticky;top:0;z-index:12;box-shadow:0 8px 20px rgba(15,23,42,.08)}.gm-scanner form{min-width:0}
+    .source-boxes{display:flex;gap:7px;flex-wrap:wrap;grid-column:1/-1}.source-box{padding:5px 9px;border-radius:999px;border:1px solid rgba(209,67,67,.35);background:#fff;color:#7f1d1d;font-size:12px;font-weight:700}.source-box.done{border-color:rgba(31,157,85,.45);background:rgba(31,157,85,.12);color:#166534}
+    .gm-plan{display:grid;gap:8px;margin-bottom:12px}.gm-target{display:grid;grid-template-columns:minmax(190px,.75fr) minmax(220px,.9fr) minmax(280px,1.2fr) auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--stroke);border-radius:12px;background:#fff}.gm-target.done{border-color:rgba(31,157,85,.45);background:rgba(31,157,85,.1)}.gm-code{font-weight:700;word-break:break-all}.gm-items{font-size:13px;color:var(--muted)}.gm-products{display:grid;gap:7px}.gm-product{min-width:0;padding-left:10px;border-left:3px solid var(--gold)}.gm-product-label{font-size:11px;color:var(--muted)}.gm-article{font-size:16px;font-weight:700;word-break:break-word}.gm-product-name{font-size:12px;color:var(--muted);word-break:break-word}
+    .flow-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;flex:1;min-height:0}.work-col,.pallet-col{display:grid;gap:12px;min-height:0}.work-col{grid-template-rows:auto minmax(230px,1fr) auto}.pallet-col{grid-template-rows:auto minmax(220px,1fr) auto minmax(180px,.8fr)}
+    .section-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.section-hint{font-size:12px;color:var(--muted)}.section-count{font-weight:700;color:var(--gold)}
+    .table-wrap{overflow:auto;border:1px solid var(--stroke);border-radius:12px;min-height:0}table{width:100%;border-collapse:collapse;min-width:760px;table-layout:fixed}th,td{border-bottom:1px solid var(--stroke);border-right:1px solid var(--stroke);padding:8px 10px;text-align:left;vertical-align:top;word-break:break-word}th:last-child,td:last-child{border-right:none}th{background:rgba(15,23,42,.04);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px;position:sticky;top:0;z-index:1}.loose-row{background:var(--danger-soft)}.loose-row.done{background:rgba(31,157,85,.12)}.qty-input{width:76px;padding:8px 10px;border-radius:10px;border:1px solid var(--stroke);font:inherit}
+    .current{background:var(--soft);border:1px dashed var(--stroke);border-radius:16px;padding:12px;min-height:132px}.current-grid{display:grid;grid-template-columns:124px minmax(0,1fr) 210px;gap:14px;align-items:stretch}.qr{width:112px;height:112px;border-radius:12px;border:1px solid var(--stroke);background:#fff;display:grid;place-items:center;overflow:hidden}.qr canvas,.qr img{max-width:100%;max-height:100%}.box-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px}.box-title{font-size:18px;font-weight:700}.box-code{font-weight:700;color:#7a4c00}.status{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--gold)}.box-items{display:grid;gap:8px;max-height:180px;overflow:auto}.box-item{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px;border-radius:10px;border:1px solid var(--stroke);background:#fff}.box-item small{display:block;color:var(--muted)}.qty{font-weight:700;color:#7a4c00;background:rgba(199,154,32,.2);padding:2px 6px;border-radius:999px}.empty{padding:16px;border:1px dashed var(--stroke);border-radius:12px;color:var(--muted);background:rgba(15,23,42,.03)}.close-big{width:100%;height:100%;min-height:98px;font-size:16px;font-weight:700;border-radius:14px}
+    .pallet-board,.closed-list{display:grid;gap:8px;overflow:auto;min-height:0}.pallet-card,.closed-box{border:1px solid var(--stroke);border-radius:16px;padding:12px;background:#fff}.pallet-card.open{border-color:var(--gold);box-shadow:0 12px 26px rgba(199,154,32,.16)}.pallet-card.active{border-color:var(--success);box-shadow:0 0 0 2px rgba(31,157,85,.22)}.pallet-card.closed{background:rgba(15,23,42,.03)}.pallet-head,.closed-box-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}.pallet-code,.closed-box-code{font-weight:700}.pallet-status,.closed-box-meta{font-size:12px;color:var(--muted)}.box-chip-row{display:flex;flex-wrap:wrap;gap:6px}.box-chip{width:58px;height:42px;border:1px solid var(--stroke);border-radius:10px;background:#f1f0ec;display:grid;place-items:center;font-size:11px;font-weight:700;cursor:context-menu}.box-chip.open{background:#f9e7b8;border-color:#d2a52a;color:#7a4c00}.box-chip.closed{background:#d8f2e1;border-color:#1f9d55;color:#0f5c30}.closed-box{cursor:context-menu}.closed-box:hover{border-color:rgba(199,154,32,.55)}.closed-box-items{font-size:12px;color:var(--muted)}.pallet-only{display:none!important}
+    .context-menu{position:fixed;z-index:60;display:none;min-width:220px;padding:6px;border:1px solid var(--stroke);border-radius:12px;background:#fff;box-shadow:0 18px 36px rgba(15,23,42,.18)}.context-menu.is-open{display:block}.context-menu button{width:100%;border:0;background:transparent;text-align:left;padding:9px 10px;border-radius:8px;cursor:pointer;font:inherit}.context-menu button:hover{background:rgba(15,23,42,.06)}.context-menu .danger{color:var(--danger)}
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(15,23,42,.52);z-index:50}.modal.is-open{display:flex}.modal-card{width:min(92vw,760px);max-height:90vh;overflow:auto;padding:18px;border-radius:20px;border:1px solid var(--stroke);background:#fff;box-shadow:0 24px 48px rgba(15,23,42,.22);display:grid;gap:14px}.modal-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.modal-title{font-size:22px;font-weight:700}.modal-table{border:1px solid var(--stroke);border-radius:12px;overflow:auto}.modal-table table{min-width:540px}
+    @media (max-width:1260px){.layout{grid-template-columns:1fr}.main{order:1}.side{order:2}.flow-grid{grid-template-columns:1fr}.flow-card{height:auto}.side.scroll{height:auto}.scroll{overflow:visible}.work-col,.pallet-col{grid-template-rows:auto auto auto auto}.work-col{display:flex;flex-direction:column}.current-box-section{order:1}.loose-head{order:2}.loose-table{order:3}.current-grid{grid-template-columns:110px minmax(0,1fr)}.current-actions{grid-column:1 / -1}.close-big{min-height:64px}}
+    @media (max-width:900px){.gm-target{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.gm-target .btn{justify-self:end}}
+    @media (max-width:760px){.wrap{padding:6px 5px 24px}.layout{display:block}.side{display:none}.card{padding:8px;border-radius:12px}.flow-card{gap:8px}.marking-scanner,.gm-scanner{position:sticky;top:2px;z-index:12;grid-template-columns:1fr;padding:10px;margin-bottom:6px;border-width:2px}.marking-scanner label,.gm-scanner label{font-size:17px}.marking-scanner input,.gm-scanner input{min-height:54px;font-size:17px}.marking-scanner-status,.gm-scanner-status{min-height:22px;font-size:14px}.action-bar{align-items:stretch;margin-bottom:4px}.action-left,.action-right,.btn{width:100%}.action-left{justify-content:space-between}.action-right .btn{min-height:48px}.flow-grid{gap:10px}.current-grid{grid-template-columns:1fr;gap:8px}.current{padding:9px}.qr{width:88px;height:88px}.gm-target{grid-template-columns:1fr}.gm-target .btn{justify-self:stretch}.close-big{min-height:58px}.section-title{margin:6px 0}.closed-list{max-height:none}.loose-table table{min-width:100%;table-layout:auto}.loose-table th,.loose-table td{padding:7px 5px;font-size:12px}.loose-table th:nth-child(2),.loose-table td:nth-child(2),.loose-table th:nth-child(3),.loose-table td:nth-child(3){display:none}.loose-table .qty-input{width:58px;padding:7px 5px}.loose-table .btn{width:auto;padding:7px 6px}.modal-table table{min-width:540px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side scroll">
+        <div class="side-card">
+          <div class="muted">FULLBOX · {% include "partials/current_user.html" %}</div>
+          <h3>{% if repack_existing_boxes %}Формирование грузомест Ozon{% else %}Упаковка товара без короба{% endif %} · заявка {{ order.display_number|default:order.number }}</h3>
+          <div class="muted">Статус: {{ status_label }}</div>
+        </div>
+        <div class="side-card">
+          <h4 class="side-title">Действия</h4>
+          <div class="side-actions">
+            <a class="tab" href="{{ detail_url }}">К заявке</a>
+            <a class="tab" href="{{ cabinet_url }}">В кабинет</a>
+            <a class="tab" href="/logout/">Выход</a>
+          </div>
+        </div>
+        <div class="side-card">
+          <h4 class="side-title">Информация</h4>
+          <div class="info-list">
+            <div>
+              <div class="info-label">Клиент</div>
+              <div class="info-value">{{ client_label }}</div>
+            </div>
+            <div>
+              <div class="info-label">Итог</div>
+              <div class="info-value" id="summary-line">-</div>
+            </div>
+          </div>
+        </div>
+        <div class="side-card">
+          <h4 class="side-title">Что делаем</h4>
+          <div class="muted">{% if repack_existing_boxes %}Физически переложите товар из исходных коробов в новые грузоместа строго по составу каждого ШК ГМ Ozon. После завершения все грузоместа будут доступны для паллетизации.{% else %}Упаковываем товар без короба в короба. После завершения короба будут доступны для обычной паллетизации отгрузки.{% endif %}</div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="card flow-card">
+          {% if messages %}
+            {% for message in messages %}
+              <div class="{% if message.tags == 'error' %}error{% else %}notice{% endif %}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+          {% if repack_existing_boxes %}
+            <div class="marking-scanner" id="source-box-scanner">
+              <label for="source-box-scan-input">Исходные короба: отсканируйте QR каждого физического короба</label>
+              <input id="source-box-scan-input" type="text" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Отсканируйте QR исходного короба">
+              <button class="btn" type="button" id="source-box-scan-reset">Сбросить сканы</button>
+              <div class="marking-scanner-status" id="source-box-scan-status" aria-live="polite">Отсканировано 0 из {{ repack_source_box_codes_data|length }}.</div>
+              <div class="source-boxes" id="source-boxes"></div>
+            </div>
+          {% endif %}
+          {% if gm_plan.required %}
+            {% if gm_plan.ready %}
+              <div class="gm-scanner">
+                <label for="gm-scan-input">ШК ГМ Ozon — пикните грузоместо для открытия нужного короба</label>
+                <form id="gm-scan-form">
+                  <input id="gm-scan-input" type="text" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Отсканируйте ШК ГМ">
+                </form>
+                <button class="btn primary" type="submit" form="gm-scan-form">Открыть короб</button>
+                <div class="gm-scanner-status" id="gm-scan-status" aria-live="polite">Ожидается ШК ГМ Ozon.</div>
+              </div>
+              <div class="notice">Ozon: обработайте {{ gm_plan.target_count }} грузомест строго по ШК ГМ. {% if repack_existing_boxes %}Все исходные короба будут заменены новыми только после полного сохранения операции.{% else %}Для существующего короба система отдельно покажет, сколько товара нужно физически доложить.{% endif %}</div>
+              <div class="gm-plan" id="gm-targets"></div>
+            {% else %}
+              {% for error in gm_plan.errors %}<div class="error">{{ error }}</div>{% endfor %}
+            {% endif %}
+          {% else %}
+            <div class="warn">Для продолжения упакуйте товар без короба в короба.</div>
+          {% endif %}
+
+          <form method="post" id="loose-packing-form">
+            {% csrf_token %}
+            <input type="hidden" name="boxes_json" id="boxes-json">
+            <input type="hidden" name="pallets_json" id="pallets-json">
+            <input type="hidden" name="repack_source_boxes_json" id="repack-source-boxes-json">
+          </form>
+
+          <div class="action-bar">
+            <div class="action-left">
+              <div class="pill">{% if repack_existing_boxes %}К переупаковке{% else %}Без короба{% endif %}: <span id="loose-total-pill">0</span></div>
+              <div class="pill">Упаковано: <span id="packed-total-pill">0</span></div>
+              <div class="pill pallet-only">Паллет: <span id="pallet-total-pill">0</span></div>
+            </div>
+            <div class="action-right">
+              <button class="btn" type="button" id="new-box-btn"{% if gm_plan.required %} disabled{% endif %}>Новый короб</button>
+              <button class="btn pallet-only" type="button" id="close-pallet-btn">Закрыть паллету</button>
+              <button class="btn primary" id="finish-packing-btn" type="submit" form="loose-packing-form"{% if gm_plan.required and not gm_plan.ready %} disabled{% endif %}>{% if repack_existing_boxes %}Завершить формирование грузомест{% else %}Завершить упаковку{% endif %}</button>
+            </div>
+          </div>
+
+          <div class="marking-scanner">
+            <label for="marking-scan-input">{% if requires_marking_scan %}ТСД · сканируйте Data Matrix — товар определится автоматически{% else %}ТСД · сканируйте ШК товара в текущий короб{% endif %}</label>
+            <input id="marking-scan-input" type="text" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Сканируйте Data Matrix или ШК товара">
+            <button class="btn" type="button" id="marking-scan-reset">Сбросить скан</button>
+            <div class="marking-scanner-status" id="marking-scan-status" aria-live="polite">{% if requires_marking_scan %}Готов: сканируйте Data Matrix товара в текущий короб.{% else %}Готов: пикните ШК товара.{% endif %}</div>
+          </div>
+
+          <div class="flow-grid">
+            <div class="work-col">
+              <div class="section-head loose-head">
+                <div class="section-title">{% if repack_existing_boxes %}Товар из исходных коробов{% else %}Неразмещенные товары{% endif %}</div>
+                <div class="section-hint">Осталось: <span class="section-count" id="remaining-total">0</span></div>
+              </div>
+              <div class="table-wrap loose-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Артикул</th>
+                      <th>Наименование</th>
+                      <th>Размер</th>
+                      <th>ШК / тип</th>
+                      <th>Осталось</th>
+                      <th>В короб</th>
+                    </tr>
+                  </thead>
+                  <tbody id="loose-items"></tbody>
+                </table>
+              </div>
+
+              <div class="current-box-section">
+                <div class="section-head">
+                  <div class="section-title">Текущий короб</div>
+                  <div class="section-hint">Внутри: <span class="section-count" id="current-total">0</span></div>
+                </div>
+                <div class="current">
+                  <div class="current-grid">
+                    <div class="qr" id="current-qr"></div>
+                    <div>
+                      <div class="box-head">
+                        <div>
+                          <div class="box-title" id="current-box-title">Короб не открыт</div>
+                          <div class="box-code" id="current-box-code">-</div>
+                        </div>
+                        <div class="status" id="current-box-status">Ожидание</div>
+                      </div>
+                      <div class="box-items" id="current-box-items"></div>
+                    </div>
+                    <div class="current-actions">
+                      <button class="btn primary close-big" type="button" id="close-box-btn">Закрыть короб</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pallet-col">
+              <div class="section-head pallet-only">
+                <div class="section-title">Паллеты</div>
+                <div class="section-hint">Активная: <span class="section-count" id="active-pallet-label">-</span></div>
+              </div>
+              <div class="pallet-board pallet-only" id="pallet-board"></div>
+              <div class="section-head">
+                <div class="section-title">Закрытые короба</div>
+                <div class="section-hint">Всего: <span class="section-count" id="closed-count">0</span></div>
+              </div>
+              <div class="closed-list" id="closed-boxes"></div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <iframe
+    id="labels-box-renderer"
+    src="/labels/settings/?renderer=1"
+    title=""
+    aria-hidden="true"
+    tabindex="-1"
+    style="position:fixed;left:-10000px;top:-10000px;width:1920px;height:1080px;border:0;opacity:0;pointer-events:none;"
+  ></iframe>
+
+  <div class="context-menu" id="box-context-menu" aria-hidden="true">
+    <button type="button" data-action="view">Просмотр короба</button>
+    <button type="button" data-action="print-box">Печать QR</button>
+    <button type="button" data-action="edit">Редактирование короба</button>
+    <button type="button" data-action="delete" class="danger">Удаление короба</button>
+  </div>
+
+  <div class="modal" id="box-modal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title" id="box-modal-title">Короб</div>
+          <div class="muted" id="box-modal-subtitle">-</div>
+        </div>
+        <button class="btn" type="button" id="box-modal-close">Закрыть</button>
+      </div>
+      <div class="modal-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Артикул</th>
+              <th>Наименование</th>
+              <th>ШК / тип</th>
+              <th>Кол-во</th>
+            </tr>
+          </thead>
+          <tbody id="box-modal-items"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {{ loose_items|json_script:"loose-items-data" }}
+  {{ boxes_data|json_script:"boxes-data" }}
+  {{ pallets_data|json_script:"pallets-data" }}
+  {{ existing_box_codes|json_script:"existing-box-codes" }}
+  {{ box_code_base|json_script:"box-code-base" }}
+  {{ gm_plan|json_script:"gm-plan-data" }}
+  {{ packing_draft|json_script:"packing-draft-data" }}
+  {{ repack_source_box_codes_data|json_script:"repack-source-box-codes-data" }}
+  <script src="/static/vendor/qrcode.min.js"></script>
+  <script>
+    (() => {
+      const looseItems = JSON.parse(document.getElementById('loose-items-data').textContent || '[]');
+      const submittedBoxes = JSON.parse(document.getElementById('boxes-data').textContent || '[]');
+      const submittedPallets = JSON.parse(document.getElementById('pallets-data').textContent || '[]');
+      const existingBoxCodes = JSON.parse(document.getElementById('existing-box-codes').textContent || '[]');
+      const boxCodeBase = JSON.parse(document.getElementById('box-code-base').textContent || '"SHIP-0-BOX"');
+      const gmPlan = JSON.parse(document.getElementById('gm-plan-data').textContent || '{}');
+      const repackExistingBoxes = {{ repack_existing_boxes|yesno:"true,false" }};
+      const serverPackingDraft = JSON.parse(document.getElementById('packing-draft-data').textContent || '{}');
+      const repackSourceBoxes = JSON.parse(document.getElementById('repack-source-box-codes-data').textContent || '[]');
+      const repackSourceByCode = new Map((Array.isArray(repackSourceBoxes) ? repackSourceBoxes : []).map((code) => [String(code || '').trim().toLowerCase(), String(code || '').trim()]));
+      const gmRequired = Boolean(gmPlan?.required);
+      const gmReady = !gmRequired || Boolean(gmPlan?.ready);
+      const gmTargets = Array.isArray(gmPlan?.targets) ? gmPlan.targets : [];
+      const gmTargetByCode = new Map(gmTargets.map((target) => [String(target?.gm_barcode || '').toLowerCase(), target]));
+      const containerCodeUrl = String("{{ container_code_url|escapejs }}").trim();
+      const markingScanUrl = String("{{ marking_scan_url|default:''|escapejs }}").trim();
+      const packingDraftUrl = String("{{ packing_draft_url|default:''|escapejs }}").trim();
+      const orderLabel = String("{{ order.display_number|default:order.number|escapejs }}").trim();
+      const clientLabel = String("{{ client_label|default:''|escapejs }}").trim();
+      const desktopPrintRecordUrl = '/orders/processing/print-jobs/desktop-record/';
+      const desktopPrintCompleteUrl = '/orders/processing/print-jobs/desktop-complete/';
+      const looseGoodsTypes = Array.from(
+        new Set(
+          (Array.isArray(looseItems) ? looseItems : [])
+            .map((item) => String(item?.goods_type || '').trim())
+            .filter(Boolean)
+        )
+      );
+      const looseGoodsType = looseGoodsTypes.length === 1 ? looseGoodsTypes[0] : '';
+      const packingDraftStorageKey = `fullbox-shipping-loose-draft:${orderLabel}`;
+      const packingDraftSignature = JSON.stringify((Array.isArray(looseItems) ? looseItems : []).map((item) => [
+        String(item?.key || ''),
+        Number(item?.qty || 0),
+        String(item?.barcode || ''),
+      ]));
+
+      function isValidPackingDraft(parsed) {
+        return Boolean(parsed && parsed.signature === packingDraftSignature && Array.isArray(parsed.boxes));
+      }
+
+      function readPackingDraft() {
+        try {
+          const parsed = JSON.parse(sessionStorage.getItem(packingDraftStorageKey) || 'null');
+          if (isValidPackingDraft(parsed)) return parsed;
+        } catch (_) {}
+        return isValidPackingDraft(serverPackingDraft) ? serverPackingDraft : null;
+      }
+
+      const savedPackingDraft = readPackingDraft();
+      const scannedRepackSourceCodes = new Set(
+        (Array.isArray(savedPackingDraft?.repackSourceBoxes) ? savedPackingDraft.repackSourceBoxes : [])
+          .map((code) => String(code || '').trim().toLowerCase())
+          .filter((key) => repackSourceByCode.has(key))
+      );
+      const initialBoxes = Array.isArray(submittedBoxes) && submittedBoxes.length
+        ? submittedBoxes
+        : (savedPackingDraft?.boxes || submittedBoxes);
+      const initialPallets = Array.isArray(submittedPallets) && submittedPallets.length
+        ? submittedPallets
+        : (savedPackingDraft?.pallets || submittedPallets);
+      const packingDraftRestored = Boolean(
+        savedPackingDraft
+        && (!Array.isArray(submittedBoxes) || !submittedBoxes.length)
+        && savedPackingDraft.boxes.length
+      );
+
+      const looseBodyEl = document.getElementById('loose-items');
+      const gmTargetsEl = document.getElementById('gm-targets');
+      const gmScanFormEl = document.getElementById('gm-scan-form');
+      const gmScanInputEl = document.getElementById('gm-scan-input');
+      const gmScanStatusEl = document.getElementById('gm-scan-status');
+      const currentQrEl = document.getElementById('current-qr');
+      const currentTitleEl = document.getElementById('current-box-title');
+      const currentCodeEl = document.getElementById('current-box-code');
+      const currentStatusEl = document.getElementById('current-box-status');
+      const currentItemsEl = document.getElementById('current-box-items');
+      const palletBoardEl = document.getElementById('pallet-board');
+      const closedBoxesEl = document.getElementById('closed-boxes');
+      const summaryEl = document.getElementById('summary-line');
+      const remainingTotalEl = document.getElementById('remaining-total');
+      const currentTotalEl = document.getElementById('current-total');
+      const closedCountEl = document.getElementById('closed-count');
+      const looseTotalPillEl = document.getElementById('loose-total-pill');
+      const packedTotalPillEl = document.getElementById('packed-total-pill');
+      const palletTotalPillEl = document.getElementById('pallet-total-pill');
+      const activePalletLabelEl = document.getElementById('active-pallet-label');
+      const boxesInput = document.getElementById('boxes-json');
+      const palletsInput = document.getElementById('pallets-json');
+      const repackSourceBoxesInput = document.getElementById('repack-source-boxes-json');
+      const formEl = document.getElementById('loose-packing-form');
+      const menuEl = document.getElementById('box-context-menu');
+      const modalEl = document.getElementById('box-modal');
+      const modalTitleEl = document.getElementById('box-modal-title');
+      const modalSubtitleEl = document.getElementById('box-modal-subtitle');
+      const modalItemsEl = document.getElementById('box-modal-items');
+      const modalCloseEl = document.getElementById('box-modal-close');
+      const markingScanInputEl = document.getElementById('marking-scan-input');
+      const markingScanStatusEl = document.getElementById('marking-scan-status');
+      const markingScanResetEl = document.getElementById('marking-scan-reset');
+      const sourceBoxScanInputEl = document.getElementById('source-box-scan-input');
+      const sourceBoxScanStatusEl = document.getElementById('source-box-scan-status');
+      const sourceBoxScanResetEl = document.getElementById('source-box-scan-reset');
+      const sourceBoxesEl = document.getElementById('source-boxes');
+      const labelRendererFrame = document.getElementById('labels-box-renderer');
+      const pendingBoxLabelRenders = new Map();
+      const existingCodeSet = new Set((Array.isArray(existingBoxCodes) ? existingBoxCodes : []).map((code) => String(code || '').toLowerCase()));
+      const itemByKey = new Map((Array.isArray(looseItems) ? looseItems : []).map((item) => [String(item.key || ''), item]));
+      let activeMenuBoxCode = '';
+      let pendingMarkedItem = savedPackingDraft?.pendingMarkedItem || null;
+      let boxQrPrinting = false;
+
+      const state = {
+        boxes: Array.isArray(initialBoxes)
+          ? initialBoxes.map((box, index) => ({
+              code: String(box?.code || `${boxCodeBase}-${index + 1}`),
+              sealed: Boolean(box?.sealed),
+              pallet_code: String(box?.pallet_code || ''),
+              gm_barcode: String(box?.gm_barcode || ''),
+              gm_supply_id: String(box?.gm_supply_id || ''),
+              gm_bundle_id: String(box?.gm_bundle_id || ''),
+              existing_box_code: String(box?.existing_box_code || ''),
+              items: Array.isArray(box?.items) ? box.items.map(normalizeBoxItem).filter(Boolean) : [],
+            })).filter((box) => box.code)
+          : [],
+        pallets: Array.isArray(initialPallets)
+          ? initialPallets.map((pallet, index) => ({
+              code: String(pallet?.code || `${index + 1}`),
+              label: String(pallet?.label || pallet?.code || `${index + 1}`),
+              sealed: Boolean(pallet?.sealed),
+              boxes: Array.isArray(pallet?.boxes) ? pallet.boxes.map((code) => String(code || '')).filter(Boolean) : [],
+            })).filter((pallet) => pallet.code)
+          : [],
+        activePalletCode: '',
+      };
+
+      let pendingServerPackingDraft = null;
+      let serverPackingDraftTimer = 0;
+      let serverPackingDraftRevision = 0;
+      let serverPackingDraftFlushChain = Promise.resolve(true);
+
+      function currentPackingDraft() {
+        return {
+          signature: packingDraftSignature,
+          boxes: state.boxes,
+          pallets: state.pallets,
+          pendingMarkedItem,
+          repackSourceBoxes: Array.from(scannedRepackSourceCodes).map((key) => repackSourceByCode.get(key)).filter(Boolean),
+        };
+      }
+
+      function flushPackingDraftToServer() {
+        if (serverPackingDraftTimer) {
+          window.clearTimeout(serverPackingDraftTimer);
+          serverPackingDraftTimer = 0;
+        }
+        const pendingDraft = pendingServerPackingDraft;
+        pendingServerPackingDraft = null;
+        if (!pendingDraft) return serverPackingDraftFlushChain;
+        if (!packingDraftUrl) return Promise.resolve(true);
+        const saveDraft = async () => {
+          try {
+            const response = await fetch(packingDraftUrl, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken(),
+              },
+              body: JSON.stringify({ draft: pendingDraft.draft }),
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload?.saved) throw new Error(payload?.error || 'draft_save_failed');
+            return true;
+          } catch (_) {
+            if (
+              pendingDraft.revision === serverPackingDraftRevision
+              && !pendingServerPackingDraft
+            ) {
+              pendingServerPackingDraft = pendingDraft;
+            }
+            return false;
+          }
+        };
+        serverPackingDraftFlushChain = serverPackingDraftFlushChain.then(saveDraft, saveDraft);
+        return serverPackingDraftFlushChain;
+      }
+
+      function persistPackingDraft() {
+        const draft = currentPackingDraft();
+        try {
+          sessionStorage.setItem(packingDraftStorageKey, JSON.stringify(draft));
+        } catch (_) {}
+        serverPackingDraftRevision += 1;
+        pendingServerPackingDraft = { draft, revision: serverPackingDraftRevision };
+        if (serverPackingDraftTimer) window.clearTimeout(serverPackingDraftTimer);
+        serverPackingDraftTimer = window.setTimeout(() => { void flushPackingDraftToServer(); }, 80);
+      }
+
+      function clearPackingDraft() {
+        try {
+          sessionStorage.removeItem(packingDraftStorageKey);
+        } catch (_) {}
+        serverPackingDraftRevision += 1;
+        pendingServerPackingDraft = null;
+        if (serverPackingDraftTimer) window.clearTimeout(serverPackingDraftTimer);
+        serverPackingDraftTimer = 0;
+      }
+
+      function normalizeBoxItem(item) {
+        const key = String(item?.key || findItemKey(item) || '');
+        const source = itemByKey.get(key);
+        const qty = toInt(item?.qty);
+        if (!source || qty <= 0) return null;
+        return {
+          key,
+          sku_code: String(source.sku_code || ''),
+          name: String(source.name || ''),
+          size: String(source.size || ''),
+          barcode: String(source.barcode || ''),
+          goods_type: String(source.goods_type || ''),
+          qty,
+          requires_marking_scan: Boolean(source.requires_marking_scan),
+          marking_preverified: Boolean(source.marking_preverified),
+          marking_units: Array.isArray(item?.marking_units)
+            ? item.marking_units.map((unit) => ({
+                snapshot_id: toInt(unit?.snapshot_id),
+                barcode: String(unit?.barcode || ''),
+                marking_code: String(unit?.marking_code || ''),
+                marking_identity: String(unit?.marking_identity || ''),
+              })).filter((unit) => unit.barcode && unit.marking_code)
+            : [],
+        };
+      }
+
+      function findItemKey(item) {
+        const normalized = [
+          String(item?.sku_code || item?.sku || '').trim(),
+          String(item?.name || '').trim(),
+          String(item?.size || '').trim(),
+          String(item?.barcode || '').trim(),
+          String(item?.goods_type || '').trim(),
+        ].join('\u001f');
+        return itemByKey.has(normalized) ? normalized : '';
+      }
+
+      function toInt(value) {
+        const parsed = Number.parseInt(String(value ?? '').trim(), 10);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;',
+        }[char]));
+      }
+
+      function boxQty(box) {
+        return (box?.items || []).reduce((sum, item) => sum + toInt(item.qty), 0);
+      }
+
+      function getPallet(code) {
+        return state.pallets.find((pallet) => pallet.code === code) || null;
+      }
+
+      function getBox(code) {
+        return state.boxes.find((box) => box.code === code) || null;
+      }
+
+      function getOpenBox() {
+        return state.boxes.find((box) => !box.sealed) || null;
+      }
+
+      function requestContainerCode(entityLabel, kind = 'box') {
+        if (!containerCodeUrl) {
+          alert(`Не настроена выдача номера ${entityLabel}.`);
+          return '';
+        }
+        const request = new XMLHttpRequest();
+        try {
+          request.open('POST', containerCodeUrl, false);
+          request.setRequestHeader('Content-Type', 'application/json');
+          const csrfToken = (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || '';
+          if (csrfToken) {
+            request.setRequestHeader('X-CSRFToken', csrfToken);
+          }
+          request.send(JSON.stringify({ goods_type: looseGoodsType || '', kind }));
+        } catch (error) {
+          alert(`Не удалось получить номер ${entityLabel}.`);
+          return '';
+        }
+        let payload = {};
+        try {
+          payload = JSON.parse(request.responseText || '{}');
+        } catch (error) {
+          payload = {};
+        }
+        const code = String(payload.code || '').trim();
+        if (request.status < 200 || request.status >= 300 || !payload.ok || !code) {
+          alert(payload.error || `Не удалось получить номер ${entityLabel}.`);
+          return '';
+        }
+        return code;
+      }
+
+      function makeBoxCode() {
+        return requestContainerCode('короба', 'box');
+      }
+
+      function makePalletCode() {
+        return requestContainerCode('палеты', 'pallet');
+      }
+
+      function createPallet() {
+        const code = makePalletCode();
+        if (!code) return null;
+        const pallet = { code, label: code, sealed: false, boxes: [] };
+        state.pallets.push(pallet);
+        state.activePalletCode = code;
+        return pallet;
+      }
+
+      function ensureOpenPallet() {
+        let pallet = getPallet(state.activePalletCode);
+        if (pallet && !pallet.sealed) return pallet;
+        pallet = state.pallets.find((entry) => !entry.sealed) || null;
+        if (pallet) {
+          state.activePalletCode = pallet.code;
+          return pallet;
+        }
+        return createPallet();
+      }
+
+      function allRepackSourcesScanned() {
+        return !repackExistingBoxes || scannedRepackSourceCodes.size === repackSourceByCode.size;
+      }
+
+      function renderRepackSources() {
+        if (!repackExistingBoxes || !sourceBoxesEl) return;
+        sourceBoxesEl.innerHTML = Array.from(repackSourceByCode.entries()).map(([key, code]) => (
+          `<span class="source-box ${scannedRepackSourceCodes.has(key) ? 'done' : ''}">${escapeHtml(code)}</span>`
+        )).join('');
+        if (sourceBoxScanStatusEl) {
+          sourceBoxScanStatusEl.textContent = allRepackSourcesScanned()
+            ? `Все исходные короба подтверждены: ${scannedRepackSourceCodes.size}. Можно завершить формирование грузомест.`
+            : `Отсканировано ${scannedRepackSourceCodes.size} из ${repackSourceByCode.size}.`;
+          sourceBoxScanStatusEl.style.color = allRepackSourcesScanned() ? '#166534' : '#6b4300';
+        }
+      }
+
+      function processSourceBoxScan() {
+        if (!sourceBoxScanInputEl) return;
+        const rawCode = String(sourceBoxScanInputEl.value || '').trim();
+        sourceBoxScanInputEl.value = '';
+        if (!rawCode) return;
+        const key = rawCode.toLowerCase();
+        if (!repackSourceByCode.has(key)) {
+          alert(`Короб ${rawCode} не входит в физическую переупаковку этой заявки.`);
+          sourceBoxScanInputEl.focus();
+          return;
+        }
+        if (scannedRepackSourceCodes.has(key)) {
+          alert(`Короб ${repackSourceByCode.get(key)} уже отсканирован.`);
+          sourceBoxScanInputEl.focus();
+          return;
+        }
+        scannedRepackSourceCodes.add(key);
+        render();
+        navigator.vibrate?.(70);
+        if (allRepackSourcesScanned()) {
+          if (gmScanInputEl && gmRequired && gmReady && !getOpenBox()) gmScanInputEl.focus();
+          else markingScanInputEl?.focus();
+        } else {
+          sourceBoxScanInputEl.focus();
+        }
+      }
+
+      function ensureOpenBox(gmTarget = null) {
+        let box = getOpenBox();
+        if (box) return box;
+        if (gmRequired && !gmTarget) return null;
+        const existingBoxCode = String(gmTarget?.existing_box_code || '').trim();
+        const code = existingBoxCode || makeBoxCode();
+        if (!code) return null;
+        box = {
+          code,
+          sealed: false,
+          pallet_code: '',
+          gm_barcode: String(gmTarget?.gm_barcode || ''),
+          gm_supply_id: String(gmTarget?.supply_id || ''),
+          gm_bundle_id: String(gmTarget?.bundle_id || ''),
+          existing_box_code: existingBoxCode,
+          items: gmTarget
+            ? (gmTarget.items || []).map((item) => normalizeBoxItem(item)).filter(Boolean)
+            : [],
+        };
+        state.boxes.push(box);
+        return box;
+      }
+
+      function setGmScanStatus(message, isError = false) {
+        if (!gmScanStatusEl) return;
+        gmScanStatusEl.textContent = message;
+        gmScanStatusEl.style.color = isError ? '#7f1d1d' : '#166534';
+      }
+
+      function startGmBox(gmBarcode, fromScanner = false) {
+        const fail = (message) => {
+          if (fromScanner) {
+            setGmScanStatus(message, true);
+            navigator.vibrate?.([80, 60, 80]);
+          } else {
+            alert(message);
+          }
+          return false;
+        };
+        if (!gmRequired || !gmReady) return fail('Состав ШК ГМ пока не готов.');
+        if (repackExistingBoxes && !allRepackSourcesScanned()) {
+          sourceBoxScanInputEl?.focus();
+          return fail('Сначала отсканируйте все исходные короба физической переупаковки.');
+        }
+        const target = gmTargetByCode.get(String(gmBarcode || '').toLowerCase());
+        if (!target) return fail(`ШК ГМ ${gmBarcode || '-'} отсутствует в этой заявке.`);
+        if (state.boxes.some((box) => String(box.gm_barcode || '').toLowerCase() === String(gmBarcode || '').toLowerCase())) {
+          return fail(`ШК ГМ ${gmBarcode} уже обработан.`);
+        }
+        const openBox = getOpenBox();
+        if (openBox) {
+          return fail('Сначала закройте текущий короб.');
+        }
+        const insufficient = (target.items || []).find((item) => remainingQty(itemByKey.get(String(item?.key || ''))) < toInt(item?.qty));
+        if (insufficient) {
+          return fail(`Недостаточно товара ${insufficient.barcode || insufficient.sku_code || ''} для ШК ГМ ${gmBarcode}.`);
+        }
+        if (ensureOpenBox(target)) {
+          render();
+          if (fromScanner) {
+            setGmScanStatus(`Открыт ШК ГМ ${gmBarcode}. Соберите состав и закройте короб.`);
+            navigator.vibrate?.(70);
+            markingScanInputEl?.focus();
+          }
+          return true;
+        }
+        return fail(`Не удалось открыть короб для ШК ГМ ${gmBarcode}.`);
+      }
+
+      function processGmScan() {
+        if (!gmScanInputEl) return;
+        const gmBarcode = String(gmScanInputEl.value || '').trim();
+        if (!gmBarcode) {
+          setGmScanStatus('ШК ГМ не считан. Повторите сканирование.', true);
+          gmScanInputEl.focus();
+          return;
+        }
+        gmScanInputEl.value = '';
+        const opened = startGmBox(gmBarcode, true);
+        if (!opened || !markingScanInputEl) gmScanInputEl.focus();
+      }
+
+      function packedQty(key) {
+        return state.boxes.reduce((sum, box) => {
+          const item = (box.items || []).find((row) => row.key === key);
+          return sum + toInt(item?.qty);
+        }, 0);
+      }
+
+      function remainingQty(item) {
+        return Math.max(0, toInt(item?.qty) - packedQty(String(item?.key || '')));
+      }
+
+      function markedScannedQty(item) {
+        return Array.isArray(item?.marking_units) ? item.marking_units.length : 0;
+      }
+
+      function markingCodeAlreadyUsed(markingCode, snapshotId, markingIdentity) {
+        const candidateSnapshotId = toInt(snapshotId);
+        const candidateIdentity = String(markingIdentity || '');
+        return state.boxes.some((box) => (box.items || []).some((item) => (
+          (item.marking_units || []).some((unit) => (
+            String(unit.marking_code || '') === String(markingCode || '')
+            || (candidateIdentity && String(unit.marking_identity || '') === candidateIdentity)
+            || (candidateSnapshotId > 0 && toInt(unit.snapshot_id) === candidateSnapshotId)
+          ))
+        )));
+      }
+
+      function setMarkingStatus(message, isError = false) {
+        if (!markingScanStatusEl) return;
+        markingScanStatusEl.textContent = message;
+        markingScanStatusEl.style.color = isError ? '#7f1d1d' : '#6b4300';
+      }
+
+      function resetMarkingPair() {
+        markingScanGeneration += 1;
+        if (markingScanAbortController) {
+          markingScanAbortController.abort();
+          markingScanAbortController = null;
+        }
+        markingScanBusy = false;
+        pendingMarkedItem = null;
+        lastProcessedLooseScanValue = '';
+        lastProcessedLooseScanAt = 0;
+        desktopLastScanValue = '';
+        desktopLastScanAt = 0;
+        lastObservedLooseScan = '';
+        directLooseScanBuffer = '';
+        window.clearTimeout(directLooseScanTimer);
+        directLooseScanTimer = null;
+        window.clearTimeout(looseScanInputTimer);
+        looseScanInputTimer = null;
+        persistPackingDraft();
+        void flushPackingDraftToServer();
+        if (markingScanInputEl) {
+          markingScanInputEl.disabled = false;
+          markingScanInputEl.value = '';
+          markingScanInputEl.placeholder = 'Сканируйте Data Matrix или ШК товара';
+          markingScanInputEl.focus();
+        }
+        setMarkingStatus('Готово к сканированию Data Matrix или ШК товара.');
+      }
+
+      function openBoxMarkedItem(source) {
+        const box = getOpenBox();
+        if (!box || !source) return null;
+        return (box.items || []).find((item) => item.key === source.key) || null;
+      }
+
+      function selectMarkedProduct(productBarcode) {
+        let box = getOpenBox();
+        if (!box && !gmRequired) box = ensureOpenBox();
+        if (!box) {
+          setMarkingStatus(
+            gmRequired ? 'Сначала откройте нужное грузоместо Ozon.' : 'Сначала откройте новый короб.',
+            true,
+          );
+          return;
+        }
+        const source = looseItems.find((item) => {
+          if (!item?.requires_marking_scan || String(item.barcode || '') !== productBarcode) return false;
+          if (gmRequired) {
+            const boxItem = openBoxMarkedItem(item);
+            return Boolean(boxItem && markedScannedQty(boxItem) < toInt(boxItem.qty));
+          }
+          return remainingQty(item) > 0;
+        });
+        if (!source) {
+          setMarkingStatus(`Маркированный товар ${productBarcode} сейчас не ожидается в открытом коробе.`, true);
+          return;
+        }
+        markingScanGeneration += 1;
+        pendingMarkedItem = { key: String(source.key || ''), barcode: productBarcode };
+        persistPackingDraft();
+        markingScanInputEl.placeholder = 'Отсканируйте Data Matrix';
+        setMarkingStatus(`ШК ${productBarcode} принят. Теперь отсканируйте Data Matrix этой единицы.`);
+      }
+
+      async function verifyAndAddMarkedUnit(markingCode, automatic = false) {
+        const verificationGeneration = markingScanGeneration;
+        const pendingPair = pendingMarkedItem
+          ? { key: String(pendingMarkedItem.key || ''), barcode: String(pendingMarkedItem.barcode || '') }
+          : null;
+        let source = itemByKey.get(String(pendingPair?.key || ''));
+        let box = getOpenBox();
+        if (!box && automatic && !gmRequired) box = ensureOpenBox();
+        if ((!automatic && !source) || !box) {
+          resetMarkingPair();
+          setMarkingStatus('Открытый короб изменился. Повторите скан ШК товара.', true);
+          return;
+        }
+        const candidateKeys = automatic ? looseItems.filter((item) => {
+          if (!item.requires_marking_scan) return false;
+          if (pendingPair && String(item.key) !== pendingPair.key) return false;
+          if (gmRequired) {
+            const target = openBoxMarkedItem(item);
+            return target && markedScannedQty(target) < toInt(target.qty);
+          }
+          return remainingQty(item) > 0;
+        }).map((item) => String(item.key)) : [];
+        let response;
+        let payload;
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        markingScanAbortController = controller;
+        try {
+          response = await fetch(markingScanUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            signal: controller?.signal,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || '',
+            },
+            body: JSON.stringify(automatic
+              ? { resolve_from_gtin: true, candidate_keys: candidateKeys, marking_code: markingCode }
+              : { barcode: pendingPair.barcode, marking_code: markingCode }),
+          });
+          payload = await response.json();
+        } catch (error) {
+          if (error?.name === 'AbortError' || verificationGeneration !== markingScanGeneration) return;
+          setMarkingStatus('Не удалось проверить Data Matrix. Повторите сканирование.', true);
+          return;
+        } finally {
+          if (markingScanAbortController === controller) markingScanAbortController = null;
+        }
+        if (verificationGeneration !== markingScanGeneration) return;
+        if (!response.ok || !payload?.ok) {
+          setMarkingStatus(payload?.error || 'Data Matrix не подходит для этой заявки.', true);
+          return;
+        }
+        if (automatic) {
+          source = itemByKey.get(String(payload.source_key || ''));
+          if (!source || !candidateKeys.includes(String(source.key)) || getOpenBox() !== box) {
+            setMarkingStatus('Открытый короб изменился. Повторите скан Data Matrix.', true);
+            return;
+          }
+        }
+        if (markingCodeAlreadyUsed(payload.marking_code, payload.snapshot_id, payload.marking_identity)) {
+          setMarkingStatus('Этот Data Matrix уже добавлен в один из коробов.', true);
+          return;
+        }
+        let boxItem = openBoxMarkedItem(source);
+        if (gmRequired) {
+          if (!boxItem || markedScannedQty(boxItem) >= toInt(boxItem.qty)) {
+            setMarkingStatus('Для этого товара в текущем коробе все Data Matrix уже подтверждены.', true);
+            return;
+          }
+        } else if (!boxItem) {
+          boxItem = {
+            key: String(source.key || ''),
+            sku_code: String(source.sku_code || ''),
+            name: String(source.name || ''),
+            size: String(source.size || ''),
+            barcode: String(source.barcode || ''),
+            goods_type: String(source.goods_type || ''),
+            qty: 0,
+            requires_marking_scan: true,
+            marking_units: [],
+          };
+          box.items.push(boxItem);
+        }
+        boxItem.marking_units = Array.isArray(boxItem.marking_units) ? boxItem.marking_units : [];
+        boxItem.marking_units.push({
+          snapshot_id: toInt(payload.snapshot_id),
+          barcode: String(payload.barcode || source.barcode || ''),
+          marking_code: String(payload.marking_code || markingCode),
+          marking_identity: String(payload.marking_identity || ''),
+        });
+        if (!gmRequired) boxItem.qty = toInt(boxItem.qty) + 1;
+        const verifiedCount = markedScannedQty(boxItem);
+        const requiredCount = toInt(boxItem.qty);
+        pendingMarkedItem = null;
+        markingScanInputEl.placeholder = 'Сканируйте Data Matrix или ШК товара';
+        render();
+        const savedOnServer = await flushPackingDraftToServer();
+        if (verificationGeneration !== markingScanGeneration) return;
+        setMarkingStatus(
+          savedOnServer
+            ? `Data Matrix принят и сохранён: ${verifiedCount} из ${requiredCount} для товара ${source.barcode}.`
+            : `Data Matrix принят локально, но серверный черновик не сохранён. Не обновляйте страницу.`,
+          !savedOnServer,
+        );
+        markingScanInputEl.focus();
+      }
+
+      let markingScanBusy = false;
+      let markingScanGeneration = 0;
+      let markingScanAbortController = null;
+      let lastProcessedLooseScanValue = '';
+      let lastProcessedLooseScanAt = 0;
+      function signalLooseScan(ok) {
+        if (navigator.vibrate) navigator.vibrate(ok ? 70 : [90, 60, 90]);
+      }
+
+      function findLooseItemByScan(value) {
+        const token = String(value || '').trim().toLowerCase();
+        if (!token) return null;
+        return looseItems.find((item) => [item?.barcode, item?.sku_code]
+          .some((candidate) => String(candidate || '').trim().toLowerCase() === token)) || null;
+      }
+
+      async function resolveLooseProductAlias(scanValue) {
+        const generation = markingScanGeneration;
+        const box = getOpenBox();
+        if (gmRequired && !box) throw new Error('Сначала откройте короб по нужному ШК ГМ.');
+        const candidateKeys = (gmRequired ? box.items : looseItems).map(item => String(item.key || ''));
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        markingScanAbortController = controller;
+        markingScanBusy = true;
+        markingScanInputEl.disabled = true;
+        try {
+          const response = await fetch(markingScanUrl, {
+            method: 'POST', credentials: 'same-origin', signal: controller?.signal,
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || ''},
+            body: JSON.stringify({resolve_product_barcode: true, barcode: scanValue, candidate_keys: candidateKeys}),
+          });
+          const payload = await response.json();
+          if (generation !== markingScanGeneration || getOpenBox() !== box) return null;
+          if (!response.ok || !payload?.ok) throw new Error(payload?.error || 'Не удалось сопоставить ШК товара.');
+          const source = itemByKey.get(String(payload.source_key || ''));
+          if (!source || !candidateKeys.includes(String(source.key))) throw new Error('Состав короба изменился. Повторите сканирование.');
+          return source;
+        } finally {
+          if (generation === markingScanGeneration) {
+            markingScanBusy = false;
+            markingScanInputEl.disabled = false;
+          }
+          if (markingScanAbortController === controller) markingScanAbortController = null;
+          markingScanInputEl.focus();
+        }
+      }
+
+      async function processMarkingScan() {
+        if (!markingScanInputEl || markingScanBusy) return;
+        const scanValue = String(markingScanInputEl.value || '').trim();
+        if (!scanValue) return;
+        markingScanInputEl.value = '';
+        const scanNow = Date.now();
+        if (
+          scanValue === lastProcessedLooseScanValue
+          && scanNow - lastProcessedLooseScanAt < 700
+        ) {
+          markingScanInputEl.focus();
+          return;
+        }
+        lastProcessedLooseScanValue = scanValue;
+        lastProcessedLooseScanAt = scanNow;
+        if (/^(?:\]d2)?01\d{14}/i.test(scanValue)) {
+          markingScanBusy = true;
+          markingScanInputEl.disabled = true;
+          try {
+            await verifyAndAddMarkedUnit(scanValue, true);
+          } finally {
+            markingScanBusy = false;
+            markingScanInputEl.disabled = false;
+            markingScanInputEl.focus();
+          }
+          return;
+        }
+        let productBarcode = scanValue;
+        if (!pendingMarkedItem) {
+          let source = findLooseItemByScan(scanValue);
+          if (!source) {
+            try {
+              source = await resolveLooseProductAlias(scanValue);
+            } catch (error) {
+              if (error?.name !== 'AbortError') {
+                setMarkingStatus(error?.message || 'Не удалось проверить ШК. Повторите сканирование.', true);
+                signalLooseScan(false);
+              }
+              return;
+            }
+            if (!source) return;
+          }
+          productBarcode = String(source.barcode || scanValue);
+          if (!source.requires_marking_scan) {
+            if (gmRequired) {
+              const box = getOpenBox();
+              const expected = box && (box.items || []).some((item) => String(item.key || '') === String(source.key || ''));
+              if (!box) {
+                setMarkingStatus('Сначала откройте короб по нужному ШК ГМ.', true);
+                signalLooseScan(false);
+              } else if (!expected) {
+                setMarkingStatus(`Товар ${source.sku_code || scanValue} не входит в открытый короб по ШК ГМ.`, true);
+                signalLooseScan(false);
+              } else {
+                setMarkingStatus(`Проверено: ${source.sku_code || scanValue} входит в открытый короб.`);
+                signalLooseScan(true);
+              }
+              markingScanInputEl.focus();
+              return;
+            }
+            const before = remainingQty(source);
+            addToCurrentBox(source.key, 1);
+            const after = remainingQty(source);
+            if (after >= before) {
+              setMarkingStatus(`Товар ${source.sku_code || scanValue} уже полностью размещён.`, true);
+              signalLooseScan(false);
+            } else {
+              setMarkingStatus(`Добавлено: ${source.sku_code || scanValue} · осталось ${after}.`);
+              signalLooseScan(true);
+            }
+            markingScanInputEl.focus();
+            return;
+          }
+        }
+        if (!pendingMarkedItem) {
+          selectMarkedProduct(productBarcode);
+          signalLooseScan(Boolean(pendingMarkedItem));
+          markingScanInputEl.focus();
+          return;
+        }
+        markingScanBusy = true;
+        markingScanInputEl.disabled = true;
+        try {
+          await verifyAndAddMarkedUnit(scanValue);
+        } finally {
+          markingScanBusy = false;
+          markingScanInputEl.disabled = false;
+          markingScanInputEl.focus();
+        }
+      }
+
+      function totalLooseQty() {
+        return looseItems.reduce((sum, item) => sum + toInt(item.qty), 0);
+      }
+
+      function totalPackedQty() {
+        return state.boxes.reduce((sum, box) => sum + boxQty(box), 0);
+      }
+
+      function totalRemainingQty() {
+        return looseItems.reduce((sum, item) => sum + remainingQty(item), 0);
+      }
+
+      function addToCurrentBox(key, qty) {
+        if (gmRequired) {
+          alert('Для Ozon состав короба задаётся выбранным ШК ГМ и не редактируется вручную.');
+          return;
+        }
+        const source = itemByKey.get(String(key || ''));
+        if (!source) return;
+        if (source.requires_marking_scan) {
+          alert('Для этого товара используйте парный скан ШК товара и Data Matrix.');
+          return;
+        }
+        const available = remainingQty(source);
+        const takeQty = Math.min(toInt(qty), available);
+        if (takeQty <= 0) return;
+        const box = ensureOpenBox();
+        if (!box) return;
+        const existing = box.items.find((item) => item.key === source.key);
+        if (existing) {
+          existing.qty = toInt(existing.qty) + takeQty;
+        } else {
+          box.items.push({
+            key: String(source.key || ''),
+            sku_code: String(source.sku_code || ''),
+            name: String(source.name || ''),
+            size: String(source.size || ''),
+            barcode: String(source.barcode || ''),
+            goods_type: String(source.goods_type || ''),
+            qty: takeQty,
+            requires_marking_scan: Boolean(source.requires_marking_scan),
+            marking_preverified: Boolean(source.marking_preverified),
+          });
+        }
+        render();
+      }
+
+      function decreaseCurrentItem(key) {
+        if (gmRequired) return;
+        const box = getOpenBox();
+        if (!box) return;
+        const item = box.items.find((row) => row.key === key);
+        if (!item) return;
+        item.qty = toInt(item.qty) - 1;
+        if (item.qty <= 0) box.items = box.items.filter((row) => row.key !== key);
+        render();
+      }
+
+      function closeCurrentBox() {
+        const box = getOpenBox();
+        if (!box) {
+          alert('Откройте короб и положите в него товар.');
+          return;
+        }
+        if (boxQty(box) <= 0) {
+          alert('Нельзя закрыть пустой короб.');
+          return;
+        }
+        const incompleteMarkedItem = (box.items || []).find((item) => (
+          item.requires_marking_scan && markedScannedQty(item) !== toInt(item.qty)
+        ));
+        if (incompleteMarkedItem) {
+          alert(
+            `Для товара ${incompleteMarkedItem.barcode || incompleteMarkedItem.sku_code || '-'} `
+            + `подтверждено Data Matrix: ${markedScannedQty(incompleteMarkedItem)} из ${toInt(incompleteMarkedItem.qty)}.`,
+          );
+          markingScanInputEl?.focus();
+          return;
+        }
+        if (box.existing_box_code && !confirm(
+          `Подтвердите физическое действие: товар добавлен в существующий короб ${box.existing_box_code}.`
+        )) {
+          return;
+        }
+        box.sealed = true;
+        render();
+        gmScanInputEl?.focus();
+      }
+
+      function closeActivePallet() {
+        const openBox = getOpenBox();
+        if (openBox && boxQty(openBox) > 0) {
+          alert('Сначала закройте текущий короб.');
+          return;
+        }
+        if (openBox && boxQty(openBox) <= 0) {
+          state.boxes = state.boxes.filter((box) => box !== openBox);
+          state.pallets.forEach((pallet) => {
+            pallet.boxes = (pallet.boxes || []).filter((code) => code !== openBox.code);
+          });
+        }
+        const pallet = ensureOpenPallet();
+        const palletBoxes = (pallet.boxes || []).map(getBox).filter((box) => box && boxQty(box) > 0);
+        if (!palletBoxes.length) {
+          alert('На паллете нет коробов.');
+          render();
+          return;
+        }
+        pallet.sealed = true;
+        state.activePalletCode = '';
+        render();
+      }
+
+      function viewBox(code) {
+        const box = getBox(code);
+        if (!box) return;
+        const pallet = getPallet(box.pallet_code);
+        modalTitleEl.textContent = box.code;
+        modalSubtitleEl.textContent = `${box.items.length} позиций · ${box.existing_box_code ? 'добавить ' : ''}${boxQty(box)} шт.${box.gm_barcode ? ` · ШК ГМ ${box.gm_barcode}` : ''}`;
+        modalItemsEl.innerHTML = (box.items || []).map((item) => `
+          <tr>
+            <td>${escapeHtml(item.sku_code || '-')}</td>
+            <td>${escapeHtml(item.name || '-')}<br><span class="muted">${escapeHtml(item.size || '-')}</span></td>
+            <td>${escapeHtml(item.barcode || '-')}<br><span class="muted">${escapeHtml(item.goods_type || '-')}</span></td>
+            <td><strong>${toInt(item.qty)}</strong></td>
+          </tr>
+        `).join('') || '<tr><td colspan="4">Короб пустой.</td></tr>';
+        modalEl.classList.add('is-open');
+        modalEl.setAttribute('aria-hidden', 'false');
+      }
+
+      function editBox(code) {
+        const current = getOpenBox();
+        if (current && current.code !== code && boxQty(current) > 0) {
+          alert('Сначала закройте текущий короб.');
+          return;
+        }
+        if (current && current.code !== code) {
+          state.boxes = state.boxes.filter((box) => box !== current);
+        }
+        const box = getBox(code);
+        if (!box) return;
+        const pallet = getPallet(box.pallet_code);
+        if (pallet) {
+          pallet.sealed = false;
+          state.activePalletCode = pallet.code;
+        }
+        box.sealed = false;
+        render();
+      }
+
+      function deleteBox(code) {
+        const box = getBox(code);
+        if (!box) return;
+        if (!confirm(`Удалить короб ${box.code}? Товар вернется в остаток без короба.`)) return;
+        state.boxes = state.boxes.filter((entry) => entry.code !== code);
+        state.pallets.forEach((pallet) => {
+          pallet.boxes = (pallet.boxes || []).filter((boxCode) => boxCode !== code);
+        });
+        render();
+      }
+
+      window.addEventListener('message', (event) => {
+        if (event.origin !== window.location.origin) return;
+        if (!labelRendererFrame || event.source !== labelRendererFrame.contentWindow) return;
+        const message = event.data || {};
+        if (message.type !== 'fullbox:render-item-label-result') return;
+        const requestId = String(message.requestId || '');
+        const pending = pendingBoxLabelRenders.get(requestId);
+        if (!pending) return;
+        pendingBoxLabelRenders.delete(requestId);
+        window.clearTimeout(pending.timeoutId);
+        if (message.ok && message.image) {
+          pending.resolve({
+            image: String(message.image || ''),
+            dimensions: message.dimensions || {},
+          });
+        } else {
+          pending.reject(new Error(message.error || 'Labels не сформировал этикетку короба.'));
+        }
+      });
+
+      function requestBoxLabelRender(box) {
+        return new Promise((resolve, reject) => {
+          if (!labelRendererFrame || !labelRendererFrame.contentWindow) {
+            reject(new Error('Модуль Labels недоступен.'));
+            return;
+          }
+          const requestId = `shipping-box-label-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+          const timeoutId = window.setTimeout(() => {
+            pendingBoxLabelRenders.delete(requestId);
+            reject(new Error('Labels не ответил за 15 секунд.'));
+          }, 15000);
+          pendingBoxLabelRenders.set(requestId, { resolve, reject, timeoutId });
+          labelRendererFrame.contentWindow.postMessage({
+            type: 'fullbox:render-item-label',
+            requestId,
+            payload: {
+              labelKey: 'box',
+              templateKey: 'box',
+              mode: 'no-cz',
+              data: {
+                barcode: String(box.code || ''),
+                box_client: clientLabel,
+                box_basis: orderLabel ? `Заявка ${orderLabel}` : '',
+                box_pallet_number: `${boxQty(box)} шт.`,
+              },
+            },
+          }, window.location.origin);
+        });
+      }
+
+      function supportsDesktopDirectPrint() {
+        return Boolean(window.fullboxDesktop && typeof window.fullboxDesktop.printPng === 'function');
+      }
+
+      function getStoredLabelPrinter() {
+        return String(
+          localStorage.getItem('fullbox_desktop_label_printer')
+          || localStorage.getItem('processing_label_printer')
+          || localStorage.getItem('label_printer')
+          || ''
+        ).trim();
+      }
+
+      async function getDesktopPrintContext() {
+        let printer = getStoredLabelPrinter();
+        let workstationId = String(
+          window.fullboxDesktopWorkstation
+          && (
+            window.fullboxDesktopWorkstation.workstationId
+            || window.fullboxDesktopWorkstation.agentId
+          )
+          || ''
+        ).trim();
+        if (window.fullboxDesktop && typeof window.fullboxDesktop.getStatus === 'function') {
+          try {
+            const status = await window.fullboxDesktop.getStatus();
+            printer = printer || String(status?.labelPrinter || '').trim();
+            workstationId = workstationId || String(status?.workstationId || status?.agentId || '').trim();
+          } catch (_) {}
+        }
+        const safeWorkstationId = workstationId
+          .replace(/[^A-Za-z0-9._-]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .slice(0, 64);
+        return {
+          printer,
+          recordAgent: safeWorkstationId ? `desktop-record-${safeWorkstationId}` : '',
+        };
+      }
+
+      function csrfToken() {
+        const inputValue = String(document.querySelector('#loose-packing-form input[name="csrfmiddlewaretoken"]')?.value || '').trim();
+        if (inputValue) return inputValue;
+        const cookie = document.cookie
+          .split(';')
+          .map((chunk) => chunk.trim())
+          .find((chunk) => chunk.startsWith('csrftoken='));
+        return cookie ? decodeURIComponent(cookie.slice('csrftoken='.length)) : '';
+      }
+
+      async function completeDesktopPrintRecord(jobIds, recordAgent, status, errorText) {
+        const response = await fetch(desktopPrintCompleteUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken(),
+            'X-Fullbox-Desktop': '1',
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            job_ids: jobIds,
+            workstation_id: recordAgent,
+            status,
+            error: String(errorText || '').slice(0, 1000),
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.ok) {
+          throw new Error(result.error || `Сервер не подтвердил печать (${response.status}).`);
+        }
+      }
+
+      function printRenderedLabelInBrowser(printWindow, dataUrl, widthMm, heightMm) {
+        if (!printWindow || printWindow.closed) {
+          throw new Error('Браузер заблокировал окно печати.');
+        }
+        const doc = printWindow.document;
+        doc.open();
+        doc.write(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Этикетка короба</title><style>@page{size:${widthMm}mm ${heightMm}mm;margin:0}html,body{margin:0;width:${widthMm}mm;height:${heightMm}mm;overflow:hidden;background:#fff}img{display:block;width:${widthMm}mm;height:${heightMm}mm;object-fit:fill}</style></head><body></body></html>`);
+        doc.close();
+        const image = doc.createElement('img');
+        image.alt = 'Этикетка короба';
+        image.addEventListener('load', () => {
+          printWindow.focus();
+          window.setTimeout(() => printWindow.print(), 100);
+        }, { once: true });
+        doc.body.appendChild(image);
+        image.src = dataUrl;
+      }
+
+      async function printBoxQr(code) {
+        const box = getBox(code);
+        if (!box) return;
+        if (boxQrPrinting) return;
+        const desktopDirect = supportsDesktopDirectPrint();
+        const browserPrintWindow = desktopDirect
+          ? null
+          : window.open('', '_blank', 'width=420,height=560');
+        if (!desktopDirect && !browserPrintWindow) {
+          alert('Браузер заблокировал окно печати.');
+          return;
+        }
+        if (browserPrintWindow) {
+          browserPrintWindow.document.write('<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Подготовка этикетки</title></head><body>Labels формирует этикетку…</body></html>');
+          browserPrintWindow.document.close();
+        }
+        boxQrPrinting = true;
+        try {
+          const renderResult = await requestBoxLabelRender(box);
+          const dataUrl = String(renderResult.image || '');
+          const base64 = dataUrl.split(',')[1] || '';
+          if (!base64) throw new Error('Labels вернул пустую этикетку.');
+          const dimensions = renderResult.dimensions || {};
+          const widthMm = Number(dimensions.width) || 58;
+          const heightMm = Number(dimensions.height) || 60;
+          if (!desktopDirect) {
+            printRenderedLabelInBrowser(browserPrintWindow, dataUrl, widthMm, heightMm);
+            return;
+          }
+
+          const desktopContext = await getDesktopPrintContext();
+          if (!desktopContext.printer) {
+            throw new Error('В Fullbox Desktop не выбран принтер этикеток.');
+          }
+          if (!desktopContext.recordAgent) {
+            throw new Error('Не определён этот компьютер Fullbox Desktop. Перезапустите приложение.');
+          }
+          const response = await fetch(desktopPrintRecordUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken(),
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+              order_id: orderLabel,
+              card_id: 'box',
+              article: 'shipping_box_qr',
+              barcode: String(box.code || ''),
+              size: '',
+              printer_name: desktopContext.printer,
+              agent_id: desktopContext.recordAgent,
+              label_png_base64: base64,
+              template_key: 'box',
+              copies: 1,
+              label_width_mm: widthMm,
+              label_height_mm: heightMm,
+            }),
+          });
+          const queued = await response.json().catch(() => ({}));
+          const jobIds = (Array.isArray(queued.job_ids) ? queued.job_ids : [queued.job_id])
+            .map((value) => Number(value))
+            .filter((value, index, values) => value > 0 && values.indexOf(value) === index);
+          if (!response.ok || !queued.ok || !jobIds.length) {
+            throw new Error(queued.error || `Сервер не зарегистрировал печать (${response.status}).`);
+          }
+          try {
+            const result = await window.fullboxDesktop.printPng({
+              printer: desktopContext.printer,
+              pngBase64: base64,
+              widthMm,
+              heightMm,
+              copies: 1,
+            });
+            if (!result || !result.printed) throw new Error('Windows не подтвердил печать.');
+          } catch (printError) {
+            try {
+              await completeDesktopPrintRecord(
+                jobIds,
+                desktopContext.recordAgent,
+                'failed',
+                printError?.message || printError,
+              );
+            } catch (_) {}
+            throw printError;
+          }
+          try {
+            await completeDesktopPrintRecord(jobIds, desktopContext.recordAgent, 'printed', '');
+          } catch (_) {
+            alert('Этикетка отправлена в принтер, но сервер не записал результат. Не запускайте печать повторно.');
+          }
+        } catch (error) {
+          if (browserPrintWindow && !browserPrintWindow.closed) browserPrintWindow.close();
+          alert(error?.message || 'Не удалось напечатать QR короба через Labels.');
+        } finally {
+          boxQrPrinting = false;
+        }
+      }
+
+      function renderQr(code) {
+        currentQrEl.innerHTML = '';
+        if (!code) {
+          currentQrEl.textContent = '-';
+          return;
+        }
+        if (window.QRCode) {
+          new QRCode(currentQrEl, { text: code, width: 104, height: 104, correctLevel: QRCode.CorrectLevel.M });
+        } else {
+          currentQrEl.textContent = code;
+        }
+      }
+
+      function renderLooseItems() {
+        looseBodyEl.innerHTML = looseItems.map((item) => {
+          const remaining = remainingQty(item);
+          const done = remaining <= 0;
+          return `
+            <tr class="loose-row ${done ? 'done' : ''}" data-key="${escapeHtml(item.key || '')}">
+              <td><strong>${escapeHtml(item.sku_code || '-')}</strong></td>
+              <td>${escapeHtml(item.name || '-')}</td>
+              <td>${escapeHtml(item.size || '-')}</td>
+              <td>${escapeHtml(item.barcode || '-')}<br><span class="muted">${escapeHtml(item.goods_type || '-')}</span></td>
+              <td><strong>${remaining}</strong> из ${toInt(item.qty)}</td>
+              <td>
+                ${gmRequired
+                  ? '<span class="muted">По плану ШК ГМ</span>'
+                  : item.requires_marking_scan
+                    ? '<span class="muted">Скан ШК + Data Matrix</span>'
+                  : `${item.marking_preverified ? '<span class="muted">КИЗ подтверждён ричтраком · только ШК</span><br>' : ''}<input class="qty-input" type="number" min="1" step="1" max="${remaining}" value="${remaining || ''}" ${done ? 'disabled' : ''}>
+                     <button class="btn small" type="button" data-add="${escapeHtml(item.key || '')}" ${done ? 'disabled' : ''}>В короб</button>`}
+              </td>
+            </tr>
+          `;
+        }).join('') || '<tr><td colspan="6">Товар без короба отсутствует.</td></tr>';
+      }
+
+      function renderCurrentBox() {
+        const box = getOpenBox();
+        if (!box) {
+          renderQr('');
+          currentTitleEl.textContent = 'Короб не открыт';
+          currentCodeEl.textContent = '-';
+          currentStatusEl.textContent = 'Ожидание';
+          currentItemsEl.innerHTML = `<div class="empty">${gmRequired ? 'Выберите следующий ШК ГМ.' : 'Нажмите "Новый короб" или добавьте товар из таблицы.'}</div>`;
+          currentTotalEl.textContent = '0';
+          return;
+        }
+        const pallet = getPallet(box.pallet_code);
+        renderQr(box.code);
+        currentTitleEl.textContent = box.existing_box_code ? 'Дополнение существующего короба' : 'Открытый короб';
+        currentCodeEl.textContent = box.code;
+        currentStatusEl.textContent = box.gm_barcode ? `ШК ГМ ${box.gm_barcode}` : 'Формирование';
+        currentTotalEl.textContent = String(boxQty(box));
+        currentItemsEl.innerHTML = (box.items || []).map((item) => `
+          <div class="box-item">
+            <div>
+              <strong>${escapeHtml(item.sku_code || item.barcode || '-')}</strong>
+              <small>${escapeHtml(item.name || '-')} · ${escapeHtml(item.size || '-')}</small>
+              ${item.requires_marking_scan ? `<small>Data Matrix: ${markedScannedQty(item)} из ${toInt(item.qty)}</small>` : ''}
+              ${item.marking_preverified ? '<small>КИЗ подтверждён водителем ричтрака</small>' : ''}
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="qty">${toInt(item.qty)} шт.</span>
+              ${gmRequired || item.requires_marking_scan ? '' : `<button class="btn small" type="button" data-minus="${escapeHtml(item.key || '')}">-1</button>`}
+            </div>
+          </div>
+        `).join('') || '<div class="empty">Товаров в коробе пока нет.</div>';
+      }
+
+      function renderPallets() {
+        const visiblePallets = state.pallets.filter((pallet) => (pallet.boxes || []).some((code) => getBox(code)) || !pallet.sealed);
+        const shortBoxCode = (value) => {
+          const code = String(value || '').trim();
+          const match = code.match(/-(\d{6})(?:-[A-Za-z0-9]+)?$/);
+          if (match) return match[1];
+          return code.slice(-6);
+        };
+        palletBoardEl.innerHTML = visiblePallets.map((pallet) => {
+          const boxes = (pallet.boxes || []).map(getBox).filter(Boolean);
+          const qty = boxes.reduce((sum, box) => sum + boxQty(box), 0);
+          const classes = ['pallet-card', pallet.sealed ? 'closed' : 'open'];
+          if (state.activePalletCode === pallet.code) classes.push('active');
+          return `
+            <div class="${classes.join(' ')}" data-pallet-code="${escapeHtml(pallet.code)}">
+              <div class="pallet-head">
+                <div>
+                  <div class="pallet-code">Паллета ${escapeHtml(pallet.label || pallet.code)}</div>
+                  <div class="pallet-status">${pallet.sealed ? 'Закрыта' : 'Открыта'} · ${qty} шт.</div>
+                </div>
+                <span class="qty">${boxes.length} кор.</span>
+              </div>
+              <div class="box-chip-row">
+                ${boxes.map((box) => `<div class="box-chip ${box.sealed ? 'closed' : 'open'}" data-box-code="${escapeHtml(box.code)}">${escapeHtml(shortBoxCode(box.code))}</div>`).join('') || '<span class="muted">Коробов нет.</span>'}
+              </div>
+            </div>
+          `;
+        }).join('') || '<div class="empty">Паллет пока нет.</div>';
+        const active = getPallet(state.activePalletCode);
+        activePalletLabelEl.textContent = active ? active.label : '-';
+        palletTotalPillEl.textContent = String(visiblePallets.filter((pallet) => (pallet.boxes || []).some((code) => getBox(code))).length);
+      }
+
+      function renderClosedBoxes() {
+        const closed = state.boxes.filter((box) => box.sealed && boxQty(box) > 0);
+        closedBoxesEl.innerHTML = closed.map((box) => {
+          const pallet = getPallet(box.pallet_code);
+          return `
+            <div class="closed-box" data-box-code="${escapeHtml(box.code)}" role="button" tabindex="0">
+              <div class="closed-box-head">
+                <div class="closed-box-code">${escapeHtml(box.code)}</div>
+                <div class="qty">${box.existing_box_code ? 'Добавить ' : ''}${boxQty(box)} шт.</div>
+              </div>
+              <div class="closed-box-meta">${box.existing_box_code ? `Существующий короб · ` : ''}${box.gm_barcode ? `ШК ГМ ${escapeHtml(box.gm_barcode)} · ` : ''}${box.items.length} позиций</div>
+              <div class="closed-box-items">${escapeHtml(box.items.map((item) => `${item.barcode || item.sku_code || '-'} - ${toInt(item.qty)} шт.`).join('; ') || '-')}</div>
+            </div>
+          `;
+        }).join('') || '<div class="empty">Закрытых коробов пока нет.</div>';
+        closedCountEl.textContent = String(closed.length);
+      }
+
+      function syncInputs() {
+        boxesInput.value = JSON.stringify(
+          state.boxes
+            .filter((box) => box.sealed && boxQty(box) > 0)
+            .map((box) => ({
+              code: box.code,
+              pallet_code: box.pallet_code,
+              gm_barcode: box.gm_barcode || '',
+              existing_box_code: box.existing_box_code || '',
+              sealed: true,
+              items: box.items.map((item) => ({
+                key: item.key,
+                sku_code: item.sku_code,
+                name: item.name,
+                size: item.size,
+                barcode: item.barcode,
+                goods_type: item.goods_type,
+                qty: toInt(item.qty),
+                requires_marking_scan: Boolean(item.requires_marking_scan),
+                marking_preverified: Boolean(item.marking_preverified),
+                marking_units: (item.marking_units || []).map((unit) => ({
+                  snapshot_id: toInt(unit.snapshot_id),
+                  barcode: String(unit.barcode || ''),
+                  marking_code: String(unit.marking_code || ''),
+                  marking_identity: String(unit.marking_identity || ''),
+                })),
+              })),
+            }))
+        );
+        palletsInput.value = '[]';
+        if (repackSourceBoxesInput) {
+          repackSourceBoxesInput.value = JSON.stringify(
+            Array.from(scannedRepackSourceCodes).map((key) => repackSourceByCode.get(key)).filter(Boolean)
+          );
+        }
+      }
+
+      function render() {
+        state.pallets = [];
+        state.activePalletCode = '';
+        state.boxes.forEach((box) => { box.pallet_code = ''; });
+        renderLooseItems();
+        renderRepackSources();
+        renderGmTargets();
+        renderCurrentBox();
+        renderClosedBoxes();
+        const looseTotal = totalLooseQty();
+        const packedTotal = totalPackedQty();
+        const remainingTotal = totalRemainingQty();
+        looseTotalPillEl.textContent = String(looseTotal);
+        packedTotalPillEl.textContent = String(packedTotal);
+        remainingTotalEl.textContent = String(remainingTotal);
+        summaryEl.textContent = `${repackExistingBoxes ? 'К переупаковке' : 'Без короба'} ${remainingTotal} из ${looseTotal} шт.; упаковано ${packedTotal} шт.; коробов ${state.boxes.filter((box) => box.sealed && boxQty(box) > 0).length}.`;
+        syncInputs();
+        persistPackingDraft();
+      }
+
+      function renderGmTargets() {
+        if (!gmTargetsEl) return;
+        gmTargetsEl.innerHTML = gmTargets.map((target) => {
+          const assigned = state.boxes.find((box) => String(box.gm_barcode || '').toLowerCase() === String(target.gm_barcode || '').toLowerCase());
+          const targetItems = target.items || [];
+          const items = targetItems.map((item) => `${item.barcode || item.sku_code || '-'} — ${toInt(item.qty)} шт.`).join('; ');
+          const products = targetItems.map((item) => {
+            const size = String(item.size || '').trim();
+            return `
+              <div class="gm-product">
+                <div class="gm-product-label">Артикул товара</div>
+                <div class="gm-article">${escapeHtml(item.sku_code || '-')}</div>
+                <div class="gm-product-name">${escapeHtml(item.name || '-')}${size ? ` · размер ${escapeHtml(size)}` : ''}</div>
+              </div>
+            `;
+          }).join('');
+          const existingBoxCode = String(target.existing_box_code || '').trim();
+          const actionHint = existingBoxCode
+            ? `Доложить ${toInt(target.qty)} шт. в короб ${escapeHtml(existingBoxCode)}; итог Ozon ${toInt(target.ozon_qty)} шт.`
+            : `Сформировать новый короб: ${toInt(target.qty)} шт.`;
+          return `
+            <div class="gm-target ${assigned?.sealed ? 'done' : ''}">
+              <div><div class="gm-code">${escapeHtml(target.gm_barcode || '-')}</div><div class="muted">Поставка ${escapeHtml(target.supply_id || '-')}</div></div>
+              <div class="gm-items"><strong>${actionHint}</strong><br>${escapeHtml(items || '-')}</div>
+              <div class="gm-products">${products || '<div class="gm-product-name">Артикул не указан</div>'}</div>
+              <button class="btn small ${assigned ? '' : 'primary'}" type="button" data-gm-start="${escapeHtml(target.gm_barcode || '')}" ${(assigned || (repackExistingBoxes && !allRepackSourcesScanned())) ? 'disabled' : ''}>${assigned ? (assigned.sealed ? 'Готово' : 'Короб открыт') : (existingBoxCode ? 'Доложить в короб' : 'Собрать короб')}</button>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function openContextMenu(event, code) {
+        event.preventDefault();
+        activeMenuBoxCode = code;
+        menuEl.style.left = `${Math.min(event.clientX, window.innerWidth - 240)}px`;
+        menuEl.style.top = `${Math.min(event.clientY, window.innerHeight - 190)}px`;
+        menuEl.classList.add('is-open');
+        menuEl.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeContextMenu() {
+        menuEl.classList.remove('is-open');
+        menuEl.setAttribute('aria-hidden', 'true');
+      }
+
+      document.getElementById('new-box-btn')?.addEventListener('click', () => {
+        if (ensureOpenBox()) {
+          render();
+        }
+      });
+      document.getElementById('close-box-btn')?.addEventListener('click', closeCurrentBox);
+      document.getElementById('close-pallet-btn')?.addEventListener('click', closeActivePallet);
+      gmScanFormEl?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        processGmScan();
+      });
+      gmScanInputEl?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== 'Tab') return;
+        event.preventDefault();
+        window.clearTimeout(gmScanInputTimer);
+        processGmScan();
+      });
+      markingScanResetEl?.addEventListener('click', (event) => {
+        event.preventDefault();
+        resetMarkingPair();
+      });
+      markingScanInputEl?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== 'Tab') return;
+        event.preventDefault();
+        window.clearTimeout(looseScanInputTimer);
+        processMarkingScan();
+      });
+      sourceBoxScanInputEl?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== 'Tab') return;
+        event.preventDefault();
+        window.clearTimeout(sourceBoxScanInputTimer);
+        processSourceBoxScan();
+      });
+      sourceBoxScanResetEl?.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (scannedRepackSourceCodes.size && !confirm('Сбросить сканы исходных коробов? Уже созданные новые короба останутся в черновике.')) return;
+        scannedRepackSourceCodes.clear();
+        render();
+        sourceBoxScanInputEl?.focus();
+      });
+      let gmScanInputTimer = null;
+      let looseScanInputTimer = null;
+      let sourceBoxScanInputTimer = null;
+      const scheduleInputScan = (input, callback, timerName) => {
+        if (timerName === 'gm') window.clearTimeout(gmScanInputTimer);
+        else if (timerName === 'source') window.clearTimeout(sourceBoxScanInputTimer);
+        else window.clearTimeout(looseScanInputTimer);
+        const snapshot = String(input?.value || '').trim();
+        if (!snapshot) return;
+        const timer = window.setTimeout(() => {
+          if (String(input?.value || '').trim() === snapshot) callback();
+        }, 180);
+        if (timerName === 'gm') gmScanInputTimer = timer;
+        else if (timerName === 'source') sourceBoxScanInputTimer = timer;
+        else looseScanInputTimer = timer;
+      };
+      gmScanInputEl?.addEventListener('input', () => scheduleInputScan(gmScanInputEl, processGmScan, 'gm'));
+      gmScanInputEl?.addEventListener('change', () => scheduleInputScan(gmScanInputEl, processGmScan, 'gm'));
+      markingScanInputEl?.addEventListener('input', () => scheduleInputScan(markingScanInputEl, processMarkingScan, 'loose'));
+      markingScanInputEl?.addEventListener('change', () => scheduleInputScan(markingScanInputEl, processMarkingScan, 'loose'));
+      sourceBoxScanInputEl?.addEventListener('input', () => scheduleInputScan(sourceBoxScanInputEl, processSourceBoxScan, 'source'));
+      sourceBoxScanInputEl?.addEventListener('change', () => scheduleInputScan(sourceBoxScanInputEl, processSourceBoxScan, 'source'));
+
+      let directLooseScanBuffer = '';
+      let directLooseScanTimer = null;
+      const activeLooseScanInput = () => {
+        if (repackExistingBoxes && !allRepackSourcesScanned() && sourceBoxScanInputEl) return sourceBoxScanInputEl;
+        return gmRequired && gmReady && !getOpenBox() && gmScanInputEl ? gmScanInputEl : markingScanInputEl;
+      };
+      let desktopLastScanValue = '';
+      let desktopLastScanAt = 0;
+      const handleDesktopLooseScan = (event) => {
+        const detail = event?.detail || {};
+        detail.fullboxHandled = true;
+        detail.fullboxMode = 'desktop-direct';
+        if (event?.cancelable) event.preventDefault();
+        const value = String(detail.value || '').trim();
+        if (!value) return;
+        const now = Date.now();
+        if (value === desktopLastScanValue && now - desktopLastScanAt < 250) return;
+        desktopLastScanValue = value;
+        desktopLastScanAt = now;
+        const input = activeLooseScanInput();
+        if (!input) return;
+        if (input === gmScanInputEl) window.clearTimeout(gmScanInputTimer);
+        else if (input === sourceBoxScanInputEl) window.clearTimeout(sourceBoxScanInputTimer);
+        else window.clearTimeout(looseScanInputTimer);
+        input.value = value;
+        if (input === gmScanInputEl) processGmScan();
+        else if (input === sourceBoxScanInputEl) processSourceBoxScan();
+        else processMarkingScan();
+      };
+      window.addEventListener('fullbox:scan', handleDesktopLooseScan);
+      const finishDirectLooseScan = () => {
+        const value = String(directLooseScanBuffer || '').trim();
+        directLooseScanBuffer = '';
+        window.clearTimeout(directLooseScanTimer);
+        const input = activeLooseScanInput();
+        if (value.length < 4 || !input) return;
+        input.value = value;
+        if (input === gmScanInputEl) processGmScan();
+        else if (input === sourceBoxScanInputEl) processSourceBoxScan();
+        else processMarkingScan();
+      };
+      document.addEventListener('keydown', (event) => {
+        if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return;
+        const target = event.target;
+        if (target === gmScanInputEl || target === markingScanInputEl || target === sourceBoxScanInputEl) return;
+        if (target instanceof HTMLElement && (target.isContentEditable || target.matches('input, textarea, select'))) return;
+        if (event.key === 'Enter' || event.key === 'Tab') {
+          if (!directLooseScanBuffer) return;
+          event.preventDefault();
+          finishDirectLooseScan();
+          return;
+        }
+        if (!event.key || event.key.length !== 1) return;
+        directLooseScanBuffer += event.key;
+        window.clearTimeout(directLooseScanTimer);
+        directLooseScanTimer = window.setTimeout(finishDirectLooseScan, 180);
+        event.preventDefault();
+      }, true);
+
+      let lastObservedGmScan = '';
+      let lastObservedLooseScan = '';
+      let lastObservedSourceBoxScan = '';
+      window.setInterval(() => {
+        const sourceBoxValue = String(sourceBoxScanInputEl?.value || '').trim();
+        if (sourceBoxValue && sourceBoxValue !== lastObservedSourceBoxScan) {
+          lastObservedSourceBoxScan = sourceBoxValue;
+          scheduleInputScan(sourceBoxScanInputEl, processSourceBoxScan, 'source');
+        } else if (!sourceBoxValue) {
+          lastObservedSourceBoxScan = '';
+        }
+        const gmValue = String(gmScanInputEl?.value || '').trim();
+        if (gmValue && gmValue !== lastObservedGmScan) {
+          lastObservedGmScan = gmValue;
+          scheduleInputScan(gmScanInputEl, processGmScan, 'gm');
+        } else if (!gmValue) {
+          lastObservedGmScan = '';
+        }
+        const looseValue = String(markingScanInputEl?.value || '').trim();
+        if (looseValue && looseValue !== lastObservedLooseScan) {
+          lastObservedLooseScan = looseValue;
+          scheduleInputScan(markingScanInputEl, processMarkingScan, 'loose');
+        } else if (!looseValue) {
+          lastObservedLooseScan = '';
+        }
+      }, 160);
+
+      looseBodyEl.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-add]');
+        if (!button) return;
+        const row = button.closest('tr');
+        const input = row?.querySelector('.qty-input');
+        addToCurrentBox(button.dataset.add, input?.value || 0);
+      });
+
+      gmTargetsEl?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-gm-start]');
+        if (button) startGmBox(button.dataset.gmStart);
+      });
+
+      currentItemsEl.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-minus]');
+        if (!button) return;
+        decreaseCurrentItem(button.dataset.minus);
+      });
+
+      closedBoxesEl.addEventListener('click', (event) => {
+        const row = event.target.closest('[data-box-code]');
+        if (!row) return;
+        viewBox(row.dataset.boxCode);
+      });
+      closedBoxesEl.addEventListener('contextmenu', (event) => {
+        const row = event.target.closest('[data-box-code]');
+        if (!row) return;
+        openContextMenu(event, row.dataset.boxCode);
+      });
+      palletBoardEl.addEventListener('click', (event) => {
+        const chip = event.target.closest('[data-box-code]');
+        if (chip) {
+          viewBox(chip.dataset.boxCode);
+          return;
+        }
+        const palletCard = event.target.closest('[data-pallet-code]');
+        if (!palletCard) return;
+        const pallet = getPallet(palletCard.dataset.palletCode);
+        if (pallet && !pallet.sealed) {
+          state.activePalletCode = pallet.code;
+          render();
+        }
+      });
+      palletBoardEl.addEventListener('contextmenu', (event) => {
+        const chip = event.target.closest('[data-box-code]');
+        if (!chip) return;
+        openContextMenu(event, chip.dataset.boxCode);
+      });
+
+      menuEl.addEventListener('click', (event) => {
+        const action = event.target.closest('[data-action]')?.dataset.action;
+        if (!action || !activeMenuBoxCode) return;
+        const boxCode = activeMenuBoxCode;
+        closeContextMenu();
+        if (action === 'view') viewBox(boxCode);
+        if (action === 'print-box') void printBoxQr(boxCode);
+        if (action === 'edit') editBox(boxCode);
+        if (action === 'delete') deleteBox(boxCode);
+      });
+      document.addEventListener('click', (event) => {
+        if (!menuEl.contains(event.target)) closeContextMenu();
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closeContextMenu();
+          modalEl.classList.remove('is-open');
+          modalEl.setAttribute('aria-hidden', 'true');
+        }
+      });
+      modalCloseEl.addEventListener('click', () => {
+        modalEl.classList.remove('is-open');
+        modalEl.setAttribute('aria-hidden', 'true');
+      });
+
+      formEl.addEventListener('submit', (event) => {
+        if (!gmReady) {
+          event.preventDefault();
+          alert('Состав ШК ГМ не готов. Упаковка не сохранена.');
+          return;
+        }
+        if (repackExistingBoxes && !allRepackSourcesScanned()) {
+          event.preventDefault();
+          alert(`Отсканируйте все исходные короба: ${scannedRepackSourceCodes.size} из ${repackSourceByCode.size}.`);
+          sourceBoxScanInputEl?.focus();
+          return;
+        }
+        const openBox = getOpenBox();
+        if (openBox && boxQty(openBox) > 0) {
+          event.preventDefault();
+          alert('Закройте текущий короб перед завершением упаковки.');
+          return;
+        }
+        if (totalRemainingQty() > 0) {
+          event.preventDefault();
+          alert('Упакуйте весь товар без короба.');
+          return;
+        }
+        const packedBoxes = state.boxes.filter((box) => box.sealed && boxQty(box) > 0);
+        if (!packedBoxes.length) {
+          event.preventDefault();
+          alert('Нет закрытых коробов.');
+          return;
+        }
+        if (gmRequired && packedBoxes.some((box) => !box.gm_barcode)) {
+          event.preventDefault();
+          alert('Каждый короб Ozon должен иметь один ШК ГМ.');
+          return;
+        }
+        if (gmRequired && packedBoxes.length !== gmTargets.length) {
+          event.preventDefault();
+          alert(`Сформируйте все короба по ШК ГМ: ${packedBoxes.length} из ${gmTargets.length}.`);
+          return;
+        }
+        syncInputs();
+        clearPackingDraft();
+      });
+
+      window.addEventListener('pagehide', () => {
+        void flushPackingDraftToServer();
+      });
+
+      if (looseItems.length && !state.boxes.length && !gmRequired) {
+        ensureOpenBox();
+      }
+      render();
+      if (packingDraftRestored) {
+        if (pendingMarkedItem?.barcode) {
+          markingScanInputEl.placeholder = 'Отсканируйте Data Matrix';
+          setMarkingStatus(
+            `Незавершённый короб восстановлен. ШК ${pendingMarkedItem.barcode} уже принят — отсканируйте Data Matrix.`,
+          );
+        } else {
+          setMarkingStatus('Незавершённый короб восстановлен после обновления страницы.');
+        }
+      }
+      if (repackExistingBoxes && !allRepackSourcesScanned() && sourceBoxScanInputEl) {
+        sourceBoxScanInputEl.focus();
+      } else if (gmScanInputEl && gmRequired && gmReady && !getOpenBox()) {
+        gmScanInputEl.focus();
+      } else {
+        markingScanInputEl?.focus();
+      }
+    })();
+  </script>
+</body>
+</html>

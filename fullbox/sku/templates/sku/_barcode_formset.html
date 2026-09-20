@@ -1,0 +1,82 @@
+{% load widget_tweaks %}
+<div class="section barcode-section" id="barcode-formset">
+  {{ barcode_formset.management_form }}
+  <div class="barcode-toolbar">
+    <div class="barcode-title">
+      <h3>Штрихкоды</h3>
+      <span class="barcode-count" data-barcode-count></span>
+    </div>
+    <button type="button" class="btn" id="barcode-add">+ Добавить ШК</button>
+  </div>
+  {% if barcode_formset.non_form_errors %}
+    <div class="barcode-errors">{{ barcode_formset.non_form_errors }}</div>
+  {% endif %}
+  <div class="barcode-table-wrap">
+    <table class="barcode-table">
+      <thead>
+        <tr>
+          <th>Штрихкод</th>
+          <th>Размер</th>
+          <th>Статус</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody id="barcode-rows">
+        {% for barcode_form in barcode_formset.forms %}
+          <tr class="barcode-row{% if object.pk and not barcode_form.instance.pk and not barcode_form.has_changed %} is-template-extra{% endif %}" data-barcode-row>
+            <td>
+              {{ barcode_form.id }}
+              {{ barcode_form.value.errors }}
+              {% if barcode_form.value.errors %}{% render_field barcode_form.value class+="field-error barcode-value" data-barcode-value="" %}{% else %}{% render_field barcode_form.value class+="barcode-value" data-barcode-value="" %}{% endif %}
+            </td>
+            <td>
+              {{ barcode_form.size.errors }}
+              {% if barcode_form.size.errors %}{% render_field barcode_form.size class+="field-error barcode-size" %}{% else %}{% render_field barcode_form.size class+="barcode-size" %}{% endif %}
+            </td>
+            <td>
+              {{ barcode_form.is_primary }}
+              <label class="barcode-primary-choice">
+                <input type="radio" name="barcode-primary-choice" data-barcode-primary {% if barcode_form.is_primary.value %}checked{% endif %}>
+                <span>Основной</span>
+              </label>
+            </td>
+            <td>
+              {% render_field barcode_form.DELETE class+="barcode-delete-input" %}
+              <div class="barcode-actions">
+                <button type="button" class="btn" data-barcode-copy>Копировать</button>
+                <button type="button" class="btn" data-barcode-delete hidden aria-hidden="true">Удалить</button>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr class="barcode-empty"><td colspan="4">Добавьте первый штрихкод.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <template id="barcode-empty-form">
+    {% with barcode_form=barcode_formset.empty_form %}
+      <tr class="barcode-row" data-barcode-row>
+        <td>
+          {{ barcode_form.id }}
+          {% render_field barcode_form.value class+="barcode-value" data-barcode-value="" %}
+        </td>
+        <td>{% render_field barcode_form.size class+="barcode-size" %}</td>
+        <td>
+          {{ barcode_form.is_primary }}
+          <label class="barcode-primary-choice">
+            <input type="radio" name="barcode-primary-choice" data-barcode-primary>
+            <span>Основной</span>
+          </label>
+        </td>
+        <td>
+          {% render_field barcode_form.DELETE class+="barcode-delete-input" %}
+          <div class="barcode-actions">
+            <button type="button" class="btn" data-barcode-copy>Копировать</button>
+            <button type="button" class="btn" data-barcode-delete hidden aria-hidden="true">Удалить</button>
+          </div>
+        </td>
+      </tr>
+    {% endwith %}
+  </template>
+</div>

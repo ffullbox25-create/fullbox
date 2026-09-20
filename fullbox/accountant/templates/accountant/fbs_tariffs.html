@@ -1,0 +1,89 @@
+{% extends "accountant/_base.html" %}
+{% block title %}Тарифы FBS{% endblock %}
+{% block extra_css %}
+.fbs-rate-grid { display:grid; grid-template-columns:1.05fr .8fr .8fr .8fr .7fr .9fr .9fr 1.3fr auto; gap:8px; align-items:end; }
+.fbs-rate-card { display:grid; gap:10px; }
+.fbs-rate-meta { display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; }
+.fbs-rate-meta strong { font-size:14px; }
+.fbs-rate-meta span { color:var(--muted); font-size:12px; }
+.fbs-rate-off { opacity:.62; }
+@media (max-width:1200px) { .fbs-rate-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (max-width:760px) { .fbs-rate-grid { grid-template-columns:1fr; } }
+{% endblock %}
+{% block content %}
+<div><h1 class="page-title">FBS</h1><div class="page-sub">Индивидуальные ставки клиента по операциям FBS и диапазонам литража.</div></div>
+{% include "accountant/_client_tariff_sections.html" with active_tariff_section="fbs" %}
+
+{% for message in messages %}<div class="{% if message.tags == 'error' %}err-box{% else %}warn-box{% endif %}" style="{% if 'success' in message.tags %}background:var(--accent-soft);color:var(--accent-strong){% endif %}">{{ message }}</div>{% endfor %}
+
+<form method="get" class="card" style="display:grid;grid-template-columns:minmax(280px,1fr) auto;gap:10px;align-items:end">
+  <div><label class="lbl">Клиент</label><select class="field" name="client" required><option value="">Выберите клиента</option>{% for client in clients %}<option value="{{ client.id }}" {% if selected_client.id == client.id %}selected{% endif %}>{{ client.short_name|default:client.agn_name }}</option>{% endfor %}</select></div>
+  <button class="btn primary" type="submit">Открыть тариф FBS</button>
+</form>
+
+{% if selected_client %}
+  <div class="card fbs-rate-meta">
+    <div><strong>{{ selected_client.short_name|default:selected_client.agn_name }}</strong><span style="display:block;margin-top:3px">Активных ставок: {{ active_rates_count }} · всего строк: {{ rates|length }}</span></div>
+    {% if storage_policy %}<span>Хранение FBS: {{ storage_policy.get_billing_mode_display }}</span>{% else %}<span class="warn-box" style="padding:7px 10px">Режим хранения FBS не включён. Ставка хранения сама по себе начисления не запускает.</span>{% endif %}
+  </div>
+
+  {% if can_edit_fbs_rates %}
+  <form method="post" class="card fbs-rate-card">{% csrf_token %}
+    <input type="hidden" name="action" value="add"><input type="hidden" name="client_id" value="{{ selected_client.id }}">
+    <div><strong>Добавить ставку FBS</strong><div class="page-sub">Для маркировки и хранения диапазон литража не применяется.</div></div>
+    <div class="fbs-rate-grid">
+      <div><label class="lbl">Операция</label><select class="field" name="operation" required>{% for key,label in operation_choices %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></div>
+      <div><label class="lbl">Больше, л</label><input class="field" name="liters_from" inputmode="decimal" value="0"></div>
+      <div><label class="lbl">До, л</label><input class="field" name="liters_to" inputmode="decimal" placeholder="без границы"></div>
+      <div><label class="lbl">Цена, ₽</label><input class="field" name="price" inputmode="decimal" required></div>
+      <div><label class="lbl">Единица</label><input class="field" name="unit" value="шт" required></div>
+      <div><label class="lbl">Действует с</label><input class="field" type="date" name="valid_from" value="{{ today|date:'Y-m-d' }}" required></div>
+      <div><label class="lbl">Действует до</label><input class="field" type="date" name="valid_to"></div>
+      <div><label class="lbl">Комментарий</label><input class="field" name="comment"></div>
+      <button class="btn primary" type="submit">Добавить</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <label><span class="lbl">НДС</span><select class="field" name="vat_rate">{% for value in vat_rate_choices %}<option value="{{ value }}" {% if value == '5' %}selected{% endif %}>{{ value }}%</option>{% endfor %}</select></label>
+      <label><span class="lbl">Режим НДС</span><select class="field" name="vat_type">{% for key,label in vat_type_choices %}<option value="{{ key }}" {% if key == 'vat_extra' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    </div>
+  </form>
+  {% endif %}
+
+  <div style="display:grid;gap:10px">
+  {% for rate in rates %}
+    <form method="post" class="card fbs-rate-card {% if not rate.is_active %}fbs-rate-off{% endif %}">{% csrf_token %}
+      <input type="hidden" name="client_id" value="{{ selected_client.id }}"><input type="hidden" name="rate_id" value="{{ rate.id }}">
+      <div class="fbs-rate-meta"><strong>{{ rate.get_operation_display }}</strong><span>{% if rate.operation == 'marking' or rate.operation == 'storage' %}без диапазона литража{% else %}&gt; {{ rate.liters_from }} л — {% if rate.liters_to %}≤ {{ rate.liters_to }} л{% else %}без верхней границы{% endif %}{% endif %} · {% if rate.is_active %}активна{% else %}отключена{% endif %}</span></div>
+      <div class="fbs-rate-grid">
+        <div><label class="lbl">Цена, ₽</label><input class="field" name="price" inputmode="decimal" value="{{ rate.price }}" required></div>
+        <div><label class="lbl">Единица</label><input class="field" name="unit" value="{{ rate.unit }}" required></div>
+        <div><label class="lbl">Действует с</label><input class="field" type="date" name="valid_from" value="{{ rate.valid_from|date:'Y-m-d' }}" required></div>
+        <div><label class="lbl">Действует до</label><input class="field" type="date" name="valid_to" value="{{ rate.valid_to|date:'Y-m-d' }}"></div>
+        <div><label class="lbl">НДС</label><select class="field" name="vat_rate">{% for value in vat_rate_choices %}<option value="{{ value }}" {% if rate.vat_rate == value %}selected{% endif %}>{{ value }}%</option>{% endfor %}</select></div>
+        <div><label class="lbl">Режим НДС</label><select class="field" name="vat_type">{% for key,label in vat_type_choices %}<option value="{{ key }}" {% if rate.vat_type == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div style="grid-column:span 2"><label class="lbl">Комментарий</label><input class="field" name="comment" value="{{ rate.comment }}"></div>
+        <label style="display:flex;align-items:center;gap:7px;min-height:38px"><input type="checkbox" name="is_active" {% if rate.is_active %}checked{% endif %}> Активна</label>
+      </div>
+      {% if can_edit_fbs_rates %}<div class="actions-row"><button class="btn primary" name="action" value="update" type="submit">Сохранить</button>{% if rate.is_active %}<button class="btn" name="action" value="deactivate" type="submit">Отключить</button>{% endif %}</div>{% endif %}
+    </form>
+  {% empty %}<div class="card muted" style="padding:32px;text-align:center">У клиента ещё нет ставок FBS. Добавьте первую строку выше.</div>{% endfor %}
+  </div>
+
+  {% if extra_fbs_items %}
+  <div style="display:grid;gap:10px;margin-top:14px">
+    <div class="page-sub"><strong>Дополнительные услуги FBS</strong></div>
+    {% for item in extra_fbs_items %}
+    <div class="card fbs-rate-card">
+      <div class="fbs-rate-meta">
+        <strong>{{ item.service_name }}</strong>
+        <span>{{ item.price }} ₽ / {{ item.unit.short_name|default:item.unit.name }}</span>
+      </div>
+      {% if item.conditions %}<div class="page-sub">{{ item.conditions }}</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% else %}
+  <div class="card muted" style="padding:34px;text-align:center">Выберите клиента — откроется его тариф FBS.</div>
+{% endif %}
+{% endblock %}

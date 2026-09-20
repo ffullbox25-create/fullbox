@@ -1,0 +1,94 @@
+{% extends "hr/base.html" %}
+
+{% block title %}Месячный отчёт{% endblock %}
+
+{% block content %}
+  <header class="page-head">
+    <div>
+      <div class="breadcrumbs"><a href="{% url 'hr:dashboard' %}">Отдел кадров</a><span>›</span><span>Отчёты</span></div>
+      <h1>Месячный отчёт по персоналу</h1>
+      <div class="muted">Табель, ставки, начисления, производительность и корректировки за {{ report.month_label }}.</div>
+    </div>
+    <div class="actions">
+      <a class="btn" href="{% url 'hr:payroll-audit' %}?month={{ report.month_value }}">Журнал изменений</a>
+      <a class="btn primary" href="{{ export_url }}">Экспорт XLSX</a>
+    </div>
+  </header>
+
+  <section class="panel">
+    <form class="filter-bar" method="get">
+      <div class="field">
+        <label for="report-month">Месяц</label>
+        <input id="report-month" type="month" name="month" value="{{ report.month_value }}">
+      </div>
+      <button class="btn primary" type="submit">Показать</button>
+    </form>
+  </section>
+
+  <section class="grid">
+    <article class="panel"><div class="kpi-title">Сотрудников</div><div class="kpi-value">{{ report.totals.employees }}</div><div class="kpi-note">активные карточки</div></article>
+    <article class="panel"><div class="kpi-title">Отработано</div><div class="kpi-value">{{ report.totals.worked_hours|floatformat:1 }}</div><div class="kpi-note">часов за месяц</div></article>
+    <article class="panel"><div class="kpi-title">К выплате</div><div class="kpi-value">{{ report.totals.final_due|floatformat:0 }}</div><div class="kpi-note">рублей после удержаний</div></article>
+    <article class="panel"><div class="kpi-title">Неполные данные</div><div class="kpi-value">{{ report.totals.source_gaps }}</div><div class="kpi-note">карточек требуют проверки</div></article>
+  </section>
+
+  <section class="panel">
+    <div class="callout">
+      <div class="callout-icon">i</div>
+      <div><strong>Расчёт прозрачен</strong>Выплата считается только из ставок, табеля и подтверждённых корректировок. Складские показатели используются на чтение и не изменяют операции WMS.</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="table-wrap">
+      <table class="payroll-table">
+        <thead>
+          <tr>
+            <th>Отдел</th><th>Должность</th><th>Сотрудник</th><th class="number">Отработано, ч</th>
+            <th class="number">Опоздания, ч</th><th class="number">Стажировка, ч</th><th class="money">Почасовая ставка</th>
+            <th class="money">Месячный оклад</th><th class="money">Начислено</th><th class="number">Производительность</th>
+            <th class="money">Премия</th><th class="money">Средняя стоимость часа</th><th class="money">По договорам</th>
+            <th class="money">Бонусы</th><th class="money">Удержания</th><th class="money">Итого к выплате</th><th>Полнота данных</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for department in report.departments %}
+            {% for row in department.rows %}
+              <tr>
+                <td>{{ row.department }}</td><td>{{ row.position }}</td><td>{{ row.employee }}</td>
+                <td class="number">{{ row.worked_hours|floatformat:2 }}</td><td class="number">{{ row.late_hours|floatformat:2 }}</td>
+                <td class="number">{{ row.internship_hours|floatformat:2 }}</td><td class="money">{{ row.hourly_rate|floatformat:2 }}</td>
+                <td class="money">{{ row.monthly_salary|floatformat:2 }}</td><td class="money">{{ row.accrued|floatformat:2 }}</td>
+                <td class="number">{{ row.productivity_units|floatformat:0 }}</td><td class="money">{{ row.premium|floatformat:2 }}</td>
+                <td class="money">{{ row.average_hour_cost|floatformat:2 }}</td><td class="money">{{ row.contract_payments|floatformat:2 }}</td>
+                <td class="money">{{ row.bonuses|floatformat:2 }}</td><td class="money">{{ row.deductions|floatformat:2 }}</td>
+                <td class="money"><strong>{{ row.final_due|floatformat:2 }}</strong></td>
+                <td><span class="{% if row.has_source_gap %}source-gap{% else %}source-ok{% endif %}">{{ row.source_status }}</span></td>
+              </tr>
+            {% endfor %}
+            <tr class="department-total">
+              <td>Итого: {{ department.name }}</td><td></td><td>{{ department.totals.employees }} чел.</td>
+              <td class="number">{{ department.totals.worked_hours|floatformat:2 }}</td><td class="number">{{ department.totals.late_hours|floatformat:2 }}</td>
+              <td class="number">{{ department.totals.internship_hours|floatformat:2 }}</td><td></td><td></td>
+              <td class="money">{{ department.totals.accrued|floatformat:2 }}</td><td class="number">{{ department.totals.productivity_units|floatformat:0 }}</td>
+              <td class="money">{{ department.totals.premium|floatformat:2 }}</td><td class="money">{{ department.totals.average_hour_cost|floatformat:2 }}</td>
+              <td class="money">{{ department.totals.contract_payments|floatformat:2 }}</td><td class="money">{{ department.totals.bonuses|floatformat:2 }}</td>
+              <td class="money">{{ department.totals.deductions|floatformat:2 }}</td><td class="money">{{ department.totals.final_due|floatformat:2 }}</td><td></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="17">Нет сотрудников для отчёта.</td></tr>
+          {% endfor %}
+          <tr class="company-total">
+            <td>Итого по компании</td><td></td><td>{{ report.totals.employees }} чел.</td>
+            <td class="number">{{ report.totals.worked_hours|floatformat:2 }}</td><td class="number">{{ report.totals.late_hours|floatformat:2 }}</td>
+            <td class="number">{{ report.totals.internship_hours|floatformat:2 }}</td><td></td><td></td>
+            <td class="money">{{ report.totals.accrued|floatformat:2 }}</td><td class="number">{{ report.totals.productivity_units|floatformat:0 }}</td>
+            <td class="money">{{ report.totals.premium|floatformat:2 }}</td><td class="money">{{ report.totals.average_hour_cost|floatformat:2 }}</td>
+            <td class="money">{{ report.totals.contract_payments|floatformat:2 }}</td><td class="money">{{ report.totals.bonuses|floatformat:2 }}</td>
+            <td class="money">{{ report.totals.deductions|floatformat:2 }}</td><td class="money">{{ report.totals.final_due|floatformat:2 }}</td><td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

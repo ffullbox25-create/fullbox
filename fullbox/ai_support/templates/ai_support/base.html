@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ИИ-поддержка{% endblock %} · Фуллбокс</title>
+  <style>
+    :root {
+      --bg: #f3f5f7; --card: #fff; --text: #18212b; --muted: #687481;
+      --line: #dce2e8; --accent: #136f63; --accent-dark: #0d554c;
+      --warn: #9b6500; --danger: #b42b39; --soft: #edf7f5;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    a { color: inherit; }
+    .shell { width: min(1180px, calc(100% - 28px)); margin: 0 auto; padding: 22px 0 56px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
+    .brand { font-size: 20px; font-weight: 800; letter-spacing: .02em; }
+    .top-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--text); text-decoration: none; font-weight: 700; cursor: pointer; }
+    .btn.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .btn.primary:hover { background: var(--accent-dark); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; box-shadow: 0 8px 28px rgba(26, 39, 52, .06); }
+    .stack { display: grid; gap: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 6px; font-size: clamp(25px, 4vw, 36px); line-height: 1.15; }
+    h2 { font-size: 19px; }
+    .muted { color: var(--muted); }
+    .notice { padding: 12px 14px; border-radius: 10px; background: var(--soft); border: 1px solid #cde8e3; }
+    .badge { display: inline-flex; padding: 4px 9px; border-radius: 999px; background: #edf1f4; font-size: 12px; font-weight: 800; }
+    .badge.high, .badge.critical { color: var(--danger); background: #fff0f1; }
+    .badge.waiting_approval, .badge.needs_info { color: var(--warn); background: #fff7df; }
+    .badge.fixed, .badge.closed { color: var(--accent-dark); background: var(--soft); }
+    label { display: grid; gap: 6px; font-weight: 700; }
+    input, select, textarea { width: 100%; padding: 11px 12px; border: 1px solid #cbd4dc; border-radius: 9px; background: #fff; color: var(--text); font: inherit; }
+    textarea { resize: vertical; }
+    .field-errors { margin: 0; color: var(--danger); font-weight: 600; }
+    .incident-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) 170px 150px; gap: 14px; align-items: center; padding: 14px 0; border-top: 1px solid var(--line); text-decoration: none; }
+    .incident-row:first-child { border-top: 0; }
+    .message { max-width: 820px; padding: 13px 15px; border-radius: 14px; background: #f4f6f8; }
+    .message.agent { background: var(--soft); border: 1px solid #cde8e3; }
+    .message.system { background: #fff8e7; }
+    .message.programmer { background: #eef2ff; }
+    .message-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; font-size: 12px; font-weight: 800; color: var(--muted); }
+    .message-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .fact { padding: 11px; background: #f7f9fa; border-radius: 10px; }
+    .fact small { display: block; color: var(--muted); }
+    .action { padding: 12px 0; border-top: 1px solid var(--line); }
+    .action:first-child { border-top: 0; }
+    @media (max-width: 760px) {
+      .grid, .facts { grid-template-columns: 1fr; }
+      .incident-row { grid-template-columns: 1fr; gap: 5px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div>
+        <div class="brand">ФУЛЛБОКС · ИИ-поддержка</div>
+        <div class="muted">Ошибки, зависшие заявки и небольшие исправления</div>
+      </div>
+      <nav class="top-actions">
+        <a class="btn" href="{% url 'ai_support:list' %}">Обращения</a>
+        <a class="btn primary" href="{% url 'ai_support:create' %}">Сообщить об ошибке</a>
+        <a class="btn" href="{{ cabinet_url|default:'/' }}">В кабинет</a>
+      </nav>
+    </header>
+    {% for message in messages %}<div class="notice" style="margin-bottom:12px">{{ message }}</div>{% endfor %}
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

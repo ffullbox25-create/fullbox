@@ -1,0 +1,215 @@
+<script>
+(function () {
+  'use strict';
+  var rows = Array.from(document.querySelectorAll('.location-row[data-code]'));
+  var search = document.getElementById('location-search');
+  var zoneFilter = document.getElementById('location-zone-filter');
+  var groupFilter = document.getElementById('location-group-filter');
+  var statusFilter = document.getElementById('location-status-filter');
+  var selectAll = document.getElementById('warehouse-location-select-all');
+  var printForm = document.getElementById('warehouse-location-print-selected');
+  var selectionInfo = document.getElementById('location-selection-info');
+  var checkboxes = rows.map(function (row) { return row.querySelector('[name="print_selected"]'); });
+  if (!search || !printForm) return;
+
+  var returnStateKey = 'head-manager-warehouse-locations-return-v1';
+
+  function saveReturnState(form) {
+    var editor = form.closest('.location-editor');
+    try {
+      window.sessionStorage.setItem(returnStateKey, JSON.stringify({
+        savedAt: Date.now(),
+        search: search.value,
+        zone: zoneFilter.value,
+        group: groupFilter.value,
+        status: statusFilter.value,
+        editorId: editor ? editor.id : '',
+        scrollY: window.scrollY || 0
+      }));
+    } catch (error) {}
+  }
+
+  function readReturnState() {
+    try {
+      var raw = window.sessionStorage.getItem(returnStateKey);
+      window.sessionStorage.removeItem(returnStateKey);
+      if (!raw) return null;
+      var state = JSON.parse(raw);
+      if (!state || Date.now() - Number(state.savedAt || 0) > 300000) return null;
+      return state;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  document.querySelectorAll('.location-edit-form, .location-rack-editor').forEach(function (form) {
+    form.addEventListener('submit', function () { saveReturnState(form); });
+  });
+
+  function groupCode(code) {
+    if (code.indexOf('/') !== -1) return code.split('/')[0];
+    var parts = code.split('-');
+    return parts.length >= 3 ? parts.slice(0, -1).join('-') : 'Без группы';
+  }
+  rows.forEach(function (row) { row.dataset.group = groupCode(row.dataset.code); });
+  document.querySelectorAll('.location-list').forEach(function (list) {
+    var ordered = rows.filter(function (row) { return row.parentElement === list; });
+    ordered.sort(function (a, b) { return a.dataset.code.localeCompare(b.dataset.code, 'ru', {numeric:true}); });
+    var lastGroup = null;
+    ordered.forEach(function (row) {
+      if (row.dataset.group !== lastGroup) {
+        var heading = document.createElement('div');
+        heading.className = 'location-group-head';
+        heading.dataset.group = row.dataset.group;
+        heading.textContent = 'Ряд / группа: ' + row.dataset.group;
+        list.appendChild(heading);
+        lastGroup = row.dataset.group;
+      }
+      list.appendChild(row);
+    });
+  });
+  function updateGroups() {
+    var previous = groupFilter.value;
+    groupFilter.replaceChildren(new Option('Все группы', ''));
+    var groups = new Set(rows.filter(function (row) { return !zoneFilter.value || row.dataset.zone === zoneFilter.value; }).map(function (row) { return row.dataset.group; }));
+    Array.from(groups).sort(function (a,b) { return a.localeCompare(b, 'ru', {numeric:true}); }).forEach(function (group) { groupFilter.add(new Option(group, group)); });
+    if (groups.has(previous)) groupFilter.value = previous;
+  }
+  function selected() { return checkboxes.filter(function (box) { return box.checked; }); }
+  function updateSelection(message) {
+    var total = selected().length;
+    var visible = rows.filter(function (row) { return !row.hidden; });
+    var visibleSelected = visible.filter(function (row) { return row.querySelector('[name="print_selected"]').checked; }).length;
+    selectAll.checked = visible.length > 0 && visibleSelected === visible.length;
+    selectAll.indeterminate = visibleSelected > 0 && visibleSelected < visible.length;
+    selectAll.disabled = visible.length === 0;
+    document.getElementById('location-selected-count').textContent = total;
+    document.getElementById('location-print-button').disabled = total === 0;
+    document.getElementById('location-selection-clear').disabled = total === 0;
+    selectionInfo.textContent = message || (total ? 'Выбрано для печати: ' + total + '. Скрыто фильтром из выбранных: ' + (total - visibleSelected) + '. Формат 58 × 60 мм.' : 'До 300 этикеток за раз. Перед печатью откроется предпросмотр.');
+    rows.forEach(function (row) { row.classList.toggle('is-selected', row.querySelector('[name="print_selected"]').checked); });
+  }
+  function applyFilters() {
+    var query = search.value.trim().toLocaleLowerCase('ru');
+    rows.forEach(function (row) {
+      var d = row.dataset, used = Number(d.occupied), capacity = Number(d.capacity), active = d.active === '1';
+      var matchStatus = !statusFilter.value || ({
+        available: active && (!capacity || used < capacity),
+        empty: active && used === 0,
+        occupied: used > 0,
+        full: active && capacity > 0 && used >= capacity,
+        inactive: !active,
+        fbs: d.fbs === '1',
+        shipping: d.shipping === '1'
+      })[statusFilter.value];
+      row.hidden = !((!query || (d.code + ' ' + d.name).toLocaleLowerCase('ru').includes(query)) && (!zoneFilter.value || d.zone === zoneFilter.value) && (!groupFilter.value || d.group === groupFilter.value) && matchStatus);
+    });
+    document.querySelectorAll('.location-zone').forEach(function (section) {
+      var sectionRows = Array.from(section.querySelectorAll('.location-row'));
+      var count = sectionRows.filter(function (row) { return !row.hidden; }).length;
+      section.hidden = count === 0;
+      section.querySelector('.pill').textContent = count + ' из ' + sectionRows.length + ' мест';
+      section.querySelectorAll('.location-group-head').forEach(function (heading) {
+        heading.hidden = !sectionRows.some(function (row) { return !row.hidden && row.dataset.group === heading.dataset.group; });
+      });
+    });
+    var count = rows.filter(function (row) { return !row.hidden; }).length;
+    document.getElementById('location-visible-count').textContent = 'Показано ' + count + ' из ' + rows.length + ' мест';
+    document.getElementById('location-no-results').hidden = count > 0;
+    updateSelection();
+  }
+  search.addEventListener('input', applyFilters);
+  zoneFilter.addEventListener('change', function () { updateGroups(); applyFilters(); });
+  groupFilter.addEventListener('change', applyFilters);
+  statusFilter.addEventListener('change', applyFilters);
+  document.getElementById('location-filter-reset').addEventListener('click', function () {
+    search.value = ''; zoneFilter.value = ''; statusFilter.value = ''; groupFilter.value = '';
+    updateGroups(); applyFilters();
+  });
+  checkboxes.forEach(function (box) {
+    box.addEventListener('change', function () {
+      if (selected().length > 300) { box.checked = false; updateSelection('За один раз можно напечатать до 300 этикеток. Остальные выберите следующей партией.'); }
+      else updateSelection();
+    });
+  });
+  selectAll.addEventListener('change', function () {
+    var wantChecked = selectAll.checked;
+    var visible = rows.filter(function (row) { return !row.hidden; });
+    var count = selected().length;
+    var limited = false;
+    visible.forEach(function (row) {
+      var box = row.querySelector('[name="print_selected"]');
+      if (!wantChecked) box.checked = false;
+      else if (!box.checked && count < 300) { box.checked = true; count++; }
+      else if (!box.checked) limited = true;
+    });
+    updateSelection(limited ? 'Выбрано 300 этикеток — максимум за один раз. Остальные адреса не выбраны.' : '');
+  });
+  document.getElementById('location-selection-clear').addEventListener('click', function () { checkboxes.forEach(function (box) { box.checked = false; }); updateSelection(); });
+  printForm.addEventListener('submit', function (event) {
+    if (!selected().length || selected().length > 300) { event.preventDefault(); updateSelection('Выберите от 1 до 300 мест для печати.'); }
+  });
+  document.querySelectorAll('[data-location-edit]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var editor = document.getElementById(button.dataset.locationEdit);
+      var open = editor.hidden;
+      editor.hidden = !open;
+      button.setAttribute('aria-expanded', String(open));
+      button.textContent = open ? 'Свернуть' : 'Настроить';
+      if (open) editor.querySelector('input[name="display_name"]').focus({preventScroll:true});
+    });
+  });
+  document.querySelector('[data-open-create]').addEventListener('click', function () { document.getElementById('location-create').open = true; });
+  if (window.location.hash === '#location-create') document.getElementById('location-create').open = true;
+  var createForm = document.getElementById('location-create-form');
+  var zone = createForm.elements.zone_code, fbs = createForm.elements.is_fbs_visible, shipping = createForm.elements.is_shipping;
+  var code = createForm.elements.location_code, name = createForm.elements.display_name, capacity = createForm.elements.capacity_containers;
+  function previewCreate() {
+    var normalized = code.value.trim().toUpperCase();
+    var problem = '';
+    if (normalized && !/^[A-Z0-9][A-Z0-9_/-]{2,63}$/.test(normalized)) problem = 'Код: от 3 до 64 символов, только латинские буквы, цифры, -, / и _.';
+    else if (['PR','OBR','OTG','OS','MR'].includes(normalized)) problem = 'Укажите конкретный адрес, а не только зону.';
+    else if (rows.some(function (row) { return row.dataset.code.toUpperCase() === normalized; })) problem = 'Этот код уже есть в списке. Откройте его настройки или укажите новый код.';
+    code.setCustomValidity(problem);
+    document.querySelector('.location-preview').classList.toggle('has-error', !!problem);
+    document.getElementById('location-create-preview').textContent = normalized ? normalized + ' · ' + (name.value.trim() || 'название не заполнено') : 'Укажите код и название места';
+    document.getElementById('location-create-feedback').textContent = problem || (normalized ? 'Зона ' + zone.value + ' · вместимость: ' + (capacity.value || 'не указана') + ' · FBS: ' + (fbs.checked ? 'да' : 'нет') + ' · отгрузки: ' + (shipping.checked ? 'да' : 'нет') + ' · QR: ' + (zone.value === 'PR' ? normalized : 'LOC:MSK:' + normalized) + '. Уникальность окончательно проверяется при сохранении.' : 'Для ряда используйте единый префикс: PR-F-01, PR-F-02. Группировка в списке — по коду, не по топологии.');
+  }
+  function syncZoneDefaults() { fbs.checked = ['PR', 'OTG'].includes(zone.value); shipping.checked = zone.value === 'OTG'; previewCreate(); }
+  zone.addEventListener('change', syncZoneDefaults);
+  createForm.addEventListener('input', previewCreate);
+  createForm.addEventListener('submit', function () { code.value = code.value.trim().toUpperCase(); });
+  var returnState = readReturnState();
+  previewCreate();
+  if (returnState) {
+    search.value = String(returnState.search || '');
+    zoneFilter.value = String(returnState.zone || '');
+    updateGroups();
+    var savedGroup = String(returnState.group || '');
+    var groupExists = Array.from(groupFilter.options).some(function (option) { return option.value === savedGroup; });
+    if (groupExists) groupFilter.value = savedGroup;
+    statusFilter.value = String(returnState.status || '');
+    applyFilters();
+
+    var editor = returnState.editorId ? document.getElementById(returnState.editorId) : null;
+    var row = editor ? editor.closest('.location-row') : null;
+    if (editor && row && !row.hidden) {
+      editor.hidden = false;
+      var editButton = document.querySelector('[data-location-edit="' + returnState.editorId + '"]');
+      if (editButton) {
+        editButton.setAttribute('aria-expanded', 'true');
+        editButton.textContent = 'Свернуть';
+      }
+    }
+    window.requestAnimationFrame(function () {
+      window.requestAnimationFrame(function () {
+        if (row && !row.hidden) row.scrollIntoView({block: 'center'});
+        else window.scrollTo(0, Math.max(0, Number(returnState.scrollY || 0)));
+      });
+    });
+  } else {
+    updateGroups();
+    applyFilters();
+  }
+})();
+</script>

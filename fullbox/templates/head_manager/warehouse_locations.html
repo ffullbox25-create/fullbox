@@ -1,0 +1,197 @@
+{% extends "head_manager/fbs_base.html" %}
+{% load static %}
+
+{% block title %}Места склада{% endblock %}
+
+{% block head_extra %}
+  <style>
+    .location-print { box-sizing: border-box; display: flex; flex-direction: column; align-items: center; width: 58mm; height: 60mm; max-width: 58mm; margin: 16px auto; padding: 1.5mm 2mm; overflow: hidden; border: .35mm solid #303030; background: #fff; color: #303030; text-align: center; }
+    .location-print > strong { display: block; font-size: 10pt; font-weight: 800; line-height: 1; }
+    .location-print h2 { width: 100%; max-height: 7mm; margin: .5mm 0 .8mm; overflow: hidden; font-size: 12pt; line-height: 1.05; }
+    .location-print .location-qr { display: block; width: 32mm; height: 32mm; margin: 0 auto .8mm; flex: 0 0 auto; }
+    .location-print .location-qr canvas, .location-print .location-qr img { display: block; width: 100% !important; height: 100% !important; image-rendering: pixelated; }
+    .location-print .location-code { width: 100%; max-height: 10mm; overflow: hidden; overflow-wrap: anywhere; margin: 0; font-size: 20pt; font-weight: 900; letter-spacing: .2mm; line-height: 1; }
+    @page { size: 58mm 60mm; margin: 0; }
+    @media print {
+      html, body { box-sizing: border-box !important; width: 58mm !important; height: 60mm !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
+      body * { visibility: hidden !important; }
+      .location-print, .location-print * { visibility: visible !important; }
+      .location-print { position: fixed; inset: 0 auto auto 0; width: 58mm; height: 60mm; max-width: 58mm; margin: 0; border: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .rack-print-sheet .location-print { position: relative; inset: auto; page-break-after: always; break-after: page; }
+      {% if selected_rack or selected_locations %}html, body { height: auto !important; overflow: visible !important; }{% endif %}
+    }
+  </style>
+  {% include "head_manager/_warehouse_locations_style.html" %}
+{% endblock %}
+
+{% block content %}
+  <header class="topbar">
+    <div>
+      <h1>Места всех рабочих зон</h1>
+      <p class="subtitle">Приёмка, обработка, отгрузка, основной склад и места между рядами · склад MSK</p>
+    </div>
+    <div class="topbar-actions">
+      <a class="btn" href="/stockmap/">Топология склада</a>
+      <a class="btn primary" href="#location-create" data-open-create>+ Добавить место</a>
+    </div>
+  </header>
+
+  <section class="metrics" aria-label="Сводка дополнительных мест">
+    <div class="metric"><span>Всего мест</span><strong>{{ summary.total }}</strong></div>
+    <div class="metric"><span>Активно</span><strong>{{ summary.active }}</strong></div>
+    <div class="metric"><span>Видно в FBS</span><strong>{{ summary.fbs }}</strong></div>
+    <div class="metric"><span>Участвует в отгрузках</span><strong>{{ summary.shipping }}</strong></div>
+    <div class="metric"><span>Занято единиц вместимости</span><strong>{{ summary.occupied }}</strong></div>
+  </section>
+
+  {% if selected_location %}
+    <section class="panel">
+      <div class="panel-head">
+        <div><h2>QR места {{ selected_location.location_code }}</h2><p class="muted">Формат этикетки: 58 × 60 мм. Распечатайте и закрепите на физическом месте.</p></div>
+        <div class="row-actions"><a class="btn" href="/head-manager/settings/warehouse-locations/">Закрыть</a><button class="btn primary" type="button" onclick="window.print()">Печатать 58 × 60 мм</button></div>
+      </div>
+      <div class="location-print">
+        <strong>{{ selected_location.zone_code }}</strong>
+        <h2>{{ selected_location.display_name }}</h2>
+        <div class="location-qr" data-code="{{ selected_location.qr_value }}" aria-label="QR места {{ selected_location.location_code }}"></div>
+        <p class="location-code">{{ selected_location.location_code }}</p>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if selected_rack %}
+    <section class="panel">
+      <div class="panel-head">
+        <div><h2>QR ячеек {{ selected_rack.rack_code }}</h2><p class="muted">Каждая ячейка печатается отдельной этикеткой 58 × 60 мм.</p></div>
+        <div class="row-actions"><a class="btn" href="/head-manager/settings/warehouse-locations/">Закрыть</a><button class="btn primary" type="button" onclick="window.print()">Печатать все ячейки</button></div>
+      </div>
+      <div class="rack-print-sheet">
+        {% for cell in rack_print_cells %}
+          <div class="location-print">
+            <strong>PR · ЯЧЕЙКА {{ cell.position }}</strong>
+            <h2>{{ cell.storage_cell.location.display_name }}</h2>
+            <div class="location-qr" data-code="{{ cell.qr_value }}" aria-label="QR ячейки {{ cell.cell_code }}"></div>
+            <p class="location-code">{{ cell.cell_code }}</p>
+          </div>
+        {% empty %}
+          <div class="empty-state">У стеллажа нет активных ячеек.</div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% if selected_locations %}
+    <section class="panel">
+      <div class="panel-head">
+        <div><h2>QR выбранных мест</h2><p class="muted">Выбрано {{ selected_locations|length }}. Каждое место печатается отдельной этикеткой 58 × 60 мм.</p></div>
+        <div class="row-actions"><a class="btn" href="/head-manager/settings/warehouse-locations/">Закрыть</a><button class="btn primary" type="button" onclick="window.print()">Печатать выбранные</button></div>
+      </div>
+      <div class="rack-print-sheet">
+        {% for location in selected_locations %}
+          <div class="location-print">
+            <strong>{{ location.zone_code }}</strong>
+            <h2>{{ location.display_name }}</h2>
+            <div class="location-qr" data-code="{{ location.qr_value }}" aria-label="QR места {{ location.location_code }}"></div>
+            <p class="location-code">{{ location.location_code }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  <div class="location-layout">
+    <details class="panel location-create" id="location-create">
+      <summary class="panel-head"><span><strong>Создать место или загрузить ряд из Excel</strong><span class="muted">Раскрыть форму · существующие адреса не изменятся</span></span></summary>
+      <form class="location-form" method="post" id="location-create-form">
+        {% csrf_token %}
+        <div class="location-form-grid">
+          <label>Зона
+            <select name="zone_code" required>
+              {% for zone in location_zone_choices %}<option value="{{ zone.code }}">{{ zone.code }} · {{ zone.label }}</option>{% endfor %}
+            </select>
+          </label>
+          <label>Вместимость, мест тары
+            <input name="capacity_containers" type="number" min="1" value="20" required>
+          </label>
+          <label>Код места и QR
+            <input name="location_code" maxlength="64" required placeholder="Например, PR-F-11" autocomplete="off" aria-describedby="location-code-help">
+          </label>
+          <label>Понятное название
+            <input name="display_name" maxlength="255" required placeholder="Например, Ряд паллет F">
+          </label>
+        </div>
+        <div class="location-flags">
+          <label class="location-check"><input type="checkbox" name="is_fbs_visible" value="1" checked><span>Участвует в FBS<small>Место доступно операциям FBS в своей зоне.</small></span></label>
+          <label class="location-check"><input type="checkbox" name="is_shipping" value="1"><span>Участвует в отгрузках<small>Для OTG этот флаг разрешает использовать место при отгрузке.</small></span></label>
+          <label class="location-check"><input type="checkbox" name="allow_mixed_client_pallets" value="1"><span>Разрешить паллеты разных клиентов<small>Действует только для FBS-места. По умолчанию клиенты не смешиваются.</small></span></label>
+        </div>
+        <p class="muted" id="location-code-help">Код уникален: латинские буквы, цифры, дефис, / или _. Код и зону после создания изменить нельзя.</p>
+        <div class="location-preview" aria-live="polite"><span>Будет создано</span><strong id="location-create-preview">Укажите код и название места</strong><small id="location-create-feedback">Для ряда используйте единый префикс: PR-F-01, PR-F-02. Группировка в списке — по коду, не по топологии.</small></div>
+        <p class="muted">Место появится в операциях, отчётах и сканировании, но не на графической схеме склада.</p>
+        <button class="btn primary" type="submit">Добавить место</button>
+      </form>
+      <div class="location-help">
+        <strong>Загрузка из Excel</strong>
+        <p>До 1000 мест за один раз. Если в любой строке ошибка, импорт не создаст ни одного места.</p>
+        <form class="location-form" method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="import">
+          <input type="file" name="locations_file" accept=".xlsx" required>
+          <div class="location-actions">
+            <button class="btn primary" type="submit">Загрузить места</button>
+            <a class="btn" href="?download_template=1">Скачать шаблон Excel</a>
+          </div>
+        </form>
+      </div>
+    </details>
+
+    <section class="panel location-directory" aria-label="Справочник мест">
+      <div class="panel-head">
+        <div><h2>Созданные места</h2><p class="muted">Выберите адреса для печати или раскройте настройки нужного места.</p></div>
+        <form id="warehouse-location-print-selected" method="get" action="/head-manager/settings/warehouse-locations/">
+          <button class="btn primary" type="submit" id="location-print-button">Этикетки выбранных <span id="location-selected-count">0</span></button>
+        </form>
+      </div>
+      <div class="location-filters">
+        <label>Поиск по адресу или названию<input type="search" id="location-search" placeholder="PR-F-07, стеллаж…" autocomplete="off"></label>
+        <label>Зона<select id="location-zone-filter"><option value="">Все зоны</option>{% for zone in location_zone_choices %}<option value="{{ zone.code }}">{{ zone.code }} · {{ zone.label }}</option>{% endfor %}</select></label>
+        <label>Ряд / группа кода<select id="location-group-filter"><option value="">Все группы</option></select></label>
+        <label>Состояние<select id="location-status-filter"><option value="">Все места</option><option value="available">Есть свободная ёмкость</option><option value="empty">Не занято</option><option value="occupied">Есть тара / ожидание</option><option value="full">Заполнено</option><option value="inactive">Выключено</option><option value="fbs">Участвует в FBS</option><option value="shipping">Участвует в отгрузках</option></select></label>
+      </div>
+      <div class="location-selection">
+        <label class="location-check"><input id="warehouse-location-select-all" type="checkbox"><span>Выбрать показанные</span></label>
+        <span id="location-visible-count" role="status">Показано {{ locations|length }} мест</span>
+        <button class="btn" type="button" id="location-filter-reset">Сбросить фильтры</button>
+        <button class="btn" type="button" id="location-selection-clear">Снять выбор</button>
+      </div>
+      <p class="location-help" id="location-selection-info" aria-live="polite">До 300 этикеток за раз. Перед печатью откроется предпросмотр.</p>
+
+      {% for zone in location_zone_groups %}
+        <div class="location-zone">
+          <div class="location-zone-head"><strong>{{ zone.code }} · {{ zone.label }}</strong><span class="pill neutral">{{ zone.locations|length }} мест</span></div>
+          <div class="location-list">
+            {% for location in zone.locations %}
+              {% include "head_manager/_warehouse_location_row.html" %}
+            {% empty %}<div class="empty-state">Дополнительных мест {{ zone.code }} пока нет.</div>{% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+      <div class="location-help">Занятость учитывает активную физическую тару, незавершённые задания на перемещение и остатки с кодом тары.</div>
+      <div class="empty-state" id="location-no-results" hidden>Мест по этим условиям нет. Измените поиск или сбросьте фильтры.</div>
+    </section>
+  </div>
+  {% if selected_location or selected_rack or selected_locations %}
+    <script src="{% static 'vendor/qrcode.min.js' %}"></script>
+    <script>
+      document.querySelectorAll(".location-qr").forEach(function (element) {
+        new QRCode(element, {
+          text: element.dataset.code,
+          width: 240,
+          height: 240,
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      });
+    </script>
+  {% endif %}
+  {% include "head_manager/_warehouse_locations_script.html" %}
+{% endblock %}

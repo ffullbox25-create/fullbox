@@ -1,0 +1,105 @@
+{% extends "accountant/_base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block content %}
+<div>
+  <a href="/accountant/carriers/" class="muted" style="font-size:13px;font-weight:700">← Перевозчики</a>
+  <h1 class="page-title" style="margin-top:8px">{{ page_title }}</h1>
+  <div class="page-sub">{{ page_sub }}</div>
+</div>
+
+{% if form.errors %}
+  <div class="err-box">Проверьте поля формы.</div>
+{% endif %}
+
+<form method="post" class="card" style="display:grid;gap:16px">
+  {% csrf_token %}
+
+  <div>
+    <div style="font-weight:900;margin-bottom:10px">Реквизиты</div>
+    <div class="grid-2">
+      <div style="grid-column:1/-1">
+        <label class="lbl" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+        {{ form.name }}
+        {% if form.name.errors %}<div class="err-box" style="margin-top:6px;padding:8px">{{ form.name.errors|striptags }}</div>{% endif %}
+      </div>
+      <div>
+        <label class="lbl" for="{{ form.inn.id_for_label }}">ИНН</label>
+        {{ form.inn }}
+      </div>
+      <div>
+        <label class="lbl" for="{{ form.kpp.id_for_label }}">КПП</label>
+        {{ form.kpp }}
+      </div>
+      <div>
+        <label class="lbl" for="{{ form.ogrn.id_for_label }}">ОГРН / ОГРНИП</label>
+        {{ form.ogrn }}
+      </div>
+      <div>
+        <label class="lbl" for="{{ form.phone.id_for_label }}">Телефон</label>
+        {{ form.phone }}
+      </div>
+      <div>
+        <label class="lbl" for="{{ form.email.id_for_label }}">Email</label>
+        {{ form.email }}
+      </div>
+      <div>
+        <label class="lbl" for="{{ form.contact_person.id_for_label }}">{{ form.contact_person.label }}</label>
+        {{ form.contact_person }}
+      </div>
+      <div style="grid-column:1/-1">
+        <label class="lbl" for="{{ form.address.id_for_label }}">Адрес</label>
+        {{ form.address }}
+      </div>
+      <div style="grid-column:1/-1">
+        <label class="lbl" for="{{ form.postal_address.id_for_label }}">Почтовый адрес</label>
+        {{ form.postal_address }}
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div style="font-weight:900;margin-bottom:10px">Банк</div>
+    <div class="grid-2">
+      <div>
+        <label class="lbl" for="{{ form.bank_name.id_for_label }}">Банк</label>
+        {{ form.bank_name }}
+      </div>
+      <div>
+        <label class="lbl" for="{{ form.bank_bik.id_for_label }}">БИК</label>
+        {{ form.bank_bik }}
+      </div>
+      <div>
+        <label class="lbl" for="{{ form.settlement_account.id_for_label }}">Расчётный счёт</label>
+        {{ form.settlement_account }}
+      </div>
+      <div>
+        <label class="lbl" for="{{ form.correspondent_account.id_for_label }}">Корр. счёт</label>
+        {{ form.correspondent_account }}
+      </div>
+      <div style="grid-column:1/-1">
+        <label class="lbl" for="{{ form.bank_address.id_for_label }}">Адрес банка</label>
+        {{ form.bank_address }}
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div style="font-weight:900;margin-bottom:10px">Статус</div>
+    <div class="grid-2">
+      <div style="display:flex;align-items:center;gap:8px;padding-top:8px">
+        {{ form.is_active }}
+        <label for="{{ form.is_active.id_for_label }}" style="font-size:13px;font-weight:700">{{ form.is_active.label }}</label>
+      </div>
+      <div style="grid-column:1/-1">
+        <label class="lbl" for="{{ form.comment.id_for_label }}">Комментарий</label>
+        {{ form.comment }}
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button type="submit" class="btn primary">{{ submit_label }}</button>
+    <a class="btn" href="/accountant/carriers/">Отмена</a>
+  </div>
+</form>
+{% endblock %}

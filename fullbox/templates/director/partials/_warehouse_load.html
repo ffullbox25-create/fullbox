@@ -1,0 +1,23 @@
+<article class="dir-card">
+  <h2 class="dir-card-title">Склад</h2>
+  <p class="dir-card-sub">Загрузка и зоны · WMS</p>
+  <div class="dir-plan-stats">
+    <div><span>Занято палетомест</span><b>{{ warehouse.occupied }}</b></div>
+    <div><span>Свободно</span><b>{{ warehouse.free }}</b></div>
+    <div><span>Загрузка</span><b>{{ warehouse.load_pct }}%</b></div>
+    <div><span>Короба</span><b>{{ warehouse.boxes }}</b></div>
+    <div><span>Единицы товара</span><b>{{ warehouse.units }}</b></div>
+    <div><span>Без движения</span><b>{{ warehouse.stale_skus }} SKU</b></div>
+  </div>
+  <div class="dir-zones" aria-label="Схема загрузки зон">
+    {% for z in zones %}
+      <div class="dir-zone {% if z.hot %}is-hot{% endif %}">
+        <strong>Зона {{ z.code }}</strong>
+        <span>{{ z.load }}%</span>
+      </div>
+    {% endfor %}
+  </div>
+  <div style="margin-top:14px">
+    <a class="dir-section-link" href="/sklad/journal/">Открыть детальную карту →</a>
+  </div>
+</article>

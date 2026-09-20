@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Карта склада | FULLBOX</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #0e6b5b;
+      --accent-strong: #0b5246;
+      --sun: #f2b747;
+      --stroke: rgba(28,31,26,0.12);
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 100%; margin: 0 auto; padding: 28px 24px 64px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .logo { display:flex; align-items:center; gap:10px; }
+    .logo-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(242,183,71,0.35), rgba(14,107,91,0.15));
+      color: var(--accent-strong);
+      font-weight: 700;
+    }
+    .btn {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid var(--stroke);
+      background:rgba(28,31,26,0.04);
+      color:var(--ink);
+      font-weight:700;
+      transition:all .2s ease;
+    }
+    .btn:hover { border-color:rgba(14,107,91,0.4); box-shadow:0 12px 30px rgba(14,107,91,0.18); transform:translateY(-2px); }
+    .title { margin: 0; font-size: 20px; font-family: "Bricolage Grotesque", "Manrope", sans-serif; }
+    .muted { color: var(--muted); }
+    .note { margin: 12px 0 16px; font-weight: 600; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:10px 8px; border-bottom:1px solid var(--stroke); text-align:left; }
+    th { color:var(--muted); font-weight:600; font-size:14px; }
+    td { font-size:15px; }
+    .cell-center { text-align:center; }
+    .empty { padding:16px; text-align:center; color:var(--muted); border:1px dashed var(--stroke); border-radius:12px; background: var(--surface-2); }
+    .row-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(14,107,91,0.35);
+      background: linear-gradient(140deg, rgba(14,107,91,0.12), rgba(242,183,71,0.2));
+      color: var(--accent-strong);
+      font-weight: 700;
+      box-shadow: 0 8px 20px rgba(14,107,91,0.12);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    .row-link::after {
+      content: "→";
+      font-size: 13px;
+      margin-left: 6px;
+      opacity: 0.8;
+    }
+    .row-link:hover {
+      border-color: var(--accent);
+      box-shadow: 0 12px 26px rgba(14,107,91,0.2);
+      transform: translateY(-1px);
+    }
+    .row-link:focus-visible {
+      outline: 2px solid rgba(14,107,91,0.5);
+      outline-offset: 2px;
+    }
+    .row-link.os-row-link {
+      border-color: var(--row-badge-border, rgba(14,107,91,0.35));
+      background: linear-gradient(140deg, var(--row-badge-bg, rgba(14,107,91,0.12)), rgba(255,255,255,0.08));
+      color: var(--row-badge-ink, var(--accent-strong));
+      box-shadow: var(--row-badge-shadow, 0 8px 20px rgba(14,107,91,0.12));
+    }
+    .row-link.os-row-link:hover {
+      border-color: var(--row-badge-border, var(--accent));
+      box-shadow: 0 14px 30px rgba(15,23,42,0.16);
+    }
+    .picker-note {
+      margin: 12px 0 14px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(14,107,91,0.3);
+      background: rgba(14,107,91,0.1);
+      color: var(--accent-strong);
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .pick-location-btn {
+      border: 1px solid rgba(14,107,91,0.35);
+      border-radius: 10px;
+      background: rgba(14,107,91,0.08);
+      color: var(--accent-strong);
+      font-weight: 700;
+      font-size: 12px;
+      padding: 6px 10px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    .pick-location-btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.16);
+    }
+    .pick-location-btn.near-suggested,
+    .row-link.near-suggested {
+      border-color: rgba(14,107,91,0.75);
+      box-shadow: 0 0 0 2px rgba(14,107,91,0.22), 0 12px 26px rgba(14,107,91,0.2);
+    }
+    .pick-location-btn.draft-reserved {
+      border-color: rgba(28,31,26,0.2);
+      background: rgba(28,31,26,0.08);
+      color: #7a7f87;
+      cursor: not-allowed;
+      box-shadow: none;
+      opacity: 0.95;
+    }
+    .pick-location-btn.draft-reserved:hover {
+      transform: none;
+      border-color: rgba(28,31,26,0.2);
+      box-shadow: none;
+    }
+    .row-link.has-draft-reserved,
+    .pick-location-btn.has-draft-reserved {
+      border-color: rgba(242,183,71,0.7);
+      box-shadow: 0 0 0 2px rgba(242,183,71,0.2), 0 8px 22px rgba(242,183,71,0.24);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <div class="logo">
+          <div class="logo-mark">FX</div>
+          <div>
+            <div class="title">Карта склада</div>
+            <div class="muted">Паллетные места</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <a class="btn" href="/stockmap/visual/{% if picker_mode %}?picker=1{% endif %}">Визуальная схема</a>
+          <a class="btn" href="{{ cabinet_url }}">В кабинет</a>
+        </div>
+      </div>
+
+      <div class="note">1 ячейка — 1 поддон</div>
+      {% if picker_mode %}
+        <div class="picker-note">
+          Режим выбора локации: нажмите "Выбрать" для PR/OTG/MR или перейдите в ряд OS и выберите свободную ячейку.
+        </div>
+      {% endif %}
+
+      {% if cells %}
+        <table>
+          <thead>
+            <tr>
+              <th>Зона</th>
+              <th class="cell-center">Ряд</th>
+              <th class="cell-center">Секция</th>
+              <th class="cell-center">Ярус</th>
+              <th class="cell-center">Ячейка</th>
+              <th class="cell-center">Всего свободных</th>
+              <th class="cell-center">Всего занятых</th>
+              {% if picker_mode %}
+                <th class="cell-center">Выбор</th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in cells %}
+              <tr>
+                <td>{{ row.zone }}</td>
+                <td class="cell-center">
+                  {% if row.zone == "OS" and row.row %}
+                    <a
+                      class="row-link os-row-link"
+                      href="/stockmap/os/{{ row.row }}/{% if picker_mode %}?picker=1{% endif %}"
+                      style="--row-badge-bg: {{ row.badge_bg }}; --row-badge-border: {{ row.badge_border }}; --row-badge-ink: {{ row.badge_ink }}; --row-badge-shadow: {{ row.badge_shadow }};"
+                      title="Заполнено {{ row.fill_percent }}%"
+                    >{{ row.row }}</a>
+                  {% else %}
+                    {{ row.row }}
+                  {% endif %}
+                </td>
+                <td class="cell-center">{{ row.section }}</td>
+                <td class="cell-center">{{ row.tier }}</td>
+                <td class="cell-center">{{ row.cell }}</td>
+                <td class="cell-center">{{ row.free }}</td>
+                <td class="cell-center">
+                  {% if row.zone == "PR" and row.occupied %}
+                    <a class="row-link" href="/stockmap/pr/" title="Открыть паллеты в зоне приемки">{{ row.occupied }}</a>
+                  {% else %}
+                    {{ row.occupied }}
+                  {% endif %}
+                </td>
+                {% if picker_mode %}
+                  <td class="cell-center">
+                    {% if row.zone == "PR" or row.zone == "OTG" %}
+                      <button type="button" class="pick-location-btn" data-pick-zone="{{ row.zone }}">Выбрать</button>
+                    {% elif row.zone == "MR" and row.row %}
+                      <button type="button" class="pick-location-btn" data-pick-zone="MR" data-pick-row="{{ row.row }}">Выбрать</button>
+                    {% elif row.zone == "OS" and row.row %}
+                      <a class="pick-location-btn" href="/stockmap/os/{{ row.row }}/?picker=1">Ряд {{ row.row }}</a>
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+                {% endif %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty">Данных пока нет.</div>
+      {% endif %}
+    </div>
+  </div>
+  {% if picker_mode %}
+    <script>
+      (() => {
+        const params = new URLSearchParams(window.location.search || '');
+        const reservedKeys = new Set(
+          params.getAll('reserved')
+            .map((value) => String(value || '').trim().toUpperCase())
+            .filter((value) => value),
+        );
+        const toInt = (value) => Number.parseInt(String(value || '').trim(), 10) || 0;
+        const mrKey = (row) => (row > 0 ? `MR:${row}` : '');
+        const extractRowFromHref = (href) => {
+          const match = String(href || '').match(/\/stockmap\/os\/(\d+)\//i);
+          return match ? toInt(match[1]) : 0;
+        };
+        const countReservedInOSRow = (row) => {
+          if (row <= 0) {
+            return 0;
+          }
+          const marker = `OS:${row}:`;
+          let count = 0;
+          reservedKeys.forEach((key) => {
+            if (key.startsWith(marker)) {
+              count += 1;
+            }
+          });
+          return count;
+        };
+        const applyPickerParamsToHref = (href) => {
+          if (!href) {
+            return href;
+          }
+          const url = new URL(href, window.location.origin);
+          url.searchParams.set('picker', '1');
+          ['near_zone', 'near_row', 'near_section', 'near_tier', 'near_cell'].forEach((name) => {
+            if (params.has(name)) {
+              url.searchParams.set(name, params.get(name));
+            }
+          });
+          params.getAll('reserved').forEach((value) => {
+            url.searchParams.append('reserved', value);
+          });
+          return `${url.pathname}?${url.searchParams.toString()}`;
+        };
+        const sendSelection = (location, label) => {
+          const payload = {
+            type: 'stockmap-location-picked',
+            location: location || {},
+            label: label || '',
+            ts: Date.now(),
+          };
+          try {
+            localStorage.setItem('stockmap_location_pick', JSON.stringify(payload));
+          } catch (err) {}
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage(payload, window.location.origin);
+          }
+          window.close();
+        };
+
+        document.querySelectorAll('.row-link[href*="/stockmap/os/"]').forEach((link) => {
+          const row = extractRowFromHref(link.getAttribute('href'));
+          if (row > 0) {
+            const reservedCount = countReservedInOSRow(row);
+            if (reservedCount > 0) {
+              link.classList.add('has-draft-reserved');
+              link.title = `В ряду ${row} уже выбрано ${reservedCount} ячеек в текущем наборе заданий.`;
+            }
+          }
+          link.setAttribute('href', applyPickerParamsToHref(link.getAttribute('href')));
+        });
+        document.querySelectorAll('.pick-location-btn[href*="/stockmap/os/"]').forEach((link) => {
+          const row = extractRowFromHref(link.getAttribute('href'));
+          if (row > 0) {
+            const reservedCount = countReservedInOSRow(row);
+            if (reservedCount > 0) {
+              link.classList.add('has-draft-reserved');
+              link.title = `В ряду ${row} уже выбрано ${reservedCount} ячеек в текущем наборе заданий.`;
+            }
+          }
+          link.setAttribute('href', applyPickerParamsToHref(link.getAttribute('href')));
+        });
+
+        const labelByZone = (zone, row) => {
+          const token = String(zone || '').toUpperCase();
+          if (token === 'PR') {
+            return 'PR · Зона приемки';
+          }
+          if (token === 'OTG') {
+            return 'OTG · Зона отгрузки';
+          }
+          if (token === 'MR') {
+            return row ? `MR · Между рядами · Ряд ${row}` : 'MR · Между рядами';
+          }
+          return token || 'PR';
+        };
+
+        document.querySelectorAll('.pick-location-btn[data-pick-zone]').forEach((btn) => {
+          const zone = String(btn.dataset.pickZone || '').toUpperCase();
+          const row = toInt(btn.dataset.pickRow);
+          if (zone === 'MR') {
+            const key = mrKey(row);
+            if (key && reservedKeys.has(key)) {
+              btn.classList.add('draft-reserved');
+              btn.disabled = true;
+              btn.title = 'Этот ряд MR уже выбран для другой палеты в текущем наборе заданий.';
+            }
+          }
+          btn.addEventListener('click', () => {
+            if (btn.disabled) {
+              return;
+            }
+            sendSelection(
+              {
+                zone,
+                row,
+                section: 0,
+                tier: 0,
+                cell: 0,
+              },
+              labelByZone(zone, row),
+            );
+          });
+        });
+
+        const nearZone = String(params.get('near_zone') || '').toUpperCase();
+        const nearRow = toInt(params.get('near_row'));
+        if (nearZone) {
+          const zoneButton = Array.from(document.querySelectorAll('.pick-location-btn[data-pick-zone]'))
+            .find((btn) => {
+              if (btn.disabled) {
+                return false;
+              }
+              const zone = String(btn.dataset.pickZone || '').toUpperCase();
+              const row = toInt(btn.dataset.pickRow);
+              if (zone !== nearZone) {
+                return false;
+              }
+              if (nearZone === 'MR') {
+                return row > 0 && row === nearRow;
+              }
+              return nearZone === 'PR' || nearZone === 'OTG';
+            });
+          if (zoneButton) {
+            zoneButton.classList.add('near-suggested');
+            zoneButton.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }
+          if (nearZone === 'OS' && nearRow > 0) {
+            const rowLink = Array.from(document.querySelectorAll('.row-link'))
+              .find((link) => Number.parseInt(String(link.textContent || '').trim(), 10) === nearRow);
+            if (rowLink) {
+              rowLink.classList.add('near-suggested');
+              rowLink.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+          }
+        }
+      })();
+    </script>
+  {% endif %}
+</body>
+</html>

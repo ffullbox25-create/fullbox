@@ -1,0 +1,3939 @@
+
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Заявка на обработку</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #0e6b5b;
+      --accent-strong: #0b5246;
+      --sun: #f2b747;
+      --danger: #d4543c;
+      --stroke: rgba(28,31,26,0.12);
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+    }
+    [hidden] {
+      display: none !important;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      overflow: hidden;
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      position: relative;
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 24px 24px 72px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      align-items: stretch;
+      min-height: calc(100vh - 96px);
+    }
+    .side {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 16px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+    }
+    .brand-title {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.6px;
+    }
+    .profile {
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+    }
+    .profile-value { font-weight: 600; }
+    .status-card {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+    }
+    .status-title {
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+    }
+    .status-value {
+      font-weight: 700;
+    }
+    .nav { display: grid; gap: 10px; }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      padding: 12px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .nav-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 12px 24px rgba(14,107,91,0.12);
+    }
+    .nav-link.primary {
+      background: linear-gradient(135deg, rgba(242,183,71,0.45), rgba(14,107,91,0.15));
+      border-color: transparent;
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub { font-size: 12px; color: var(--muted); }
+    .side-footer { display: grid; gap: 10px; }
+    .content {
+      display: grid;
+      gap: 18px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .panel-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+    }
+    .panel-subtitle { color: var(--muted); font-size: 13px; }
+    .btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      font-weight: 700;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.14);
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .btn.success {
+      background: linear-gradient(120deg, #4fbf7f, #9be7ba);
+      border-color: transparent;
+      color: #0f3a26;
+    }
+    .btn.cta {
+      padding: 14px 22px;
+      font-size: 16px;
+      border-radius: 14px;
+    }
+    .btn.ghost { background: transparent; }
+    .alert {
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      border: 1px solid transparent;
+    }
+    .alert.success {
+      border-color: rgba(14,107,91,0.35);
+      background: rgba(14,107,91,0.12);
+      color: var(--accent-strong);
+    }
+    .alert.error {
+      border-color: rgba(212,84,60,0.35);
+      background: rgba(212,84,60,0.14);
+      color: #7f1d1d;
+    }
+    form { display: grid; gap: 12px; }
+    .form-section {
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      border-radius: 16px;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .form-section h3 {
+      margin: 0;
+      font-size: 16px;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .input-row input {
+      flex: 1;
+      min-width: 0;
+    }
+    .input-row .row-action {
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .stock-table input {
+      padding: 6px 8px;
+      font-size: 13px;
+    }
+    .stock-table {
+      min-width: 0;
+      width: 100%;
+      font-size: 12px;
+    }
+    .stock-table th,
+    .stock-table td {
+      padding: 6px;
+    }
+    .stock-table th {
+      font-size: 10px;
+    }
+    .stock-table th:nth-child(2),
+    .stock-table td:nth-child(2) {
+      width: 90px;
+    }
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 50;
+    }
+    .modal.active { display: flex; }
+    .modal-card {
+      width: min(760px, 96vw);
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 12px;
+      max-height: 90vh;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .modal-title {
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .modal-body {
+      min-height: 0;
+      overflow: auto;
+      display: grid;
+      gap: 10px;
+    }
+    .field { display: grid; gap: 6px; }
+    label { font-weight: 600; color: var(--muted); }
+    input, textarea, select {
+      width: 100%;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 14px;
+      font-family: inherit;
+    }
+    textarea { resize: vertical; }
+    input[type="checkbox"],
+    input[type="radio"] {
+      width: auto;
+      margin: 0;
+      accent-color: var(--accent);
+    }
+    .inline { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .inline label { display: flex; align-items: center; gap: 6px; font-weight: 500; color: var(--ink); }
+    .hint { color: var(--muted); font-size: 12px; }
+    .required { color: var(--danger); margin-left: 4px; }
+    .table-wrap {
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      overflow: auto;
+      background: var(--surface);
+    }
+    .block-body .table-wrap {
+      flex: 1;
+      min-height: 0;
+    }
+    .params-table {
+      width: 100%;
+      min-width: 320px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .params-table th,
+    .params-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--stroke);
+      vertical-align: middle;
+    }
+    .params-table th {
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      background: var(--surface-2);
+      position: sticky;
+      top: 0;
+    }
+    .params-table .param-label {
+      font-weight: 600;
+    }
+    .params-table .highlight-row td {
+      background: rgba(242,183,71,0.2);
+      border-bottom-color: rgba(242,183,71,0.45);
+    }
+    .params-table .highlight-row .param-label {
+      color: #7a4a00;
+    }
+    .param-inline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .params-table select,
+    .params-table input[type="text"],
+    .params-table input[type="number"] {
+      width: 100%;
+      min-width: 90px;
+      padding: 6px 8px;
+      font-size: 12px;
+    }
+    .params-table input[type="file"] {
+      font-size: 12px;
+    }
+    .param-value {
+      display: grid;
+      gap: 8px;
+    }
+    .param-extra {
+      display: grid;
+      gap: 6px;
+    }
+    .param-extra[hidden] {
+      display: none;
+    }
+    .param-select {
+      max-width: 260px;
+    }
+    .param-note {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .cz-status {
+      font-size: 11px;
+      color: var(--accent);
+    }
+    .cz-status.error {
+      color: var(--danger);
+    }
+    .cz-file-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      overflow: hidden;
+    }
+    .cz-file-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 6px 10px;
+      border: 1px solid rgba(14,107,91,0.28);
+      border-radius: 9px;
+      background: rgba(14,107,91,0.08);
+      color: var(--accent-strong);
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .cz-file-name {
+      min-width: 140px;
+      font-size: 11px;
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 900px; }
+    th, td { padding: 8px; border-bottom: 1px solid var(--stroke); vertical-align: top; }
+    th {
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      background: var(--surface-2);
+      position: sticky;
+      top: 0;
+    }
+    .table-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .row-action {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke);
+      background: transparent;
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .row-action:hover {
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.14);
+    }
+    .direction-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .attachment-stack {
+      display: grid;
+      gap: 8px;
+    }
+    .misc-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.03);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+    }
+    .misc-toggle:hover {
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.12);
+    }
+    .misc-toggle-label {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .misc-toggle-summary {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .misc-body {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .attachment-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .attachment-list {
+      display: grid;
+      gap: 6px;
+    }
+    .attachment-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: rgba(28,31,26,0.03);
+      font-size: 12px;
+    }
+    .attachment-item a {
+      font-weight: 700;
+      word-break: break-word;
+    }
+    .checkbox-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      color: var(--danger);
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .attachment-selected-empty {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    @media (max-width: 1200px) {
+      body { overflow: auto; }
+      .layout { grid-template-columns: 1fr; }
+      .side,
+      .content { max-height: none; overflow: visible; padding-right: 0; }
+    }
+  
+    .processing-content {
+      height: auto;
+      overflow: visible;
+    }
+    .processing-form {
+      height: auto;
+      display: grid;
+    }
+    .processing-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      grid-template-rows: auto;
+      grid-auto-rows: auto;
+      gap: 18px;
+      min-height: 0;
+      height: auto;
+    }
+    .processing-params {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-height: 0;
+      max-height: calc(100vh - 150px);
+      overflow: hidden;
+    }
+    .processing-params .block-body {
+      min-height: 0;
+      overflow: auto;
+      padding-right: 4px;
+      scrollbar-gutter: stable;
+    }
+    .processing-main-panel {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+      min-width: 0;
+    }
+    .processing-cards-toolbar {
+      display: flex;
+      justify-content: flex-start;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .processing-wizard {
+      display: grid;
+      gap: 12px;
+      align-items: start;
+      justify-content: stretch;
+      min-height: 0;
+      margin-bottom: 2px;
+    }
+    .wizard-actions {
+      display: flex;
+      justify-content: flex-start;
+      width: 100%;
+    }
+    .wizard-market-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-start;
+      width: 100%;
+      margin-top: 4px;
+    }
+    .processing-stock-picker {
+      display: grid;
+      gap: 12px;
+      align-self: start;
+    }
+    .processing-stock-picker .panel-header {
+      margin-bottom: 0;
+    }
+    .processing-stock-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .processing-stock-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .processing-stock-search {
+      max-width: 360px;
+      min-width: 260px;
+    }
+    .processing-stock-summary {
+      font-weight: 700;
+      color: var(--accent-strong);
+    }
+    .processing-stock-picker .table-wrap {
+      max-height: min(58vh, 560px);
+      overflow: auto;
+      background: rgba(15,23,42,0.03);
+    }
+    .processing-stock-picker table {
+      min-width: 1120px;
+    }
+    .processing-stock-picker input[type="number"] {
+      width: 96px;
+      padding: 7px 8px;
+    }
+    .ship-box-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .processing-stock-picker .split-trigger {
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      justify-content: center;
+      border-radius: 9px;
+    }
+    .processing-stock-picker .split-summary {
+      margin-top: 4px;
+      color: var(--accent-strong);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .processing-stock-picker tr.is-hidden,
+    .processing-stock-picker tr.split-source-hidden {
+      display: none;
+    }
+    .processing-stock-picker tbody tr.mix-box-row td {
+      background: var(--mix-bg, rgba(59,130,246,0.08));
+    }
+    .processing-stock-picker tbody tr.mix-box-row td:first-child {
+      border-left: 2px solid var(--mix-stroke, rgba(59,130,246,0.7));
+    }
+    .processing-stock-picker tbody tr.mix-box-row td:last-child {
+      border-right: 2px solid var(--mix-stroke, rgba(59,130,246,0.7));
+    }
+    .processing-stock-picker tbody tr.mix-box-start td {
+      border-top: 2px solid var(--mix-stroke, rgba(59,130,246,0.7));
+    }
+    .processing-stock-picker tbody tr.mix-box-end td {
+      border-bottom: 2px solid var(--mix-stroke, rgba(59,130,246,0.7));
+    }
+    .processing-stock-picker tbody tr.mix-tone-0 { --mix-bg: rgba(59,130,246,0.11); --mix-stroke: rgba(59,130,246,0.72); --mix-ink: #1d4ed8; }
+    .processing-stock-picker tbody tr.mix-tone-1 { --mix-bg: rgba(16,185,129,0.11); --mix-stroke: rgba(16,185,129,0.72); --mix-ink: #047857; }
+    .processing-stock-picker tbody tr.mix-tone-2 { --mix-bg: rgba(245,158,11,0.11); --mix-stroke: rgba(245,158,11,0.72); --mix-ink: #b45309; }
+    .processing-stock-picker tbody tr.mix-tone-3 { --mix-bg: rgba(236,72,153,0.11); --mix-stroke: rgba(236,72,153,0.72); --mix-ink: #be185d; }
+    .processing-stock-picker tbody tr.mix-tone-4 { --mix-bg: rgba(168,85,247,0.11); --mix-stroke: rgba(168,85,247,0.72); --mix-ink: #7e22ce; }
+    .processing-stock-picker tbody tr.mix-tone-5 { --mix-bg: rgba(14,165,233,0.11); --mix-stroke: rgba(14,165,233,0.72); --mix-ink: #0369a1; }
+    .processing-stock-picker tbody tr.mix-box-row .mix-badge {
+      color: var(--mix-ink, #1e3a8a);
+      border-color: color-mix(in srgb, var(--mix-stroke, rgba(59,130,246,0.72)) 55%, white);
+      background: color-mix(in srgb, var(--mix-bg, rgba(59,130,246,0.08)) 85%, white);
+    }
+    .mix-badge {
+      display: inline-flex;
+      margin-top: 4px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #1e3a8a;
+      background: rgba(59,130,246,0.16);
+      border: 1px solid rgba(59,130,246,0.36);
+    }
+    .split-note {
+      color: var(--accent-strong);
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .processing-stock-picker .split-proxy-input {
+      max-width: 96px;
+    }
+    .processing-split-modal {
+      width: min(720px, 96vw);
+    }
+    .split-lines {
+      display: grid;
+      gap: 8px;
+    }
+    .split-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px;
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      background: var(--surface-2);
+    }
+    .split-line-title {
+      font-weight: 800;
+    }
+    .split-line input {
+      width: 100px;
+    }
+    .split-error {
+      color: var(--danger);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .wizard-market-btn {
+      border-radius: 999px;
+      background: rgba(28,31,26,0.03);
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+    .wizard-next-btn {
+      min-width: 220px;
+      justify-content: center;
+    }
+    .processing-cards {
+      column-count: 2;
+      column-gap: 18px;
+      min-width: 0;
+    }
+    .processing-card {
+      min-width: 0;
+      width: 100%;
+      display: inline-block;
+      break-inside: avoid;
+      margin-bottom: 18px;
+    }
+    .processing-header {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+    .processing-header-fields {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+      gap: 10px;
+      align-items: center;
+    }
+    .processing-header-action {
+      display: flex;
+      align-items: center;
+    }
+    .processing-header-fields input {
+      padding: 6px 8px;
+      font-size: 13px;
+    }
+    .processing-header .row-action {
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+    .processing-main .block-body {
+      margin-top: 8px;
+    }
+    .processing-main {
+      height: auto;
+      align-self: start;
+      overflow: visible;
+    }
+    .processing-main .block-body {
+      flex: 0 0 auto;
+      overflow: visible;
+    }
+    .processing-block {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .processing-params {
+      grid-column: 2;
+      grid-row: auto;
+      align-self: start;
+    }
+    /* Client LK: params first, then selected cards, stock picker at the bottom. */
+    body.client-lk-processing .processing-form.client-lk-flow {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    body.client-lk-processing .processing-form.client-lk-flow:not(.client-lk-ready) {
+      visibility: hidden;
+    }
+    body.client-lk-processing .client-lk-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 10px;
+      font-size: 15px;
+      font-weight: 800;
+    }
+    body.client-lk-processing .client-lk-step .num {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      background: rgba(14,107,91,0.12);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    body.client-lk-processing .client-lk-intro {
+      margin: 0 0 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    body.client-lk-processing .processing-form.client-lk-flow > .processing-wizard {
+      order: 3;
+    }
+    body.client-lk-processing .processing-form.client-lk-flow > .processing-grid {
+      order: 2;
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr);
+    }
+    body.client-lk-processing .processing-form.client-lk-flow > .processing-params {
+      order: 1;
+      grid-column: auto;
+      width: 100%;
+    }
+    body.client-lk-processing .wizard-actions,
+    body.client-lk-processing .wizard-market-list {
+      display: none !important;
+    }
+    body.client-lk-processing .processing-stock-picker .panel-title::before {
+      content: none;
+    }
+    body.client-lk-processing .side-footer .btn.ghost[href="/logout/"] {
+      display: none;
+    }
+    .block-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .block-body {
+      min-height: 0;
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 12px;
+      padding-right: 4px;
+    }
+    .processing-block.processing-main {
+      height: auto;
+    }
+    .processing-block.processing-main .block-body {
+      flex: 0 0 auto;
+      overflow: visible;
+    }
+    .processing-block.processing-main .table-wrap {
+      flex: 0 0 auto;
+    }
+    .block-footer {
+      margin-top: auto;
+      padding-top: 12px;
+    }
+    .photo-box {
+      width: 1.4cm;
+      height: 1.4cm;
+      border-radius: 6px;
+      border: 1px dashed var(--stroke);
+      background: var(--surface-2);
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .photo-box input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .photo-placeholder {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .photo-preview {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+    .photo-box.has-image .photo-placeholder {
+      display: none;
+    }
+    .photo-box.has-image .photo-preview {
+      display: block;
+    }
+    @media (max-width: 1200px) {
+      .processing-content { height: auto; }
+      .processing-form { height: auto; }
+      .processing-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        height: auto;
+      }
+      .processing-params {
+        grid-column: auto;
+        grid-row: auto;
+      }
+      .processing-cards {
+        column-count: 1;
+      }
+    }
+    @media (max-width: 720px) {
+      .processing-wizard {
+        min-height: min(52vh, 420px);
+      }
+      .wizard-actions,
+      .wizard-market-list {
+        justify-content: stretch;
+      }
+      .wizard-next-btn {
+        width: 100%;
+      }
+      .processing-header {
+        grid-template-columns: 1fr;
+        justify-items: start;
+      }
+      .processing-header-fields {
+        grid-template-columns: 1fr;
+        width: 100%;
+      }
+      .processing-header-action {
+        width: 100%;
+      }
+      .processing-header-action .row-action {
+        width: 100%;
+        text-align: center;
+      }
+    }
+</style>
+</head>
+<body class="lk-theme{% if client_view %} client-lk-processing{% endif %}"{% if client_view %} data-client-lk="1"{% endif %}>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand">
+          <div class="brand-title">FULLBOX</div>
+        </div>
+        <div class="profile">
+          <div class="profile-value">
+            {% if agency %}
+              Кабинет клиента<br>
+              {{ agency.agn_name|default:agency.fio_agn|default:"клиента" }}
+            {% else %}
+              {% include "partials/current_user.html" %}
+            {% endif %}
+          </div>
+        </div>
+        <div class="status-card">
+          <div class="status-title">Статус заявки</div>
+          <div class="status-value">{{ status_label|default:"Подготовка заявки" }}</div>
+          {% if error %}
+            <div class="alert error">{{ error }}</div>
+          {% endif %}
+          {% if draft_saved %}
+            <div class="alert success">Черновик сохранен.</div>
+          {% endif %}
+          {% if submitted %}
+            <div class="alert success">Заявка на обработку отправлена.</div>
+          {% endif %}
+          {% if client_view and draft_order_id %}
+            <form method="post" action="{% url 'processing_app:processing-draft-delete' draft_order_id %}">
+              {% csrf_token %}
+              <button class="btn" type="submit">Удалить черновик</button>
+            </form>
+          {% endif %}
+        </div>
+          <nav class="nav">
+            {% if client_view %}
+              <a class="nav-link" href="/orders/?client={{ agency.id }}">
+                <span class="nav-title">Журнал заявок</span>
+                <span class="nav-sub">Все заявки</span>
+              </a>
+              <a class="nav-link" href="/client/dashboard/lk/?client={{ agency.id }}">
+                <span class="nav-title">В кабинет</span>
+                <span class="nav-sub">Главная клиента</span>
+              </a>
+              <a class="nav-link" href="/client/{{ agency.id }}/sku/">
+                <span class="nav-title">Номенклатура</span>
+                <span class="nav-sub">SKU и карточки</span>
+              </a>
+              <a class="nav-link primary" href="/orders/processing/?client={{ agency.id }}">
+                <span class="nav-title">Заявка на обработку</span>
+                <span class="nav-sub">Параметры и товар</span>
+              </a>
+              <a class="nav-link" href="/sklad/journal/?client={{ agency.id }}">
+                <span class="nav-title">Складские остатки</span>
+                <span class="nav-sub">Актуальные стоки</span>
+              </a>
+            {% else %}
+              <a class="nav-link" href="/orders/">
+                <span class="nav-title">Журнал заявок</span>
+                <span class="nav-sub">Все заявки</span>
+              </a>
+              <a class="nav-link" href="{{ cabinet_url }}">
+                <span class="nav-title">В кабинет</span>
+                <span class="nav-sub">Главная роль</span>
+              </a>
+              <a class="nav-link primary" href="/orders/processing/">
+                <span class="nav-title">Заявка на обработку</span>
+                <span class="nav-sub">Техническая карта</span>
+              </a>
+              <a class="nav-link" href="/orders/packing/">
+                <span class="nav-title">Заявка на упаковку</span>
+                <span class="nav-sub">Подготовка товара</span>
+              </a>
+              <a class="nav-link" href="/client/">
+                <span class="nav-title">Список клиентов</span>
+                <span class="nav-sub">Выбрать кабинет</span>
+              </a>
+            {% endif %}
+          </nav>
+        <div class="side-footer">
+          <button class="btn primary" id="submit-send-btn" type="submit" form="processing-form" name="submit_action" value="send">Отправить</button>
+          <button class="btn" id="submit-draft-btn" type="submit" form="processing-form" name="submit_action" value="draft" formnovalidate>Сохранить черновик</button>
+          {% if not client_view %}
+            <a class="btn ghost" href="/logout/">Выход</a>
+          {% endif %}
+        </div>
+      </aside>
+
+            <main class="content processing-content">
+        <form class="processing-form{% if client_view %} client-lk-flow{% endif %}" id="processing-form" method="post" enctype="multipart/form-data" data-marking-check-url="{% url 'processing_app:processing-marking-availability' %}" data-marking-import-url="{% url 'processing_app:processing-marking-import' %}"{% if client_view %} data-client-lk="1"{% endif %}>
+          {% csrf_token %}
+          <input type="hidden" name="agency_id" value="{{ agency.id|default:'' }}">
+          <input type="hidden" name="email" value="{{ agency.email|default:'' }}">
+          <input type="hidden" name="fio" value="{{ agency.fio_agn|default:'' }}">
+          <input type="hidden" name="org" value="{{ agency.agn_name|default:'' }}">
+          <input type="hidden" name="cards_json" id="cards-json" value="">
+          {% if draft_order_id %}
+            <input type="hidden" name="draft_order_id" value="{{ draft_order_id }}">
+          {% endif %}
+          {% if edit_order_id %}
+            <input type="hidden" name="edit_order_id" value="{{ edit_order_id }}">
+          {% endif %}
+
+          {% if client_view %}
+            <header class="page-head" style="margin-bottom:4px;">
+              <h1 style="margin:0;font-family:'Bricolage Grotesque','Manrope',sans-serif;font-size:24px;">Новая заявка на обработку</h1>
+              <p class="client-lk-intro">Сначала укажите, что нужно сделать, затем выберите товар со склада снизу.</p>
+              <p class="hint" id="draft-autosave-status" style="margin-top:6px;font-weight:700;"></p>
+            </header>
+          {% endif %}
+
+          <div class="processing-wizard">
+            <section class="panel processing-stock-picker" id="processing-stock-picker">
+              <div class="processing-stock-toolbar">
+                <div>
+                  {% if client_view %}
+                    <h3 class="client-lk-step"><span class="num">3</span> Позиции — доступно к обработке</h3>
+                    <div class="hint">Выберите короба ниже и укажите количество к обработке.</div>
+                  {% else %}
+                    <h3 class="panel-title" style="font-size: 18px;">Складские короба</h3>
+                    <div class="hint">Выберите короба или разбивку короба для заявки на обработку.</div>
+                  {% endif %}
+                </div>
+                <div class="processing-stock-actions">
+                  <input class="processing-stock-search" type="text" id="processing-stock-search" placeholder="Поиск по артикулу, названию, размеру или ШК">
+                  <button class="btn ghost" type="button" id="processing-stock-close" hidden>Скрыть</button>
+                  <button class="btn primary" type="button" id="processing-stock-confirm" disabled>Выбрать</button>
+                </div>
+              </div>
+              <div class="processing-stock-toolbar">
+                <div class="hint">Для микс-короба достаточно указать количество в одной строке: остальные позиции этого короба добавятся автоматически.</div>
+                <div class="processing-stock-summary" id="processing-stock-summary">Ничего не выбрано</div>
+              </div>
+              <div class="table-wrap">
+                <table class="stock-table" id="processing-stock-table">
+                  <thead>
+                    <tr>
+                      <th>Артикул</th>
+                      <th>Наименование</th>
+                      <th>Размер</th>
+                      <th>ШК</th>
+                      <th>Тип</th>
+                      <th>Ед. в коробе</th>
+                      <th>Доступно коробов</th>
+                      <th>К обработке</th>
+                      <th>Итог, шт</th>
+                    </tr>
+                  </thead>
+                  <tbody id="processing-stock-body"></tbody>
+                </table>
+                <div class="hint" id="processing-stock-empty" hidden style="padding:16px;">Складских коробов для выбора не найдено.</div>
+              </div>
+            </section>
+            <div class="wizard-actions">
+              <button class="btn primary wizard-next-btn" type="button" id="choose-marketplace-btn" hidden>Выбрать маркетплейс</button>
+            </div>
+            <div class="wizard-market-list" id="marketplace-options" hidden></div>
+          </div>
+
+          <div class="processing-grid" id="processing-grid" {% if not client_view %}hidden{% endif %}>
+            <div class="processing-main-panel">
+              {% if client_view %}
+                <h3 class="client-lk-step"><span class="num">2</span> Выбранный товар</h3>
+                <p class="hint" style="margin-top:-6px;">После выбора коробов снизу позиции появятся здесь.</p>
+              {% endif %}
+              <div class="processing-cards-toolbar">
+                <button
+                  class="btn"
+                  type="button"
+                  id="add-more-product-btn"
+                  data-url="{% url 'processing_app:processing-stock-picker' %}"
+                >
+                  {% if client_view %}Изменить выбор на складе{% else %}Добавить еще товар{% endif %}
+                </button>
+              </div>
+              <div class="processing-cards" id="processing-cards"></div>
+            </div>
+
+            <section class="panel processing-block processing-params" id="processing-params-panel" {% if not client_view %}hidden{% endif %}>
+              <div class="block-header">
+                {% if client_view %}
+                  <h3 class="client-lk-step"><span class="num">1</span> Что нужно сделать</h3>
+                {% else %}
+                  <h3 class="panel-title" style="font-size: 18px;">Параметры обработки</h3>
+                {% endif %}
+              </div>
+              <div class="block-body">
+                <div class="table-wrap">
+                  <table class="params-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 220px;">Параметр</th>
+                        <th>Значение</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr class="highlight-row">
+                        <td class="param-label">Маркетплейс</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="marketplace" class="param-select">
+                              <option value="" {% if not draft_payload.marketplace %}selected{% endif %}>-</option>
+                              <option value="WB" {% if draft_payload.marketplace == "WB" %}selected{% endif %}>Wildberries</option>
+                              <option value="Ozon" {% if draft_payload.marketplace == "Ozon" %}selected{% endif %}>Ozon</option>
+                              <option value="Yandex" {% if draft_payload.marketplace == "Yandex" %}selected{% endif %}>Яндекс Маркет</option>
+                              <option value="Sber" {% if draft_payload.marketplace == "Sber" %}selected{% endif %}>СберМегаМаркет</option>
+                              <option value="AliExpress" {% if draft_payload.marketplace == "AliExpress" %}selected{% endif %}>AliExpress</option>
+                              <option value="Lamoda" {% if draft_payload.marketplace == "Lamoda" %}selected{% endif %}>Lamoda</option>
+                            </select>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Проверка на брак</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="defect_percent" class="param-select">
+                              <option value="" {% if not draft_payload.defect_percent %}selected{% endif %}>-</option>
+                              <option value="10" {% if draft_payload.defect_percent|stringformat:"s" == "10" %}selected{% endif %}>10%</option>
+                              <option value="50" {% if draft_payload.defect_percent|stringformat:"s" == "50" %}selected{% endif %}>50%</option>
+                              <option value="100" {% if draft_payload.defect_percent|stringformat:"s" == "100" %}selected{% endif %}>100%</option>
+                            </select>
+                            <input type="hidden" name="defect_check" value="{{ draft_payload.defect_check|default:'' }}" data-needed-for="defect_percent">
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Маркировка 58/40</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="marking_5840_qty" class="param-select">
+                              <option value="" {% if not draft_payload.marking_5840_qty %}selected{% endif %}>-</option>
+                              <option value="1" {% if draft_payload.marking_5840_qty|stringformat:"s" == "1" %}selected{% endif %}>1</option>
+                              <option value="2" {% if draft_payload.marking_5840_qty|stringformat:"s" == "2" %}selected{% endif %}>2</option>
+                              <option value="3" {% if draft_payload.marking_5840_qty|stringformat:"s" == "3" %}selected{% endif %}>3</option>
+                            </select>
+                            <input type="hidden" name="marking_5840_needed" value="{{ draft_payload.marking_5840_needed|default:'' }}" data-needed-for="marking_5840_qty">
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Маркировка 58/60</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="marking_5860_qty" class="param-select">
+                              <option value="" {% if not draft_payload.marking_5860_qty %}selected{% endif %}>-</option>
+                              <option value="1" {% if draft_payload.marking_5860_qty|stringformat:"s" == "1" %}selected{% endif %}>1</option>
+                              <option value="2" {% if draft_payload.marking_5860_qty|stringformat:"s" == "2" %}selected{% endif %}>2</option>
+                              <option value="3" {% if draft_payload.marking_5860_qty|stringformat:"s" == "3" %}selected{% endif %}>3</option>
+                            </select>
+                            <input type="hidden" name="marking_5860_needed" value="{{ draft_payload.marking_5860_needed|default:'' }}" data-needed-for="marking_5860_qty">
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Маркировка 75/120</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="marking_75120_qty" class="param-select">
+                              <option value="" {% if not draft_payload.marking_75120_qty %}selected{% endif %}>-</option>
+                              <option value="1" {% if draft_payload.marking_75120_qty|stringformat:"s" == "1" %}selected{% endif %}>1</option>
+                              <option value="2" {% if draft_payload.marking_75120_qty|stringformat:"s" == "2" %}selected{% endif %}>2</option>
+                              <option value="3" {% if draft_payload.marking_75120_qty|stringformat:"s" == "3" %}selected{% endif %}>3</option>
+                            </select>
+                            <input type="hidden" name="marking_75120_needed" value="{{ draft_payload.marking_75120_needed|default:'' }}" data-needed-for="marking_75120_qty">
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Маркировка 58/40 (шт/чз)</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="marking_5840_each_qty" class="param-select">
+                              <option value="" {% if not draft_payload.marking_5840_each_qty %}selected{% endif %}>-</option>
+                              <option value="1" {% if draft_payload.marking_5840_each_qty|stringformat:"s" == "1" %}selected{% endif %}>1</option>
+                              <option value="2" {% if draft_payload.marking_5840_each_qty|stringformat:"s" == "2" %}selected{% endif %}>2</option>
+                            </select>
+                            <input type="hidden" name="marking_5840_each_needed" value="{{ draft_payload.marking_5840_each_needed|default:'' }}" data-needed-for="marking_5840_each_qty">
+                            <div class="param-extra" data-owner="marking_5840_each_qty" data-show-when="any">
+                              <div class="cz-status" data-marking-cz-status>Выберите товар для проверки ЧЗ.</div>
+                              <div class="param-inline" data-marking-cz-upload hidden>
+                                <a class="cz-file-action" href="{% url 'processing_app:processing-marking-template' %}" download>Образец файла</a>
+                                <label class="cz-file-action" for="marking-cz-file">Загрузить файлы с ЧЗ</label>
+                                <input id="marking-cz-file" class="cz-file-input" type="file" name="marking_cz_file" accept=".xlsx" multiple data-marking-cz-file>
+                                <span class="cz-file-name" data-marking-cz-filename>Файлы не выбраны</span>
+                                {% if draft_payload.marking_cz_files %}
+                                  <span class="param-note">Файлы: {{ draft_payload.marking_cz_files|join:", " }}</span>
+                                {% elif draft_payload.marking_cz_file %}
+                                  <span class="param-note">Файл: {{ draft_payload.marking_cz_file }}</span>
+                                {% endif %}
+                              </div>
+                              <div class="param-note">Excel (.xlsx): «Баркод» и «КИ (код идентификации)».</div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Замена бирок</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="tag_owner" class="param-select">
+                              <option value="" {% if not draft_payload.tag_owner %}selected{% endif %}>-</option>
+                              <option value="Фуллбокс" {% if draft_payload.tag_owner == "Фуллбокс" %}selected{% endif %}>Фуллбокс</option>
+                              <option value="Клиент" {% if draft_payload.tag_owner == "Клиент" %}selected{% endif %}>Клиент</option>
+                            </select>
+                            <input type="hidden" name="tag_replace_needed" value="{{ draft_payload.tag_replace_needed|default:'' }}" data-needed-for="tag_owner">
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Замена пакета</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="bag_replace_type" class="param-select">
+                              <option value="" {% if not draft_payload.bag_replace_type %}selected{% endif %}>-</option>
+                              <option value="Стандартный" {% if draft_payload.bag_replace_type == "Стандартный" %}selected{% endif %}>Стандартный</option>
+                              <option value="Zip" {% if draft_payload.bag_replace_type == "Zip" %}selected{% endif %}>Zip</option>
+                              <option value="Клеевой клапан" {% if draft_payload.bag_replace_type == "Клеевой клапан" %}selected{% endif %}>Клеевой клапан</option>
+                              <option value="Другое" {% if draft_payload.bag_replace_type == "Другое" %}selected{% endif %}>Другое</option>
+                            </select>
+                            <input type="hidden" name="bag_replace_needed" value="{{ draft_payload.bag_replace_needed|default:'' }}" data-needed-for="bag_replace_type">
+                            <div class="param-extra" data-owner="bag_replace_type" data-show-when="any">
+                              <div class="param-inline">
+                                <span class="param-note">Чей пакет</span>
+                                <select name="bag_replace_supply">
+                                  <option value="" {% if not draft_payload.bag_replace_supply %}selected{% endif %}>-</option>
+                                  <option value="Фуллбокс" {% if draft_payload.bag_replace_supply == "Фуллбокс" %}selected{% endif %}>Фуллбокс</option>
+                                  <option value="Клиент" {% if draft_payload.bag_replace_supply == "Клиент" %}selected{% endif %}>Клиент</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Упаковка в Бабл пленку</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="bubble_wrap_size" class="param-select">
+                              <option value="" {% if not draft_payload.bubble_wrap_size %}selected{% endif %}>-</option>
+                              <option value="Малый" {% if draft_payload.bubble_wrap_size == "Малый" %}selected{% endif %}>Малый</option>
+                              <option value="Средний" {% if draft_payload.bubble_wrap_size == "Средний" %}selected{% endif %}>Средний</option>
+                              <option value="Большой" {% if draft_payload.bubble_wrap_size == "Большой" %}selected{% endif %}>Большой</option>
+                            </select>
+                            <input type="hidden" name="bubble_wrap_needed" value="{{ draft_payload.bubble_wrap_needed|default:'' }}" data-needed-for="bubble_wrap_size">
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Упаковка в термо пленку</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="shrink_wrap_size" class="param-select">
+                              <option value="" {% if not draft_payload.shrink_wrap_size %}selected{% endif %}>-</option>
+                              <option value="Малый" {% if draft_payload.shrink_wrap_size == "Малый" %}selected{% endif %}>Малый</option>
+                              <option value="Средний" {% if draft_payload.shrink_wrap_size == "Средний" %}selected{% endif %}>Средний</option>
+                              <option value="Большой" {% if draft_payload.shrink_wrap_size == "Большой" %}selected{% endif %}>Большой</option>
+                            </select>
+                            <input type="hidden" name="shrink_wrap_needed" value="{{ draft_payload.shrink_wrap_needed|default:'' }}" data-needed-for="shrink_wrap_size">
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Упаковка в индивидуальную коробку</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="individual_box_needed" class="param-select">
+                              <option value="" {% if not draft_payload.individual_box_needed %}selected{% endif %}>-</option>
+                              <option value="Да" {% if draft_payload.individual_box_needed and draft_payload.individual_box_needed != "Нет" %}selected{% endif %}>Да</option>
+                            </select>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Вакуумная упаковка</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="vacuum_pack_needed" class="param-select">
+                              <option value="" {% if not draft_payload.vacuum_pack_needed %}selected{% endif %}>-</option>
+                              <option value="Да" {% if draft_payload.vacuum_pack_needed and draft_payload.vacuum_pack_needed != "Нет" %}selected{% endif %}>Да</option>
+                            </select>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Сборка набора</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="set_build" class="param-select">
+                              <option value="" {% if not draft_payload.set_build and not draft_payload.set_qty %}selected{% endif %}>-</option>
+                              <option value="Да" {% if draft_payload.set_build and draft_payload.set_build != "Нет" or draft_payload.set_qty %}selected{% endif %}>Кол-во</option>
+                            </select>
+                            <div class="param-extra" data-owner="set_build" data-show-when="any">
+                              <div class="param-inline">
+                                <span class="param-note">Кол-во в наборе</span>
+                                <input type="number" min="0" name="set_qty" value="{{ draft_payload.set_qty|default:'' }}">
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Вложение</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="insert_needed" class="param-select">
+                              <option value="" {% if not draft_payload.insert_needed and not draft_payload.insert_qty %}selected{% endif %}>-</option>
+                              <option value="Да" {% if draft_payload.insert_needed and draft_payload.insert_needed != "Нет" or draft_payload.insert_qty %}selected{% endif %}>Кол-во</option>
+                            </select>
+                            <div class="param-extra" data-owner="insert_needed" data-show-when="any">
+                              <div class="param-inline">
+                                <span class="param-note">Кол-во</span>
+                                <input type="number" min="0" name="insert_qty" value="{{ draft_payload.insert_qty|default:'' }}">
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label"><span data-direction="label">Распределение по направлениям</span></td>
+                        <td>
+                          <div class="param-value">
+                            <select name="direction_needed" class="param-select">
+                              <option value="none" {% if not draft_payload.direction_needed and not draft_payload.direction_file and not draft_payload.direction_plan_json and not draft_payload.direction_addresses_json %}selected{% endif %}>Отсутствует</option>
+                              <option value="file" {% if draft_payload.direction_needed == "file" or draft_payload.direction_needed == "Да" or draft_payload.direction_file %}selected{% endif %}>Файл</option>
+                              <option value="set" {% if draft_payload.direction_needed == "set" or draft_payload.direction_plan_json or draft_payload.direction_addresses_json %}selected{% endif %}>Задать</option>
+                            </select>
+                            <div class="param-extra" data-owner="direction_needed" data-show-when="file">
+                              <div class="param-inline">
+                                <span class="param-note">Прикрепить файл</span>
+                                <input type="file" name="direction_file">
+                                {% if draft_payload.direction_file %}
+                                  <span class="param-note">Файл: {{ draft_payload.direction_file }}</span>
+                                {% endif %}
+                              </div>
+                            </div>
+                            <div class="param-extra" data-owner="direction_needed" data-show-when="set">
+                              <input type="hidden" name="direction_count" value="{{ draft_payload.direction_count|default:'' }}">
+                              <input type="hidden" name="direction_addresses_json" value="{{ draft_payload.direction_addresses_json|default:'' }}">
+                              <input type="hidden" name="direction_plan_json" value="{{ draft_payload.direction_plan_json|default:'' }}">
+                              <div class="param-note" data-direction="summary"></div>
+                              <div class="direction-actions" data-direction="actions" hidden>
+                                <button type="button" class="row-action" data-direction-action="edit">Редактировать</button>
+                                <button type="button" class="row-action" data-direction-action="clear">Удалить</button>
+                              </div>
+                              <button type="button" class="row-action" data-direction-action="open">Сформировать таблицу</button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Формирование короба</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="box_forming" class="param-select">
+                              <option value="" {% if not draft_payload.box_forming %}selected{% endif %}>-</option>
+                              <option value="60*4*40" {% if draft_payload.box_forming == "60*4*40" %}selected{% endif %}>60*4*40</option>
+                              <option value="60*40*25" {% if draft_payload.box_forming == "60*40*25" %}selected{% endif %}>60*40*25</option>
+                              <option value="other" {% if draft_payload.box_forming == "other" or draft_payload.box_forming_other %}selected{% endif %}>Другое</option>
+                            </select>
+                            <div class="param-extra" data-owner="box_forming" data-show-when="other">
+                              <input type="text" name="box_forming_other" value="{{ draft_payload.box_forming_other|default:'' }}" placeholder="Введите размер">
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Изменение артикула товара</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="article_change_needed" class="param-select">
+                              <option value="" {% if not draft_payload.article_change_needed %}selected{% endif %}>-</option>
+                              <option value="Да" {% if draft_payload.article_change_needed == "Да" %}selected{% endif %}>Да</option>
+                            </select>
+                            <div class="param-extra" id="article-change-map" hidden>
+                              <div class="param-note">Выберите товар из номенклатуры клиента, в который превращается исходный товар после обработки.</div>
+                              <div id="article-change-rows"></div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Прочие</td>
+                        <td>
+                          <div class="param-value">
+                            <button type="button" class="misc-toggle" id="processing-misc-toggle" aria-expanded="false">
+                              <span class="misc-toggle-label">Комментарий и файлы</span>
+                              <span class="misc-toggle-summary" id="processing-misc-summary">
+                                {% if draft_payload.comments %}Есть комментарий{% else %}Пусто{% endif %}{% if existing_attachments %} · Файлы: {{ existing_attachments|length }}{% endif %}
+                              </span>
+                            </button>
+                            <div class="misc-body" id="processing-misc-body" hidden>
+                              <textarea id="processing-comments" name="comments" rows="2" placeholder="Комментарий">{{ draft_payload.comments|default:'' }}</textarea>
+                              <div class="attachment-stack">
+                                <input
+                                  id="processing-documents"
+                                  type="file"
+                                  name="documents"
+                                  multiple
+                                  accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx,.csv,.txt,.doc,.docx"
+                                >
+                                <div class="attachment-title">Выбраны для загрузки</div>
+                                <div class="attachment-list" id="processing-documents-selected">
+                                  <div class="attachment-selected-empty">Файлы не выбраны.</div>
+                                </div>
+                                {% if existing_attachments %}
+                                  <div class="attachment-title">Уже загружены на сервер</div>
+                                  <div class="attachment-list">
+                                    {% for attachment in existing_attachments %}
+                                      <div class="attachment-item">
+                                        <a href="{% url 'processing_app:processing-attachment-download' attachment_order_id attachment.pk %}">{{ attachment.filename }}</a>
+                                        <span>до {{ attachment.expires_at|date:"d.m.Y H:i" }}</span>
+                                        <label class="checkbox-inline" title="Удалить файл после сохранения заявки">
+                                          <input type="checkbox" name="delete_attachment_ids" value="{{ attachment.pk }}">
+                                          <span>Удалить</span>
+                                        </label>
+                                      </div>
+                                    {% endfor %}
+                                  </div>
+                                {% endif %}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          </div>
+        </form>
+        <div class="modal" id="processing-split-modal" aria-hidden="true">
+          <div class="modal-card processing-split-modal" role="dialog" aria-modal="true" aria-labelledby="processing-split-title">
+            <div class="modal-header">
+              <div>
+                <div class="modal-title" id="processing-split-title">Разбить короб</div>
+                <div class="hint" id="processing-split-subtitle"></div>
+              </div>
+              <button class="btn ghost" type="button" id="processing-split-close">Закрыть</button>
+            </div>
+            <div class="modal-body">
+              <div class="field">
+                <label for="processing-split-count">Коробов для разбивки</label>
+                <input type="number" min="1" value="1" id="processing-split-count">
+                <div class="hint" id="processing-split-count-hint"></div>
+              </div>
+              <div class="split-lines" id="processing-split-lines"></div>
+              <div class="split-error" id="processing-split-error"></div>
+            </div>
+            <div class="actions">
+              <button class="btn ghost" type="button" id="processing-split-remove">Убрать разбивку</button>
+              <button class="btn ghost" type="button" id="processing-split-cancel">Отмена</button>
+              <button class="btn primary" type="button" id="processing-split-save">Сохранить</button>
+            </div>
+          </div>
+        </div>
+        <template id="processing-card-template">
+          <section class="panel processing-block processing-main processing-card" data-card-id="">
+            <div class="block-header processing-header">
+              <label class="photo-box">
+                <input type="file" accept="image/*">
+                <span class="photo-placeholder">Фото</span>
+                <img class="photo-preview" alt="Фото товара">
+              </label>
+              <div class="processing-header-fields">
+                <input type="text" data-field="article" placeholder="Артикул" readonly>
+                <input type="text" data-field="product_name" placeholder="Наименование товара" readonly>
+              </div>
+              <div class="processing-header-action">
+                <button type="button" class="row-action card-edit">Изменить</button>
+                <button type="button" class="row-action card-delete">Удалить</button>
+              </div>
+            </div>
+            <div class="block-body">
+              <div class="table-wrap">
+                <table class="stock-table">
+                  <thead>
+                    <tr>
+                      <th style="width:56px;">№</th>
+                      <th>Размер</th>
+                      <th>ШК</th>
+                      <th style="width:110px;">Короба</th>
+                      <th style="width:110px;">Кол-во</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </template>
+      </main>
+    </div>
+  </div>
+
+  <script type="application/json" id="processing-draft-data">{{ draft_payload_json|default:"{}"|safe }}</script>
+  <script type="application/json" id="processing-stock-rows-data">{{ stock_rows_json|default:"[]"|safe }}</script>
+  <script type="application/json" id="processing-client-sku-options">{{ client_sku_options_json|default:"[]"|safe }}</script>
+  <script>
+    (() => {
+      const cardsContainer = document.getElementById('processing-cards');
+      const cardsInput = document.getElementById('cards-json');
+      const template = document.getElementById('processing-card-template');
+      const addMoreBtn = document.getElementById('add-more-product-btn');
+      const chooseMarketplaceBtn = document.getElementById('choose-marketplace-btn');
+      const form = document.getElementById('processing-form');
+      const processingWizard = document.querySelector('.processing-wizard');
+      const processingGrid = document.getElementById('processing-grid');
+      const paramsPanel = document.getElementById('processing-params-panel');
+      const marketplaceOptions = document.getElementById('marketplace-options');
+      const marketplaceSelect = form?.querySelector('select[name="marketplace"]') || null;
+      const articleChangeSelect = form?.querySelector('select[name="article_change_needed"]') || null;
+      const articleChangeMap = document.getElementById('article-change-map');
+      const articleChangeRows = document.getElementById('article-change-rows');
+      const sendBtn = document.getElementById('submit-send-btn');
+      const draftBtn = document.getElementById('submit-draft-btn');
+      const stockPickerPanel = document.getElementById('processing-stock-picker');
+      const stockRowsScript = document.getElementById('processing-stock-rows-data');
+      const clientSkuOptionsScript = document.getElementById('processing-client-sku-options');
+      const stockBody = document.getElementById('processing-stock-body');
+      const stockSearch = document.getElementById('processing-stock-search');
+      const stockSummary = document.getElementById('processing-stock-summary');
+      const stockEmpty = document.getElementById('processing-stock-empty');
+      const stockCloseBtn = document.getElementById('processing-stock-close');
+      const stockConfirmBtn = document.getElementById('processing-stock-confirm');
+      const splitModal = document.getElementById('processing-split-modal');
+      const splitSubtitle = document.getElementById('processing-split-subtitle');
+      const splitCountInput = document.getElementById('processing-split-count');
+      const splitCountHint = document.getElementById('processing-split-count-hint');
+      const splitLines = document.getElementById('processing-split-lines');
+      const splitError = document.getElementById('processing-split-error');
+      const splitClose = document.getElementById('processing-split-close');
+      const splitCancel = document.getElementById('processing-split-cancel');
+      const splitRemove = document.getElementById('processing-split-remove');
+      const splitSave = document.getElementById('processing-split-save');
+      if (!cardsContainer || !template || !stockBody) {
+        return;
+      }
+
+      const clean = (value) => String(value ?? '').trim();
+      const intValue = (value) => {
+        const parsed = Number.parseInt(String(value ?? '').trim(), 10);
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+
+      let activeCardId = null;
+      let cardCounter = 0;
+      let stockPickerVisible = true;
+      let stockRows = [];
+      let clientSkuOptions = [];
+      try {
+        stockRows = JSON.parse(stockRowsScript?.textContent || '[]');
+      } catch (err) {
+        stockRows = [];
+      }
+      try {
+        clientSkuOptions = JSON.parse(clientSkuOptionsScript?.textContent || '[]');
+      } catch (err) {
+        clientSkuOptions = [];
+      }
+      clientSkuOptions = Array.isArray(clientSkuOptions) ? clientSkuOptions.map((item) => ({
+        article: clean(item.article),
+        name: clean(item.name),
+        size: clean(item.size),
+        barcode: clean(item.barcode),
+        barcodes: Array.isArray(item.barcodes) ? item.barcodes.map((barcode) => ({
+          value: clean(barcode.value),
+          size: clean(barcode.size),
+          primary: Boolean(barcode.primary),
+        })).filter((barcode) => barcode.value) : [],
+      })).filter((item) => item.article) : [];
+      const clientSkuByArticle = new Map(clientSkuOptions.map((item) => [item.article, item]));
+      const clientSkuByArticleLower = new Map(clientSkuOptions.map((item) => [item.article.toLowerCase(), item]));
+      const clientSkuByBarcodeLower = new Map();
+      clientSkuOptions.forEach((item) => {
+        const barcodeValues = [item.barcode, ...(item.barcodes || []).map((barcode) => barcode.value)];
+        barcodeValues.forEach((barcode) => {
+          const key = clean(barcode).toLowerCase();
+          if (key && !clientSkuByBarcodeLower.has(key)) {
+            clientSkuByBarcodeLower.set(key, item);
+          }
+        });
+      });
+      const resolveClientSku = (article) => {
+        const value = clean(article);
+        const lowerValue = value.toLowerCase();
+        return clientSkuByArticle.get(value)
+          || clientSkuByArticleLower.get(lowerValue)
+          || clientSkuByBarcodeLower.get(lowerValue)
+          || null;
+      };
+      const clientSkuBarcodeForSize = (item, size) => {
+        if (!item) {
+          return '';
+        }
+        const cleanSize = clean(size);
+        if (cleanSize) {
+          const sized = (item.barcodes || []).find((barcode) => clean(barcode.size) === cleanSize);
+          if (sized?.value) {
+            return sized.value;
+          }
+        }
+        const primary = (item.barcodes || []).find((barcode) => barcode.primary);
+        return clean(primary?.value || item.barcode || item.barcodes?.[0]?.value || '');
+      };
+      const clientSkuLabel = (item) => {
+        const parts = [item.article, item.name, item.barcode].filter(Boolean);
+        return parts.join(' · ') || item.article;
+      };
+      stockRows = Array.isArray(stockRows) ? stockRows.map((row) => ({
+        ...row,
+        key: clean(row.key),
+        sku_code: clean(row.sku_code || row.sku),
+        sku: clean(row.sku || row.sku_code),
+        name: clean(row.name),
+        size: clean(row.size),
+        barcode: clean(row.barcode),
+        goods_type: clean(row.goods_type),
+        box_qty: Math.max(intValue(row.box_qty), 0),
+        available_boxes: Math.max(intValue(row.available_boxes), 0),
+        available_qty: Math.max(intValue(row.available_qty), 0),
+        box_codes: Array.isArray(row.box_codes) ? row.box_codes.map((code) => clean(code)).filter(Boolean) : [],
+        is_mixed_box: Boolean(row.is_mixed_box),
+        mixed_group: clean(row.mixed_group),
+        mixed_color: intValue(row.mixed_color),
+        photo: clean(row.photo),
+      })) : [];
+      const stockRowByKey = new Map();
+      const stockGroupRows = new Map();
+      const stockRowElements = new Map();
+      let stockPartialSplits = [];
+      const splitState = { row: null, rows: [] };
+      const marketplaceLabels = new Map();
+
+      stockRows.forEach((row) => {
+        if (!row.key) {
+          return;
+        }
+        stockRowByKey.set(row.key, row);
+        if (row.is_mixed_box && row.mixed_group) {
+          const groupRows = stockGroupRows.get(row.mixed_group) || [];
+          groupRows.push(row);
+          stockGroupRows.set(row.mixed_group, groupRows);
+        }
+      });
+
+      const createCardId = () => `card_${Date.now()}_${cardCounter++}`;
+      const hasCards = () => cardsContainer.querySelectorAll('.processing-card').length > 0;
+      const articleChangeEnabled = () => {
+        const value = clean(articleChangeSelect?.value).toLowerCase();
+        return ['да', 'yes', '1', 'true'].includes(value);
+      };
+      const applyResultSkuToCard = (card, article) => {
+        const item = resolveClientSku(article);
+        if (!card) {
+          return;
+        }
+        card.dataset.resultArticle = item?.article || '';
+        card.dataset.resultProductName = item?.name || '';
+        card.dataset.resultBarcode = '';
+      };
+
+      const articleChangeCurrentMap = () => {
+        const selected = new Map();
+        articleChangeRows?.querySelectorAll('[data-article-change-source]').forEach((select) => {
+          const key = clean(select.dataset.articleChangeSource);
+          const value = clean(select.value);
+          if (key && value) {
+            selected.set(key, value);
+          }
+        });
+        cardsContainer.querySelectorAll('.processing-card').forEach((card) => {
+          const key = clean(card.dataset.cardId || card.querySelector('[data-field="article"]')?.value);
+          const value = clean(card.dataset.resultArticle);
+          if (key && value && !selected.has(key)) {
+            selected.set(key, value);
+          }
+        });
+        return selected;
+      };
+
+      const syncArticleChangeFields = () => {
+        const enabled = articleChangeEnabled();
+        if (articleChangeMap) {
+          articleChangeMap.hidden = !enabled;
+        }
+        if (!articleChangeRows) {
+          return;
+        }
+        if (!enabled) {
+          articleChangeRows.innerHTML = '';
+          cardsContainer.querySelectorAll('.processing-card').forEach((card) => {
+            card.dataset.resultArticle = '';
+            card.dataset.resultProductName = '';
+            card.dataset.resultBarcode = '';
+          });
+          return;
+        }
+        const selected = articleChangeCurrentMap();
+        articleChangeRows.innerHTML = '';
+        cardsContainer.querySelectorAll('.processing-card').forEach((card) => {
+          const sourceArticle = clean(card.querySelector('[data-field="article"]')?.value || card.dataset.article);
+          const productName = clean(card.querySelector('[data-field="product_name"]')?.value);
+          const sourceKey = clean(card.dataset.cardId || sourceArticle);
+          if (!sourceKey && !sourceArticle) {
+            return;
+          }
+          const row = document.createElement('div');
+          row.className = 'param-inline';
+          const label = document.createElement('span');
+          label.className = 'param-note';
+          label.textContent = [sourceArticle, productName].filter(Boolean).join(' · ') || 'Исходный товар';
+          const input = document.createElement('input');
+          const datalist = document.createElement('datalist');
+          const datalistId = `article-change-options-${articleChangeRows.children.length}`;
+          datalist.id = datalistId;
+          input.type = 'text';
+          input.placeholder = 'Введите артикул';
+          input.autocomplete = 'off';
+          input.setAttribute('list', datalistId);
+          input.dataset.articleChangeSource = sourceKey || sourceArticle;
+          input.value = selected.get(sourceKey) || selected.get(sourceArticle) || clean(card.dataset.resultArticle) || '';
+
+          const fillSuggestions = () => {
+            datalist.innerHTML = '';
+            const query = clean(input.value).toLowerCase();
+            if (query.length < 2) {
+              return;
+            }
+            clientSkuOptions
+              .filter((item) => {
+                const searchable = [
+                  item.article,
+                  item.name,
+                  item.barcode,
+                  ...(item.barcodes || []).map((barcode) => barcode.value),
+                ].join(' ').toLowerCase();
+                return searchable.includes(query);
+              })
+              .slice(0, 50)
+              .forEach((item) => {
+                const option = document.createElement('option');
+                option.value = item.article;
+                option.label = clientSkuLabel(item);
+                datalist.appendChild(option);
+              });
+          };
+          const applyInput = () => {
+            const item = resolveClientSku(input.value);
+            applyResultSkuToCard(card, item?.article || '');
+          };
+          fillSuggestions();
+          applyInput();
+          input.addEventListener('input', () => {
+            fillSuggestions();
+            applyInput();
+          });
+          input.addEventListener('change', applyInput);
+          row.appendChild(label);
+          row.appendChild(input);
+          row.appendChild(datalist);
+          articleChangeRows.appendChild(row);
+        });
+      };
+
+      const isClientLk = Boolean(
+        form?.dataset?.clientLk === '1' || document.body?.dataset?.clientLk === '1'
+      );
+
+      if (isClientLk && form && paramsPanel && processingWizard) {
+        // Params first, then selected cards, stock picker last.
+        form.insertBefore(paramsPanel, processingWizard);
+        if (processingGrid) {
+          form.insertBefore(processingGrid, processingWizard);
+        }
+        // Comment/files open by default for LK.
+        const miscBody = document.getElementById('processing-misc-body');
+        const miscToggle = document.getElementById('processing-misc-toggle');
+        if (miscBody) miscBody.hidden = false;
+        if (miscToggle) miscToggle.setAttribute('aria-expanded', 'true');
+        form.classList.add('client-lk-ready');
+      } else if (isClientLk && form) {
+        form.classList.add('client-lk-ready');
+      }
+
+      const syncWizardState = () => {
+        const cardsReady = hasCards();
+        if (!cardsReady) {
+          stockPickerVisible = true;
+        }
+        const marketplaceSelected = Boolean(clean(marketplaceSelect?.value));
+        const marketplaceReady = cardsReady && marketplaceSelected;
+
+        if (isClientLk) {
+          if (stockPickerPanel) stockPickerPanel.hidden = false;
+          if (stockCloseBtn) stockCloseBtn.hidden = true;
+          if (processingWizard) processingWizard.hidden = false;
+          if (chooseMarketplaceBtn) chooseMarketplaceBtn.hidden = true;
+          if (marketplaceOptions) marketplaceOptions.hidden = true;
+          if (processingGrid) processingGrid.hidden = false;
+          if (addMoreBtn) addMoreBtn.hidden = false;
+          if (paramsPanel) paramsPanel.hidden = false;
+          if (sendBtn) sendBtn.disabled = !marketplaceReady;
+          if (draftBtn) draftBtn.disabled = false;
+          return;
+        }
+
+        if (stockPickerPanel) {
+          stockPickerPanel.hidden = !stockPickerVisible;
+        }
+        if (stockCloseBtn) {
+          stockCloseBtn.hidden = !stockPickerVisible || !cardsReady;
+        }
+        if (processingWizard) {
+          processingWizard.hidden = !stockPickerVisible && cardsReady && marketplaceReady;
+        }
+        if (chooseMarketplaceBtn) {
+          chooseMarketplaceBtn.hidden = !cardsReady || marketplaceReady;
+        }
+        if (marketplaceOptions) {
+          if (!cardsReady || marketplaceReady || marketplaceOptions.children.length === 0) {
+            marketplaceOptions.hidden = true;
+          }
+        }
+        if (processingGrid) {
+          processingGrid.hidden = !cardsReady;
+        }
+        if (addMoreBtn) {
+          addMoreBtn.hidden = !cardsReady;
+        }
+        if (paramsPanel) {
+          paramsPanel.hidden = !marketplaceReady;
+        }
+        if (sendBtn) {
+          sendBtn.disabled = !marketplaceReady;
+        }
+        if (draftBtn) {
+          draftBtn.disabled = !cardsReady;
+        }
+      };
+
+      const setPhotoPreview = (photoBox, preview, url) => {
+        if (!photoBox || !preview) {
+          return;
+        }
+        if (url) {
+          preview.src = url;
+          photoBox.classList.add('has-image');
+          return;
+        }
+        preview.src = '';
+        photoBox.classList.remove('has-image');
+      };
+
+      const clampQty = (input) => {
+        if (!input) {
+          return;
+        }
+        const maxAttr = input.getAttribute('max');
+        if (!maxAttr) {
+          return;
+        }
+        const maxValue = Number(maxAttr);
+        if (!Number.isFinite(maxValue)) {
+          return;
+        }
+        const current = Number(input.value);
+        if (!Number.isFinite(current)) {
+          return;
+        }
+        if (current > maxValue) {
+          input.value = String(maxValue);
+        }
+      };
+
+      const renderRows = (card, rows) => {
+        const tbody = card.querySelector('tbody');
+        if (!tbody) {
+          return;
+        }
+        tbody.innerHTML = '';
+        const list = rows && rows.length ? rows : [{}];
+        list.forEach((row, index) => {
+          const tr = document.createElement('tr');
+          const rowMeta = {
+            article: row.article || row.sku || '',
+            box_qty: row.box_qty ?? '',
+            boxes: row.boxes ?? '',
+            partial_boxes: row.partial_boxes ?? '',
+            box_codes: Array.isArray(row.box_codes) ? row.box_codes : [],
+            is_mixed_box: Boolean(row.is_mixed_box),
+            mixed_group: row.mixed_group || '',
+            allow_partial_box_reserve: Boolean(row.allow_partial_box_reserve),
+            partial_box_split: row.partial_box_split || null,
+          };
+          tr.dataset.rowMeta = JSON.stringify(rowMeta);
+          const indexCell = document.createElement('td');
+          indexCell.className = 'stock-index';
+          indexCell.textContent = String(index + 1);
+          tr.appendChild(indexCell);
+
+          const addCell = (field, value, type = 'text', options = {}) => {
+            const cell = document.createElement('td');
+            let input = null;
+            input = document.createElement('input');
+            input.type = type;
+            input.dataset.field = field;
+            if (field === 'size' || field === 'barcode' || field === 'boxes') {
+              input.readOnly = true;
+            }
+            if (type === 'number') {
+              input.min = '0';
+              if (options.max !== undefined && options.max !== null && options.max !== '') {
+                input.max = String(options.max);
+              }
+            }
+            input.value = value ?? '';
+            cell.appendChild(input);
+            tr.appendChild(cell);
+            return input;
+          };
+
+          addCell('size', row.size || '');
+          addCell('barcode', row.barcode || '');
+          const boxesLabel = row.partial_boxes
+            ? `разбивка: ${row.partial_boxes}`
+            : (row.boxes ? String(row.boxes) : '-');
+          addCell('boxes', boxesLabel);
+          const qtyMax = row.maxQty ?? row.qty;
+          const qtyInput = addCell('qty', row.qty ?? '', 'number', { max: qtyMax });
+          if (qtyInput) {
+            if ((rowMeta.box_codes && rowMeta.box_codes.length) || rowMeta.allow_partial_box_reserve) {
+              qtyInput.readOnly = true;
+            }
+            qtyInput.addEventListener('input', () => {
+              clampQty(qtyInput);
+              window.processingMarkingScheduleCheck?.();
+            });
+            qtyInput.addEventListener('change', () => {
+              clampQty(qtyInput);
+              window.processingMarkingScheduleCheck?.();
+            });
+          }
+          tbody.appendChild(tr);
+        });
+        syncArticleChangeFields();
+      };
+
+      const updateCardFromPayload = (card, payload) => {
+        const articleInput = card.querySelector('[data-field="article"]');
+        const nameInput = card.querySelector('[data-field="product_name"]');
+        const photoBox = card.querySelector('.photo-box');
+        const preview = card.querySelector('.photo-preview');
+        const fileInput = card.querySelector('input[type="file"]');
+        if (articleInput) {
+          articleInput.value = payload.article || '';
+        }
+        if (nameInput) {
+          nameInput.value = payload.product_name || '';
+        }
+        card.dataset.photoUrl = payload.photo_url || '';
+        card.dataset.goodsType = payload.goods_type || '';
+        if (fileInput) {
+          fileInput.value = '';
+        }
+        setPhotoPreview(photoBox, preview, card.dataset.photoUrl);
+        const rows = (payload.rows || []).map((row) => ({
+          ...row,
+          result_article: row.result_article || payload.result_article || '',
+          result_product_name: row.result_product_name || payload.result_product_name || '',
+          result_barcode: row.result_barcode || payload.result_barcode || '',
+        }));
+        const firstResultRow = rows.find((row) => row.result_article || row.result_product_name || row.result_barcode) || {};
+        card.dataset.resultArticle = payload.result_article || firstResultRow.result_article || '';
+        card.dataset.resultProductName = payload.result_product_name || firstResultRow.result_product_name || '';
+        card.dataset.resultBarcode = payload.result_barcode || firstResultRow.result_barcode || '';
+        renderRows(card, rows);
+      };
+
+      const createCard = (payload, options = {}) => {
+        const fragment = template.content.cloneNode(true);
+        const card = fragment.querySelector('.processing-card');
+        const cardId = payload.id || createCardId();
+        card.dataset.cardId = cardId;
+        card.dataset.photoUrl = payload.photo_url || '';
+        card.dataset.goodsType = payload.goods_type || '';
+
+        const photoBox = card.querySelector('.photo-box');
+        const preview = card.querySelector('.photo-preview');
+        const fileInput = card.querySelector('input[type="file"]');
+        if (fileInput) {
+          fileInput.name = `product_photo_${cardId}`;
+          fileInput.addEventListener('change', () => {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) {
+              setPhotoPreview(photoBox, preview, card.dataset.photoUrl);
+              return;
+            }
+            card.dataset.photoUrl = '';
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              setPhotoPreview(photoBox, preview, event.target.result);
+            };
+            reader.readAsDataURL(file);
+          });
+        }
+
+        const editBtn = card.querySelector('.card-edit');
+        if (editBtn) {
+          editBtn.addEventListener('click', () => {
+            showStockPicker(cardId);
+          });
+        }
+        const deleteBtn = card.querySelector('.card-delete');
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', () => {
+            card.remove();
+            if (!hasCards()) {
+              stockPickerVisible = true;
+              activeCardId = null;
+            }
+            syncWizardState();
+            window.processingMarkingScheduleCheck?.();
+          });
+        }
+
+        updateCardFromPayload(card, payload);
+        if (options.prepend) {
+          cardsContainer.prepend(card);
+        } else {
+          cardsContainer.append(card);
+        }
+        syncWizardState();
+        return card;
+      };
+
+      const collectCards = () => {
+        const cards = [];
+        const items = cardsContainer.querySelectorAll('.processing-card');
+        const allowArticleChange = articleChangeEnabled();
+        items.forEach((card) => {
+          const articleInput = card.querySelector('[data-field="article"]');
+          const nameInput = card.querySelector('[data-field="product_name"]');
+          const fileInput = card.querySelector('input[type="file"]');
+          const article = (articleInput?.value || '').trim();
+          const productName = (nameInput?.value || '').trim();
+          const photoUrl = card.dataset.photoUrl || '';
+          const goodsType = card.dataset.goodsType || '';
+          const photoField = fileInput?.name || '';
+          const rows = [];
+          card.querySelectorAll('tbody tr').forEach((row) => {
+            const size = (row.querySelector('[data-field="size"]')?.value || '').trim();
+            const barcode = (row.querySelector('[data-field="barcode"]')?.value || '').trim();
+            const resultArticle = allowArticleChange ? (card.dataset.resultArticle || '').trim() : '';
+            const resultSku = resultArticle ? resolveClientSku(resultArticle) : null;
+            const resultProductName = allowArticleChange ? ((card.dataset.resultProductName || '').trim() || resultSku?.name || '') : '';
+            const resultBarcode = allowArticleChange ? ((card.dataset.resultBarcode || '').trim() || clientSkuBarcodeForSize(resultSku, size)) : '';
+            const qty = (row.querySelector('[data-field="qty"]')?.value || '').trim();
+            let meta = {};
+            try {
+              meta = JSON.parse(row.dataset.rowMeta || '{}');
+            } catch (err) {
+              meta = {};
+            }
+            if (size || barcode || qty) {
+              const rowPayload = { article: meta.article || article, size, barcode, qty };
+              if (resultArticle) {
+                rowPayload.result_article = resultArticle;
+              }
+              if (resultProductName) {
+                rowPayload.result_product_name = resultProductName;
+              }
+              if (resultBarcode) {
+                rowPayload.result_barcode = resultBarcode;
+              }
+              [
+                'box_qty',
+                'boxes',
+                'partial_boxes',
+                'box_codes',
+                'is_mixed_box',
+                'mixed_group',
+                'allow_partial_box_reserve',
+                'partial_box_split',
+              ].forEach((key) => {
+                const value = meta[key];
+                if (value !== undefined && value !== null && value !== '' && !(Array.isArray(value) && value.length === 0)) {
+                  rowPayload[key] = value;
+                }
+              });
+              rows.push(rowPayload);
+            }
+          });
+          if (article || productName || rows.length || photoUrl || photoField) {
+            const firstResultRow = rows.find((row) => row.result_article || row.result_product_name || row.result_barcode) || {};
+            cards.push({
+              id: card.dataset.cardId || '',
+              article,
+              product_name: productName,
+              photo_url: photoUrl,
+              goods_type: goodsType,
+              result_article: firstResultRow.result_article || '',
+              result_product_name: firstResultRow.result_product_name || '',
+              result_barcode: firstResultRow.result_barcode || '',
+              photo_field: photoField,
+              rows,
+            });
+          }
+        });
+        return cards;
+      };
+
+      if (marketplaceSelect && marketplaceOptions) {
+        Array.from(marketplaceSelect.options).forEach((option) => {
+          const value = (option.value || '').trim();
+          if (!value) {
+            return;
+          }
+          const label = (option.textContent || value).trim();
+          marketplaceLabels.set(value, label);
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'row-action wizard-market-btn';
+          button.dataset.marketplacePick = value;
+          button.textContent = label;
+          marketplaceOptions.appendChild(button);
+        });
+
+        marketplaceOptions.addEventListener('click', (event) => {
+          const button = event.target.closest('[data-marketplace-pick]');
+          if (!button) {
+            return;
+          }
+          const value = (button.dataset.marketplacePick || '').trim();
+          if (!value || !marketplaceSelect) {
+            return;
+          }
+          marketplaceSelect.value = value;
+          marketplaceSelect.dispatchEvent(new Event('change', { bubbles: true }));
+          marketplaceOptions.hidden = true;
+          syncWizardState();
+          window.processingMarkingScheduleCheck?.();
+        });
+      }
+
+      const splitForIdentity = (identity) => stockPartialSplits.find((split) => clean(split.identity) === clean(identity)) || null;
+
+      const splitBoxesMaps = () => {
+        const byKey = new Map();
+        const byGroup = new Map();
+        stockPartialSplits.forEach((split) => {
+          const boxes = Math.max(intValue(split.boxes), 0);
+          if (boxes <= 0) {
+            return;
+          }
+          const rowKey = clean(split.row_key);
+          const groupKey = clean(split.group_key);
+          if (groupKey) {
+            byGroup.set(groupKey, (byGroup.get(groupKey) || 0) + boxes);
+          } else if (rowKey) {
+            byKey.set(rowKey, (byKey.get(rowKey) || 0) + boxes);
+          }
+        });
+        return { byKey, byGroup };
+      };
+
+      const splitQtyByKey = () => {
+        const qtyMap = new Map();
+        stockPartialSplits.forEach((split) => {
+          const boxes = Math.max(intValue(split.boxes), 0);
+          if (boxes <= 0) {
+            return;
+          }
+          (split.items || []).forEach((item) => {
+            const rowKey = clean(item.key);
+            const qty = Math.max(intValue(item.qty), 0);
+            if (!rowKey || qty <= 0) {
+              return;
+            }
+            qtyMap.set(rowKey, (qtyMap.get(rowKey) || 0) + (boxes * qty));
+          });
+        });
+        return qtyMap;
+      };
+
+      const splitBoxesForRow = (row) => {
+        const maps = splitBoxesMaps();
+        if (row.is_mixed_box && row.mixed_group) {
+          return maps.byGroup.get(row.mixed_group) || 0;
+        }
+        return maps.byKey.get(row.key) || 0;
+      };
+
+      const rowInputValue = (row) => {
+        const el = stockRowElements.get(row.key);
+        const input = el?.querySelector('[data-box-input]');
+        return Math.max(intValue(input?.value), 0);
+      };
+
+      const normalizeStockInput = (input, row) => {
+        const available = Math.max(intValue(row.available_boxes), 0);
+        const max = Math.max(available - splitBoxesForRow(row), 0);
+        let value = Math.max(intValue(input?.value), 0);
+        value = Math.min(value, max);
+        if (input) {
+          input.max = String(max);
+          input.value = String(value);
+        }
+        return value;
+      };
+
+      const partialBoxesCount = () => stockPartialSplits.reduce((sum, split) => sum + Math.max(intValue(split.boxes), 0), 0);
+
+      const refreshStockEmptyState = () => {
+        if (!stockEmpty) {
+          return;
+        }
+        const visibleRows = Array.from(stockBody.querySelectorAll('tr')).filter(
+          (row) => !row.classList.contains('is-hidden') && !row.classList.contains('split-source-hidden')
+        );
+        stockEmpty.hidden = visibleRows.length > 0;
+      };
+
+      const updateStockSummary = () => {
+        let boxes = 0;
+        let qty = 0;
+        const countedGroups = new Set();
+        const splitQty = splitQtyByKey();
+        stockRows.forEach((row) => {
+          const value = rowInputValue(row);
+          if (value > 0) {
+            if (row.is_mixed_box && row.mixed_group) {
+              if (!countedGroups.has(row.mixed_group)) {
+                countedGroups.add(row.mixed_group);
+                boxes += value;
+              }
+            } else {
+              boxes += value;
+            }
+            qty += value * row.box_qty;
+          }
+          qty += splitQty.get(row.key) || 0;
+        });
+        boxes += partialBoxesCount();
+        if (stockSummary) {
+          stockSummary.textContent = boxes > 0 ? `Выбрано коробов: ${boxes}, товаров: ${qty} шт` : 'Ничего не выбрано';
+        }
+        if (stockConfirmBtn) {
+          stockConfirmBtn.disabled = boxes <= 0 || qty <= 0;
+        }
+      };
+
+      const updateStockRowTotals = () => {
+        const splitQty = splitQtyByKey();
+        stockRows.forEach((row) => {
+          const el = stockRowElements.get(row.key);
+          if (!el) {
+            return;
+          }
+          const input = el.querySelector('[data-box-input]');
+          const boxes = normalizeStockInput(input, row);
+          const total = (boxes * row.box_qty) + (splitQty.get(row.key) || 0);
+          const totalEl = el.querySelector('[data-total]');
+          if (totalEl) {
+            totalEl.textContent = String(total);
+          }
+          const splitSummary = el.querySelector('[data-split-summary]');
+          if (splitSummary) {
+            const splitBoxes = splitBoxesForRow(row);
+            splitSummary.textContent = splitBoxes > 0 ? `Разбивка: ${splitBoxes} короб.` : '';
+          }
+        });
+        updateStockSummary();
+      };
+
+      const syncMixedGroup = (sourceRow, value) => {
+        if (!sourceRow.is_mixed_box || !sourceRow.mixed_group) {
+          return;
+        }
+        (stockGroupRows.get(sourceRow.mixed_group) || []).forEach((row) => {
+          if (row.key === sourceRow.key) {
+            return;
+          }
+          const el = stockRowElements.get(row.key);
+          const input = el?.querySelector('[data-box-input]');
+          if (input) {
+            input.value = String(value);
+          }
+        });
+      };
+
+      const setSplitButtonVisible = (button, visible) => {
+        if (!button) {
+          return;
+        }
+        button.hidden = !visible;
+        button.classList.toggle('is-hidden', !visible);
+      };
+
+      const applyMixedGroupDecorators = () => {
+        stockRows.forEach((row) => {
+          const el = stockRowElements.get(row.key);
+          if (!el) {
+            return;
+          }
+          el.classList.remove(
+            'mix-box-row',
+            'mix-box-start',
+            'mix-box-end',
+            'mix-tone-0',
+            'mix-tone-1',
+            'mix-tone-2',
+            'mix-tone-3',
+            'mix-tone-4',
+            'mix-tone-5'
+          );
+          setSplitButtonVisible(el.querySelector('[data-split-box]'), true);
+        });
+
+        let groupRows = [];
+        let groupKey = '';
+        let fallbackTone = 0;
+
+        const flushGroup = () => {
+          if (!groupRows.length) {
+            return;
+          }
+          const toneValue = groupRows[0].row.mixed_color >= 0 ? groupRows[0].row.mixed_color % 6 : fallbackTone % 6;
+          const toneClass = `mix-tone-${toneValue}`;
+          groupRows.forEach((entry, index) => {
+            entry.el.classList.add('mix-box-row', toneClass);
+            setSplitButtonVisible(entry.el.querySelector('[data-split-box]'), index === 0);
+            if (index === 0) {
+              entry.el.classList.add('mix-box-start');
+            }
+            if (index === groupRows.length - 1) {
+              entry.el.classList.add('mix-box-end');
+            }
+          });
+          fallbackTone += 1;
+          groupRows = [];
+          groupKey = '';
+        };
+
+        stockRows.forEach((row) => {
+          const el = stockRowElements.get(row.key);
+          if (!el || el.classList.contains('is-hidden') || el.classList.contains('split-source-hidden')) {
+            flushGroup();
+            return;
+          }
+          if (!row.is_mixed_box || !row.mixed_group) {
+            flushGroup();
+            return;
+          }
+          if (!groupRows.length) {
+            groupRows = [{ row, el }];
+            groupKey = row.mixed_group;
+            return;
+          }
+          if (groupKey === row.mixed_group) {
+            groupRows.push({ row, el });
+            return;
+          }
+          flushGroup();
+          groupRows = [{ row, el }];
+          groupKey = row.mixed_group;
+        });
+        flushGroup();
+      };
+
+      const updateSplitResultRows = () => {
+        Array.from(stockBody.querySelectorAll('.split-result-row')).forEach((row) => row.remove());
+        stockRows.forEach((row) => {
+          const el = stockRowElements.get(row.key);
+          if (el) {
+            el.classList.remove('split-source-hidden');
+          }
+        });
+
+        stockPartialSplits.forEach((split) => {
+          const sourceRow = stockRowByKey.get(clean(split.row_key));
+          if (!sourceRow) {
+            return;
+          }
+          const relatedRows = sourceRow.is_mixed_box && sourceRow.mixed_group
+            ? (stockGroupRows.get(sourceRow.mixed_group) || [sourceRow])
+            : [sourceRow];
+          const relatedEls = relatedRows.map((row) => stockRowElements.get(row.key)).filter(Boolean);
+          if (!relatedEls.length || relatedEls.every((row) => row.classList.contains('is-hidden'))) {
+            return;
+          }
+
+          const splitBoxes = Math.max(intValue(split.boxes), 0);
+          const itemQtyByKey = new Map();
+          (split.items || []).forEach((item) => {
+            const rowKey = clean(item.key);
+            const qty = Math.max(intValue(item.qty), 0);
+            if (rowKey && qty > 0) {
+              itemQtyByKey.set(rowKey, qty);
+            }
+          });
+          if (splitBoxes <= 0 || !itemQtyByKey.size) {
+            return;
+          }
+
+          const sourceTotal = relatedRows.reduce((sum, row) => sum + row.box_qty, 0);
+          let pickedTotal = 0;
+          const renderedRows = [];
+
+          relatedRows.forEach((row) => {
+            const qty = itemQtyByKey.get(row.key) || 0;
+            if (qty <= 0) {
+              return;
+            }
+            pickedTotal += qty;
+            renderedRows.push({
+              group: 'selected',
+              toneClass: 'mix-tone-0',
+              values: [
+                row.sku_code || '-',
+                row.name || '-',
+                row.size || '-',
+                row.barcode || '-',
+                'Без короба',
+                '-',
+                `${qty * splitBoxes} шт`,
+                '',
+                String(qty * splitBoxes),
+              ],
+            });
+          });
+
+          if (!renderedRows.length || pickedTotal <= 0 || sourceTotal <= 0) {
+            return;
+          }
+
+          relatedRows.forEach((row) => {
+            const remaining = Math.max(row.box_qty - (itemQtyByKey.get(row.key) || 0), 0);
+            if (remaining <= 0) {
+              return;
+            }
+            renderedRows.push({
+              group: 'remainder',
+              toneClass: 'mix-tone-2',
+              values: [
+                row.sku_code || '-',
+                row.name || '-',
+                row.size || '-',
+                row.barcode || '-',
+                relatedRows.length > 1 ? `${row.goods_type || '-'} · Микс-короб` : (row.goods_type || '-'),
+                String(remaining),
+                `${splitBoxes} (${remaining * splitBoxes} шт)`,
+                '',
+                '',
+              ],
+            });
+          });
+
+          const availableBoxes = Math.max(...relatedRows.map((row) => row.available_boxes));
+          const untouchedBoxes = Math.max(availableBoxes - splitBoxes, 0);
+          const selectedWholeBoxes = sourceRow.is_mixed_box && sourceRow.mixed_group
+            ? Math.max(...relatedRows.map((row) => rowInputValue(row)))
+            : rowInputValue(sourceRow);
+          if (untouchedBoxes > 0) {
+            relatedRows.forEach((row, index) => {
+              renderedRows.push({
+                group: 'whole',
+                toneClass: 'mix-tone-3',
+                showAction: index === 0,
+                values: [
+                  row.sku_code || '-',
+                  row.name || '-',
+                  row.size || '-',
+                  row.barcode || '-',
+                  relatedRows.length > 1 ? `${row.goods_type || '-'} · Микс-короб` : (row.goods_type || '-'),
+                  String(row.box_qty),
+                  `${untouchedBoxes} (${row.box_qty * untouchedBoxes} шт)`,
+                  '',
+                  String(row.box_qty * selectedWholeBoxes),
+                ],
+              });
+            });
+          }
+
+          relatedEls.forEach((row) => row.classList.add('split-source-hidden'));
+          const orderedEls = relatedEls.slice().sort((left, right) => (
+            left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
+          ));
+          let anchor = orderedEls[orderedEls.length - 1];
+
+          renderedRows.forEach((entry, index) => {
+            const tr = document.createElement('tr');
+            tr.className = 'split-result-row mix-box-row';
+            tr.classList.add(entry.toneClass || 'mix-tone-0');
+            const prevGroup = index > 0 ? renderedRows[index - 1].group : '';
+            const nextGroup = index < renderedRows.length - 1 ? renderedRows[index + 1].group : '';
+            if (entry.group !== prevGroup) {
+              tr.classList.add('mix-box-start');
+            }
+            if (entry.group !== nextGroup) {
+              tr.classList.add('mix-box-end');
+            }
+            entry.values.forEach((value, cellIndex) => {
+              const td = document.createElement('td');
+              if (cellIndex === 7 && entry.showAction) {
+                td.innerHTML = `
+                  <div class="ship-box-control">
+                    <input type="number" min="0" max="${untouchedBoxes}" value="${selectedWholeBoxes}" class="split-proxy-input">
+                    <button type="button" class="btn split-trigger">↯</button>
+                  </div>
+                `;
+              } else {
+                td.textContent = String(value ?? '');
+              }
+              tr.appendChild(td);
+            });
+            anchor.insertAdjacentElement('afterend', tr);
+            anchor = tr;
+
+            const proxyInput = tr.querySelector('.split-proxy-input');
+            if (proxyInput) {
+              proxyInput.addEventListener('input', () => {
+                const nextValue = Math.min(Math.max(intValue(proxyInput.value), 0), untouchedBoxes);
+                proxyInput.value = String(nextValue);
+                relatedRows.forEach((row) => {
+                  const rowEl = stockRowElements.get(row.key);
+                  const input = rowEl?.querySelector('[data-box-input]');
+                  if (input) {
+                    input.value = String(nextValue);
+                  }
+                });
+                updateStockRowTotals();
+                applyMixedGroupDecorators();
+                updateSplitResultRows();
+                refreshStockEmptyState();
+              });
+            }
+            const proxyButton = tr.querySelector('.split-trigger');
+            if (proxyButton) {
+              proxyButton.addEventListener('click', () => openSplitModal(sourceRow));
+            }
+          });
+        });
+      };
+
+      const applyStockSearch = () => {
+        const term = clean(stockSearch?.value).toLowerCase();
+        const groupMatched = new Map();
+        stockRows.forEach((row) => {
+          if (!row.is_mixed_box || !row.mixed_group) {
+            return;
+          }
+          const el = stockRowElements.get(row.key);
+          const matched = !term || clean(el?.dataset.search).includes(term);
+          groupMatched.set(row.mixed_group, (groupMatched.get(row.mixed_group) || false) || matched);
+        });
+        stockRows.forEach((row) => {
+          const el = stockRowElements.get(row.key);
+          if (!el) {
+            return;
+          }
+          let visible = !term || clean(el.dataset.search).includes(term);
+          if (row.is_mixed_box && row.mixed_group) {
+            visible = groupMatched.get(row.mixed_group) === true;
+          }
+          el.classList.toggle('is-hidden', !visible);
+        });
+        applyMixedGroupDecorators();
+        updateSplitResultRows();
+        refreshStockEmptyState();
+      };
+
+      const renderStockRows = () => {
+        stockBody.innerHTML = '';
+        stockRowElements.clear();
+        stockRows.forEach((row) => {
+          const tr = document.createElement('tr');
+          tr.dataset.search = [
+            row.sku_code,
+            row.name,
+            row.size,
+            row.barcode,
+            row.goods_type,
+          ].map(clean).join(' ').toLowerCase();
+
+          [
+            row.sku_code || '-',
+            row.name || '-',
+            row.size || '-',
+            row.barcode || '-',
+            row.goods_type || '-',
+            String(row.box_qty),
+            `${row.available_boxes} (${row.available_qty} шт)`,
+          ].forEach((value, index) => {
+            const td = document.createElement('td');
+            if (index === 0) {
+              const strong = document.createElement('strong');
+              strong.textContent = value;
+              td.appendChild(strong);
+            } else {
+              td.textContent = value;
+              if (index === 4 && row.is_mixed_box) {
+                const badge = document.createElement('span');
+                badge.className = 'mix-badge';
+                badge.textContent = 'Микс-короб';
+                td.appendChild(document.createElement('br'));
+                td.appendChild(badge);
+              }
+            }
+            tr.appendChild(td);
+          });
+
+          const actionCell = document.createElement('td');
+          const control = document.createElement('div');
+          control.className = 'ship-box-control';
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.min = '0';
+          input.max = String(row.available_boxes);
+          input.value = '0';
+          input.dataset.boxInput = '1';
+          input.addEventListener('input', () => {
+            const value = normalizeStockInput(input, row);
+            syncMixedGroup(row, value);
+            updateStockRowTotals();
+            applyMixedGroupDecorators();
+            updateSplitResultRows();
+            refreshStockEmptyState();
+          });
+          const splitBtn = document.createElement('button');
+          splitBtn.type = 'button';
+          splitBtn.className = 'btn split-trigger';
+          splitBtn.dataset.splitBox = '1';
+          splitBtn.title = 'Разбить короб';
+          splitBtn.textContent = '↯';
+          splitBtn.addEventListener('click', () => openSplitModal(row));
+          control.appendChild(input);
+          control.appendChild(splitBtn);
+          actionCell.appendChild(control);
+          const splitSummary = document.createElement('div');
+          splitSummary.className = 'split-summary';
+          splitSummary.dataset.splitSummary = '1';
+          actionCell.appendChild(splitSummary);
+          tr.appendChild(actionCell);
+
+          const totalCell = document.createElement('td');
+          const total = document.createElement('span');
+          total.dataset.total = '1';
+          total.textContent = '0';
+          totalCell.appendChild(total);
+          tr.appendChild(totalCell);
+
+          stockRowElements.set(row.key, tr);
+          stockBody.appendChild(tr);
+        });
+        updateStockRowTotals();
+        applyStockSearch();
+      };
+
+      const closeSplitModal = () => {
+        splitState.row = null;
+        splitState.rows = [];
+        if (splitError) {
+          splitError.textContent = '';
+        }
+        splitModal?.classList.remove('active');
+        splitModal?.setAttribute('aria-hidden', 'true');
+      };
+
+      const clampNumberInputValue = (input) => {
+        if (!input) {
+          return;
+        }
+        const raw = String(input.value || '').trim();
+        if (!raw) {
+          return;
+        }
+        const min = Math.max(intValue(input.getAttribute('min')), 0);
+        const max = Math.max(intValue(input.getAttribute('max')), min);
+        const next = Math.min(Math.max(intValue(raw), min), max);
+        if (String(next) !== raw) {
+          input.value = String(next);
+        }
+      };
+
+      const openSplitModal = (row) => {
+        if (!row || !splitLines || !splitCountInput) {
+          return;
+        }
+        const relatedRows = row.is_mixed_box && row.mixed_group ? (stockGroupRows.get(row.mixed_group) || [row]) : [row];
+        const identity = row.is_mixed_box && row.mixed_group ? `group:${row.mixed_group}` : `row:${row.key}`;
+        const existing = splitForIdentity(identity);
+        const selectedWhole = row.is_mixed_box && row.mixed_group
+          ? Math.max(...relatedRows.map((item) => rowInputValue(item)))
+          : rowInputValue(row);
+        const available = Math.min(...relatedRows.map((item) => item.available_boxes));
+        const currentBoxes = intValue(existing?.boxes);
+        const effectiveMax = Math.max(available - selectedWhole + currentBoxes, currentBoxes);
+        if (effectiveMax <= 0 && !existing) {
+          window.alert('Нет доступных коробов для разбивки.');
+          return;
+        }
+        splitState.row = row;
+        splitState.rows = relatedRows;
+        if (splitSubtitle) {
+          splitSubtitle.textContent = row.is_mixed_box
+            ? 'Микс-короб: укажите состав отбора из одного короба.'
+            : `${row.sku_code || '-'} / ${row.size || '-'} / ${row.barcode || '-'}`;
+        }
+        if (splitCountHint) {
+          splitCountHint.textContent = `Доступно для разбивки: ${effectiveMax} короб.`;
+        }
+        splitCountInput.max = String(Math.max(effectiveMax, 1));
+        splitCountInput.value = String(Math.max(1, Math.min(currentBoxes || 1, Math.max(effectiveMax, 1))));
+        clampNumberInputValue(splitCountInput);
+        if (splitError) {
+          splitError.textContent = '';
+        }
+        const existingQty = new Map((existing?.items || []).map((item) => [clean(item.key), intValue(item.qty)]));
+        splitLines.innerHTML = '';
+        relatedRows.forEach((item) => {
+          const line = document.createElement('div');
+          line.className = 'split-line';
+          line.innerHTML = `
+            <div>
+              <div class="split-line-title">${item.sku_code || '-'}</div>
+              <div class="hint">${[item.name, item.size, item.barcode].filter(Boolean).join(' · ') || '-'}</div>
+              <div class="hint">В коробе: ${item.box_qty} шт.</div>
+            </div>
+            <input type="number" min="0" max="${item.box_qty}" value="${Math.min(existingQty.get(item.key) || 0, item.box_qty)}" data-split-item-key="${item.key}">
+          `;
+          const input = line.querySelector('input[data-split-item-key]');
+          clampNumberInputValue(input);
+          input?.addEventListener('input', () => clampNumberInputValue(input));
+          input?.addEventListener('change', () => clampNumberInputValue(input));
+          splitLines.appendChild(line);
+        });
+        if (splitRemove) {
+          splitRemove.hidden = !existing;
+        }
+        splitModal?.classList.add('active');
+        splitModal?.setAttribute('aria-hidden', 'false');
+      };
+
+      const resetStockPickerState = () => {
+        closeSplitModal();
+        stockPartialSplits = [];
+        if (stockSearch) {
+          stockSearch.value = '';
+        }
+        stockRows.forEach((row) => {
+          const el = stockRowElements.get(row.key);
+          const input = el?.querySelector('[data-box-input]');
+          if (input) {
+            input.value = '0';
+          }
+        });
+        updateStockRowTotals();
+        applyStockSearch();
+      };
+
+      const showStockPicker = (cardId = null) => {
+        activeCardId = cardId;
+        stockPickerVisible = true;
+        resetStockPickerState();
+        syncWizardState();
+        stockPickerPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        stockSearch?.focus();
+      };
+
+      const hideStockPicker = () => {
+        if (!hasCards()) {
+          return;
+        }
+        resetStockPickerState();
+        activeCardId = null;
+        stockPickerVisible = false;
+        syncWizardState();
+      };
+
+      const removeCurrentSplit = () => {
+        const row = splitState.row;
+        if (!row) {
+          closeSplitModal();
+          return;
+        }
+        const identity = row.is_mixed_box && row.mixed_group ? `group:${row.mixed_group}` : `row:${row.key}`;
+        stockPartialSplits = stockPartialSplits.filter((split) => clean(split.identity) !== clean(identity));
+        closeSplitModal();
+        updateStockRowTotals();
+        applyMixedGroupDecorators();
+        updateSplitResultRows();
+        refreshStockEmptyState();
+      };
+
+      const saveCurrentSplit = () => {
+        const row = splitState.row;
+        const relatedRows = splitState.rows || [];
+        if (!row || !relatedRows.length) {
+          closeSplitModal();
+          return;
+        }
+        const identity = row.is_mixed_box && row.mixed_group ? `group:${row.mixed_group}` : `row:${row.key}`;
+        const currentSplit = splitForIdentity(identity);
+        const currentBoxes = intValue(currentSplit?.boxes);
+        const selectedWhole = row.is_mixed_box && row.mixed_group
+          ? Math.max(...relatedRows.map((item) => rowInputValue(item)))
+          : rowInputValue(row);
+        const available = Math.min(...relatedRows.map((item) => item.available_boxes));
+        const maxBoxes = Math.max(available - selectedWhole + currentBoxes, currentBoxes);
+        const boxes = Math.max(intValue(splitCountInput?.value), 0);
+        if (boxes <= 0 || boxes > maxBoxes) {
+          splitError.textContent = 'Укажите доступное количество коробов для разбивки.';
+          return;
+        }
+        const items = [];
+        let pickedTotal = 0;
+        let sourceTotal = 0;
+        for (const item of relatedRows) {
+          sourceTotal += item.box_qty;
+          const input = splitLines.querySelector(`input[data-split-item-key="${CSS.escape(item.key)}"]`);
+          const qty = Math.max(intValue(input?.value), 0);
+          if (qty > item.box_qty) {
+            splitError.textContent = `${item.sku_code || '-'}: в коробе только ${item.box_qty} шт.`;
+            return;
+          }
+          if (qty > 0) {
+            pickedTotal += qty;
+            items.push({ key: item.key, qty });
+          }
+        }
+        if (!items.length || pickedTotal <= 0) {
+          splitError.textContent = 'Укажите количество товара к обработке.';
+          return;
+        }
+        if (pickedTotal >= sourceTotal) {
+          splitError.textContent = 'Если в обработку идет весь короб, используйте поле "К обработке".';
+          return;
+        }
+        stockPartialSplits = stockPartialSplits.filter((split) => clean(split.identity) !== clean(identity));
+        stockPartialSplits.push({
+          identity,
+          row_key: row.key,
+          group_key: row.is_mixed_box ? row.mixed_group : '',
+          boxes,
+          items,
+        });
+        closeSplitModal();
+        updateStockRowTotals();
+        applyMixedGroupDecorators();
+        updateSplitResultRows();
+        refreshStockEmptyState();
+      };
+
+      const selectedBoxCodes = (row, boxes, offset) => row.box_codes.slice(offset, offset + boxes);
+
+      const appendCardRow = (cards, row, qty, meta = {}) => {
+        if (!qty || qty <= 0) {
+          return;
+        }
+        const cardKey = [row.sku_code, row.name, row.goods_type].map(clean).join('||');
+        if (!cards.has(cardKey)) {
+          cards.set(cardKey, {
+            article: row.sku_code,
+            product_name: row.name,
+            goods_type: row.goods_type,
+            photo_url: row.photo,
+            rows: [],
+          });
+        }
+        cards.get(cardKey).rows.push({
+          article: row.sku_code,
+          sku: row.sku_code,
+          size: row.size,
+          barcode: row.barcode,
+          qty,
+          maxQty: qty,
+          box_qty: row.box_qty,
+          is_mixed_box: row.is_mixed_box,
+          mixed_group: row.mixed_group,
+          ...meta,
+        });
+      };
+
+      const buildSelectedCards = () => {
+        const cards = new Map();
+        const countedGroups = new Set();
+        const splitMaps = splitBoxesMaps();
+
+        stockRows.forEach((row) => {
+          const boxes = rowInputValue(row);
+          if (boxes <= 0) {
+            return;
+          }
+          if (row.is_mixed_box && row.mixed_group) {
+            if (countedGroups.has(row.mixed_group)) {
+              return;
+            }
+            countedGroups.add(row.mixed_group);
+            const offset = splitMaps.byGroup.get(row.mixed_group) || 0;
+            (stockGroupRows.get(row.mixed_group) || []).forEach((item) => {
+              appendCardRow(cards, item, boxes * item.box_qty, {
+                boxes,
+                box_codes: selectedBoxCodes(item, boxes, offset),
+              });
+            });
+            return;
+          }
+          const offset = splitMaps.byKey.get(row.key) || 0;
+          appendCardRow(cards, row, boxes * row.box_qty, {
+            boxes,
+            box_codes: selectedBoxCodes(row, boxes, offset),
+          });
+        });
+
+        const splitOffsetsByKey = new Map();
+        const splitOffsetsByGroup = new Map();
+        stockPartialSplits.forEach((split, index) => {
+          const sourceRow = stockRowByKey.get(clean(split.row_key));
+          if (!sourceRow) {
+            return;
+          }
+          const boxes = Math.max(intValue(split.boxes), 0);
+          const groupKey = clean(split.group_key);
+          const offset = groupKey
+            ? (splitOffsetsByGroup.get(groupKey) || 0)
+            : (splitOffsetsByKey.get(sourceRow.key) || 0);
+          const codes = selectedBoxCodes(sourceRow, boxes, offset);
+          if (groupKey) {
+            splitOffsetsByGroup.set(groupKey, offset + boxes);
+          } else {
+            splitOffsetsByKey.set(sourceRow.key, offset + boxes);
+          }
+          (split.items || []).forEach((item) => {
+            const row = stockRowByKey.get(clean(item.key));
+            const qtyPerBox = Math.max(intValue(item.qty), 0);
+            if (!row || qtyPerBox <= 0 || boxes <= 0) {
+              return;
+            }
+            appendCardRow(cards, row, boxes * qtyPerBox, {
+              partial_boxes: boxes,
+              box_codes: codes,
+              allow_partial_box_reserve: true,
+              partial_box_split: {
+                version: 1,
+                kind: 'processing_partial_box_split',
+                index: index + 1,
+                source_row_key: sourceRow.key,
+                source_group: groupKey,
+                source_box_codes: codes,
+                item_pick_qty: qtyPerBox,
+                item_source_qty: row.box_qty,
+              },
+            });
+          });
+        });
+        return Array.from(cards.values()).filter((card) => card.rows.length);
+      };
+
+      const applyStockSelection = (payload) => {
+        if (!payload || typeof payload !== 'object') {
+          return;
+        }
+        const payloadCards = Array.isArray(payload.cards) && payload.cards.length ? payload.cards : [payload];
+        payloadCards.forEach((rawCard, index) => {
+          const rows = Array.isArray(rawCard.rows) ? rawCard.rows : [];
+          const firstRow = rows[0] || {};
+          const articleValue = rawCard.article || rawCard.sku || firstRow.sku || firstRow.article || '';
+          const normalizedRows = rows.map((row) => ({
+            article: row.article || row.sku || articleValue || '',
+            size: row.size || '',
+            barcode: row.barcode || '',
+            result_article: row.result_article || rawCard.result_article || '',
+            result_product_name: row.result_product_name || rawCard.result_product_name || '',
+            result_barcode: row.result_barcode || rawCard.result_barcode || '',
+            qty: row.qty ?? '',
+            maxQty: row.maxQty ?? row.qty ?? '',
+            box_qty: row.box_qty ?? '',
+            boxes: row.boxes ?? '',
+            partial_boxes: row.partial_boxes ?? '',
+            box_codes: Array.isArray(row.box_codes) ? row.box_codes : [],
+            is_mixed_box: Boolean(row.is_mixed_box),
+            mixed_group: row.mixed_group || '',
+            allow_partial_box_reserve: Boolean(row.allow_partial_box_reserve),
+            partial_box_split: row.partial_box_split || null,
+          }));
+          const cardPayload = {
+            article: articleValue,
+            product_name: rawCard.product_name || rawCard.name || '',
+            photo_url: rawCard.photo_url || rawCard.photo || '',
+            goods_type: rawCard.goods_type || '',
+            result_article: rawCard.result_article || '',
+            result_product_name: rawCard.result_product_name || '',
+            result_barcode: rawCard.result_barcode || '',
+            rows: normalizedRows,
+          };
+          const target = activeCardId && index === 0
+            ? cardsContainer.querySelector(`[data-card-id="${activeCardId}"]`)
+            : null;
+          if (target) {
+            updateCardFromPayload(target, cardPayload);
+          } else {
+            createCard(cardPayload, { prepend: true });
+          }
+        });
+        activeCardId = null;
+        stockPickerVisible = false;
+        resetStockPickerState();
+        syncWizardState();
+        window.processingMarkingScheduleCheck?.();
+      };
+
+      const confirmStockSelection = () => {
+        const cards = buildSelectedCards();
+        if (!cards.length) {
+          window.alert('Выберите минимум один короб или разбивку короба.');
+          return;
+        }
+        const payload = cards.length === 1 ? { ...cards[0], cards } : { cards };
+        applyStockSelection(payload);
+      };
+
+      if (marketplaceSelect) {
+        marketplaceSelect.addEventListener('change', () => {
+          syncWizardState();
+          window.processingMarkingScheduleCheck?.();
+        });
+      }
+
+      stockSearch?.addEventListener('input', applyStockSearch);
+      stockConfirmBtn?.addEventListener('click', confirmStockSelection);
+      stockCloseBtn?.addEventListener('click', hideStockPicker);
+      splitClose?.addEventListener('click', closeSplitModal);
+      splitCancel?.addEventListener('click', closeSplitModal);
+      splitRemove?.addEventListener('click', removeCurrentSplit);
+      splitSave?.addEventListener('click', saveCurrentSplit);
+      splitCountInput?.addEventListener('input', () => clampNumberInputValue(splitCountInput));
+      splitCountInput?.addEventListener('change', () => clampNumberInputValue(splitCountInput));
+      splitModal?.addEventListener('click', (event) => {
+        if (event.target === splitModal) {
+          closeSplitModal();
+        }
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && splitModal?.classList.contains('active')) {
+          closeSplitModal();
+        }
+      });
+
+      if (addMoreBtn) {
+        addMoreBtn.addEventListener('click', () => {
+          showStockPicker(null);
+        });
+      }
+
+      if (chooseMarketplaceBtn) {
+        chooseMarketplaceBtn.addEventListener('click', () => {
+          const cardsReady = hasCards();
+          if (!cardsReady) {
+            window.alert('Сначала выберите товар для обработки.');
+            return;
+          }
+          if (!marketplaceOptions || !marketplaceOptions.children.length) {
+            window.alert('Список маркетплейсов недоступен.');
+            return;
+          }
+          marketplaceOptions.hidden = !marketplaceOptions.hidden;
+        });
+      }
+
+      document.addEventListener('click', (event) => {
+        if (!marketplaceOptions || marketplaceOptions.hidden) {
+          return;
+        }
+        const onChooseButton = chooseMarketplaceBtn && chooseMarketplaceBtn.contains(event.target);
+        const inOptions = marketplaceOptions.contains(event.target);
+        if (!onChooseButton && !inOptions) {
+          marketplaceOptions.hidden = true;
+        }
+      });
+
+      if (form && cardsInput) {
+        form.addEventListener('submit', (event) => {
+          const cardsReady = hasCards();
+          const marketplaceReady = cardsReady && Boolean(clean(marketplaceSelect?.value));
+          const action = event.submitter?.value || '';
+
+          if (!cardsReady) {
+            event.preventDefault();
+            window.alert('Шаг 1 не выполнен: сначала выберите товар для обработки.');
+            return;
+          }
+          if (action !== 'draft' && !marketplaceReady) {
+            event.preventDefault();
+            window.alert('Шаг 2 не выполнен: сначала выберите маркетплейс.');
+            return;
+          }
+          const cards = collectCards();
+          if (action !== 'draft' && articleChangeEnabled()) {
+            const missingRows = [];
+            cards.forEach((card) => {
+              (card.rows || []).forEach((row) => {
+                if ((row.qty || '').toString().trim() && !(row.result_article || '').trim()) {
+                  missingRows.push(card.article || row.article || '-');
+                  return;
+                }
+                if ((row.result_article || '').trim() && !resolveClientSku(row.result_article || '')) {
+                  missingRows.push(card.article || row.article || '-');
+                }
+              });
+            });
+            if (missingRows.length) {
+              event.preventDefault();
+              window.alert('Для изменения артикула выберите новый товар из номенклатуры клиента.');
+              return;
+            }
+          }
+          cardsInput.value = JSON.stringify(cards);
+        });
+      }
+      if (articleChangeSelect) {
+        articleChangeSelect.addEventListener('change', syncArticleChangeFields);
+      }
+
+      renderStockRows();
+
+      const draftScript = document.getElementById('processing-draft-data');
+      if (draftScript && draftScript.textContent) {
+        try {
+          const draftPayload = JSON.parse(draftScript.textContent);
+          if (draftPayload && typeof draftPayload === 'object') {
+            const draftCards = Array.isArray(draftPayload.cards) ? draftPayload.cards : [];
+            if (draftCards.length) {
+              draftCards.forEach((card) => {
+                if (!card || typeof card !== 'object') {
+                  return;
+                }
+                createCard(
+                  {
+                    id: card.id || '',
+                    article: card.article || '',
+                    product_name: card.product_name || card.name || '',
+                    photo_url: card.photo_url || card.product_photo_url || '',
+                    goods_type: card.goods_type || '',
+                    rows: Array.isArray(card.rows) ? card.rows : [],
+                  },
+                  { prepend: false },
+                );
+              });
+            } else if (draftPayload.product_name || draftPayload.article || (draftPayload.stock_rows || []).length) {
+              const fallbackRows = (draftPayload.stock_rows || []).map((row) => ({
+                size: row.size || '',
+                barcode: row.barcode || '',
+                result_article: row.result_article || '',
+                result_product_name: row.result_product_name || '',
+                result_barcode: row.result_barcode || '',
+                qty: row.qty ?? '',
+                maxQty: row.maxQty ?? row.qty ?? '',
+              }));
+              createCard(
+                {
+                  article: draftPayload.article || '',
+                  product_name: draftPayload.product_name || '',
+                  photo_url: draftPayload.product_photo_url || '',
+                  goods_type: draftPayload.goods_type || '',
+                  rows: fallbackRows,
+                },
+                { prepend: false },
+              );
+            }
+          }
+        } catch (err) {
+          // ignore draft parse errors
+        }
+      }
+      if (hasCards()) {
+        stockPickerVisible = false;
+      }
+
+      window.addEventListener('message', (event) => {
+        if (event.origin !== window.location.origin) {
+          return;
+        }
+        const data = event.data || {};
+        if (data.type !== 'processing-stock-select') {
+          return;
+        }
+        applyStockSelection(data.payload);
+      });
+
+      const storedSelection = sessionStorage.getItem('processingStockSelection');
+      if (storedSelection) {
+        sessionStorage.removeItem('processingStockSelection');
+        try {
+          const data = JSON.parse(storedSelection);
+          if (data && data.type === 'processing-stock-select') {
+            applyStockSelection(data.payload);
+          }
+        } catch (err) {
+          // ignore storage parse errors
+        }
+      }
+      syncWizardState();
+      window.processingCollectCards = collectCards;
+    })();
+  </script>
+  <script>
+    (() => {
+      const form = document.getElementById('processing-form');
+      if (!form) {
+        return;
+      }
+      const select = form.querySelector('select[name="marking_5840_each_qty"]');
+      const statusEl = form.querySelector('[data-marking-cz-status]');
+      const uploadRow = form.querySelector('[data-marking-cz-upload]');
+      const fileInput = form.querySelector('[data-marking-cz-file]');
+      const fileNameEl = form.querySelector('[data-marking-cz-filename]');
+      const checkUrl = form.dataset.markingCheckUrl || '';
+      const importUrl = form.dataset.markingImportUrl || '';
+      if (!select || !statusEl || !uploadRow || !checkUrl) {
+        return;
+      }
+
+      let lastResult = null;
+      let checkTimer = null;
+      let checking = false;
+      let importing = false;
+      let lastImportSummary = '';
+
+      const parseQty = (value) => {
+        const raw = String(value || '').trim();
+        const parsed = parseInt(raw, 10);
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+
+      const collectItems = () => {
+        const items = [];
+        const cards = window.processingCollectCards ? window.processingCollectCards() : [];
+        cards.forEach((card) => {
+          (card.rows || []).forEach((row) => {
+            const qty = parseQty(row.qty);
+            if (!qty) {
+              return;
+            }
+            items.push({
+              barcode: (row.result_barcode || row.barcode || '').trim(),
+              qty,
+            });
+          });
+        });
+        return items;
+      };
+
+      const getCsrfToken = () => {
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        if (match) {
+          return decodeURIComponent(match[1]);
+        }
+        const hidden = document.querySelector('#processing-form input[name="csrfmiddlewaretoken"]');
+        return hidden ? hidden.value : '';
+      };
+
+      const setStatus = (text, isError) => {
+        statusEl.textContent = text;
+        statusEl.classList.toggle('error', Boolean(isError));
+      };
+
+      const toggleUpload = () => {
+        const enabled = Boolean(select.value);
+        uploadRow.hidden = !enabled;
+        if (fileInput) {
+          fileInput.disabled = !enabled;
+        }
+      };
+
+      const buildImportSummary = (data) => {
+        if (!data) {
+          return '';
+        }
+        const parts = [];
+        const filesCount = Number(data.files_count || 0);
+        if (filesCount) {
+          parts.push(`файлов: ${filesCount}`);
+        }
+        const added = Number(data.added || 0);
+        parts.push(`импортировано: ${added}`);
+        if (data.duplicates) {
+          parts.push(`дубликаты: ${data.duplicates}`);
+        }
+        if (data.unknown_barcodes) {
+          parts.push(`неизвестные ШК: ${data.unknown_barcodes}`);
+        }
+        if (data.mismatched_barcodes) {
+          parts.push(`чужие ШК: ${data.mismatched_barcodes}`);
+        }
+        if (data.invalid_rows) {
+          parts.push(`ошибочные строки: ${data.invalid_rows}`);
+        }
+        return parts.length ? ` (${parts.join(', ')})` : '';
+      };
+
+      const runCheck = async () => {
+        if (!select.value) {
+          lastResult = null;
+          setStatus('Выберите товар для проверки ЧЗ.', false);
+          toggleUpload(0, 0);
+          return;
+        }
+        const items = collectItems();
+        if (!items.length) {
+          lastResult = { required: 0, available: 0, missing: 0, missing_barcodes: 0 };
+          setStatus('Добавьте товары для проверки ЧЗ.', true);
+          toggleUpload(0, 0);
+          return;
+        }
+        checking = true;
+        setStatus('Проверяем наличие ЧЗ...', false);
+        toggleUpload(0, 0);
+        const orderId = form.querySelector('input[name="edit_order_id"]')?.value
+          || form.querySelector('input[name="draft_order_id"]')?.value
+          || '';
+        const agencyId = form.querySelector('input[name="agency_id"]')?.value || '';
+        try {
+          const resp = await fetch(checkUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCsrfToken(),
+            },
+            body: JSON.stringify({ items, order_id: orderId, agency_id: agencyId }),
+          });
+          const data = await resp.json();
+          if (!resp.ok || !data.ok) {
+            throw new Error(data.error || 'Ошибка проверки');
+          }
+          lastResult = data;
+          const required = data.required || 0;
+          const available = data.available || 0;
+          const free = data.free || 0;
+          const missing = data.missing || 0;
+          const missingBarcodes = data.missing_barcodes || 0;
+          let message = `ЧЗ в базе: ${free} свободных.`;
+          let isError = false;
+          if (missingBarcodes > 0) {
+            message = `Не хватает ШК для ${missingBarcodes} шт. Заполните штрихкод.`;
+            isError = true;
+          } else if (missing > 0) {
+            message = `ЧЗ в базе: ${free} свободных. Не хватает ${missing}. Загрузите файл.`;
+            isError = true;
+          }
+          if (lastImportSummary) {
+            message = `${message}${lastImportSummary}`;
+            lastImportSummary = '';
+          }
+          setStatus(message, isError);
+          toggleUpload(missing, missingBarcodes);
+        } catch (err) {
+          lastResult = null;
+          setStatus('Не удалось проверить ЧЗ. Попробуйте позже.', true);
+          toggleUpload(0, 0);
+        } finally {
+          checking = false;
+        }
+      };
+
+      const importCodes = async () => {
+        if (!importUrl || !fileInput?.files?.length) {
+          return;
+        }
+        if (importing) {
+          return;
+        }
+        const cards = window.processingCollectCards ? window.processingCollectCards() : [];
+        const orderId = form.querySelector('input[name="edit_order_id"]')?.value
+          || form.querySelector('input[name="draft_order_id"]')?.value
+          || '';
+        const agencyId = form.querySelector('input[name="agency_id"]')?.value || '';
+        const formData = new FormData();
+        Array.from(fileInput.files).forEach((file) => {
+          formData.append('marking_cz_file', file);
+        });
+        formData.set('cards_json', JSON.stringify(cards));
+        if (orderId) {
+          formData.set('order_id', orderId);
+        }
+        if (agencyId) {
+          formData.set('agency_id', agencyId);
+        }
+        importing = true;
+        setStatus(`Импортируем файлы с ЧЗ: ${fileInput.files.length}...`, false);
+        try {
+          const resp = await fetch(importUrl, {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': getCsrfToken(),
+            },
+            body: formData,
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.ok) {
+            throw new Error(data.error || 'Ошибка импорта ЧЗ.');
+          }
+          lastImportSummary = buildImportSummary(data);
+          await runCheck();
+        } catch (err) {
+          setStatus(err.message || 'Не удалось импортировать ЧЗ.', true);
+        } finally {
+          importing = false;
+        }
+      };
+
+      const scheduleCheck = () => {
+        if (checkTimer) {
+          clearTimeout(checkTimer);
+        }
+        checkTimer = setTimeout(runCheck, 300);
+      };
+
+      window.processingMarkingScheduleCheck = scheduleCheck;
+
+      select.addEventListener('change', () => scheduleCheck());
+      if (fileInput) {
+        fileInput.addEventListener('change', () => {
+          if (fileNameEl) {
+            const names = Array.from(fileInput.files || []).map((file) => file.name);
+            fileNameEl.textContent = names.length ? names.join(', ') : 'Файлы не выбраны';
+          }
+          if (!fileInput.files?.length) {
+            return;
+          }
+          importCodes();
+        });
+      }
+
+      form.addEventListener('submit', (event) => {
+        const action = event.submitter?.value || '';
+        if (action === 'draft') {
+          return;
+        }
+        if (!select.value) {
+          return;
+        }
+        if (checking) {
+          event.preventDefault();
+          alert('Проверка ЧЗ выполняется. Подождите.');
+          return;
+        }
+        if (!lastResult) {
+          event.preventDefault();
+          alert('Не удалось проверить ЧЗ. Попробуйте еще раз.');
+          return;
+        }
+        const missing = lastResult.missing || 0;
+        const missingBarcodes = lastResult.missing_barcodes || 0;
+        if ((missing > 0 || missingBarcodes > 0) && !fileInput?.files?.length) {
+          event.preventDefault();
+          alert('Недостаточно ЧЗ. Загрузите файл ЧЗ перед отправкой.');
+        }
+      });
+
+      scheduleCheck();
+    })();
+  </script>
+  <script>
+    (() => {
+      const selects = document.querySelectorAll('.param-select');
+      if (!selects.length) {
+        return;
+      }
+
+      const toggleExtras = (select) => {
+        const value = select.value;
+        const name = select.name;
+        document.querySelectorAll(`.param-extra[data-owner="${name}"]`).forEach((extra) => {
+          const showWhen = (extra.dataset.showWhen || 'any').trim();
+          let show = false;
+          if (showWhen === 'any') {
+            show = value !== '';
+          } else {
+            const allowed = showWhen.split(',').map((item) => item.trim());
+            show = allowed.includes(value);
+          }
+          extra.hidden = !show;
+          extra.querySelectorAll('input, select, textarea').forEach((field) => {
+            field.disabled = !show;
+          });
+        });
+        document.querySelectorAll(`input[data-needed-for="${name}"]`).forEach((hidden) => {
+          hidden.value = value ? 'Да' : '';
+        });
+      };
+
+      selects.forEach((select) => {
+        toggleExtras(select);
+        select.addEventListener('change', () => toggleExtras(select));
+      });
+    })();
+  </script>
+  <script>
+    (() => {
+      const form = document.getElementById('processing-form');
+      if (!form || !window.sessionStorage) {
+        return;
+      }
+      const storage = window.sessionStorage;
+      const STORAGE_KEYS = {
+        cards: 'processingDirectionCards',
+        plan: 'processingDirectionPlan',
+        addresses: 'processingDirectionAddresses',
+        count: 'processingDirectionCount',
+        returnUrl: 'processingDirectionReturn',
+        context: 'processingDirectionContext',
+      };
+        const openBtn = form.querySelector('[data-direction-action="open"]');
+        const editBtn = form.querySelector('[data-direction-action="edit"]');
+        const clearBtn = form.querySelector('[data-direction-action="clear"]');
+        const planInput = form.querySelector('input[name="direction_plan_json"]');
+        const addressesInput = form.querySelector('input[name="direction_addresses_json"]');
+        const countInput = form.querySelector('input[name="direction_count"]');
+        const summary = form.querySelector('[data-direction="summary"]');
+        const label = form.querySelector('[data-direction="label"]');
+        const actionsWrap = form.querySelector('[data-direction="actions"]');
+        const directionSelect = form.querySelector('select[name="direction_needed"]');
+        const cardsInput = form.querySelector('input[name="cards_json"]');
+        if (!planInput || !addressesInput) {
+          return;
+        }
+        let isSavingDraft = false;
+
+      const safeParse = (raw, fallback) => {
+        if (!raw) {
+          return fallback;
+        }
+        try {
+          return JSON.parse(raw);
+        } catch (err) {
+          return fallback;
+        }
+      };
+
+      const getContextKey = () => {
+        const draftId = form.querySelector('input[name="draft_order_id"]')?.value || '';
+        const editId = form.querySelector('input[name="edit_order_id"]')?.value || '';
+        const agencyId = form.querySelector('input[name="agency_id"]')?.value || '';
+        const orderId = document.body?.dataset?.orderId || '';
+        const combined = [draftId, editId, orderId, agencyId].filter(Boolean).join('|');
+        return combined || window.location.pathname;
+      };
+
+        const buildSummary = () => {
+          if (!summary) {
+            return;
+        }
+        const plan = safeParse(planInput.value, {});
+        let addresses = safeParse(addressesInput.value, []);
+        if (!Array.isArray(addresses)) {
+          addresses = [];
+        }
+        if (!addresses.length && Array.isArray(plan?.directions)) {
+          addresses = plan.directions;
+        }
+        if (!summary) {
+          return;
+        }
+        summary.textContent = addresses.length ? addresses.join(', ') : '';
+        syncDirectionUI();
+      };
+
+        const hasDistribution = () => {
+          const plan = safeParse(planInput.value, {});
+          const rows = Array.isArray(plan?.rows) ? plan.rows : [];
+          const planDirections = Array.isArray(plan?.directions) ? plan.directions : [];
+          const parsedAddresses = safeParse(addressesInput.value, []);
+          const addresses = Array.isArray(parsedAddresses) ? parsedAddresses : [];
+          return Boolean(rows.length || planDirections.length || addresses.length);
+        };
+
+        const toggleHidden = (el, shouldShow) => {
+          if (!el) {
+            return;
+          }
+          if (shouldShow) {
+            el.removeAttribute('hidden');
+          } else {
+            el.setAttribute('hidden', '');
+          }
+        };
+
+        const syncDirectionUI = () => {
+          const hasData = hasDistribution();
+          if (label) {
+            label.textContent = hasData ? 'Распределение задано' : 'Распределение по направлениям';
+          }
+          if (directionSelect && hasData && directionSelect.value !== 'set') {
+            directionSelect.value = 'set';
+            directionSelect.dispatchEvent(new Event('change'));
+          }
+          if (directionSelect) {
+            toggleHidden(directionSelect, !hasData);
+          }
+          toggleHidden(actionsWrap, hasData);
+          toggleHidden(openBtn, !hasData);
+        };
+
+        const applyStored = () => {
+          const storedContext = storage.getItem(STORAGE_KEYS.context) || '';
+          const contextKey = getContextKey();
+        if (storedContext && contextKey && storedContext !== contextKey) {
+          buildSummary();
+          return;
+        }
+        const storedPlan = storage.getItem(STORAGE_KEYS.plan);
+        const storedAddresses = storage.getItem(STORAGE_KEYS.addresses);
+        const storedCount = storage.getItem(STORAGE_KEYS.count);
+        if (storedPlan !== null && (storedPlan || !planInput.value)) {
+          planInput.value = storedPlan;
+        }
+        if (storedAddresses !== null && (storedAddresses || !addressesInput.value)) {
+          addressesInput.value = storedAddresses;
+        }
+          if (countInput && storedCount !== null && (storedCount || !countInput.value)) {
+            countInput.value = storedCount;
+          }
+          buildSummary();
+          syncDirectionUI();
+        };
+
+      applyStored();
+
+        const stashDirections = () => {
+          const collector = window.processingCollectCards;
+          const cards = typeof collector === 'function' ? collector() : [];
+          storage.setItem(STORAGE_KEYS.cards, JSON.stringify(cards));
+          storage.setItem(STORAGE_KEYS.plan, planInput.value || '');
+          storage.setItem(STORAGE_KEYS.addresses, addressesInput.value || '');
+          storage.setItem(STORAGE_KEYS.count, countInput?.value || '');
+          storage.setItem(STORAGE_KEYS.context, getContextKey());
+          storage.setItem(STORAGE_KEYS.returnUrl, window.location.href);
+        };
+
+        const updateUrlWithDraft = (orderId) => {
+          if (!orderId || !window.history || !window.history.replaceState) {
+            return;
+          }
+          const url = new URL(window.location.href);
+          const agencyId = form.querySelector('input[name="agency_id"]')?.value || '';
+          if (agencyId) {
+            url.searchParams.set('client', agencyId);
+          }
+          url.searchParams.set('order', orderId);
+          url.searchParams.delete('ok');
+          url.searchParams.delete('status');
+          window.history.replaceState({}, '', url.toString());
+        };
+
+        const ensureDraftId = (orderId) => {
+          if (!orderId) {
+            return;
+          }
+          if (form.querySelector('input[name="edit_order_id"]')) {
+            updateUrlWithDraft(orderId);
+            return;
+          }
+          let draftInput = form.querySelector('input[name="draft_order_id"]');
+          if (!draftInput) {
+            draftInput = document.createElement('input');
+            draftInput.type = 'hidden';
+            draftInput.name = 'draft_order_id';
+            form.appendChild(draftInput);
+          }
+          draftInput.value = orderId;
+          updateUrlWithDraft(orderId);
+        };
+
+        const DRAFT_AUTOSAVE_INTERVAL_MS = 30000;
+        let draftAutosaveTouched = false;
+        const markDraftAutosaveTouched = () => {
+          draftAutosaveTouched = true;
+        };
+        form.addEventListener('input', markDraftAutosaveTouched, true);
+        form.addEventListener('change', markDraftAutosaveTouched, true);
+
+        const autosaveDraft = async ({ silent = false } = {}) => {
+          if (isSavingDraft) {
+            return null;
+          }
+          const collector = window.processingCollectCards;
+          const cards = typeof collector === 'function' ? collector() : [];
+          if (cardsInput) {
+            cardsInput.value = JSON.stringify(cards);
+          }
+          const formData = new FormData(form);
+          formData.set('submit_action', 'draft');
+          formData.set('draft_autosave', '1');
+          if (cardsInput) {
+            formData.set('cards_json', cardsInput.value);
+          } else {
+            formData.set('cards_json', JSON.stringify(cards));
+          }
+          isSavingDraft = true;
+          if (openBtn) {
+            openBtn.disabled = true;
+          }
+          if (editBtn) {
+            editBtn.disabled = true;
+          }
+          try {
+            const response = await fetch(window.location.href, {
+              method: 'POST',
+              headers: { 'X-Requested-With': 'XMLHttpRequest' },
+              body: formData,
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data || data.ok === false) {
+              const message = data?.error || 'Не удалось сохранить черновик.';
+              if (!silent) {
+                window.alert(message);
+              }
+              return null;
+            }
+            return data;
+          } catch (err) {
+            if (!silent) {
+              window.alert('Не удалось сохранить черновик.');
+            }
+            return null;
+          } finally {
+            isSavingDraft = false;
+            if (openBtn) {
+              openBtn.disabled = false;
+            }
+            if (editBtn) {
+              editBtn.disabled = false;
+            }
+          }
+        };
+
+        const saveDraftAndRememberId = async ({ silent = false } = {}) => {
+          const saved = await autosaveDraft({ silent });
+          if (!saved) {
+            return null;
+          }
+          const draftId = saved.draft_order_id || saved.order_id || '';
+          ensureDraftId(draftId);
+          draftAutosaveTouched = false;
+          return saved;
+        };
+
+        window.setInterval(() => {
+          if (!draftAutosaveTouched) {
+            return;
+          }
+          saveDraftAndRememberId({ silent: true });
+        }, DRAFT_AUTOSAVE_INTERVAL_MS);
+
+        const openDirections = async (mode) => {
+          const saved = await saveDraftAndRememberId({ silent: false });
+          if (!saved) {
+            return;
+          }
+          const draftId = saved.draft_order_id || saved.order_id || '';
+          ensureDraftId(draftId);
+          stashDirections();
+          let target = `/orders/processing/directions/?return=${encodeURIComponent(window.location.href)}`;
+          if (mode === 'view') {
+            target += '&view=1';
+          }
+          window.location.href = target;
+        };
+
+        if (openBtn) {
+          openBtn.addEventListener('click', () => openDirections('edit'));
+        }
+        if (editBtn) {
+          editBtn.addEventListener('click', () => openDirections('edit'));
+        }
+        if (clearBtn) {
+          clearBtn.addEventListener('click', () => {
+            planInput.value = '';
+            addressesInput.value = '';
+            if (countInput) {
+              countInput.value = '';
+            }
+            if (summary) {
+              summary.textContent = '';
+            }
+            storage.removeItem(STORAGE_KEYS.plan);
+            storage.removeItem(STORAGE_KEYS.addresses);
+            storage.removeItem(STORAGE_KEYS.count);
+            storage.removeItem(STORAGE_KEYS.context);
+            syncDirectionUI();
+          });
+        }
+      })();
+  </script>
+  <script>
+    (() => {
+      const miscToggle = document.getElementById('processing-misc-toggle');
+      const miscBody = document.getElementById('processing-misc-body');
+      const miscSummary = document.getElementById('processing-misc-summary');
+      const commentsInput = document.getElementById('processing-comments');
+      const documentsInput = document.getElementById('processing-documents');
+      const selectedDocumentsEl = document.getElementById('processing-documents-selected');
+      const existingAttachmentCount = {{ existing_attachments|length }};
+      if (!miscToggle || !miscBody || !miscSummary || !documentsInput || !selectedDocumentsEl) {
+        return;
+      }
+      const setMiscOpen = (isOpen) => {
+        miscBody.hidden = !isOpen;
+        miscToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      };
+      const renderMiscSummary = () => {
+        const parts = [];
+        if ((commentsInput?.value || '').trim()) {
+          parts.push('Есть комментарий');
+        }
+        const selectedCount = Array.from(documentsInput.files || []).length;
+        const fileCount = selectedCount || existingAttachmentCount;
+        if (fileCount > 0) {
+          parts.push(`Файлы: ${fileCount}`);
+        }
+        miscSummary.textContent = parts.join(' · ') || 'Пусто';
+      };
+      const renderSelectedDocuments = () => {
+        const files = Array.from(documentsInput.files || []);
+        if (!files.length) {
+          selectedDocumentsEl.innerHTML = '<div class="attachment-selected-empty">Файлы не выбраны.</div>';
+          renderMiscSummary();
+          return;
+        }
+        selectedDocumentsEl.innerHTML = files
+          .map((file) => {
+            const kb = Math.max(1, Math.round((file.size || 0) / 1024));
+            return `<div class="attachment-item"><span>${file.name}</span><span>${kb} KB</span></div>`;
+          })
+          .join('');
+        renderMiscSummary();
+      };
+      miscToggle.addEventListener('click', () => setMiscOpen(miscBody.hidden));
+      commentsInput?.addEventListener('input', renderMiscSummary);
+      documentsInput.addEventListener('change', renderSelectedDocuments);
+      setMiscOpen(false);
+      renderMiscSummary();
+      renderSelectedDocuments();
+    })();
+  </script>
+</body>
+</html>

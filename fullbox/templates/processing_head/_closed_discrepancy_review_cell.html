@@ -1,0 +1,38 @@
+<form class="review-form" method="post" action="{{ review.url }}">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <select name="status" aria-label="Результат разбора расхождения" required>
+    <option value="">Выберите решение</option>
+    {% for key,label in review.choices %}
+      <option value="{{ key }}"{% if key == review.status %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <textarea name="comment" placeholder="Причина или результат проверки">{{ review.comment }}</textarea>
+  <button class="button primary" type="submit">Зафиксировать</button>
+</form>
+{% if review.reviewed_by %}
+  <div class="review-meta">{{ review.reviewed_by }} · {{ review.reviewed_at }}</div>
+{% endif %}
+{% if review.correction_allowed %}
+  <form class="correction-form" method="post" action="{{ review.correction_url }}">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <select name="assignee_id" aria-label="Исполнитель корректировки" required>
+      <option value="">Выберите исполнителя</option>
+      {% for employee in review.correction_assignees %}
+        <option value="{{ employee.pk }}"{% if employee.pk == review.correction_assignee_id %} selected{% endif %}>{{ employee.full_name }} — {{ employee.get_role_display }}</option>
+      {% endfor %}
+    </select>
+    <input type="datetime-local" name="due_at" value="{{ review.correction_due_at }}" aria-label="Срок исправления" required>
+    <textarea name="comment" placeholder="Что требуется исправить" required>{{ review.correction_comment }}</textarea>
+    <button class="button primary" type="submit">
+      {% if review.correction_task_id %}Обновить задачу{% else %}Создать задачу{% endif %}
+    </button>
+  </form>
+  {% if review.correction_task_id %}
+    <div class="correction-meta">
+      Задача №{{ review.correction_task_id }} · {{ review.correction_task_status }}
+      {% if review.correction_assignee_name %} · {{ review.correction_assignee_name }}{% endif %}
+    </div>
+  {% endif %}
+{% endif %}

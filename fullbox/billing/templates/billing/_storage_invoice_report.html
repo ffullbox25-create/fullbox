@@ -1,0 +1,101 @@
+<section class="storage-report" id="storage-report">
+  <div class="storage-report-head">
+    <div>
+      <h2>{{ report.report_title }}</h2>
+      <p>{{ invoice.client.short_name|default:invoice.client.agn_name }} · {{ report.period_start }}–{{ report.period_end }}</p>
+    </div>
+    <button class="btn" type="button" onclick="window.print()">Печать отчёта</button>
+  </div>
+
+  <div class="storage-summary">
+    <div class="storage-metric accent"><span>Хранение в счёте</span><strong>{{ report.storage_total }} ₽</strong><small>По строкам актов</small></div>
+    {% if report.is_m3_report %}
+      <div class="storage-metric"><span>Начисленный объём</span><strong>{{ report.billed_quantity_total }}</strong><small>м³-дни за {{ report.days_count }} дн.</small></div>
+      <div class="storage-metric"><span>Среднее в день</span><strong>{{ report.billed_quantity_average }}</strong><small>м³</small></div>
+      <div class="storage-metric"><span>Диапазон по дням</span><strong>{{ report.billed_quantity_min }}–{{ report.billed_quantity_max }}</strong><small>м³ в сутки</small></div>
+      <div class="storage-metric"><span>Вес товара</span><strong>{{ report.selected_total_weight_kg }}</strong><small>кг на {{ report.selected_date }}</small></div>
+      <div class="storage-metric"><span>Физический объём дня</span><strong>{{ report.selected_physical_m3 }}</strong><small>м³ всего остатка на {{ report.selected_date }}</small></div>
+      <div class="storage-metric"><span>Весовой объём дня</span><strong>{{ report.selected_weight_m3 }}</strong><small>м³ всего остатка на {{ report.selected_date }}</small></div>
+      <div class="storage-metric"><span>К начислению за день</span><strong>{{ report.selected_billable_m3 }}</strong><small>м³ берётся большее значение</small></div>
+      <div class="storage-metric"><span>SKU контроль</span><strong>{{ report.selected_sku_billable_m3 }}</strong><small>м³ справочно</small></div>
+      <div class="storage-metric"><span>Расхождения</span><strong>{{ report.selected_sku_mismatch_rows }}</strong><small>короб/SKU; без габаритов {{ report.selected_sku_missing_dims_rows }}</small></div>
+    {% else %}
+      <div class="storage-metric"><span>Палето-дни</span><strong>{{ report.pallet_days }}</strong><small>Сумма за дни</small></div>
+      <div class="storage-metric"><span>Палето-недели</span><strong>{{ report.pallet_weeks }}</strong><small>Палето-дни ÷ 7</small></div>
+      <div class="storage-metric"><span>Среднее в день</span><strong>{{ report.average_pallets }}</strong><small>палет</small></div>
+      <div class="storage-metric"><span>Диапазон</span><strong>{{ report.min_pallets }}–{{ report.max_pallets }}</strong><small>палет в день</small></div>
+      <div class="storage-metric"><span>Уникальные палеты</span><strong>{{ report.unique_pallets }}</strong><small>за {{ report.days_count }} дн.</small></div>
+    {% endif %}
+  </div>
+
+  {% if report.is_m3_report %}
+    <p class="storage-note"><strong>Как считается дневное начисление:</strong> Billing CBM = большее из физического объёма и весового эквивалента всего остатка клиента за день. Весовой эквивалент: вес ÷ 450 кг × 1,6 м³; расчёт дробный, количество палет вверх не округляется. Строки коробов ниже — только расшифровка состава на выбранный день: их нельзя складывать как счёт, потому что начисление считается по остатку клиента целиком. SKU-контроль справочный и сумму счёта не меняет.</p>
+    {% if report.attention_days %}
+      <p class="storage-note"><strong>Требует проверки:</strong> {% for day in report.attention_days %}{{ day.date }} — физический объём {{ day.physical_m3 }} м³, к начислению {{ day.billable_m3 }} м³{% if not forloop.last %}; {% endif %}{% endfor %}. Проверьте весовые данные до подтверждения акта.</p>
+    {% endif %}
+  {% else %}
+    <p class="storage-note">Количество, тариф и сумма взяты из строк акта этого счёта. Палеты, короба и товары взяты из складского снимка соответствующего дня.</p>
+  {% endif %}
+
+  <div class="storage-block">
+    <div class="storage-block-head"><h3>Начисления по дням</h3><span>Выберите дату для просмотра состава</span></div>
+    <div class="storage-table-wrap">
+      <table>
+        {% if report.is_m3_report %}
+          <thead><tr><th>Дата</th><th class="num">Вес всего дня, кг</th><th class="num">Физ. объём дня, м³</th><th class="num">Весовой объём дня, м³</th><th class="num">К начислению за день, м³</th><th class="num">SKU, м³</th><th>Проверка SKU</th><th class="num">В акте, м³</th><th>Палеты</th><th>Короба</th><th>Товар, шт.</th><th>Зоны</th><th class="num">Тариф</th><th class="num">Сумма</th><th>Статус</th><th></th></tr></thead>
+        {% else %}
+          <thead><tr><th>Дата</th><th>Палеты</th><th>Короба</th><th>Товар, шт.</th><th>Зоны</th><th class="num">Выставлено</th><th>Ед.</th><th class="num">Тариф</th><th class="num">Сумма</th><th></th></tr></thead>
+        {% endif %}
+        <tbody>
+        {% for day in report.day_rows %}
+          <tr{% if day.value == report.selected_day.day.isoformat %} class="selected"{% endif %}>
+            {% if report.is_m3_report %}
+              <td><strong>{{ day.date }}</strong></td><td class="num">{{ day.total_weight_kg }}</td><td class="num">{{ day.physical_m3 }}</td><td class="num">{{ day.weight_m3 }}</td><td class="num">{{ day.billable_m3 }}{% if day.volume_needs_attention %} <strong title="Расчётный объём значительно выше физического">Проверить</strong>{% endif %}</td><td class="num">{{ day.sku_billable_m3 }}</td><td>{% if day.sku_mismatch_rows or day.sku_missing_dims_rows %}Проверить: {{ day.sku_mismatch_rows }} / {{ day.sku_missing_dims_rows }}{% else %}—{% endif %}</td><td class="num"><strong>{{ day.billed_quantity }}</strong></td><td>{{ day.pallet_count }} <small title="Справочно, не база начисления для м³-тарифа">справ.</small></td><td>{% if day.box_count_available %}{{ day.box_count }}{% else %}<span title="Состав коробов не сохранялся в этом снимке">Нет данных</span>{% endif %}</td><td>{{ day.sku_unit_count }}</td><td>{{ day.zone_summary }}</td><td class="num">{{ day.tariff }} ₽/м³</td><td class="num">{{ day.amount }} ₽</td><td>{{ day.status_label }}{% if day.no_dims_count %}<br><small>Без габаритов: {{ day.no_dims_count }}</small>{% endif %}</td><td><a class="storage-open" href="{{ day.open_url }}#storage-report">Состав</a></td>
+            {% else %}
+              <td><strong>{{ day.date }}</strong></td><td>{{ day.pallet_count }}</td><td>{% if day.box_count_available %}{{ day.box_count }}{% else %}<span title="Состав коробов не сохранялся в этом снимке">Нет данных</span>{% endif %}</td><td>{{ day.sku_unit_count }}</td><td>{{ day.zone_summary }}</td><td class="num">{{ day.billed_quantity }}</td><td>{{ day.unit|default:"—" }}</td><td class="num">{{ day.tariff }} ₽</td><td class="num">{{ day.amount }} ₽</td><td><a class="storage-open" href="{{ day.open_url }}#storage-report">Состав</a></td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="storage-block">
+    <div class="storage-block-head"><h3>Состав хранения на {{ report.selected_date }}</h3><span>{{ report.page_obj.paginator.count }} строк</span></div>
+    <form class="storage-search" method="get" action="#storage-report">
+      <input type="hidden" name="storage_report" value="1">
+      <input type="hidden" name="day" value="{{ report.selected_day.day.isoformat }}">
+      <input class="field" name="q" value="{{ report.search }}" placeholder="Палета, короб, SKU, штрихкод, товар, зона или ячейка">
+      <button class="btn primary" type="submit">Найти</button>
+      {% if report.search %}<a class="btn" href="{{ report.clear_url }}#storage-report">Сбросить</a>{% endif %}
+    </form>
+    <div class="storage-table-wrap">
+      <table>
+        {% if report.is_m3_report %}
+          <thead><tr><th>Палета</th><th class="num">Коробов в палете</th><th>Код короба</th><th>SKU</th><th>Штрихкод</th><th>Наименование</th><th class="num">Количество</th><th>Габариты</th><th class="num">Физ. объём строки, м³</th><th class="num">Справочно по строке, м³</th><th class="num">Коэф.</th><th>Проверка строки</th><th>Зона</th><th>Ячейка</th></tr></thead>
+        {% else %}
+          <thead><tr><th>Палета</th><th class="num">Коробов в палете</th><th>Код короба</th><th>SKU</th><th>Штрихкод</th><th>Наименование</th><th class="num">Количество</th><th>Зона</th><th>Ячейка</th></tr></thead>
+        {% endif %}
+        <tbody>
+        {% for line in report.page_obj %}
+          {% if report.is_m3_report %}
+            <tr><td class="storage-mono">{{ line.pallet_code|default:"—" }}</td><td class="num">{% if line.pallet_box_count_available %}<strong>{{ line.pallet_box_count }}</strong>{% else %}<span title="Исторический состав коробов не был сохранён">Нет данных</span>{% endif %}</td><td class="storage-mono">{{ line.box_code|default:"—" }}</td><td class="storage-mono">{{ line.sku_code|default:"—" }}</td><td class="storage-mono">{{ line.barcode|default:"—" }}</td><td>{{ line.name|default:"—" }}</td><td class="num">{{ line.quantity }}</td><td>{{ line.dimensions_text }}</td><td class="num">{{ line.physical_volume_text }}</td><td class="num">{{ line.calculated_volume_text }}</td><td class="num">{{ line.coefficient_text }}</td><td>{{ line.volume_status_label }}</td><td>{{ line.zone_code|default:"—" }}</td><td class="storage-mono">{{ line.cell_code|default:"—" }}</td></tr>
+          {% else %}
+            <tr><td class="storage-mono">{{ line.pallet_code|default:"—" }}</td><td class="num">{% if line.pallet_box_count_available %}<strong>{{ line.pallet_box_count }}</strong>{% else %}<span title="Исторический состав коробов не был сохранён">Нет данных</span>{% endif %}</td><td class="storage-mono">{{ line.box_code|default:"—" }}</td><td class="storage-mono">{{ line.sku_code|default:"—" }}</td><td class="storage-mono">{{ line.barcode|default:"—" }}</td><td>{{ line.name|default:"—" }}</td><td class="num">{{ line.quantity }}</td><td>{{ line.zone_code|default:"—" }}</td><td class="storage-mono">{{ line.cell_code|default:"—" }}</td></tr>
+          {% endif %}
+        {% empty %}
+          <tr><td colspan="{% if report.is_m3_report %}14{% else %}9{% endif %}" class="storage-empty">Строки за выбранную дату не найдены.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if report.page_obj.paginator.num_pages > 1 %}
+      <div class="storage-pager">
+        {% if report.page_obj.has_previous %}<a class="btn" href="{{ report.page_url_prefix }}{{ report.page_obj.previous_page_number }}#storage-report">Назад</a>{% endif %}
+        <span>Страница {{ report.page_obj.number }} из {{ report.page_obj.paginator.num_pages }}</span>
+        {% if report.page_obj.has_next %}<a class="btn" href="{{ report.page_url_prefix }}{{ report.page_obj.next_page_number }}#storage-report">Далее</a>{% endif %}
+      </div>
+    {% endif %}
+  </div>
+</section>

@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} | {{ agency.agn_name|default:"Клиент" }}</title>
+{% load widget_tweaks %}
+  <style>
+    
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:"Manrope", system-ui, sans-serif; }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 18px 64px; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    h1 { margin:0; letter-spacing:-0.5px; }
+    .muted { color: var(--muted); }
+    .controls { display:flex; gap:10px; flex-wrap:wrap; }
+    .btn { padding:10px 14px; border-radius:10px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); color:var(--text); font-weight:600; }
+    .btn:hover { border-color: var(--gold); box-shadow:0 10px 25px rgba(14,107,91,0.14); }
+    .btn.primary { background: linear-gradient(120deg,var(--gold),var(--gold-soft)); color:#1f2328; border-color: transparent; }
+    .card { background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:16px; box-shadow:0 18px 45px rgba(15,23,42,0.08); }
+    form { display:grid; gap:12px; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px; }
+    label { display:block; font-weight:600; margin-bottom:6px; color:var(--muted); }
+    input, select, textarea { width:100%; padding:10px; border-radius:10px; border:1px solid var(--stroke); background:#fff; color:var(--text); }
+    textarea { resize:vertical; }
+    .row { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px; }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:10px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); }
+    .section { border:1px solid var(--stroke); border-radius:14px; padding:12px; }
+    .section h3 { margin:0 0 10px; }
+    .field-error { border-color: var(--gold-soft); box-shadow: 0 0 0 1px rgba(231,195,74,0.4); background:rgba(231,195,74,0.08); }
+    #barcode-formset [data-barcode-delete] { display:none; }
+    .history-modal-card { width:min(900px, 96vw); max-height:88vh; overflow:auto; }
+    .history-summary { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); border:1px solid var(--stroke); border-radius:8px; margin-bottom:16px; }
+    .history-summary-item { padding:14px; min-width:0; }
+    .history-summary-item + .history-summary-item { border-left:1px solid var(--stroke); }
+    .history-summary-label { color:var(--muted); font-size:13px; margin-bottom:4px; }
+    .history-summary-value { font-weight:700; }
+    .history-summary-actor { color:var(--muted); margin-top:3px; overflow-wrap:anywhere; }
+    .history-table-wrap { overflow:auto; border:1px solid var(--stroke); border-radius:8px; }
+    .history-table { width:100%; border-collapse:collapse; min-width:680px; }
+    .history-table th, .history-table td { padding:11px 12px; text-align:left; border-bottom:1px solid var(--stroke); vertical-align:top; }
+    .history-table th { color:var(--muted); font-size:12px; text-transform:uppercase; }
+    .history-table tr:last-child td { border-bottom:0; }
+    .history-empty { padding:18px; color:var(--muted); }
+    .history-warning { margin:-6px 0 16px; padding:10px 12px; border:1px solid rgba(248,144,0,0.4); border-radius:8px; background:rgba(248,144,0,0.1); }
+    .history-change-list { display:grid; gap:8px; min-width:360px; }
+    .history-change-row { display:grid; grid-template-columns:minmax(130px, 0.8fr) minmax(120px, 1fr) minmax(120px, 1fr); gap:8px; align-items:start; }
+    .history-change-field { font-weight:700; }
+    .history-change-value { overflow-wrap:anywhere; }
+    .history-change-caption { display:block; margin-bottom:2px; color:var(--muted); font-size:11px; text-transform:uppercase; }
+    .history-missing { margin-top:4px; color:var(--muted); font-size:12px; }
+    .modal { position:fixed; inset:0; background:rgba(15,18,23,0.35); display:none; align-items:center; justify-content:center; padding:24px; z-index:30; }
+    .modal.active { display:flex; }
+    .modal-card { width:min(1120px, 98vw); background:var(--card); border:1px solid var(--stroke); border-radius:18px; padding:18px; box-shadow:0 25px 60px rgba(15,23,42,0.12); }
+    .modal-header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }
+    .printer-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+    .printer-row label { color:var(--muted); font-weight:600; }
+    .printer-row input { min-width:240px; }
+    .label-mode { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    .label-stage { --label-scale: 3; background:rgba(15,23,42,0.04); border:1px dashed var(--stroke); border-radius:14px; padding:18px; display:flex; justify-content:center; align-items:center; min-height:320px; overflow:visible; }
+    .label-preview {
+      background:#ffffff;
+      color:#111;
+      border:1px solid #d4d4d4;
+      border-radius:4px;
+      --label-width: 58mm;
+      --label-height: 40mm;
+      --label-scale-factor: 1.8;
+      width:var(--label-width);
+      height:var(--label-height);
+      display:grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      position:relative;
+      zoom: var(--label-scale);
+      background-image: none;
+    }
+    .label-preview.no-cz .label-barcode-cell,
+    .label-preview.no-cz .label-info-cell,
+    .label-preview.no-cz .label-qr-cell,
+    .label-preview.no-cz .label-eac { display:none; }
+    .label-no-cz-grid {
+      position:absolute;
+      inset:0;
+      display:none;
+      grid-template-rows: repeat(4, 1fr);
+    }
+    .label-no-cz-row { border-bottom:1px solid #d4d4d4; }
+    .label-no-cz-row:last-child { border-bottom:none; }
+    .label-no-cz-text {
+      padding:0.8mm 1mm;
+      display:flex;
+      flex-direction:column;
+      gap:0.45mm;
+      font-size:1.2mm;
+      line-height:1.15;
+      color:#111;
+    }
+    .label-no-cz-line { display:flex; gap:0.5mm; flex-wrap:wrap; }
+    .label-no-cz-label { font-weight:600; }
+    .label-no-cz-article {
+      font-size:2em;
+      font-weight:700;
+      line-height:1.05;
+    }
+    .label-no-cz-name {
+      font-size:2em;
+      font-weight:500;
+      line-height:1.05;
+    }
+    .label-no-cz-row-split {
+      display:flex;
+    }
+    .label-no-cz-row-split .label-no-cz-article {
+      font-size:0.4em;
+      font-weight:700;
+      line-height:1.05;
+    }
+    .label-no-cz-row-split [data-no-cz="size"] {
+      font-size:0.8em;
+    }
+    .label-no-cz-split {
+      flex:1;
+      padding:0.8mm 1mm;
+      display:flex;
+      align-items:flex-start;
+      justify-content:flex-start;
+    }
+    .label-no-cz-split + .label-no-cz-split {
+      border-left:1px solid #d4d4d4;
+    }
+    .label-no-cz-barcode {
+      display:flex;
+      align-items:stretch;
+      justify-content:stretch;
+    }
+    .label-no-cz-barcode-wrap {
+      flex:1;
+      width:100%;
+      display:flex;
+      flex-direction:column;
+      align-items:stretch;
+      justify-content:center;
+      gap:0.4mm;
+    }
+    .label-no-cz-barcode-svg {
+      width:100%;
+      height:8mm;
+      display:block;
+    }
+    .label-no-cz-barcode-value {
+      font-size:1.1mm;
+      line-height:1;
+      letter-spacing:0.2mm;
+      color:#111;
+      white-space:nowrap;
+      text-align:center;
+    }
+    .label-preview.no-cz .label-no-cz-grid { display:grid; }
+    .label-barcode-cell {
+      grid-column: 1;
+      grid-row: 1 / span 3;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+      position:relative;
+    }
+    .label-qr-cell {
+      grid-column: 4 / span 2;
+      grid-row: 1 / span 2;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+      position:relative;
+    }
+    .label-qr {
+      width:calc(12.5mm * var(--label-scale-factor));
+      height:calc(12.5mm * var(--label-scale-factor));
+      border:1px solid #111;
+      display:grid;
+      place-items:center;
+      overflow:hidden;
+      background:#fff;
+    }
+    .label-qr canvas,
+    .label-qr img {
+      width:100% !important;
+      height:100% !important;
+      display:block;
+    }
+    .label-eac {
+      position:absolute;
+      right:calc(0.6mm * var(--label-scale-factor));
+      bottom:calc(0.6mm * var(--label-scale-factor));
+      width:calc(3mm * var(--label-scale-factor));
+      height:auto;
+      display:block;
+    }
+    .label-eac img {
+      width:100%;
+      height:auto;
+      display:block;
+    }
+    .label-info-cell {
+      grid-column: 2 / span 2;
+      grid-row: 1 / span 3;
+      display:flex;
+      align-items:stretch;
+      justify-content:center;
+      padding:calc(0.6mm * var(--label-scale-factor)) calc(0.4mm * var(--label-scale-factor));
+      overflow:hidden;
+    }
+    .label-info {
+      width:100%;
+      display:flex;
+      flex-direction:column;
+      gap:calc(0.4mm * var(--label-scale-factor));
+      font-size:calc(0.9mm * var(--label-scale-factor));
+      line-height:1.05;
+      color:#111;
+      height:100%;
+      justify-content:space-between;
+    }
+    .label-info-emph {
+      font-size:calc(1mm * var(--label-scale-factor));
+    }
+    .label-info-top {
+      display:flex;
+      flex-direction:column;
+      gap:calc(0.35mm * var(--label-scale-factor));
+      border-bottom:1px solid rgba(0,0,0,0.2);
+      padding-bottom:calc(0.35mm * var(--label-scale-factor));
+      min-height:calc(3mm * var(--label-scale-factor));
+      flex:1 1 auto;
+    }
+    .label-info-line {
+      white-space:normal;
+      word-break:break-word;
+    }
+    .label-info-bottom {
+      display:flex;
+      flex-direction:column;
+      gap:calc(0.3mm * var(--label-scale-factor));
+      padding-top:calc(0.25mm * var(--label-scale-factor));
+      flex:0 0 auto;
+    }
+    .label-info-label {
+      font-weight:700;
+      margin-right:calc(0.2mm * var(--label-scale-factor));
+    }
+    .label-barcode-rotate {
+      position:absolute;
+      top:50%;
+      left:50%;
+      width:calc(var(--label-height) - 1mm);
+      height:calc(6mm * var(--label-scale-factor));
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:calc(0.2mm * var(--label-scale-factor));
+      transform: translate(-50%, -50%) rotate(90deg);
+      transform-origin:center;
+    }
+    .label-barcode {
+      width:100%;
+      height:calc(4.2mm * var(--label-scale-factor));
+      display:block;
+    }
+    .label-barcode-value {
+      font-size:calc(0.9mm * var(--label-scale-factor));
+      line-height:1;
+      letter-spacing:calc(0.15mm * var(--label-scale-factor));
+      color:#111;
+      white-space:nowrap;
+    }
+    .modal-actions { margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; }
+    @media print {
+      body { margin:0; }
+      body > *:not(#label-preview) { display:none !important; }
+      #label-preview { display:block !important; position:static; inset:auto; background:none; padding:0; }
+      #label-preview, #label-preview * { visibility:visible; }
+      #label-preview .modal-card { box-shadow:none; border:none; padding:0; width:auto; }
+      #label-preview .modal-header, #label-preview .modal-actions { display:none; }
+      #label-preview .printer-row { display:none; }
+      #label-preview .label-mode { display:none; }
+      #label-preview .label-stage { border:none; padding:0; min-height:auto; }
+      #label-preview .label-preview { zoom: 1; }
+    }
+    @media (max-width: 900px) {
+      .label-stage { --label-scale: 2.4; min-height:260px; }
+      .history-summary { grid-template-columns:1fr; }
+      .history-summary-item + .history-summary-item { border-left:0; border-top:1px solid var(--stroke); }
+      .history-change-row { grid-template-columns:1fr; gap:4px; }
+    }
+  </style>
+  {% include "sku/_barcode_formset_styles.html" %}
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="muted">FULLBOX · {{ agency.agn_name|default:"Клиент" }} · {% include "partials/current_user.html" %}</div>
+        <h1>{{ title }}</h1>
+        <div class="pill">Идем обратно в список клиента</div>
+      </div>
+      <div class="controls">
+        <a class="btn" href="#" id="label-preview-open">Печать этикетки</a>
+        {% if request.GET.next %}
+          <a class="btn" href="{{ request.GET.next }}">К номенклатуре клиента</a>
+        {% else %}
+          <a class="btn" href="/client/{{ agency.id }}/sku/">К номенклатуре клиента</a>
+        {% endif %}
+        <a class="btn" href="/client/dashboard/lk/?client={{ agency.id }}">Кабинет клиента</a>
+        {% if object.pk %}
+          <button class="btn" type="button" id="sku-history-open">История изменений</button>
+        {% endif %}
+      </div>
+    </header>
+
+    <div class="card">
+      <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="section" style="border-color: rgba(240,91,86,0.5); color:#ff7d7d;">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+        <div class="grid">
+          <div>
+            <label>Артикул *</label>
+            {{ form.sku_code.errors }}{% if form.sku_code.errors %}{% render_field form.sku_code class+="field-error" %}{% else %}{% render_field form.sku_code %}{% endif %}
+          </div>
+          <div>
+            <label>Название *</label>
+            {{ form.name.errors }}{% if form.name.errors %}{% render_field form.name class+="field-error" %}{% else %}{% render_field form.name %}{% endif %}
+          </div>
+          {{ form.agency.as_hidden }}
+          <div>
+            <label>Маркетплейс</label>
+            {{ form.market.errors }}{% if form.market.errors %}{% render_field form.market class+="field-error" %}{% else %}{% render_field form.market %}{% endif %}
+          </div>
+          <div>
+            <label>Источник</label>
+            {{ form.source.errors }}{% if form.source.errors %}{% render_field form.source class+="field-error" %}{% else %}{% render_field form.source %}{% endif %}
+          </div>
+          <div>
+            <label>Внешний ID</label>
+            {{ form.source_reference.errors }}{% if form.source_reference.errors %}{% render_field form.source_reference class+="field-error" %}{% else %}{% render_field form.source_reference %}{% endif %}
+          </div>
+        </div>
+
+        {% include "sku/_barcode_formset.html" %}
+
+        <div class="section">
+          <h3>Характеристики</h3>
+          <div class="grid">
+            <div><label>Цвет (текст)</label>{{ form.color.errors }}{% if form.color.errors %}{% render_field form.color class+="field-error" %}{% else %}{% render_field form.color %}{% endif %}</div>
+            <div><label>Цвет (справочник)</label>{{ form.color_ref.errors }}{% if form.color_ref.errors %}{% render_field form.color_ref class+="field-error" %}{% else %}{% render_field form.color_ref %}{% endif %}</div>
+            <div><label>Размер товара</label>{{ form.size.errors }}{% if form.size.errors %}{% render_field form.size class+="field-error" %}{% else %}{% render_field form.size %}{% endif %}</div>
+            <div><label>Вес, кг (совм.)</label>{{ form.weight_kg.errors }}{% if form.weight_kg.errors %}{% render_field form.weight_kg class+="field-error" %}{% else %}{% render_field form.weight_kg %}{% endif %}</div>
+            <div><label>Вес нетто, кг</label>{{ form.weight_net_kg.errors }}{% if form.weight_net_kg.errors %}{% render_field form.weight_net_kg class+="field-error" %}{% else %}{% render_field form.weight_net_kg %}{% endif %}</div>
+            <div><label>Вес брутто, кг</label>{{ form.weight_gross_kg.errors }}{% if form.weight_gross_kg.errors %}{% render_field form.weight_gross_kg class+="field-error" %}{% else %}{% render_field form.weight_gross_kg %}{% endif %}</div>
+            <div><label>Объем</label>{{ form.volume.errors }}{% if form.volume.errors %}{% render_field form.volume class+="field-error" %}{% else %}{% render_field form.volume %}{% endif %}</div>
+            <div><label>Длина, мм</label>{{ form.length_mm.errors }}{% if form.length_mm.errors %}{% render_field form.length_mm class+="field-error" %}{% else %}{% render_field form.length_mm %}{% endif %}</div>
+            <div><label>Ширина, мм</label>{{ form.width_mm.errors }}{% if form.width_mm.errors %}{% render_field form.width_mm class+="field-error" %}{% else %}{% render_field form.width_mm %}{% endif %}</div>
+            <div><label>Высота, мм</label>{{ form.height_mm.errors }}{% if form.height_mm.errors %}{% render_field form.height_mm class+="field-error" %}{% else %}{% render_field form.height_mm %}{% endif %}</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Дополнительно</h3>
+          <div class="grid">
+            <div><label>Название для печати</label>{{ form.name_print.errors }}{% if form.name_print.errors %}{% render_field form.name_print class+="field-error" %}{% else %}{% render_field form.name_print %}{% endif %}</div>
+            <div><label>Пол</label>{{ form.gender.errors }}{% if form.gender.errors %}{% render_field form.gender class+="field-error" %}{% else %}{% render_field form.gender %}{% endif %}</div>
+            <div><label>Сезон</label>{{ form.season.errors }}{% if form.season.errors %}{% render_field form.season class+="field-error" %}{% else %}{% render_field form.season %}{% endif %}</div>
+            <div><label>Доп. имя</label>{{ form.additional_name.errors }}{% if form.additional_name.errors %}{% render_field form.additional_name class+="field-error" %}{% else %}{% render_field form.additional_name %}{% endif %}</div>
+            <div><label>Категория</label>{{ form.tovar_category.errors }}{% if form.tovar_category.errors %}{% render_field form.tovar_category class+="field-error" %}{% else %}{% render_field form.tovar_category %}{% endif %}</div>
+            <div><label>Вид товара</label>{{ form.vid_tovar.errors }}{% if form.vid_tovar.errors %}{% render_field form.vid_tovar class+="field-error" %}{% else %}{% render_field form.vid_tovar %}{% endif %}</div>
+            <div><label>Тип товара</label>{{ form.type_tovar.errors }}{% if form.type_tovar.errors %}{% render_field form.type_tovar class+="field-error" %}{% else %}{% render_field form.type_tovar %}{% endif %}</div>
+            <div><label>Бренд</label>{{ form.brand.errors }}{% if form.brand.errors %}{% render_field form.brand class+="field-error" %}{% else %}{% render_field form.brand %}{% endif %}</div>
+            <div><label>Страна производства</label>{{ form.made_in.errors }}{% if form.made_in.errors %}{% render_field form.made_in class+="field-error" %}{% else %}{% render_field form.made_in %}{% endif %}</div>
+          </div>
+          <div class="grid">
+            <div><label>Состав</label>{{ form.composition.errors }}{% if form.composition.errors %}{% render_field form.composition class+="field-error" %}{% else %}{% render_field form.composition %}{% endif %}</div>
+            <div><label>Дата произв.</label>{{ form.cr_product_date.errors }}{% if form.cr_product_date.errors %}{% render_field form.cr_product_date class+="field-error" %}{% else %}{% render_field form.cr_product_date %}{% endif %}</div>
+            <div><label>Срок годн.</label>{{ form.end_product_date.errors }}{% if form.end_product_date.errors %}{% render_field form.end_product_date class+="field-error" %}{% else %}{% render_field form.end_product_date %}{% endif %}</div>
+          </div>
+          <div class="row">
+            <label class="pill">{{ form.honest_sign }} Честный знак</label>
+            <label class="pill">{{ form.use_nds }} НДС</label>
+            <label class="pill">{{ form.sign_akciz }} Акциз</label>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Медиа и описания</h3>
+          <div class="grid">
+            <div><label>Ссылка на фото</label>{{ form.img.errors }}{% if form.img.errors %}{% render_field form.img class+="field-error" %}{% else %}{% render_field form.img %}{% endif %}</div>
+            <div><label>Комментарий к фото</label>{{ form.img_comment.errors }}{% if form.img_comment.errors %}{% render_field form.img_comment class+="field-error" %}{% else %}{% render_field form.img_comment %}{% endif %}</div>
+          </div>
+          <div>
+            <label>Описание</label>
+            {{ form.description.errors }}{% if form.description.errors %}{% render_field form.description class+="field-error" %}{% else %}{% render_field form.description %}{% endif %}
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button type="submit" class="btn primary">{{ submit_label }}</button>
+          {% if request.GET.next %}
+            <a class="btn" href="{{ request.GET.next }}">Отмена</a>
+          {% else %}
+            <a class="btn" href="/client/{{ agency.id }}/sku/">Отмена</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+  {% if object.pk %}
+    <div class="modal" id="sku-history-modal" aria-hidden="true">
+      <div class="modal-card history-modal-card" role="dialog" aria-modal="true" aria-labelledby="sku-history-title">
+        <div class="modal-header">
+          <div>
+            <div class="muted">Карточка SKU {{ object.sku_code }}</div>
+            <strong id="sku-history-title">История изменений</strong>
+          </div>
+          <button class="btn" id="sku-history-close" type="button">Закрыть</button>
+        </div>
+
+        <div class="history-summary">
+          <div class="history-summary-item">
+            <div class="history-summary-label">Карточка создана</div>
+            <div class="history-summary-value">{{ sku_created_at|date:"d.m.Y, H:i"|default:"Не зафиксировано" }}</div>
+            <div class="history-summary-actor">Кем: {{ sku_created_by }}</div>
+          </div>
+          <div class="history-summary-item">
+            <div class="history-summary-label">Последнее изменение</div>
+            <div class="history-summary-value">{{ sku_updated_at|date:"d.m.Y, H:i"|default:"Не зафиксировано" }}</div>
+            <div class="history-summary-actor">Кем: {{ sku_updated_by }}</div>
+          </div>
+        </div>
+        {% if sku_has_unlogged_update %}
+          <div class="history-warning">
+            Последнее обновление выполнено до включения подробного аудита. Кто и какие поля изменил, прежняя версия журнала не сохранила.
+          </div>
+        {% endif %}
+
+        <div class="history-table-wrap">
+          {% if sku_history_entries %}
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Когда</th>
+                  <th>Действие</th>
+                  <th>Кто</th>
+                  <th>Описание</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for entry in sku_history_entries %}
+                  <tr>
+                    <td>{{ entry.created_at|date:"d.m.Y, H:i" }}</td>
+                    <td>{{ entry.action }}</td>
+                    <td>{{ entry.actor }}</td>
+                    <td>
+                      {% if entry.changes %}
+                        <div class="history-change-list">
+                          {% for change in entry.changes %}
+                            <div class="history-change-row">
+                              <div class="history-change-field">{{ change.label }}</div>
+                              <div class="history-change-value">
+                                <span class="history-change-caption">Было</span>
+                                {{ change.before_display }}
+                              </div>
+                              <div class="history-change-value">
+                                <span class="history-change-caption">Стало</span>
+                                {{ change.after_display }}
+                              </div>
+                            </div>
+                          {% endfor %}
+                        </div>
+                      {% else %}
+                        <div>{{ entry.description|default:"Изменение карточки SKU" }}</div>
+                        {% if entry.details_missing %}
+                          <div class="history-missing">Состав изменения не был записан прежней версией аудита.</div>
+                        {% endif %}
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <div class="history-empty">
+              Подробная история отсутствует: карточка создана до включения аудита SKU.
+              Следующие сохранения будут показаны здесь с датой и пользователем.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+  <div class="modal" id="label-preview">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <div class="muted">FULLBOX · {{ agency.agn_name|default:"Клиент" }} · {% include "partials/current_user.html" %}</div>
+          <strong>Превью этикетки</strong>
+          <div class="muted" style="margin-top:4px;">Размер этикетки: 58x40 мм</div>
+        </div>
+        <button class="btn" id="label-preview-close" type="button">Закрыть</button>
+      </div>
+      <div class="printer-row">
+        <label for="label-printer">Принтер этикеток</label>
+        <input id="label-printer" list="label-printers" placeholder="Выберите или введите">
+        <datalist id="label-printers">
+          <option value="Zebra GK420d">
+          <option value="Zebra ZD421">
+          <option value="TSC TE200">
+          <option value="TSC TE310">
+          <option value="Honeywell PC42t">
+        </datalist>
+      </div>
+      <div class="label-mode">
+        <button class="btn primary" type="button" data-label-mode="cz">Этикетка товара с ЧЗ</button>
+        <button class="btn" type="button" data-label-mode="no-cz">Этикетка товара без ЧЗ</button>
+      </div>
+      <div class="label-stage">
+        <div class="label-preview">
+          <div class="label-eac">
+            <img alt="EAC" src="data:image/png;base64,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">
+          </div>
+          <div class="label-barcode-cell">
+            <div class="label-barcode-rotate">
+              <svg class="label-barcode" data-barcode-svg aria-hidden="true"></svg>
+              <div class="label-barcode-value" data-barcode-value>—</div>
+            </div>
+          </div>
+          <div class="label-info-cell">
+            <div class="label-info">
+              <div class="label-info-top">
+                <div class="label-info-line label-info-emph" data-info="article"></div>
+                <div class="label-info-line label-info-emph" data-info="name"></div>
+                <div class="label-info-line label-info-emph" data-info="size"></div>
+                <div class="label-info-line label-info-emph" data-info="brand"></div>
+                <div class="label-info-line" data-info="subject"></div>
+                <div class="label-info-line" data-info="color"></div>
+                <div class="label-info-line" data-info="composition"></div>
+              </div>
+              <div class="label-info-bottom">
+                <div class="label-info-line" data-info="supplier"></div>
+              </div>
+            </div>
+          </div>
+          <div class="label-qr-cell">
+            <div class="label-qr" data-qr-box aria-hidden="true"></div>
+          </div>
+          <div class="label-no-cz-grid" aria-hidden="true">
+            <div class="label-no-cz-row label-no-cz-text">
+              <div class="label-no-cz-line label-no-cz-article" data-no-cz="article"></div>
+              <div class="label-no-cz-line label-no-cz-name" data-no-cz="name"></div>
+            </div>
+            <div class="label-no-cz-row label-no-cz-text">
+              <div class="label-no-cz-line" data-no-cz="color"></div>
+              <div class="label-no-cz-line" data-no-cz="composition"></div>
+              <div class="label-no-cz-line" data-no-cz="supplier"></div>
+            </div>
+            <div class="label-no-cz-row label-no-cz-row-split">
+              <div class="label-no-cz-split label-no-cz-article" data-no-cz="country"></div>
+              <div class="label-no-cz-split label-no-cz-article" data-no-cz="size"></div>
+            </div>
+            <div class="label-no-cz-row label-no-cz-barcode">
+              <div class="label-no-cz-barcode-wrap">
+                <svg class="label-no-cz-barcode-svg" data-barcode-no-cz aria-hidden="true"></svg>
+                <div class="label-no-cz-barcode-value" data-barcode-value>-</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn primary" type="button" id="label-print">Печать</button>
+      </div>
+    </div>
+  </div>
+<script src="/static/vendor/jsbarcode.min.js"></script>
+<script src="/static/vendor/qrcode.min.js"></script>
+{% include "sku/_barcode_formset_script.html" %}
+</body>
+<script>
+  (function(){
+    const preview = document.getElementById('label-preview');
+    const openBtn = document.getElementById('label-preview-open');
+    const closeBtn = document.getElementById('label-preview-close');
+    const printBtn = document.getElementById('label-print');
+    const printerInput = document.getElementById('label-printer');
+    const labelModeButtons = document.querySelectorAll('[data-label-mode]');
+    const labelPreview = preview ? preview.querySelector('.label-preview') : null;
+    const params = new URLSearchParams(window.location.search);
+    const printMode = params.get('print') === '1';
+    const nextParam = params.get('next') || '';
+    const sameOriginReferrer = document.referrer && document.referrer.startsWith(window.location.origin);
+    const referrerPath = sameOriginReferrer ? document.referrer.replace(window.location.origin, '') : '';
+    const backUrl = nextParam && nextParam.startsWith('/') ? nextParam : (referrerPath || `/client/{{ agency.id }}/sku/`);
+
+    const getValue = (id) => {
+      const el = document.getElementById(id);
+      if (!el) {
+        return '';
+      }
+      if (el.tagName === 'SELECT') {
+        const option = el.options[el.selectedIndex];
+        if (!option || !option.value) {
+          return '';
+        }
+        return (option.text || '').trim();
+      }
+      return (el.value || '').trim();
+    };
+
+    const pickValue = (ids) => {
+      for (const id of ids) {
+        const value = getValue(id);
+        if (value) {
+          return value;
+        }
+      }
+      return '';
+    };
+
+    const getPrimaryBarcodeValue = () => {
+      const checked = document.querySelector('[data-barcode-row]:not(.is-deleted):not(.is-template-extra) [data-barcode-primary]:checked');
+      const row = checked ? checked.closest('[data-barcode-row]') : null;
+      const input = row ? row.querySelector('[data-barcode-value]') : null;
+      return input ? input.value.trim() : '';
+    };
+
+    const setField = (name, value) => {
+      const el = preview.querySelector(`[data-field="${name}"]`);
+      if (el) {
+        el.textContent = value || '—';
+      }
+    };
+
+    const setInfoLine = (key, value, label) => {
+      const el = preview.querySelector(`[data-info="${key}"]`);
+      if (!el) {
+        return;
+      }
+      if (value) {
+        el.textContent = label ? `${label}${value}` : value;
+        el.style.display = '';
+      } else {
+        el.textContent = '';
+        el.style.display = 'none';
+      }
+    };
+
+    const setNoCzLine = (key, value, label) => {
+      const el = preview.querySelector(`[data-no-cz="${key}"]`);
+      if (!el) {
+        return;
+      }
+      if (value) {
+        el.textContent = label ? `${label}${value}` : value;
+        el.style.display = '';
+      } else {
+        el.textContent = '';
+        el.style.display = 'none';
+      }
+    };
+
+    const limitWords = (text, maxWords = 5) => {
+      if (!text) {
+        return '';
+      }
+      const trimmed = String(text).trim();
+      if (!trimmed) {
+        return '';
+      }
+      const words = trimmed.split(/\s+/);
+      if (words.length <= maxWords) {
+        return trimmed;
+      }
+      return words.slice(0, maxWords).join(' ');
+    };
+
+    const renderBarcode = (value) => {
+      const czSvgs = preview.querySelectorAll('[data-barcode-svg]');
+      const noCzSvgs = preview.querySelectorAll('[data-barcode-no-cz]');
+      const raw = String(value || '').trim();
+      if (!czSvgs.length && !noCzSvgs.length) {
+        return;
+      }
+      if (!raw) {
+        czSvgs.forEach((svg) => {
+          svg.innerHTML = '';
+        });
+        noCzSvgs.forEach((svg) => {
+          svg.innerHTML = '';
+        });
+        return;
+      }
+      if (window.JsBarcode) {
+        const useEan = /^\d{12,13}$/.test(raw);
+        czSvgs.forEach((svg) => {
+          JsBarcode(svg, raw, {
+            format: useEan ? 'ean13' : 'CODE128',
+            displayValue: false,
+            margin: 0,
+            lineColor: '#111',
+            height: 24,
+            width: 1,
+            fontSize: 5,
+            textMargin: 0,
+          });
+        });
+        noCzSvgs.forEach((svg) => {
+          JsBarcode(svg, raw, {
+            format: useEan ? 'ean13' : 'CODE128',
+            displayValue: false,
+            margin: 0,
+            lineColor: '#111',
+            height: 24,
+            width: 1,
+            fontSize: 5,
+            textMargin: 0,
+          });
+          svg.setAttribute('preserveAspectRatio', 'none');
+          svg.setAttribute('width', '100%');
+          svg.setAttribute('height', '100%');
+        });
+      }
+    };
+
+    const renderQr = (value) => {
+      const box = preview.querySelector('[data-qr-box]');
+      if (!box) {
+        return;
+      }
+      box.innerHTML = '';
+      if (!value) {
+        return;
+      }
+      if (window.QRCode) {
+        new QRCode(box, {
+          text: value,
+          width: 64,
+          height: 64,
+          correctLevel: QRCode.CorrectLevel.M,
+        });
+      }
+    };
+
+    const updatePreview = () => {
+      const skuCode = getValue('id_sku_code');
+      setField('sku_code', skuCode);
+      setField('size', getValue('id_size'));
+      const nameRaw = pickValue(['id_name_print', 'id_name']);
+      const nameValue = limitWords(nameRaw);
+      const nameNoCz = nameRaw ? String(nameRaw).trim() : '';
+      const sizeValue = limitWords(getValue('id_size'));
+      const madeInValue = limitWords(getValue('id_made_in'));
+      const rawBrandValue = getValue('id_brand');
+      const brandValue = rawBrandValue.toLowerCase() === 'nobrand' ? '' : rawBrandValue;
+      const subjectValue = limitWords(pickValue(['id_tovar_category', 'id_vid_tovar', 'id_type_tovar']));
+      const colorText = limitWords(getValue('id_color') || pickValue(['id_color_ref']));
+      const compositionValue = limitWords(getValue('id_composition'));
+      const supplierValue = limitWords('{{ agency.short_name|default:agency.agn_name|default:"Клиент"|escapejs }}');
+      setInfoLine('name', nameValue);
+      setInfoLine('size', sizeValue, 'р-р: ');
+      setInfoLine('brand', limitWords(brandValue));
+      setInfoLine('subject', subjectValue);
+      setInfoLine('color', colorText);
+      setInfoLine('composition', compositionValue, 'Состав: ');
+      setInfoLine('supplier', supplierValue, 'Поставщик: ');
+      setInfoLine('article', skuCode, 'Артикул: ');
+      setNoCzLine('article', skuCode ? `Артикул: ${skuCode}` : '');
+      setNoCzLine('name', nameNoCz);
+      setNoCzLine('color', colorText, 'Цвет: ');
+      setNoCzLine('composition', compositionValue, 'Состав: ');
+      setNoCzLine('supplier', supplierValue, 'Поставщик: ');
+      setNoCzLine('country', madeInValue, 'Страна: ');
+      setNoCzLine('size', sizeValue, 'Р-р: ');
+      const barcodeValue = getPrimaryBarcodeValue();
+      setField('barcode', barcodeValue);
+      preview.querySelectorAll('[data-barcode-value]').forEach((el) => {
+        el.textContent = barcodeValue || '-';
+      });
+      const barcodeExtra = getValue('id_source_reference') || skuCode;
+      setField('barcode_extra', barcodeExtra);
+      renderBarcode(barcodeValue);
+      const qrValue = [barcodeValue, barcodeExtra].filter(Boolean).join(' ');
+      renderQr(qrValue);
+    };
+
+      if (openBtn && preview) {
+        openBtn.addEventListener('click', (event) => {
+          event.preventDefault();
+          updatePreview();
+          preview.classList.add('active');
+        });
+      }
+      const setLabelMode = (mode) => {
+        if (!labelPreview) {
+          return;
+        }
+        const normalized = mode === 'no-cz' ? 'no-cz' : 'cz';
+        labelPreview.classList.toggle('no-cz', normalized === 'no-cz');
+        labelModeButtons.forEach((btn) => {
+          const active = btn.dataset.labelMode === normalized;
+          btn.classList.toggle('primary', active);
+        });
+        localStorage.setItem('label_mode', normalized);
+      };
+      if (labelModeButtons.length) {
+        const storedMode = localStorage.getItem('label_mode');
+        const queryMode = params.get('label_mode');
+        const initialMode = queryMode || (printMode ? 'no-cz' : (storedMode || 'cz'));
+        setLabelMode(initialMode);
+        labelModeButtons.forEach((btn) => {
+          btn.addEventListener('click', () => setLabelMode(btn.dataset.labelMode));
+        });
+      }
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+          preview.classList.remove('active');
+          if (printMode) {
+            window.location.href = backUrl;
+          }
+        });
+      }
+      if (printMode && preview) {
+        updatePreview();
+        preview.classList.add('active');
+      }
+      if (printBtn) {
+        printBtn.addEventListener('click', () => {
+          updatePreview();
+          window.print();
+        });
+      }
+      window.addEventListener('afterprint', () => {
+        if (printMode) {
+          window.location.href = backUrl;
+        }
+      });
+
+    if (printerInput) {
+      const stored = localStorage.getItem('label_printer');
+      if (stored) {
+        printerInput.value = stored;
+      }
+      printerInput.addEventListener('change', () => {
+        localStorage.setItem('label_printer', printerInput.value.trim());
+      });
+    }
+
+    const fieldsToWatch = [
+      'id_name',
+      'id_name_print',
+      'id_sku_code',
+      'id_size',
+      'id_brand',
+      'id_tovar_category',
+      'id_vid_tovar',
+      'id_type_tovar',
+      'id_color',
+      'id_color_ref',
+      'id_composition',
+      'id_agency',
+      'id_source_reference',
+      'id_made_in',
+    ];
+    fieldsToWatch.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', updatePreview);
+        el.addEventListener('change', updatePreview);
+      }
+    });
+    const barcodeFormset = document.getElementById('barcode-formset');
+    if (barcodeFormset) {
+      barcodeFormset.addEventListener('input', updatePreview);
+      barcodeFormset.addEventListener('change', updatePreview);
+    }
+  })();
+</script>
+<script>
+  (function(){
+    const modal = document.getElementById('sku-history-modal');
+    const openButton = document.getElementById('sku-history-open');
+    const closeButton = document.getElementById('sku-history-close');
+    if (!modal || !openButton || !closeButton) {
+      return;
+    }
+    const closeModal = () => {
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+      openButton.focus();
+    };
+    openButton.addEventListener('click', () => {
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+      closeButton.focus();
+    });
+    closeButton.addEventListener('click', closeModal);
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) {
+        closeModal();
+      }
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && modal.classList.contains('active')) {
+        closeModal();
+      }
+    });
+  })();
+</script>
+</html>

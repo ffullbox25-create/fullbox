@@ -1,0 +1,39 @@
+import logging
+import time
+
+from django.conf import settings
+
+
+slow_request_logger = logging.getLogger("django.request")
+
+
+class SlowRequestLoggingMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        started_at = time.perf_counter()
+        response = None
+        try:
+            response = self.get_response(request)
+            return response
+        finally:
+            elapsed = time.perf_counter() - started_at
+            threshold = float(getattr(settings, "SLOW_REQUEST_LOG_SECONDS", 1.5) or 0)
+            if threshold <= 0 or elapsed < threshold:
+                return
+            user = getattr(request, "user", None)
+            username = ""
+            if getattr(user, "is_authenticated", False):
+                username = getattr(user, "username", "") or str(user)
+            forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+            ip_address = forwarded.split(",", 1)[0].strip() if forwarded else request.META.get("REMOTE_ADDR", "")
+            slow_request_logger.warning(
+                "slow_request method=%s path=%s status=%s duration_ms=%s user=%s ip=%s",
+                request.method,
+                request.get_full_path(),
+                getattr(response, "status_code", "error"),
+                int(elapsed * 1000),
+                username or "-",
+                ip_address or "-",
+            )

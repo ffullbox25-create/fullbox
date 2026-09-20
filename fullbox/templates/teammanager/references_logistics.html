@@ -1,0 +1,145 @@
+{% extends "teammanager/_base.html" %}
+{% block title %}Справочники · Логистика{% endblock %}
+{% block extra_css %}
+.ref-head { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; }
+.ref-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.ref-sub { margin-top:4px; color:var(--muted); font-size:13px; }
+.ref-tabs { display:flex; gap:6px; border-bottom:1px solid var(--stroke); }
+.ref-tab { padding:10px 12px; font-size:13px; font-weight:800; border-bottom:3px solid transparent; }
+.ref-tab.active { color:var(--accent-strong); border-bottom-color:var(--accent); }
+.ref-stats { display:grid; grid-template-columns:repeat(2,minmax(140px,190px)); gap:8px; }
+.ref-stat { border:1px solid var(--stroke); border-radius:8px; padding:10px 12px; background:var(--surface); }
+.ref-stat span { display:block; color:var(--muted); font-size:11px; }
+.ref-stat strong { display:block; margin-top:2px; font-size:20px; }
+.ref-layout { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:16px; align-items:start; }
+.ref-section { border-top:1px solid var(--stroke); padding-top:14px; min-width:0; }
+.ref-section h2 { margin:0; font-size:16px; }
+.filters { display:grid; grid-template-columns:minmax(220px,1fr) minmax(220px,1fr) auto; gap:8px; margin:12px 0; }
+.field { width:100%; box-sizing:border-box; border:1px solid var(--stroke); border-radius:8px; padding:9px 10px; background:#fff; font:inherit; }
+.vehicle-table-wrap { overflow:auto; border:1px solid var(--stroke); border-radius:8px; }
+.vehicle-table { width:100%; border-collapse:collapse; font-size:12px; min-width:900px; }
+.vehicle-table th,.vehicle-table td { padding:10px; border-bottom:1px solid var(--stroke); text-align:left; vertical-align:top; }
+.vehicle-table th { color:var(--muted); font-size:10px; text-transform:uppercase; background:var(--surface-2); }
+.vehicle-table tr:last-child td { border-bottom:0; }
+.vehicle-number { font-weight:900; font-size:13px; }
+.vehicle-meta { color:var(--muted); margin-top:2px; }
+.status { display:inline-flex; align-items:center; padding:3px 7px; border-radius:999px; font-size:10px; font-weight:800; }
+.status.active { background:var(--accent-soft); color:var(--accent-strong); }
+.status.inactive { background:var(--surface-2); color:var(--muted); }
+.status.default { background:var(--sun-soft); color:#8a5a00; margin-left:4px; }
+.row-actions { display:flex; flex-wrap:wrap; gap:6px; }
+.row-actions form { margin:0; }
+.btn.small { padding:6px 8px; font-size:11px; }
+.form-panel { border:1px solid var(--stroke); border-radius:8px; padding:14px; background:var(--surface); position:sticky; top:16px; }
+.form-panel h2 { margin:0 0 12px; font-size:16px; }
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.form-grid .wide { grid-column:1/-1; }
+.form-grid label { display:grid; gap:4px; color:var(--muted); font-size:11px; font-weight:800; }
+.checks { display:flex; flex-wrap:wrap; gap:12px; grid-column:1/-1; }
+.checks label { display:flex; align-items:center; gap:6px; color:var(--ink); }
+.field-errors { margin:3px 0 0; padding:0; list-style:none; color:var(--danger); font-size:11px; }
+.errorlist { margin:3px 0 0; padding:0; list-style:none; color:var(--danger); font-size:11px; }
+.form-actions { display:flex; gap:8px; margin-top:12px; }
+.empty-row { padding:28px!important; text-align:center!important; color:var(--muted); }
+@media (max-width:1100px) { .ref-layout { grid-template-columns:1fr; } .form-panel { position:static; } }
+@media (max-width:720px) { .ref-head { align-items:flex-start; flex-direction:column; } .ref-stats { width:100%; } .filters { grid-template-columns:1fr; } .form-grid { grid-template-columns:1fr; } .form-grid .wide { grid-column:auto; } }
+{% endblock %}
+{% block content %}
+<header class="ref-head">
+  <div>
+    <h1 class="ref-title">Справочники</h1>
+    <div class="ref-sub">Операционные данные для работы менеджеров и логистов.</div>
+  </div>
+  <div class="ref-stats">
+    <div class="ref-stat"><span>Автомобилей</span><strong>{{ vehicle_total }}</strong></div>
+    <div class="ref-stat"><span>Активных</span><strong>{{ vehicle_active }}</strong></div>
+  </div>
+</header>
+
+<nav class="ref-tabs" aria-label="Разделы справочников">
+  <a class="ref-tab active" href="/team-manager/references/logistics/">Логистика</a>
+</nav>
+
+<div class="ref-layout">
+  <section class="ref-section">
+    <h2>Автомобили перевозчиков</h2>
+    <form method="get" class="filters">
+      <select class="field" name="carrier" aria-label="Перевозчик">
+        <option value="">Все компании</option>
+        {% for carrier in carrier_options %}
+          <option value="{{ carrier.id }}"{% if carrier_filter == carrier.id|stringformat:'s' %} selected{% endif %}>{{ carrier.short_name|default:carrier.name }}{% if not carrier.is_active %} · отключён{% endif %}</option>
+        {% endfor %}
+      </select>
+      <input class="field" type="search" name="q" value="{{ search_query }}" placeholder="Компания, госномер, водитель или телефон">
+      <button class="btn" type="submit">Найти</button>
+    </form>
+
+    <div class="vehicle-table-wrap">
+      <table class="vehicle-table">
+        <thead>
+          <tr><th>Компания</th><th>Автомобиль</th><th>Водитель</th><th>Вместимость</th><th>Статус</th><th>Действия</th></tr>
+        </thead>
+        <tbody>
+          {% for vehicle in vehicles %}
+          <tr>
+            <td><strong>{{ vehicle.carrier.short_name|default:vehicle.carrier.name }}</strong></td>
+            <td>
+              <div class="vehicle-number">{{ vehicle.vehicle_number }}</div>
+              {% if vehicle.vehicle_name %}<div class="vehicle-meta">{{ vehicle.vehicle_name }}</div>{% endif %}
+            </td>
+            <td><strong>{{ vehicle.driver_name }}</strong><div class="vehicle-meta">{{ vehicle.driver_phone }}</div></td>
+            <td>
+              {% if vehicle.max_weight_kg %}{{ vehicle.max_weight_kg|floatformat:"-3" }} кг{% endif %}
+              {% if vehicle.max_pallets %}<div class="vehicle-meta">до {{ vehicle.max_pallets }} паллет</div>{% endif %}
+              {% if vehicle.max_volume_m3 %}<div class="vehicle-meta">{{ vehicle.max_volume_m3|floatformat:"-3" }} м³</div>{% endif %}
+              {% if not vehicle.max_weight_kg and not vehicle.max_pallets and not vehicle.max_volume_m3 %}—{% endif %}
+            </td>
+            <td>
+              <span class="status {% if vehicle.is_active %}active{% else %}inactive{% endif %}">{% if vehicle.is_active %}Активен{% else %}Отключён{% endif %}</span>
+              {% if vehicle.is_default %}<span class="status default">Основной</span>{% endif %}
+            </td>
+            <td>
+              <div class="row-actions">
+                <a class="btn small" href="?{% if carrier_filter %}carrier={{ carrier_filter }}&{% endif %}edit={{ vehicle.id }}">Редактировать</a>
+                {% if vehicle.is_active and not vehicle.is_default %}
+                <form method="post">{% csrf_token %}<input type="hidden" name="action" value="set_default"><input type="hidden" name="vehicle_id" value="{{ vehicle.id }}"><button class="btn small" type="submit">Основной</button></form>
+                {% endif %}
+                <form method="post">{% csrf_token %}<input type="hidden" name="action" value="toggle_active"><input type="hidden" name="vehicle_id" value="{{ vehicle.id }}"><button class="btn small" type="submit">{% if vehicle.is_active %}Отключить{% else %}Включить{% endif %}</button></form>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td class="empty-row" colspan="6">Автомобили пока не добавлены.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="form-panel">
+    <h2>{% if edit_vehicle %}Редактирование автомобиля{% else %}Новый автомобиль{% endif %}</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_vehicle">
+      {% if edit_vehicle %}<input type="hidden" name="vehicle_id" value="{{ edit_vehicle.id }}">{% endif %}
+      {% if vehicle_form.non_field_errors %}<div class="field-errors">{{ vehicle_form.non_field_errors }}</div>{% endif %}
+      <div class="form-grid">
+        {% for field in vehicle_form %}
+          {% if field.name == "is_default" or field.name == "is_active" %}
+          {% else %}
+            <label class="{% if field.name == 'carrier' or field.name == 'comment' %}wide{% endif %}">{{ field.label }}{{ field }}{{ field.errors }}</label>
+          {% endif %}
+        {% endfor %}
+        <div class="checks">
+          <label>{{ vehicle_form.is_active }} Активен</label>
+          <label>{{ vehicle_form.is_default }} Использовать по умолчанию</label>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn primary" type="submit">Сохранить</button>
+        {% if edit_vehicle %}<a class="btn" href="/team-manager/references/logistics/{% if carrier_filter %}?carrier={{ carrier_filter }}{% endif %}">Отмена</a>{% endif %}
+      </div>
+    </form>
+  </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,250 @@
+            <div class="section">
+              <h3>Параметры заявки</h3>
+              <div class="meta-columns">
+                <div class="meta-card">
+                  <h4 class="meta-title">Параметры</h4>
+                  <div class="form-grid">
+                    {% if scope == "client" and selected_client %}
+                      <input type="hidden" name="agency" value="{{ selected_client.id }}">
+                    {% else %}
+                      <div class="field field-inline" data-required-field="agency" data-required-mode="select">
+                        <label>Клиент <span class="required">*</span></label>
+                        <div class="field-control">
+                          {{ form.agency }}
+                        </div>
+                      </div>
+                    {% endif %}
+                    <div class="field field-inline" data-required-field="delivery_type" data-required-mode="select">
+                      <label>{{ form.delivery_type.label }} <span class="required">*</span></label>
+                      <div class="field-control">
+                        {{ form.delivery_type }}
+                      </div>
+                    </div>
+                    <div class="field field-inline" data-marketplace-delivery-only="1">
+                      <label>Маркировка</label>
+                      <div class="field-control">
+                        <label class="checkbox-inline">
+                          {{ form.requires_marking_scan }}
+                          <span>Парный скан ШК товара и Data Matrix</span>
+                        </label>
+                        <div class="hint">Только для SKU с признаком «Честный знак» и только для маркетплейс-отгрузки.</div>
+                      </div>
+                    </div>
+                    <div class="field field-inline" data-pickup-section="1" data-courier-hide="1" data-required-field="shipping_barcode" data-required-mode="text" data-hide-for-marketplace="ozon">
+                      <label>ШК поставки <span class="required">*</span></label>
+                      <div class="field-control">
+                        {{ form.shipping_barcode }}
+                        {% if scope != "client" %}
+                          <div class="hint">Штрихкод поставки маркетплейса. Номер поставки заполняется отдельным полем справа.</div>
+                        {% endif %}
+                      </div>
+                    </div>
+                    <div class="field field-inline">
+                      <label>Паллет / Коробов</label>
+                      <div class="field-control">
+                        <div class="mini-metrics-wrap">
+                          <table class="mini-metrics">
+                            <tbody>
+                              <tr>
+                                <th>Паллет, кол-во</th>
+                                <td id="auto-pallet-count">после обработки</td>
+                              </tr>
+                              <tr>
+                                <th>Коробов, кол-во</th>
+                                <td id="auto-box-count">0</td>
+                              </tr>
+                              <tr>
+                                <th>Штук, кол-во</th>
+                                <td id="auto-item-count">0</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                        <details class="shipping-selection-details">
+                          <summary class="shipping-selection-summary">
+                            <span>Состав заявки</span>
+                            <span class="shipping-selection-summary-meta" id="shipping-selection-summary">Позиций: 0 · Коробов: 0 · Штук: 0</span>
+                          </summary>
+                          <div class="shipping-selection-cards" id="shipping-selection-cards">
+                            <div class="shipping-selection-empty">Пока ничего не добавлено в заявку.</div>
+                          </div>
+                        </details>
+                        <div class="hint">Паллеты указываются после обработки заявки кладовщиком. Короба и штуки считаются автоматически по блоку «Позиции».</div>
+                      </div>
+                    </div>
+                    <div class="field field-inline">
+                      <label>Комментарий</label>
+                      <div class="field-control">
+                        {{ form.comment }}
+                        <div class="hint">Короткий комментарий по отгрузке.</div>
+                      </div>
+                    </div>
+                    <div class="field field-inline">
+                      <label>Прикрепить файлы</label>
+                      <div class="field-control attachment-stack">
+                        <input
+                          id="shipping-documents"
+                          type="file"
+                          name="documents"
+                          multiple
+                          accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.doc,.docx,.txt"
+                        >
+                        {% if scope == "client" %}
+                          <div class="hint">Файлы сохранятся вместе с заявкой. Срок хранения: {{ attachment_retention_days }} дн.</div>
+                        {% else %}
+                          <div class="hint">Файлы будут загружены на сервер только после нажатия «Создать и отправить» или «Сохранить черновик». После сохранения заявки любой участник процесса сможет открыть их из карточки. Срок хранения на сервере: {{ attachment_retention_days }} дней.</div>
+                        {% endif %}
+                        <div class="attachment-title">{% if scope == "client" %}Выбранные файлы{% else %}Выбраны для отправки, но ещё не загружены на сервер{% endif %}</div>
+                        <div class="attachment-list" id="shipping-documents-selected">
+                          <div class="attachment-selected-empty">Файлы не выбраны.</div>
+                        </div>
+                        {% if existing_attachments %}
+                          <div class="attachment-title">Уже загружены на сервер</div>
+                          <div class="attachment-list">
+                            {% for attachment in existing_attachments %}
+                              <div class="attachment-item">
+                                <a href="{% url 'shipping:attachment-download' edit_order.pk attachment.pk %}">{{ attachment.filename }}</a>
+                                <span>до {{ attachment.expires_at|date:"d.m.Y H:i" }}</span>
+                              </div>
+                            {% endfor %}
+                          </div>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="meta-card" data-pickup-section="1">
+                  <h4 class="meta-title">Маркетплейс</h4>
+                  <div class="form-grid">
+                    <div class="field field-inline" data-pickup-section="1" data-courier-hide="1" data-required-field="marketplace" data-required-mode="select">
+                      <label>Маркетплейс <span class="required">*</span></label>
+                      <div class="field-control">
+                        {{ form.marketplace }}
+                      </div>
+                    </div>
+                    <div class="field field-inline" data-pickup-section="1" data-courier-hide="1" data-required-field="wb_supply_barcode" data-required-mode="text" data-hide-for-marketplace="ozon">
+                      <label>Номер поставки <span class="required">*</span></label>
+                      <div class="field-control">
+                        {{ form.wb_supply_barcode }}
+                      </div>
+                    </div>
+                    <div class="field field-inline" data-pickup-section="1" data-courier-hide="1">
+                      <label>Транзитный склад</label>
+                      <div class="field-control">
+                        <label class="checkbox-inline">
+                          {{ form.wb_transit_warehouse }}
+                          <span>Да</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div class="field field-inline" id="transit-address-field" data-pickup-section="1" data-courier-hide="1" data-required-field="transit_address" data-required-mode="text" data-required-when="transit">
+                      <label>Транзитный адрес</label>
+                      <div class="field-control">
+                        <div class="field-picker-row">
+                          {{ form.transit_address }}
+                          <button class="btn ghost picker-btn" type="button" data-picker-target="transit">Выбрать</button>
+                        </div>
+                        <datalist id="transit-address-options"></datalist>
+                        <div class="hint" id="transit-address-hint"></div>
+                      </div>
+                    </div>
+                    <div class="field field-inline" data-pickup-section="1" data-courier-hide="1" data-required-field="destination_warehouse" data-required-mode="text">
+                      <label>Склад назначения <span class="required">*</span></label>
+                      <div class="field-control">
+                        <div class="field-picker-row">
+                          {{ form.destination_warehouse }}
+                          <button class="btn ghost picker-btn" type="button" data-picker-target="destination">Выбрать</button>
+                        </div>
+                        <datalist id="destination-warehouse-options"></datalist>
+                        <div class="hint" id="destination-warehouse-hint"></div>
+                      </div>
+                    </div>
+                    <div class="field field-inline" data-pickup-section="1" data-courier-hide="1" data-required-field="supply_type" data-required-mode="select">
+                      <label>Тип поставки <span class="required">*</span></label>
+                      <div class="field-control">
+                        {{ form.supply_type }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="meta-card">
+                  <h4 class="meta-title">Маршрут</h4>
+                  <div class="form-grid">
+                    <div class="field {% if scope == "client" %}field-inline{% else %}field-stack{% endif %}" data-pickup-section="1" data-courier-hide="1" data-required-field="slot_date" data-required-mode="date" data-required-when="ozon">
+                      <label>Дата слота</label>
+                      <div class="field-control">
+                        {{ form.slot_date }}
+                        {% if scope != "client" %}
+                          <div class="hint">Слот маркетплейса. Это отдельная дата приемки, не плановая дата отгрузки.</div>
+                        {% endif %}
+                      </div>
+                    </div>
+                    <div class="field {% if scope == "client" %}field-inline{% else %}field-stack{% endif %}" id="slot-time-field" data-pickup-section="1" data-courier-hide="1">
+                      <label>Время слота</label>
+                      <div class="field-control">
+                        {{ form.slot_time }}
+                        {% if scope != "client" %}
+                          <div class="hint">Для Ozon, если маркетплейс указал время слота.</div>
+                        {% endif %}
+                      </div>
+                    </div>
+                    <div class="field {% if scope == "client" %}field-inline{% else %}field-stack{% endif %} field-state-route" data-required-field="eta_at" data-required-mode="datetime">
+                      <label>{% if scope == "client" %}Дата отгрузки{% else %}Плановая дата отгрузки{% endif %} <span class="required">*</span></label>
+                      <div class="field-control">
+                        <div class="datetime-field">
+                          <div class="datetime-row datetime-row-eta">
+                            <input type="date" id="eta-date" required>
+                          </div>
+                          {{ form.eta_at }}
+                        </div>
+                        {% if scope != "client" %}
+                          <div class="hint">Плановую дату отгрузки задним числом указывать нельзя.</div>
+                        {% endif %}
+                      </div>
+                    </div>
+                    <div class="field {% if scope == "client" %}field-inline{% else %}field-stack{% endif %}" data-transfer-section="1" data-required-field="destination_address" data-required-mode="text" data-required-when="transfer" style="display:none;">
+                      <label>Куда перемещаем <span class="required">*</span></label>
+                      <div class="field-control">
+                        {{ form.destination_address }}
+                        <div class="hint">Укажите склад, адрес, город или другое понятное направление перемещения.</div>
+                      </div>
+                    </div>
+                    <div class="field field-inline" data-pickup-section="1" data-required-field="vehicle_type" data-required-mode="select">
+                      <label>Транспорт <span class="required">*</span></label>
+                      <div class="field-control">
+                        {{ form.vehicle_type }}
+                        <div class="hint" id="courier-vehicle-hint" hidden>Для курьера выберите СДЭК или Яндекс.</div>
+                      </div>
+                    </div>
+                    <div class="field field-inline" data-pickup-section="1">
+                      <label>Номер авто</label>
+                      <div class="field-control">
+                        {{ form.vehicle_number }}
+                      </div>
+                    </div>
+                    <div class="field field-inline" data-pickup-section="1" data-required-field="driver_phone" data-required-mode="phone-optional">
+                      <label>Телефон водителя</label>
+                      <div class="field-control">
+                        {{ form.driver_phone }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h3>Позиции</h3>
+              <div class="hint">Выберите позиции из складских остатков и укажите количество коробов. Для микс-короба достаточно выбрать одну строку: остальные позиции из этого короба добавятся автоматически.</div>
+              {% include "shipping/_stock_picker_table.html" %}
+            </div>
+
+            <div class="actions">
+              {% if edit_order %}
+                <a class="btn ghost" href="{% url 'shipping:detail' edit_order.pk %}">Назад к заявке</a>
+              {% elif scope == "client" and selected_client %}
+                <a class="btn ghost" href="{% url 'shipping:list' %}?client={{ selected_client.id }}">Назад к списку</a>
+              {% else %}
+                <a class="btn ghost" href="{% url 'shipping:list' %}">Назад к списку</a>
+              {% endif %}
+            </div>

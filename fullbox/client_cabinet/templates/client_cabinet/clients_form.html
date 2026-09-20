@@ -1,0 +1,1266 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }} | FULLBOX</title>
+{% load widget_tweaks billing_tags %}
+  <style>
+    
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(1200px 520px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 480px at 120% 0%, rgba(15, 23, 42, 0.06), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      font-family: "Manrope", system-ui, sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      width: 100%;
+      max-width: 1560px;
+      margin: 0 auto;
+      padding: 28px 28px 64px;
+    }
+    .page-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .page-title {
+      display: grid;
+      gap: 8px;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(32px, 3vw, 46px);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+    }
+    .muted { color: var(--muted); }
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(15, 23, 42, 0.04);
+      color: var(--text);
+      font-weight: 600;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    .btn:hover {
+      border-color: var(--gold);
+      box-shadow: 0 10px 25px rgba(14,107,91,0.14);
+      transform: translateY(-1px);
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--gold), var(--gold-soft));
+      color: #1f2328;
+      border-color: transparent;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      display: grid;
+      gap: 6px;
+    }
+    .section-title {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: -0.03em;
+    }
+    .section-note {
+      margin: 0;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    form {
+      display: grid;
+      gap: 16px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.9fr) minmax(340px, 0.95fr);
+      gap: 24px;
+      align-items: start;
+    }
+    .main-column,
+    .side-column {
+      display: grid;
+      gap: 16px;
+      min-width: 0;
+    }
+    .panel {
+      background: var(--card-soft);
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .span-12 { grid-column: span 12; }
+    .span-8 { grid-column: span 8; }
+    .span-6 { grid-column: span 6; }
+    .span-4 { grid-column: span 4; }
+    .span-3 { grid-column: span 3; }
+    textarea[data-autogrow] { overflow: hidden; }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--muted);
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: #fbf8f2;
+      color: var(--text);
+      font: inherit;
+    }
+    textarea { resize: vertical; }
+    .field-error {
+      border-color: var(--gold-soft);
+      box-shadow: 0 0 0 1px rgba(231, 195, 74, 0.4);
+      background: rgba(231, 195, 74, 0.08);
+    }
+    .input-with-action {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .pill-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .pill-row.pills-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 56px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(15, 23, 42, 0.04);
+      text-align: center;
+    }
+    .pill input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+    }
+    .form-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .market-stack {
+      display: grid;
+      gap: 12px;
+    }
+    .market-card {
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      padding: 16px;
+      background: var(--card-soft);
+      display: grid;
+      gap: 12px;
+    }
+    .market-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .market-title {
+      display: grid;
+      gap: 4px;
+    }
+    .market-status {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--stroke);
+      white-space: nowrap;
+    }
+    .market-status.ok {
+      background: var(--ok-bg);
+      color: var(--ok-text);
+      border-color: rgba(22, 163, 74, 0.2);
+    }
+    .market-status.off {
+      background: var(--off-bg);
+      color: var(--off-text);
+    }
+    .market-hint {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .market-text-input,
+    .market-token-input {
+      color: var(--text) !important;
+      -webkit-text-fill-color: var(--text) !important;
+      caret-color: var(--text);
+      opacity: 1 !important;
+      filter: none !important;
+    }
+    .market-token-input {
+      min-height: 92px;
+      font-family: Consolas, "Liberation Mono", monospace;
+      line-height: 1.35;
+    }
+    .market-text-input:-webkit-autofill,
+    .market-token-input:-webkit-autofill {
+      -webkit-text-fill-color: var(--text) !important;
+      box-shadow: 0 0 0 1000px #fff inset !important;
+      transition: background-color 999999s ease-out 0s;
+    }
+    .error-pill {
+      border-color: rgba(240, 91, 86, 0.5);
+      color: #b42318;
+      background: rgba(240, 91, 86, 0.08);
+    }
+    .flash {
+      margin: 0 0 16px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: #fff;
+      font-weight: 600;
+    }
+    .flash.ok { border-color: rgba(14,107,91,0.35); background: rgba(14,107,91,0.08); color: #0b5246; }
+    .flash.err { border-color: rgba(212,84,60,0.35); background: rgba(212,84,60,0.10); color: #7f1d1d; }
+    .credentials-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(48, 48, 48, 0.48);
+    }
+    .credentials-dialog {
+      width: min(620px, 100%);
+      padding: 24px;
+      border: 1px solid rgba(248, 144, 0, 0.42);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 24px 70px rgba(48, 48, 48, 0.24);
+    }
+    .credentials-dialog h2 { margin: 0 0 8px; font-size: 24px; }
+    .credentials-dialog p { margin: 0; color: var(--muted); }
+    .credentials-value {
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid rgba(248, 144, 0, 0.34);
+      border-radius: 6px;
+      background: rgba(248, 144, 0, 0.13);
+      color: #303030;
+      font-weight: 700;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+    }
+    .credentials-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .profile-tabs {
+      display: inline-flex;
+      gap: 6px;
+      padding: 6px;
+      margin: 0 0 18px;
+      border-radius: 16px;
+      background: rgba(28,31,26,0.05);
+      border: 1px solid var(--stroke);
+    }
+    .profile-tab {
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      border: 1px solid transparent;
+    }
+    .profile-tab.is-active {
+      background: #fff;
+      color: var(--ink);
+      border-color: var(--stroke);
+      box-shadow: 0 8px 20px rgba(15,23,42,0.08);
+    }
+    .employees-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.85fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .employees-main { display: grid; gap: 16px; }
+    .emp-card {
+      background: #fff;
+      border: 1px solid var(--stroke);
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: 0 12px 30px rgba(15,23,42,0.06);
+    }
+    .emp-card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .emp-table-wrap { overflow: auto; }
+    .emp-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+    }
+    .emp-table th {
+      text-align: left;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--stroke);
+    }
+    .emp-table td {
+      padding: 12px 8px;
+      border-bottom: 1px solid rgba(28,31,26,0.06);
+      vertical-align: middle;
+    }
+    .emp-person {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .emp-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      background: rgba(242,183,71,0.22);
+      color: #7a5508;
+      flex: 0 0 auto;
+    }
+    .emp-name { font-weight: 800; }
+    .emp-email { font-size: 13px; color: var(--muted); }
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .role-badge.admin { background: rgba(14,107,91,0.14); color: #0b5246; }
+    .role-badge.manager { background: rgba(37,99,235,0.12); color: #1d4ed8; }
+    .role-badge.accountant { background: rgba(124,58,237,0.12); color: #6d28d9; }
+    .role-badge.operator { background: rgba(242,183,71,0.22); color: #8a5a00; }
+    .role-badge.custom { background: rgba(107,111,102,0.14); color: #4b5048; }
+    .role-sections { font-size: 12px; color: var(--muted); }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .status-pill::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #16a34a;
+    }
+    .status-pill.is-off { color: var(--muted); }
+    .status-pill.is-off::before { background: #9ca3af; }
+    .emp-actions details { position: relative; }
+    .emp-actions summary {
+      list-style: none;
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--stroke);
+      background: #fff;
+      font-weight: 900;
+    }
+    .emp-actions summary::-webkit-details-marker { display: none; }
+    .emp-menu {
+      position: absolute;
+      right: 0;
+      top: 38px;
+      min-width: 180px;
+      background: #fff;
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 6px;
+      z-index: 5;
+      display: grid;
+      gap: 4px;
+    }
+    .emp-menu button {
+      border: 0;
+      background: transparent;
+      text-align: left;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 600;
+    }
+    .emp-menu button:hover { background: rgba(28,31,26,0.05); }
+    .emp-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .emp-form-grid .full { grid-column: 1 / -1; }
+    .sections-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 14px;
+      margin-top: 8px;
+    }
+    .sections-grid label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      color: var(--ink);
+      font-weight: 600;
+    }
+    .sections-grid input { width: auto; }
+    .emp-form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .role-legend { display: grid; gap: 10px; }
+    .role-legend-item {
+      border-radius: 14px;
+      padding: 12px 14px;
+      border: 1px solid var(--stroke);
+    }
+    .role-legend-item.admin { background: rgba(14,107,91,0.10); }
+    .role-legend-item.manager { background: rgba(37,99,235,0.08); }
+    .role-legend-item.accountant { background: rgba(124,58,237,0.08); }
+    .role-legend-item.operator { background: rgba(242,183,71,0.16); }
+    .role-legend-item.custom { background: rgba(107,111,102,0.10); }
+    .role-legend-item strong { display: block; margin-bottom: 4px; }
+    .role-legend-item p { margin: 0; font-size: 13px; color: var(--muted); }
+    .help-box {
+      margin-top: 12px;
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px dashed var(--stroke);
+      background: rgba(255,255,255,0.7);
+    }
+    .help-box h4 { margin: 0 0 6px; font-size: 15px; }
+    .help-box p { margin: 0; color: var(--muted); font-size: 13px; }
+    .tariff-summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .tariff-kv {
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      background: rgba(255,255,255,.72);
+      padding: 14px;
+    }
+    .tariff-kv span { display:block; color:var(--muted); font-size:12px; font-weight:800; margin-bottom:4px; }
+    .tariff-kv strong { display:block; font-size:15px; }
+    .status-pill { display:inline-flex; align-items:center; padding:5px 10px; border-radius:999px; font-size:12px; font-weight:900; }
+    .status-active { background:rgba(34,197,94,.14); color:#166534; }
+    .status-scheduled { background:rgba(245,158,11,.16); color:#92400e; }
+    .status-expired, .status-archived { background:rgba(100,116,139,.14); color:#475569; }
+    .tariff-category { border:1px solid var(--stroke); border-radius:18px; background:rgba(255,255,255,.75); margin-top:14px; overflow:hidden; }
+    .tariff-category summary { cursor:pointer; padding:16px 18px; font-weight:900; display:flex; justify-content:space-between; gap:10px; }
+    .tariff-table-wrap { overflow:auto; border-top:1px solid var(--stroke); }
+    .tariff-table { width:100%; min-width:0; border-collapse:collapse; font-size:13px; table-layout:fixed; }
+    .tariff-table th, .tariff-table td { padding:11px 12px; border-bottom:1px solid var(--stroke); text-align:left; vertical-align:middle; line-height:1.35; }
+    .tariff-table th { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+    .tariff-service { width:78%; overflow-wrap:anywhere; }
+    .tariff-unit { width:8%; text-align:center !important; white-space:nowrap; }
+    .tariff-price { font-weight:900; white-space:nowrap; }
+    .tariff-price { width:14%; text-align:right !important; }
+    .condition-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:12px; }
+    .condition-card { border:1px solid var(--stroke); border-radius:16px; background:rgba(255,255,255,.75); padding:14px; }
+    .history-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .history-table th, .history-table td { padding:10px 12px; border-bottom:1px solid var(--stroke); text-align:left; }
+    .empty-tariffs { border:1px dashed var(--stroke); border-radius:18px; background:rgba(255,255,255,.65); padding:24px; text-align:center; color:var(--muted); }
+    #company-tab[hidden], #employees-tab[hidden], #tariffs-tab[hidden] { display: none !important; }
+    @media (max-width: 1280px) {
+      .wrap { padding: 24px 18px 56px; }
+      .layout { grid-template-columns: 1fr; }
+      .side-column { order: -1; }
+      .employees-layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+      .span-8, .span-6, .span-4, .span-3 { grid-column: span 6; }
+      .pill-row { grid-template-columns: 1fr; }
+      .emp-form-grid, .sections-grid { grid-template-columns: 1fr; }
+      .tariff-summary, .condition-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .wrap { padding: 18px 14px 42px; }
+      .card { padding: 18px; border-radius: 18px; }
+      h1 { font-size: 30px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <div class="page-title">
+        <div class="muted">FULLBOX · {% include "partials/current_user.html" %}</div>
+        <h1>{{ title }}</h1>
+      </div>
+      <div class="top-actions">
+        {% if staff_view %}
+          <a class="btn" href="/client/">К списку клиентов</a>
+        {% else %}
+          <a class="btn primary" href="{{ cabinet_url }}">В кабинет</a>
+        {% endif %}
+      </div>
+    </header>
+
+    {% if messages %}
+      {% for message in messages %}
+        {% if "portal-credentials" in message.tags %}
+          <div class="credentials-backdrop" role="dialog" aria-modal="true" aria-labelledby="credentials-title" data-portal-credentials>
+            <div class="credentials-dialog">
+              <h2 id="credentials-title">Доступ сотрудника создан</h2>
+              <p>Сохраните данные сейчас. Временный пароль повторно посмотреть нельзя.</p>
+              <div class="credentials-value" data-portal-credentials-text>{{ message }}</div>
+              <div class="credentials-actions">
+                <button class="btn primary" type="button" data-copy-portal-credentials>Копировать данные</button>
+                <a class="btn" href="?tab=employees">Закрыть</a>
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div class="flash {% if message.tags == 'error' %}err{% else %}ok{% endif %}">{{ message }}</div>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+
+    {% if mode == "edit" %}
+      <nav class="profile-tabs" aria-label="Разделы профиля">
+        <a class="profile-tab {% if profile_tab == 'company' %}is-active{% endif %}" href="?tab=company">Карточка компании</a>
+        {% if can_manage_portal_access %}
+          <a class="profile-tab {% if profile_tab == 'employees' %}is-active{% endif %}" href="?tab=employees">Сотрудники и доступы</a>
+        {% endif %}
+        <a class="profile-tab {% if profile_tab == 'tariffs' %}is-active{% endif %}" href="?tab=tariffs">Согласованные тарифы</a>
+      </nav>
+    {% endif %}
+
+    <div id="company-tab" class="card" {% if mode == "edit" and profile_tab != "company" %}hidden{% endif %}>
+      <div class="card-head">
+        <div class="card-title">
+          <h2 class="section-title">{{ card_title|default:"Карточка клиента" }}</h2>
+          <p class="section-note">Основные реквизиты и настройки интеграций собраны на одном экране.</p>
+        </div>
+      </div>
+
+      <form method="post">
+        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="pill error-pill">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="layout">
+          <div class="main-column">
+            <section class="panel">
+              <div class="grid">
+                <div class="span-3">
+                  <label>Название организации *</label>
+                  {{ form.agn_name.errors }}{% if form.agn_name.errors %}{% render_field form.agn_name class+="field-error" %}{% else %}{% render_field form.agn_name %}{% endif %}
+                </div>
+                <div class="span-3">
+                  <label>Префикс для кодов</label>
+                  {{ form.pref.errors }}{% if form.pref.errors %}{% render_field form.pref class+="field-error" %}{% else %}{% render_field form.pref %}{% endif %}
+                </div>
+                <div class="span-3">
+                  <label>ИНН *</label>
+                  <div class="input-with-action">
+                    {{ form.inn.errors }}{% if form.inn.errors %}{% render_field form.inn class+="field-error" id="field-inn" %}{% else %}{% render_field form.inn id="field-inn" %}{% endif %}
+                    <button class="btn" type="button" id="btn-fetch-inn" style="padding:8px 10px;" title="Заполнить данные по ИНН">⚡</button>
+                  </div>
+                </div>
+                <div class="span-3">
+                  <label>КПП</label>
+                  {{ form.kpp.errors }}{% if form.kpp.errors %}{% render_field form.kpp class+="field-error" %}{% else %}{% render_field form.kpp %}{% endif %}
+                </div>
+                <div class="span-6">
+                  <label>Краткое наименование</label>
+                  {{ form.short_name.errors }}{% if form.short_name.errors %}{% render_field form.short_name class+="field-error" %}{% else %}{% render_field form.short_name %}{% endif %}
+                </div>
+
+                <div class="span-3">
+                  <label>ОГРН</label>
+                  {{ form.ogrn.errors }}{% if form.ogrn.errors %}{% render_field form.ogrn class+="field-error" %}{% else %}{% render_field form.ogrn %}{% endif %}
+                </div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="grid">
+                <div class="span-4">
+                  <label>Email</label>
+                  {{ form.email.errors }}{% if form.email.errors %}{% render_field form.email class+="field-error" %}{% else %}{% render_field form.email %}{% endif %}
+                </div>
+                <div class="span-4">
+                  <label>Телефон *</label>
+                  {{ form.phone.errors }}{% if form.phone.errors %}{% render_field form.phone class+="field-error" %}{% else %}{% render_field form.phone %}{% endif %}
+                </div>
+                <div class="span-4">
+                  <label>ФИО контактного *</label>
+                  {{ form.fio_agn.errors }}{% if form.fio_agn.errors %}{% render_field form.fio_agn class+="field-error" %}{% else %}{% render_field form.fio_agn %}{% endif %}
+                </div>
+                {% if can_manage_portal_access %}
+                  <div class="span-6">
+                    <label>{{ form.portal_login.label }}</label>
+                    {{ form.portal_login.errors }}{% if form.portal_login.errors %}{% render_field form.portal_login class+="field-error" %}{% else %}{% render_field form.portal_login %}{% endif %}
+                  </div>
+                  <div class="span-6">
+                    <label>{{ form.portal_password.label }}</label>
+                    {{ form.portal_password.errors }}{% if form.portal_password.errors %}{% render_field form.portal_password class+="field-error" %}{% else %}{% render_field form.portal_password %}{% endif %}
+                  </div>
+                {% endif %}
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="grid">
+                <div class="span-6">
+                  <label>Юр. адрес</label>
+                  {{ form.adres.errors }}{% if form.adres.errors %}{% render_field form.adres class+="field-error" %}{% else %}{% render_field form.adres %}{% endif %}
+                </div>
+                <div class="span-6">
+                  <label>Факт. адрес</label>
+                  {{ form.fakt_adres.errors }}{% if form.fakt_adres.errors %}{% render_field form.fakt_adres class+="field-error" %}{% else %}{% render_field form.fakt_adres %}{% endif %}
+                </div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="grid">
+                <div class="span-6">
+                  <label>Номер договора</label>
+                  {{ form.contract_numb.errors }}{% if form.contract_numb.errors %}{% render_field form.contract_numb class+="field-error" %}{% else %}{% render_field form.contract_numb %}{% endif %}
+                </div>
+                <div class="span-6">
+                  <label>Ссылка на договор</label>
+                  {{ form.contract_link.errors }}{% if form.contract_link.errors %}{% render_field form.contract_link class+="field-error" %}{% else %}{% render_field form.contract_link %}{% endif %}
+                </div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="pill-row{% if not staff_view %} pills-2{% endif %}">
+                <label class="pill">{{ form.sign_oferta }} Подписана оферта</label>
+                <label class="pill">{{ form.use_nds }} Использует НДС</label>
+                {% if staff_view %}
+                  <label class="pill">{{ form.archived }} Архивировать</label>
+                {% endif %}
+              </div>
+            </section>
+
+            <div class="form-actions">
+              <button type="submit" class="btn primary">{{ submit_label }}</button>
+              <a class="btn" href="{{ cancel_url }}">Отмена</a>
+            </div>
+          </div>
+
+          {% if show_marketplace_settings %}
+            <aside class="side-column" id="marketplaces">
+              <section class="panel">
+                <div class="card-title">
+                  <h2 class="section-title">Токен WB и кабинеты Ozon FBS</h2>
+                  <p class="section-note">Для Ozon FBS можно подключить до трёх кабинетов. Для каждого нужны собственные Client ID и API-ключ.</p>
+                </div>
+                <div class="market-stack">
+                  {% for item in marketplace_settings %}
+                    <section class="market-card">
+                      <div class="market-head">
+                        <div class="market-title">
+                          <strong>{{ item.label }}</strong>
+                          {% if item.code == "WB" %}
+                            <p class="market-hint">Для синхронизации нужен API токен кабинета Wildberries.</p>
+                            {% if item.is_configured %}
+                              <p class="market-hint">Токен уже сохранён (не показываем). Чтобы заменить — вставьте новый и нажмите «Сохранить». Пустое поле оставляет старый ключ.</p>
+                            {% endif %}
+                          {% elif item.code == "OZON" %}
+                            <p class="market-hint">Для Ozon нужны и Client ID, и API ключ.</p>
+                            {% if item.is_configured %}
+                              <p class="market-hint">Ключ уже сохранён (не показываем). Новый API-ключ вставьте только если меняете; пустое поле оставляет текущий.</p>
+                            {% endif %}
+                          {% endif %}
+                        </div>
+                        <span class="market-status {% if item.is_configured %}ok{% else %}off{% endif %}">
+                          {% if item.is_configured %}Настроено{% else %}Не настроено{% endif %}
+                        </span>
+                      </div>
+                      {% if item.market_missing %}
+                        <div class="pill">Маркетплейс не найден в справочнике Market, сохранить настройки сейчас нельзя.</div>
+                      {% else %}
+                        {% for field in item.form %}
+                          <div>
+                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field.errors }}{% if field.errors %}{% render_field field class+="field-error" %}{% else %}{% render_field field %}{% endif %}
+                          </div>
+                        {% endfor %}
+                      {% endif %}
+                    </section>
+                  {% endfor %}
+                  {% for item in ozon_fbs_settings %}
+                    <section class="market-card">
+                      <div class="market-head">
+                        <div class="market-title">
+                          <strong>{{ item.label }}</strong>
+                          <p class="market-hint">Отдельный кабинет продавца Ozon для заказов и складов FBS.</p>
+                          {% if item.slot == 1 %}<p class="market-hint">Первый заполненный кабинет также используется в общих разделах Ozon личного кабинета.</p>{% endif %}
+                          {% if item.is_configured %}
+                            <p class="market-hint">Ключ уже сохранён и скрыт. Пустое поле API-ключа сохраняет текущий ключ; чтобы удалить кабинет, очистите Client ID.</p>
+                          {% endif %}
+                        </div>
+                        <span class="market-status {% if item.is_configured %}ok{% else %}off{% endif %}">
+                          {% if item.is_configured %}Настроено{% else %}Не настроено{% endif %}
+                        </span>
+                      </div>
+                      {% for field in item.form %}
+                        <div>
+                          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                          {{ field.errors }}{% if field.errors %}{% render_field field class+="field-error" %}{% else %}{% render_field field %}{% endif %}
+                        </div>
+                      {% endfor %}
+                    </section>
+                  {% endfor %}
+                </div>
+              </section>
+            </aside>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+
+    {% if mode == "edit" and can_manage_portal_access %}
+    <div id="employees-tab" {% if profile_tab != "employees" %}hidden{% endif %}>
+      <div class="employees-layout">
+        <div class="employees-main">
+          <section class="emp-card">
+            <div class="emp-card-head">
+              <div>
+                <h2 class="section-title">Сотрудники</h2>
+                <p class="section-note">Управляйте сотрудниками вашей компании и их доступами</p>
+              </div>
+              <a class="btn primary" href="#add-employee-form">+ Добавить сотрудника</a>
+            </div>
+            <div class="emp-table-wrap">
+              <table class="emp-table">
+                <thead>
+                  <tr>
+                    <th>Сотрудник</th>
+                    <th>Должность</th>
+                    <th>Роль / Доступы</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for emp in portal_employees %}
+                    <tr>
+                      <td>
+                        <div class="emp-person">
+                          <div class="emp-avatar">{{ emp.initials }}</div>
+                          <div>
+                            <div class="emp-name">{{ emp.full_name }}</div>
+                            <div class="emp-email">{{ emp.email }}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{{ emp.position }}</td>
+                      <td>
+                        <div class="role-badge {{ emp.role }}">{{ emp.role_label }}</div>
+                        <div class="role-sections">{{ emp.sections_label }}</div>
+                      </td>
+                      <td>
+                        <span class="status-pill {% if not emp.is_active %}is-off{% endif %}">
+                          {% if emp.is_active %}Активен{% else %}Неактивен{% endif %}
+                        </span>
+                      </td>
+                      <td class="emp-actions">
+                        {% if emp.can_manage and emp.id %}
+                          <details>
+                            <summary aria-label="Действия">⋮</summary>
+                            <div class="emp-menu">
+                              {% if emp.is_active %}
+                                <form method="post">
+                                  {% csrf_token %}
+                                  <input type="hidden" name="portal_action" value="deactivate_employee">
+                                  <input type="hidden" name="member_id" value="{{ emp.id }}">
+                                  <button type="submit">Деактивировать</button>
+                                </form>
+                              {% else %}
+                                <form method="post">
+                                  {% csrf_token %}
+                                  <input type="hidden" name="portal_action" value="activate_employee">
+                                  <input type="hidden" name="member_id" value="{{ emp.id }}">
+                                  <button type="submit">Активировать</button>
+                                </form>
+                              {% endif %}
+                              <form method="post" onsubmit="return confirm('Удалить сотрудника?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="portal_action" value="delete_employee">
+                                <input type="hidden" name="member_id" value="{{ emp.id }}">
+                                <button type="submit">Удалить</button>
+                              </form>
+                            </div>
+                          </details>
+                        {% else %}
+                          —
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="5" class="muted">Пока нет сотрудников.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="emp-card" id="add-employee-form">
+            <div class="emp-card-head">
+              <div>
+                <h2 class="section-title">Добавить сотрудника</h2>
+                <p class="section-note">После добавления сотрудник сможет войти в личный кабинет по логину и временному паролю.</p>
+              </div>
+            </div>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="portal_action" value="add_employee">
+              <div class="emp-form-grid">
+                <div>
+                  <label>Фамилия *</label>
+                  <input type="text" name="portal_last_name" required maxlength="120" autocomplete="family-name">
+                </div>
+                <div>
+                  <label>Имя *</label>
+                  <input type="text" name="portal_first_name" required maxlength="120" autocomplete="given-name">
+                </div>
+                <div class="full">
+                  <label>Email *</label>
+                  <input type="email" name="portal_email" required maxlength="254" autocomplete="email">
+                </div>
+                <div>
+                  <label>Должность</label>
+                  <input type="text" name="portal_position" maxlength="255" placeholder="Например, Менеджер по логистике">
+                </div>
+                <div>
+                  <label>Роль / Доступы *</label>
+                  <select name="portal_role" id="portal-role-select" required>
+                    <option value="">Выберите роль</option>
+                    {% for value, label in portal_role_choices %}
+                      <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="full">
+                  <label>Доступ к разделам</label>
+                  <div class="sections-grid" id="portal-sections-grid">
+                    {% for value, label in portal_section_choices %}
+                      <label>
+                        <input type="checkbox" name="portal_sections" value="{{ value }}" data-section="{{ value }}">
+                        {{ label }}
+                      </label>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+              <div class="emp-form-actions">
+                <a class="btn" href="?tab=employees">Отмена</a>
+                <button class="btn primary" type="submit">Добавить сотрудника</button>
+              </div>
+            </form>
+          </section>
+        </div>
+
+        <aside class="emp-card">
+          <h2 class="section-title" style="font-size:18px;">Роли и доступы</h2>
+          <p class="section-note" style="margin-bottom:12px;">Выберите роль для сотрудника или настройте индивидуальные права доступа.</p>
+          <div class="role-legend">
+            {% for item in portal_role_legend %}
+              <div class="role-legend-item {{ item.role }}">
+                <strong>{{ item.label }}</strong>
+                <p>{{ item.description }}</p>
+              </div>
+            {% endfor %}
+          </div>
+          <div class="help-box">
+            <h4>Нужна помощь?</h4>
+            <p>Если не уверены с ролями — напишите менеджеру Fullbox или в чат поддержки из кабинета.</p>
+          </div>
+        </aside>
+      </div>
+    </div>
+    <div id="tariffs-tab" class="card" {% if profile_tab != "tariffs" %}hidden{% endif %}>
+      <div class="card-head">
+        <div class="card-title">
+          <h2 class="section-title">Согласованные тарифы</h2>
+          <p class="section-note">Индивидуальные условия и стоимость услуг, действующие для вашей компании.</p>
+        </div>
+        <div class="top-actions">
+          {% if tariff_current %}
+            <a class="btn" href="/client/api/v1/billing/tariff-versions/{{ tariff_current.id }}/download/?client={{ object.id }}&download=1">Скачать тарифы</a>
+          {% endif %}
+          <a class="btn primary" href="{{ cabinet_url }}#/chat">Задать вопрос менеджеру</a>
+        </div>
+      </div>
+
+      {% if tariff_future %}
+        <div class="flash ok">С {{ tariff_future.valid_from|date:"d.m.Y" }} начнёт действовать новая редакция тарифов.</div>
+      {% endif %}
+
+      {% if tariff_current %}
+        <div class="tariff-summary">
+          <div class="tariff-kv">
+            <span>Статус тарифов</span>
+            <strong><span class="status-pill status-{{ tariff_current.effective_status }}">{{ tariff_current.get_status_display }}</span></strong>
+          </div>
+          <div class="tariff-kv"><span>Дата начала</span><strong>{{ tariff_current.valid_from|date:"d.m.Y" }}</strong></div>
+          <div class="tariff-kv"><span>Дата окончания</span><strong>{% if tariff_current.valid_to %}{{ tariff_current.valid_to|date:"d.m.Y" }}{% else %}—{% endif %}</strong></div>
+          <div class="tariff-kv"><span>Номер договора</span><strong>{{ tariff_current.contract_number|default:object.contract_numb|default:"—" }}</strong></div>
+          <div class="tariff-kv"><span>Дата договора</span><strong>{% if tariff_current.contract_date %}{{ tariff_current.contract_date|date:"d.m.Y" }}{% else %}—{% endif %}</strong></div>
+          <div class="tariff-kv"><span>Доп. соглашение</span><strong>{{ tariff_current.additional_agreement_number|default:"—" }}</strong></div>
+          <div class="tariff-kv"><span>Система налогообложения</span><strong>{{ tariff_current.get_vat_type_display }}</strong></div>
+          <div class="tariff-kv"><span>Валюта</span><strong>{{ tariff_current.currency|default:"RUB" }}</strong></div>
+          <div class="tariff-kv"><span>Ответственный менеджер</span><strong>{% if tariff_current.manager %}{{ tariff_current.manager.full_name }}{% else %}—{% endif %}</strong></div>
+          <div class="tariff-kv"><span>Последнее изменение</span><strong>{{ tariff_current.updated_at|date:"d.m.Y H:i" }}</strong></div>
+        </div>
+
+        {% if tariff_groups %}
+          {% for group in tariff_groups %}
+            <details class="tariff-category" open>
+              <summary>
+                <span>{{ group.category.name }}</span>
+                <span class="muted">{{ group.items|length }} услуг</span>
+              </summary>
+              <div class="tariff-table-wrap">
+                <table class="tariff-table">
+                  <thead>
+                    <tr>
+                      <th class="tariff-service">Услуга</th>
+                      <th class="tariff-unit">Ед.</th>
+                      <th class="tariff-price">Цена</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for item in group.items %}
+                      <tr>
+                        <td class="tariff-service"><strong>{{ item.service_name }}</strong></td>
+                        <td class="tariff-unit">{{ item.unit.short_name }}</td>
+                        <td class="tariff-price">{{ item.price|rub_fmt }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          {% endfor %}
+        {% endif %}
+
+        {% if logistics_tariff_current %}
+          <details class="tariff-category" open>
+            <summary>
+              <span>Логистика и доставка</span>
+              <span class="muted">{{ logistics_tariff_items|length }} направлений · с {{ logistics_tariff_current.valid_from|date:"d.m.Y" }}</span>
+            </summary>
+            <div class="tariff-table-wrap">
+              <table class="tariff-table" style="table-layout:auto">
+                <thead>
+                  <tr>
+                    <th>Маркетплейс</th>
+                    <th>Склад / направление</th>
+                    <th>Дни забора</th>
+                    <th>Дни сдачи</th>
+                    <th class="tariff-price">Цена за паллету</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in logistics_tariff_items %}
+                    <tr>
+                      <td>{{ item.get_marketplace_display }}</td>
+                      <td><strong>{{ item.warehouse_name }}</strong></td>
+                      <td>{{ item.pickup_days|default:"—" }}</td>
+                      <td>{{ item.delivery_days|default:"—" }}</td>
+                      <td class="tariff-price">{{ item.price_per_pallet|rub_fmt }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        {% endif %}
+
+        <section class="panel" style="margin-top:16px;">
+          <h2 class="section-title" style="font-size:18px;">Ваши специальные условия</h2>
+          {% if tariff_conditions %}
+            <div class="condition-grid">
+              {% for condition in tariff_conditions %}
+                <div class="condition-card">
+                  <strong>{{ condition.name }}</strong>
+                  <p class="section-note">{{ condition.description|default:condition.get_condition_type_display }}</p>
+                  {% if condition.value %}<p><b>{{ condition.value }}</b>{% if condition.unit %} {{ condition.unit.short_name }}{% endif %}</p>{% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="section-note">Специальные условия для текущей редакции не добавлены.</p>
+          {% endif %}
+          {% if tariff_current.general_comment %}
+            <p class="section-note" style="margin-top:12px;">{{ tariff_current.general_comment }}</p>
+          {% endif %}
+        </section>
+
+        <section class="panel" style="margin-top:16px;">
+          <h2 class="section-title" style="font-size:18px;">История тарифов</h2>
+          <div class="tariff-table-wrap">
+            <table class="history-table">
+              <thead><tr><th>Редакция</th><th>Период</th><th>Статус</th><th>Договор / допсоглашение</th><th>Дата создания</th><th>Действия</th></tr></thead>
+              <tbody>
+                {% for version in tariff_history %}
+                  <tr>
+                    <td>{{ version.name }}</td>
+                    <td>{{ version.valid_from|date:"d.m.Y" }}{% if version.valid_to %}–{{ version.valid_to|date:"d.m.Y" }}{% endif %}</td>
+                    <td><span class="status-pill status-{{ version.effective_status }}">{{ version.get_status_display }}</span></td>
+                    <td>{{ version.contract_number|default:"—" }}{% if version.additional_agreement_number %}<br><span class="muted">{{ version.additional_agreement_number }}</span>{% endif %}</td>
+                    <td>{{ version.created_at|date:"d.m.Y H:i" }}</td>
+                    <td><a class="btn" href="/client/api/v1/billing/tariff-versions/{{ version.id }}/download/?client={{ object.id }}">Посмотреть</a></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {% else %}
+        <div class="empty-tariffs">
+          <h2 class="section-title" style="font-size:20px;">Согласованные тарифы пока не добавлены</h2>
+          <p>Для уточнения условий обратитесь к вашему менеджеру FULLBOX.</p>
+          <p><a class="btn primary" href="{{ cabinet_url }}#/chat">Связаться с менеджером</a></p>
+        </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <script type="application/json" id="portal-role-presets">
+    {
+      "admin": ["requests","stock","finance","reports","notifications","profile"],
+      "manager": ["requests","stock","reports","notifications"],
+      "accountant": ["finance","reports"],
+      "operator": ["requests"],
+      "custom": []
+    }
+  </script>
+  <script>
+    document.querySelectorAll("[data-copy-portal-credentials]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var value = document.querySelector("[data-portal-credentials-text]");
+        if (!value || !navigator.clipboard) return;
+        navigator.clipboard.writeText(value.textContent.trim()).then(function () {
+          button.textContent = "Скопировано";
+        });
+      });
+    });
+
+    (() => {
+      const roleSelect = document.getElementById('portal-role-select');
+      const grid = document.getElementById('portal-sections-grid');
+      const presetsEl = document.getElementById('portal-role-presets');
+      if (!roleSelect || !grid || !presetsEl) return;
+      let presets = {};
+      try { presets = JSON.parse(presetsEl.textContent || '{}'); } catch (e) { presets = {}; }
+      const boxes = () => Array.from(grid.querySelectorAll('input[type="checkbox"][data-section]'));
+      const applyRole = () => {
+        const role = String(roleSelect.value || '');
+        const selected = new Set(presets[role] || []);
+        const isCustom = role === 'custom';
+        boxes().forEach((box) => {
+          const key = String(box.dataset.section || '');
+          if (!isCustom && role) {
+            box.checked = selected.has(key);
+            box.disabled = true;
+          } else {
+            box.disabled = false;
+            if (!isCustom) box.checked = false;
+          }
+        });
+      };
+      roleSelect.addEventListener('change', applyRole);
+      applyRole();
+    })();
+  </script>
+  <script>
+    (() => {
+      const areas = document.querySelectorAll('textarea[data-autogrow]');
+      const resize = (el) => {
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+      };
+      areas.forEach((el) => {
+        resize(el);
+        el.addEventListener('input', () => resize(el));
+      });
+    })();
+  </script>
+  <script>
+    (function(){
+      const fetchBtn = document.getElementById('btn-fetch-inn');
+      const innInput = document.getElementById('field-inn');
+      if (!fetchBtn || !innInput) return;
+
+      const mapFields = {
+        agn_name: 'id_agn_name',
+        pref: 'id_pref',
+        inn: 'field-inn',
+        kpp: 'id_kpp',
+        ogrn: 'id_ogrn',
+        adres: 'id_adres',
+        fakt_adres: 'id_fakt_adres',
+        fio_agn: 'id_fio_agn',
+      };
+
+      fetchBtn.addEventListener('click', () => {
+        const inn = (innInput.value || '').trim();
+        if (!inn) {
+          alert('Введите ИНН');
+          return;
+        }
+        fetch(`/client/fetch-by-inn/?inn=${encodeURIComponent(inn)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (!data.ok) {
+              alert(data.error || 'Не удалось получить данные');
+              return;
+            }
+            const d = data.data || {};
+            Object.entries(mapFields).forEach(([key, fieldId]) => {
+              const el = document.getElementById(fieldId);
+              if (el && d[key] !== undefined && d[key] !== null) {
+                el.value = d[key];
+              }
+            });
+            const chkOferta = document.getElementById('id_sign_oferta');
+            if (chkOferta && d.sign_oferta !== undefined) chkOferta.checked = !!d.sign_oferta;
+          })
+          .catch(() => alert('Ошибка запроса к DaData'));
+      });
+    })();
+  </script>
+  <script>
+    (function(){
+      const phoneInput = document.getElementById('id_phone');
+      if (!phoneInput) return;
+
+      const onlyDigits = (value) => (value || '').replace(/\D/g, '');
+      const formatPhone = (digits) => {
+        if (!digits) return '+7 ';
+        let d = digits;
+        if (d[0] === '8') d = `7${d.slice(1)}`;
+        if (d[0] !== '7') d = `7${d}`;
+        d = d.slice(0, 11);
+        const main = d.slice(1);
+        let out = '+7';
+        if (main.length) {
+          out += ` (${main.slice(0, 3)}`;
+          if (main.length >= 3) out += ')';
+        }
+        if (main.length > 3) out += ` ${main.slice(3, 6)}`;
+        if (main.length > 6) out += `-${main.slice(6, 8)}`;
+        if (main.length > 8) out += `-${main.slice(8, 10)}`;
+        return out;
+      };
+
+      const applyFormat = () => {
+        const digits = onlyDigits(phoneInput.value);
+        phoneInput.value = formatPhone(digits);
+      };
+
+      if (!phoneInput.value) {
+        phoneInput.value = '+7 ';
+      } else {
+        phoneInput.value = formatPhone(onlyDigits(phoneInput.value));
+      }
+
+      phoneInput.addEventListener('focus', () => {
+        if (!phoneInput.value) phoneInput.value = '+7 ';
+        if (phoneInput.value === '+7') phoneInput.value = '+7 ';
+      });
+      phoneInput.addEventListener('input', applyFormat);
+      phoneInput.addEventListener('blur', () => {
+        if (onlyDigits(phoneInput.value).length <= 1) {
+          phoneInput.value = '';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+{% extends "teammanager/_base.html" %}
+{% load billing_tags %}
+
+{% block title %}Оплаты — Биллинг{% endblock %}
+
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.summary-strip { display:flex; gap:12px; flex-wrap:wrap; }
+.stat-pill { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:12px 18px; min-width:110px; }
+.stat-pill .sp-label { font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; }
+.stat-pill .sp-value { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:20px; font-weight:900; margin-top:2px; }
+.filter-card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.field { border:1px solid var(--line); border-radius:10px; background:#fff; padding:9px 12px; font:inherit; font-size:13px; }
+.table-card { overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:900px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:2px solid var(--line); }
+td { padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+.row-main { font-weight:800; }
+.row-sub { color:var(--muted); font-size:11px; margin-top:2px; }
+.money { font-family:"Bricolage Grotesque","Manrope",sans-serif; font-weight:800; }
+.hint { font-size:12px; color:var(--muted); }
+{% endblock %}
+
+{% block content %}
+{% include "billing/_billing_nav.html" %}
+
+<div>
+  <h1 class="page-title">Оплаты</h1>
+  <div class="page-sub">Реестр фактических оплат по портфелю. Регистрацию проводит бухгалтер.</div>
+</div>
+
+<div class="summary-strip">
+  <div class="stat-pill"><div class="sp-label">Записей</div><div class="sp-value">{{ payments_count }}</div></div>
+  <div class="stat-pill"><div class="sp-label">Сумма</div><div class="sp-value">{{ payments_total|money_fmt }}</div></div>
+</div>
+
+<form class="filter-card" method="get">
+  <select class="field" name="client">
+    <option value="">Все клиенты</option>
+    {% for c in payment_clients %}
+      <option value="{{ c.id }}" {% if filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.short_name|default:c.agn_name }}</option>
+    {% endfor %}
+  </select>
+  <input class="field" type="date" name="date_from" value="{{ filter_date_from }}" title="С даты">
+  <input class="field" type="date" name="date_to" value="{{ filter_date_to }}" title="По дату">
+  <button class="btn primary" type="submit">Найти</button>
+</form>
+
+<div class="table-card">
+  <table>
+    <thead>
+      <tr>
+        <th>Дата</th>
+        <th>Клиент</th>
+        <th>Счёт</th>
+        <th>Сумма</th>
+        <th>Источник</th>
+        <th>Кто зарегистрировал</th>
+        <th>Комментарий</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in payments %}
+        <tr>
+          <td>{{ p.paid_at|date:"d.m.Y H:i" }}</td>
+          <td>{{ p.invoice.client.short_name|default:p.invoice.client.agn_name|truncatechars:28 }}</td>
+          <td>
+            <div class="row-main"><a href="/team-manager/billing/invoices/{{ p.invoice_id }}/">{{ p.invoice.number }}</a></div>
+            <div class="row-sub">долг {{ p.invoice.debt_amount|money_fmt }}</div>
+          </td>
+          <td><span class="money">{{ p.amount|money_fmt }}</span></td>
+          <td>{{ p.source }}</td>
+          <td>{% if p.registered_by %}{{ p.registered_by.get_full_name|default:p.registered_by.username }}{% else %}—{% endif %}</td>
+          <td>{{ p.comment|truncatechars:60|default:"—" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" style="padding:36px;text-align:center;color:var(--muted);font-weight:700">Оплат пока нет</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="hint">Обещание оплаты не отображается здесь и не уменьшает долг — см. раздел «Обещания».</p>
+{% endblock %}

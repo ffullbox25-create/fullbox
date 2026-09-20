@@ -1,0 +1,477 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}Инвентаризация #{{ inventory.id }}{% endblock %}
+{% block page_class %}{% if request_role == 'picker' %}picker-inventory-compact-page{% endif %}{% endblock %}
+{% block page_title %}{% if request_role == 'picker' %}Инвентаризация{% else %}{{ page_title }}{% endif %}{% endblock %}
+
+{% block content %}
+{% if request_role == 'picker' %}
+  <style>
+    .picker-inventory-compact-page {
+      gap: .55rem;
+      max-width: 34rem;
+      padding: .55rem;
+    }
+    .picker-inventory-compact-page .brand-row,
+    .picker-inventory-compact-page .header-copy p,
+    .picker-inventory-compact-page > a.button.button-secondary {
+      display: none;
+    }
+    .picker-inventory-compact-page .tsd-header {
+      gap: .4rem;
+      min-height: 0;
+      padding: .45rem .55rem;
+    }
+    .picker-inventory-compact-page .header-copy h1 {
+      font-size: 1.08rem;
+      line-height: 1.1;
+      margin: 0;
+    }
+    .picker-inventory-compact-page .tsd-header-actions {
+      gap: .3rem;
+    }
+    .picker-inventory-compact-page .tsd-header-actions a,
+    .picker-inventory-compact-page .tsd-header-actions button {
+      min-height: 2.25rem;
+      padding: .38rem .55rem;
+    }
+    .picker-inventory-compact {
+      display: grid;
+      gap: .55rem;
+    }
+    .picker-inventory-identity,
+    .picker-inventory-progress,
+    .picker-inventory-last,
+    .picker-inventory-state {
+      background: var(--surface, #fff);
+      border: 1px solid var(--line, #e7dfcf);
+      border-radius: .75rem;
+      padding: .65rem .75rem;
+    }
+    .picker-inventory-identity {
+      display: grid;
+      gap: .35rem;
+    }
+    .picker-inventory-identity div {
+      display: grid;
+      grid-template-columns: 4.25rem minmax(0, 1fr);
+      gap: .45rem;
+      align-items: baseline;
+    }
+    .picker-inventory-identity span,
+    .picker-inventory-last span {
+      color: var(--muted, #6f675c);
+      font-size: .78rem;
+    }
+    .picker-inventory-identity strong,
+    .picker-inventory-progress strong,
+    .picker-inventory-last strong {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .picker-inventory-compact .scan-form {
+      gap: .5rem;
+      margin: 0;
+      padding: .65rem;
+    }
+    .picker-inventory-compact .scan-form label {
+      margin: 0;
+    }
+    .picker-inventory-compact .scan-form input[type="text"],
+    .picker-inventory-compact .scan-form input:not([type]) {
+      font-size: 1.15rem;
+      min-height: 3.3rem;
+    }
+    .picker-inventory-compact .button {
+      min-height: 3rem;
+    }
+    .picker-inventory-progress {
+      align-items: center;
+      background: rgba(248, 144, 0, .13);
+      border-color: rgba(248, 144, 0, .48);
+      display: flex;
+      justify-content: space-between;
+      gap: .75rem;
+    }
+    .picker-inventory-progress span {
+      color: var(--text, #303030);
+      font-size: .95rem;
+      font-weight: 750;
+    }
+    .picker-inventory-progress strong {
+      color: var(--text, #303030);
+      font-size: 1.45rem;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .picker-inventory-last {
+      display: grid;
+      gap: .18rem;
+    }
+    .picker-inventory-last small {
+      color: var(--muted, #6f675c);
+    }
+    .picker-inventory-finish label {
+      align-items: center;
+      display: flex;
+      font-size: .88rem;
+      gap: .4rem;
+    }
+    .picker-inventory-finish input[type="checkbox"] {
+      flex: 0 0 auto;
+      height: 1.25rem;
+      width: 1.25rem;
+    }
+  </style>
+  <section class="picker-inventory-compact" data-picker-inventory-compact>
+    <div class="picker-inventory-identity">
+      <div><span>Клиент</span><strong title="{{ picker_inventory_client_label }}">{{ picker_inventory_client_label|truncatechars:30 }}</strong></div>
+      <div><span>Короб</span><strong>{{ picker_inventory_box_label }}</strong></div>
+    </div>
+
+    {% if inventory.status == 'counting' or inventory.status == 'recount' %}
+      <div class="picker-inventory-progress" aria-live="polite" aria-label="Количество отсканированного товара">
+        {% if inventory.status == 'recount' and not is_counter %}
+          <span>Первый пересчёт</span>
+          <strong>{{ picker_inventory_first_total }} шт.</strong>
+        {% else %}
+          <span>Отсканировано</span>
+          <strong>{{ picker_inventory_scanned_total }} шт.</strong>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if inventory.managed_workflow %}
+      {% if not assignment_scope_supported %}
+        <div class="picker-inventory-state" role="alert">
+          <strong>Это сводная проверка клиента, её нельзя выполнять на ТСД.</strong><br>
+          Попросите кладовщика создать задания по паллетам клиента. Остатки не изменены.
+        </div>
+      {% else %}
+      {% if inventory.status == 'draining' or inventory.status == 'counting' or inventory.status == 'recount' %}
+        {% if is_counter %}
+          {% if not count_started %}
+            <form class="scan-form" method="post" autocomplete="off" data-submit-once>{% csrf_token %}
+              <input type="hidden" name="action" value="start">
+              {% if inventory.scope_type != 'box' %}<label>Скан места<input name="place_scan" required autofocus></label>{% endif %}
+              {% if inventory.scope_type != 'cell' %}<label>Скан {% if inventory.scope_type == 'pallet' %}паллеты{% else %}короба{% endif %}<input name="box_scan" required{% if inventory.scope_type == 'box' %} autofocus{% endif %}></label>{% endif %}
+              <button class="button button-primary" type="submit">Начать</button>
+            </form>
+          {% else %}
+            <form class="scan-form" method="post" autocomplete="off" data-submit-once data-scan-feedback>{% csrf_token %}
+              <input type="hidden" name="action" value="scan">
+              {% if inventory.scope_type != 'box' %}
+                {% if inventory.scope_type != 'cell' or inventory.scan_mode != 'kiz' %}<label>Короб<input name="box_scan" required></label>{% endif %}
+              {% endif %}
+              <label>{% if inventory.scan_mode == 'kiz' %}Data Matrix{% else %}ШК товара{% endif %}<input name="scan_code" required autofocus autocomplete="off" data-scanner-only></label>
+              <button class="button button-primary" type="submit">Добавить 1 шт.</button>
+            </form>
+            {% if latest_inventory_scan %}
+              <div class="picker-inventory-last" aria-live="polite">
+                <span>Последний товар</span>
+                <strong>{{ latest_inventory_scan.line.balance.name|default:latest_inventory_scan.line.balance.sku_code|truncatechars:38 }}</strong>
+                <small>{% if inventory.scan_mode == 'kiz' %}КИЗ{% else %}ШК{% endif %} {{ latest_inventory_scan.scan_code|default:latest_inventory_scan.line.balance.barcode }} · {{ latest_inventory_count }} шт.</small>
+              </div>
+            {% endif %}
+            <form class="scan-form picker-inventory-finish" method="post" data-submit-once>{% csrf_token %}
+              <input type="hidden" name="action" value="finish">
+              <label><input type="checkbox" name="confirm_complete" value="1" required> Всё проверено</label>
+              <button class="button button-secondary" type="submit">{% if self_started_inventory %}Отправить{% else %}Завершить{% endif %}</button>
+            </form>
+          {% endif %}
+        {% else %}
+          {% if inventory.status == 'recount' %}
+            <div class="picker-inventory-state" role="status">
+              <strong>Первый пересчёт завершён.</strong><br>
+              {% if assigned_counter %}
+                Повторный пересчёт назначен другому сотруднику: {{ assigned_counter.get_full_name|default:assigned_counter.username }}. Продолжите под его учётной записью.
+              {% else %}
+                Требуется повторный пересчёт другим сотрудником. Ожидает назначения кладовщиком.
+              {% endif %}
+            </div>
+          {% endif %}
+        {% endif %}
+      {% elif inventory.status == 'approval' %}
+        <p class="picker-inventory-state">Пересчёт отправлен на проверку.</p>
+      {% elif inventory.status == 'done' %}
+        <p class="picker-inventory-state">Инвентаризация завершена.</p>
+      {% endif %}
+      {% endif %}
+    {% elif inventory.status == 'draining' %}
+      <form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="activate"><button class="button button-primary" type="submit">Начать</button></form>
+    {% elif inventory.status == 'counting' or inventory.status == 'recount' %}
+      <form class="scan-form" method="post" autocomplete="off" data-submit-once data-scan-feedback>
+        {% csrf_token %}<input type="hidden" name="action" value="scan">
+        <label>{% if inventory.scan_mode == 'kiz' %}Data Matrix{% else %}ШК товара{% endif %}<input name="scan_code" required autofocus autocomplete="off" data-scanner-only></label>
+        <button class="button button-primary" type="submit">Добавить 1 шт.</button>
+      </form>
+      {% if latest_inventory_scan %}
+        <div class="picker-inventory-last" aria-live="polite">
+          <span>Последний товар</span>
+          <strong>{{ latest_inventory_scan.line.balance.name|default:latest_inventory_scan.line.balance.sku_code|truncatechars:38 }}</strong>
+          <small>{% if inventory.scan_mode == 'kiz' %}КИЗ{% else %}ШК{% endif %} {{ latest_inventory_scan.scan_code|default:latest_inventory_scan.line.balance.barcode }} · {{ latest_inventory_count }} шт.</small>
+        </div>
+      {% endif %}
+      <form class="scan-form picker-inventory-finish" method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="finish"><button class="button button-secondary" type="submit">Завершить</button></form>
+    {% endif %}
+  </section>
+{% else %}
+  <section class="detail-surface">
+    <h2>{{ inventory.workflow_target_label }}</h2>
+    <p><strong>Последнее известное место (подсказка):</strong> {{ inventory_place_label }} · {{ inventory.workflow_agency_label }}</p>
+    <p>Исполнитель: {{ inventory.workflow_assignee_label }}</p>
+    <div class="metric-grid">
+      <div><span>Область</span><strong>{{ inventory.get_scope_type_display }}</strong></div>
+      <div><span>Режим</span><strong>{{ inventory.get_mode_display }}</strong></div>
+      <div><span>Пересчет</span><strong>{{ inventory.get_scan_mode_display }}</strong></div>
+      <div><span>Статус</span><strong>{{ inventory.get_status_display }}</strong></div>
+      <div><span>Строк</span><strong>{{ inventory.lines.count }}</strong></div>
+    </div>
+  </section>
+  {% if inventory.status == 'approval' and can_manage %}
+    <style>
+      .inventory-approval-panel {
+        border: 2px solid rgba(248, 144, 0, .45);
+      }
+      .inventory-approval-conflict {
+        align-items: center;
+        border-bottom: 1px solid rgba(48, 48, 48, .12);
+        display: grid;
+        gap: .35rem .75rem;
+        grid-template-columns: minmax(15rem, 2fr) repeat(3, minmax(6rem, .55fr)) minmax(7rem, .65fr);
+        padding: .45rem .25rem;
+      }
+      .inventory-approval-conflict p {
+        margin: 0;
+      }
+      .inventory-approval-counts {
+        display: contents;
+      }
+      .inventory-approval-counts span {
+        color: var(--muted, #6f675c);
+      }
+      .inventory-approval-counts strong {
+        color: var(--text, #303030);
+        display: block;
+        font-size: 1rem;
+      }
+      .inventory-approval-item small {
+        color: var(--muted, #6f675c);
+      }
+      .inventory-approval-final {
+        display: grid;
+        gap: .2rem;
+      }
+      .inventory-approval-final label {
+        color: var(--muted, #6f675c);
+        font-size: .75rem;
+      }
+      .inventory-approval-final input {
+        margin: 0;
+        max-width: 8rem;
+        min-height: 2.25rem;
+        padding: .35rem .5rem;
+      }
+      .inventory-approval-submit {
+        min-height: 2.35rem;
+        padding: .45rem .8rem;
+        width: auto;
+      }
+      @media (max-width: 760px) {
+        .inventory-approval-conflict {
+          grid-template-columns: 1fr 1fr;
+        }
+        .inventory-approval-item {
+          grid-column: 1 / -1;
+        }
+      }
+    </style>
+    <section class="detail-surface inventory-approval-panel" aria-labelledby="inventory-approval-title">
+      <h2 id="inventory-approval-title">Решение начальника склада</h2>
+      <p>Одна строка — один штрих-код. Разные штрих-коды показаны отдельно. Повторный пересчёт подставлен как итог.</p>
+      <form class="scan-form" method="post" data-submit-once>
+        {% csrf_token %}<input type="hidden" name="action" value="approve">
+        {% for group in inventory_approval_groups %}
+          <div class="inventory-approval-conflict">
+            <p class="inventory-approval-item"><strong>{{ group.balance.name|default:group.balance.sku_code }}</strong><br><small>{{ group.balance.box.box_code }} · ШК {{ group.balance.barcode|default:"—" }}{% if group.lines|length > 1 %} · объединено позиций: {{ group.lines|length }}{% endif %}</small></p>
+            <div class="inventory-approval-counts">
+              <span>По учёту<strong>{{ group.expected_qty }}</strong></span>
+              <span>Первый пересчёт<strong>{{ group.first_count_qty }}</strong></span>
+              <span>Повторный пересчёт<strong>{{ group.second_count_qty }}</strong></span>
+            </div>
+            <div class="inventory-approval-final">
+              <label for="head-final-group-{{ group.key }}">Итог</label>
+              <input id="head-final-group-{{ group.key }}" type="number" min="0" name="final_group_{{ group.key }}" value="{{ group.second_count_qty }}" required>
+            </div>
+          </div>
+        {% endfor %}
+        {% if inventory.scan_mode == 'kiz' %}<p>Для новых КИЗов итог берётся только из фактических сканов и вручную не изменяется.</p>{% endif %}
+        <p>Совпавшие строки будут приняты автоматически. При недостаче неподобранные заказы вернутся на резервирование; уже собранный товар не изменится.</p>
+        <button class="button button-primary inventory-approval-submit" type="submit">Утвердить и закрыть</button>
+      </form>
+    </section>
+  {% endif %}
+  {% if inventory_result_summary %}
+    <style>
+      .inventory-results-summary {
+        margin-bottom: .75rem;
+      }
+      .inventory-results-scroll {
+        overflow-x: auto;
+      }
+      .inventory-results-table {
+        border-collapse: collapse;
+        min-width: 44rem;
+        width: 100%;
+      }
+      .inventory-results-table th,
+      .inventory-results-table td {
+        border-bottom: 1px solid var(--line, #e7dfcf);
+        padding: .55rem .65rem;
+        text-align: left;
+        vertical-align: top;
+      }
+      .inventory-results-table th {
+        color: var(--muted, #6f675c);
+        font-size: .78rem;
+        text-transform: uppercase;
+      }
+      .inventory-results-product strong,
+      .inventory-results-product span {
+        display: block;
+      }
+      .inventory-results-product span {
+        color: var(--muted, #6f675c);
+        font-size: .82rem;
+      }
+      .inventory-results-delta-negative {
+        color: #b42318;
+        font-weight: 800;
+      }
+      .inventory-results-delta-positive {
+        color: #087443;
+        font-weight: 800;
+      }
+    </style>
+    <section class="detail-surface" aria-labelledby="inventory-results-title">
+      <h2 id="inventory-results-title">Итоги инвентаризации</h2>
+      <div class="metric-grid inventory-results-summary">
+        <div><span>По учёту</span><strong>{{ inventory_result_summary.expected_total }} шт.</strong></div>
+        <div><span>Первый пересчёт</span><strong>{{ inventory_result_summary.first_total }} шт.</strong></div>
+        <div><span>Расхождение</span><strong class="{% if inventory_result_summary.first_delta < 0 %}inventory-results-delta-negative{% elif inventory_result_summary.first_delta > 0 %}inventory-results-delta-positive{% endif %}">{% if inventory_result_summary.first_delta > 0 %}+{% endif %}{{ inventory_result_summary.first_delta }} шт.</strong></div>
+        {% if inventory_result_summary.second_total != None %}<div><span>Повторный пересчёт</span><strong>{{ inventory_result_summary.second_total }} шт.</strong></div>{% endif %}
+        {% if inventory_result_summary.final_total != None %}<div><span>Утверждено</span><strong>{{ inventory_result_summary.final_total }} шт.</strong></div>{% endif %}
+      </div>
+      <div class="inventory-results-scroll">
+        <table class="inventory-results-table">
+          <thead>
+            <tr>
+              <th>Товар</th>
+              <th>Штрихкод</th>
+              <th>По учёту</th>
+              <th>Первый пересчёт</th>
+              <th>Расхождение</th>
+              <th>Повторный пересчёт</th>
+              <th>Итог</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in inventory_result_rows %}
+              <tr>
+                <td class="inventory-results-product">
+                  <strong>{{ row.line.balance.name|default:row.line.balance.sku_code }}</strong>
+                  <span>{{ row.line.balance.sku_code }}{% if row.line_count > 1 %} · объединено: {{ row.line_count }}{% endif %}</span>
+                </td>
+                <td>{{ row.line.balance.barcode|default:"—" }}</td>
+                <td>{{ row.expected_qty }}</td>
+                <td>{{ row.first_qty }}</td>
+                <td class="{% if row.first_delta < 0 %}inventory-results-delta-negative{% elif row.first_delta > 0 %}inventory-results-delta-positive{% endif %}">{% if row.first_delta > 0 %}+{% endif %}{{ row.first_delta }}</td>
+                <td>{% if row.second_qty != None %}{{ row.second_qty }}{% else %}—{% endif %}</td>
+                <td>{% if row.final_qty != None %}{{ row.final_qty }}{% else %}—{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+  {% if can_assign_inventory %}
+    <form class="scan-form" method="post" data-submit-once>{% csrf_token %}
+      <input type="hidden" name="action" value="assign">
+      <label for="assigned-to">{% if inventory.status == 'recount' %}Другой сотрудник для повторного пересчета{% else %}Кому проверить{% endif %}</label>
+      <select id="assigned-to" name="assigned_to" required><option value="">Выберите сборщика FBS</option>
+      {% for employee in counter_employees %}<option value="{{ employee.user_id }}">{{ employee.full_name }} · {{ employee.user.username }}</option>{% endfor %}</select>
+      <button class="button button-primary" type="submit">Назначить</button>
+    </form>
+  {% elif can_dispatch and not assignment_scope_supported and inventory.status != 'done' and inventory.status != 'canceled' %}
+    <section class="detail-surface">
+      <p><strong>Сводную область нельзя назначить исполнителю на ТСД.</strong></p>
+      <p>Для клиента вернитесь в список инвентаризаций и используйте «Задание на инвентаризацию клиента»: система создаст отдельные задания по паллетам.</p>
+    </section>
+  {% endif %}
+  {% if inventory.managed_workflow %}
+    {% if inventory.status == 'draining' or inventory.status == 'counting' or inventory.status == 'recount' %}
+      {% if inventory.status == 'recount' and can_manage and not count_started %}
+        <form class="scan-form" method="post" data-submit-once>{% csrf_token %}
+          <input type="hidden" name="action" value="confirm_discrepancies">
+          <p><strong>Подтверждение без повторного пересчета</strong></p>
+          <p>Остаток будет установлен по первому пересчету. Неподобранные резервы затронутых заказов могут быть освобождены и поставлены на повторное резервирование.</p>
+          <label><input type="checkbox" name="responsibility_acknowledged" value="1" required> Подтверждаю расхождения и принимаю ответственность за результат первого пересчета.</label>
+          <button class="button button-primary" type="submit">Подтвердить расхождения</button>
+        </form>
+      {% endif %}
+      {% if is_counter %}
+        {% if not count_started %}
+          <form class="scan-form" method="post" autocomplete="off">{% csrf_token %}
+            <input type="hidden" name="action" value="start">
+            {% if inventory.scope_type != 'box' %}<label>Скан ячейки<input name="place_scan" required autofocus></label>{% endif %}
+            {% if inventory.scope_type != 'cell' %}<label>Обязательный скан {% if inventory.scope_type == 'pallet' %}паллеты{% else %}короба {{ inventory.box.box_code }}{% endif %}<input name="box_scan" required{% if inventory.scope_type == 'box' %} autofocus{% endif %}></label>{% endif %}
+            <button class="button button-primary">Начать проверку</button>
+            {% if inventory.scope_type == 'box' %}<p>Адрес выше нужен только для поиска. Проверка начинается по QR конкретного короба.</p>{% else %}<p>Сначала завершатся активные операции только в этом месте.</p>{% endif %}
+          </form>
+        {% else %}
+          <form class="scan-form" method="post" autocomplete="off" data-submit-once data-scan-feedback>{% csrf_token %}
+            <input type="hidden" name="action" value="scan">
+            {% if inventory.scope_type != 'box' %}
+              {% if inventory.scope_type != 'cell' or inventory.scan_mode != 'kiz' %}<label>Короб<input name="box_scan" required></label>{% endif %}
+            {% endif %}
+            <label>{% if inventory.scan_mode == 'kiz' %}КИЗ{% else %}ШК товара{% endif %}<input name="scan_code" required autofocus data-scanner-only></label>
+            <button class="button button-primary">Добавить 1 шт.</button>
+          </form>
+          {% if inventory.scan_mode == 'kiz' and inventory.scope_type == 'box' %}
+            <p>Сканируйте каждый Data Matrix по одному разу. Новый КИЗ проверяется по GTIN и клиенту, а после утверждения закрепляется за этим коробом без изменения общего остатка.</p>
+            <p><strong>При повторном скане появится красное сообщение «ДУБЛЬ КИЗа». Дубль не будет добавлен в пересчёт.</strong></p>
+          {% endif %}
+          <p>Пересчитано: {% for line in inventory.lines.all %}{{ line.balance.sku_code }} — {% if inventory.status == 'recount' %}{{ line.second_count_qty|default_if_none:0 }}{% else %}{{ line.first_count_qty|default_if_none:0 }}{% endif %} шт. {% endfor %}</p>
+          <form class="scan-form" method="post" data-submit-once>{% csrf_token %}
+            <input type="hidden" name="action" value="finish">
+            <label><input type="checkbox" name="confirm_complete" value="1" required> Всё в этой области проверено. Неотсканированные позиции отсутствуют (0 шт.).</label>
+            <button class="button button-primary">{% if self_started_inventory %}Отправить на проверку{% else %}Завершить{% endif %} · неотсканированное — 0 шт.</button>
+          </form>
+        {% endif %}
+      {% endif %}
+    {% endif %}
+  {% elif inventory.status == 'draining' %}
+    <form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="activate"><button class="button button-primary" type="submit">Проверить и начать пересчет</button></form>
+  {% elif inventory.status == 'counting' or inventory.status == 'recount' %}
+    <form class="scan-form" method="post" autocomplete="off" data-submit-once data-scan-feedback>
+      {% csrf_token %}<input type="hidden" name="action" value="scan">
+      {% if inventory.scan_mode == 'kiz' %}
+        <label for="inventory-scan">Точный КИЗ единицы товара</label>
+      {% else %}
+        <label for="inventory-scan">Точный штрихкод товара без КИЗа</label>
+      {% endif %}
+      <input id="inventory-scan" name="scan_code" required autofocus autocomplete="off" data-scanner-only>
+      <button class="button button-primary" type="submit">Добавить скан</button>
+    </form>
+    <form method="post" data-submit-once>{% csrf_token %}<input type="hidden" name="action" value="finish"><button class="button button-secondary" type="submit">Завершить пересчет</button></form>
+  {% endif %}
+  {% if can_dispatch %}
+    <details><summary>Затронутые заказы · {{ inventory_issues|length }}</summary>
+      {% for issue in inventory_issues %}<p>Заказ {{ issue.task.order.external_order_id }} · {{ issue.allocation.balance.sku_code }} · {{ issue.get_status_display }}<br>{{ issue.reason }}<br>Сообщил: {{ issue.created_by.get_full_name|default:issue.created_by.username }} · {{ issue.created_at|date:"d.m H:i" }}</p>{% endfor %}
+      {% if inventory.status == 'done' %}<p>Открытая проблема заказа требует наличия товара или разбора неполного набора. Пересчет сам по себе не означает готовность заказа.</p>{% endif %}
+    </details>
+    <details><summary>История проверки</summary>{% for entry in inventory_events %}<p>{{ entry.created_at|date:"d.m H:i" }} · {{ entry.actor }} · {{ entry.action_label }} · {{ entry.payload }}</p>{% endfor %}</details>
+  {% endif %}
+{% endif %}
+{% endblock %}

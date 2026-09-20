@@ -1,0 +1,20 @@
+User-Agent: *
+Disallow: /page61187857.html
+Disallow: /error404
+Disallow: /page61188153.html
+Disallow: /policy
+Disallow: /page65541991.html
+Disallow: /tilda/form*
+Disallow: /tilda/rec*
+Disallow: /tilda/click*
+Disallow: /tilda/scroll*
+Disallow: /tilda/popup*
+Disallow: /tilda/cart*
+Disallow: /tilda/product*
+Disallow: /tilda/event*
+Disallow: /members/login*
+Disallow: /members/signup*
+Disallow:
+
+
+Sitemap: https://fullbox.ru/sitemap.xml

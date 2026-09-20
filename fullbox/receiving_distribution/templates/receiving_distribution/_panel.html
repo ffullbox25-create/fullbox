@@ -1,0 +1,92 @@
+{# Вставка в карточку приёмки: план направлений. Не управляет коробами/ШК. #}
+{% if receiving_distribution %}
+<details class="accordion-section" open>
+  <summary>
+    <span class="accordion-title">Связанные отгрузки</span>
+    <span class="accordion-count">
+      {{ receiving_distribution.directions|length }} напр. ·
+      {{ receiving_distribution.shipping_count }} отгр. ·
+      {{ receiving_distribution.status_label }}
+    </span>
+  </summary>
+  <div class="accordion-body">
+    <p class="muted" style="margin:8px 0 12px">
+      Приёмка с распределением: одна головная заявка и связанные черновики отгрузки по направлениям.
+      Короба, ШК и печать — по текущей складской логике; здесь план и факт по направлениям.
+    </p>
+
+    <div class="table-scroll" style="margin-bottom:12px">
+      <table>
+        <thead>
+          <tr>
+            <th>Направление</th>
+            <th>Поставка</th>
+            <th>План</th>
+            <th>Принято</th>
+            <th>Осталось</th>
+            <th>Статус</th>
+            <th>Связанная отгрузка</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in receiving_distribution.directions %}
+          <tr>
+            <td>
+              <strong>{{ d.title }}</strong>
+              {% if d.marketplace_name or d.destination_warehouse %}
+                <div class="muted">{{ d.marketplace_name }}{% if d.marketplace_name and d.destination_warehouse %} · {% endif %}{{ d.destination_warehouse }}</div>
+              {% endif %}
+            </td>
+            <td>{{ d.supply_number|default:"—" }}</td>
+            <td>{{ d.qty_plan }}</td>
+            <td>{{ d.qty_accepted }}</td>
+            <td>{{ d.qty_remaining }}</td>
+            <td><span class="pill">{{ d.status_label }}</span></td>
+            <td>
+              {% if d.shipping_pk %}
+                <a href="/shipping/{{ d.shipping_pk }}/">{{ d.shipping_number }}</a>
+                <div class="muted">{{ d.shipping_status_label }}</div>
+              {% else %}
+                {{ d.shipping_status_label }}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Артикул</th>
+            <th>Всего</th>
+            <th>Распределение (план / факт)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in receiving_distribution.items %}
+          <tr>
+            <td>
+              <strong>{{ item.sku_code }}</strong>
+              <div class="muted">{{ item.name }}</div>
+            </td>
+            <td>{{ item.qty_total }}</td>
+            <td>
+              {% for a in item.by_direction %}
+                <div>{{ a.name }}: {{ a.qty_plan }} / {{ a.qty_accepted }}
+                  {% if a.qty_remaining %} <span class="muted">(осталось {{ a.qty_remaining }})</span>{% endif %}
+                </div>
+              {% empty %}
+                —
+              {% endfor %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</details>
+{% endif %}

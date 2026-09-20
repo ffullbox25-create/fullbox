@@ -1,0 +1,973 @@
+{% load order_display %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>В работе {{ order_title|default:"Заявка"|lower }} № {{ order_id|display_order_number:"receiving" }}</title>
+  <link href="/static/vendor/space-grotesk.css" rel="stylesheet">
+  <style>
+    :root { --bg:#f6f4ed; --card:#ffffff; --card-soft:#f8f6f1; --gold:#c79a1c; --gold-soft:#f2d48c; --muted:#6b7280; --stroke: rgba(31,35,40,0.12); --text:#1f2328; --danger:#d14343; --success:#1f9d55; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:'Space Grotesk',system-ui,sans-serif; }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: none; margin: 0; padding: 24px 18px 64px; min-height: 100vh; }
+    .detail-layout { display:grid; grid-template-columns: 280px minmax(0, 1fr); gap:16px; align-items:start; min-height: calc(100vh - 88px); }
+    .detail-side { display:grid; gap:12px; }
+    .detail-main { display:grid; gap:12px; height: calc(100vh - 88px); overflow:hidden; }
+    .tab { padding:10px 14px; border-radius:10px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); color:var(--text); font-weight:600; }
+    .tab.primary { border-color: var(--gold); color:#1f2328; background: linear-gradient(120deg,var(--gold),var(--gold-soft)); box-shadow:0 10px 30px rgba(199,154,32,0.2); }
+    .card { background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:16px; box-shadow:0 20px 40px rgba(15,23,42,0.12); }
+    h1 { margin:0 0 6px; letter-spacing:-0.5px; }
+    .muted { color: var(--muted); }
+    .notice { border:1px solid rgba(31,157,85,0.35); background:rgba(31,157,85,0.12); color:#166534; border-radius:12px; padding:10px 12px; margin:10px 0; }
+    .error { border:1px solid rgba(209,67,67,0.35); background:rgba(209,67,67,0.12); color:#7f1d1d; border-radius:12px; padding:10px 12px; margin:10px 0; }
+    .side-card { background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:14px; box-shadow:0 16px 30px rgba(15,23,42,0.12); }
+    .side-title { font-weight:600; margin:0 0 8px; }
+    .side-actions { display:grid; gap:8px; }
+    .side-actions .tab { width:100%; display:inline-flex; justify-content:center; align-items:center; }
+    .info-list { display:grid; gap:10px; }
+    .info-item { display:grid; gap:4px; }
+    .info-label { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
+    .info-value { font-weight:600; word-break:break-word; }
+    .table-card { display:flex; flex-direction:column; min-height:0; height:100%; overflow:hidden; }
+    .table-scroll { overflow:auto; min-height:0; flex:1; border:1px solid var(--stroke); border-radius:12px; }
+    .table-scroll table { margin-top:0; }
+    .table-scroll thead th { position: sticky; top: 0; background: #f3e6b8; z-index: 1; box-shadow: 0 2px 0 rgba(31,35,40,0.08); }
+    .table-scroll tbody tr:nth-child(even) { background: #fbf6e3; }
+    .table-scroll tbody tr.row-match { background: rgba(31,157,85,0.18); }
+    .table-scroll tbody tr.row-mismatch { background: rgba(244,114,182,0.22); }
+    table { width:100%; border-collapse:collapse; min-width:860px; }
+    th, td { border-bottom:1px solid var(--stroke); border-right:1px solid var(--stroke); padding:10px; text-align:left; vertical-align:top; }
+    th:last-child, td:last-child { border-right:none; }
+    th { color: var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:1px; background:rgba(15,23,42,0.04); }
+    input[type="number"], input[type="text"], input[type="datetime-local"] { width:100%; padding:8px 10px; border-radius:10px; border:1px solid var(--stroke); background:#fff; color:var(--text); font-size:14px; }
+    .action-bar { display:flex; justify-content:flex-end; gap:10px; margin-top:14px; flex-wrap:wrap; }
+    .action-left { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .btn { padding:10px 14px; border-radius:10px; border:1px solid var(--stroke); background:rgba(15,23,42,0.04); color:var(--text); font-weight:600; cursor:pointer; }
+    .btn.primary { background: linear-gradient(120deg,var(--gold),var(--gold-soft)); color:#1f2328; border-color: transparent; }
+    .btn[disabled] { opacity:0.6; cursor:not-allowed; }
+    .entry-actual { display:flex; gap:8px; align-items:center; }
+    .entry-actual input { flex:1; }
+    .entry-add {
+      padding:8px 10px;
+      border-radius:8px;
+      border:1px solid var(--stroke);
+      background:rgba(15,23,42,0.04);
+      color:var(--text);
+      font-weight:600;
+      cursor:pointer;
+      line-height:1;
+    }
+    .entry-add:hover { border-color: var(--gold); }
+    .scanner-panel {
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      align-items:flex-end;
+      margin-bottom:12px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--stroke);
+      background:var(--card-soft);
+    }
+    .scanner-field { flex:1 1 260px; }
+    .scanner-label { font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:6px; }
+    .scanner-input {
+      width:100%;
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid var(--stroke);
+      background:#fff;
+      color:var(--text);
+      font-size:14px;
+    }
+    .scan-toggle {
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .scan-toggle input { accent-color: var(--gold); }
+    .scanner-status { width:100%; font-size:12px; color:var(--muted); }
+    .scanner-status.ok { color:#166534; }
+    .scanner-status.warn { color:#7f1d1d; }
+    .entry-meta-stack { display:grid; gap:6px; min-width:220px; }
+    .entry-meta-subgrid { display:grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap:6px; }
+    .item-meta-inline { display:grid; gap:4px; }
+    .item-meta-extra { font-size:12px; color:var(--muted); }
+    .special-box-card {
+      margin-top: 14px;
+      border: 1px solid rgba(209,67,67,0.28);
+      background: rgba(209,67,67,0.08);
+      border-radius: 12px;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+    .special-box-title {
+      font-weight: 700;
+      color: #8d1b1b;
+    }
+    .special-box-list {
+      display: grid;
+      gap: 8px;
+    }
+    .special-box-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px 12px;
+      align-items: start;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.78);
+      border: 1px solid rgba(209,67,67,0.18);
+    }
+    .special-box-meta {
+      grid-column: 1 / -1;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    @media (max-width: 1100px) {
+      .detail-layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <form method="post">
+      {% csrf_token %}
+      <div class="detail-layout">
+        <aside class="detail-side">
+          <div class="side-card">
+            <div class="muted">FULLBOX · {% include "partials/current_user.html" %}</div>
+            <h3>В работе {{ order_title|default:"Заявка"|lower }} № {{ order_id|display_order_number:"receiving" }}</h3>
+            <div class="muted">Статус: {{ status_label }}</div>
+          </div>
+
+          <div class="side-card">
+            <h4 class="side-title">Действия</h4>
+            <div class="side-actions">
+              {% if client_view %}
+                <a class="tab" href="/orders/receiving/{{ order_id }}/?client={{ client_param }}">К заявке</a>
+              {% else %}
+                <a class="tab" href="/orders/receiving/{{ order_id }}/">К заявке</a>
+              {% endif %}
+              <a class="tab" href="{{ cabinet_url }}">В кабинет</a>
+              <a class="tab" href="/logout/">Выход</a>
+            </div>
+          </div>
+
+          <div class="side-card">
+            <h4 class="side-title">Информация</h4>
+            <div class="info-list">
+              <div class="info-item">
+                <div class="info-label">От кого</div>
+                <div class="info-value">{{ client_label }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Когда</div>
+                {% if can_submit %}
+                  <input type="datetime-local" name="eta_at" value="{{ arrival_input }}" required>
+                {% else %}
+                  <div class="info-value">{{ arrival_at }}</div>
+                {% endif %}
+              </div>
+              <div class="info-item">
+                <div class="info-label">На какой машине</div>
+                {% if can_submit %}
+                  <input type="text" name="vehicle_number" value="{{ vehicle_value }}" required>
+                {% else %}
+                  <div class="info-value">{{ vehicle_number }}</div>
+                {% endif %}
+              </div>
+              <div class="info-item">
+                <div class="info-label">Телефон водителя</div>
+                <div class="info-value">{{ driver_phone|default:"-" }}</div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <main class="detail-main">
+          <div class="card table-card">
+            <h3>Состав приемки</h3>
+            {% if ok %}
+              <div class="notice">Акт приемки создан.</div>
+            {% endif %}
+            {% if error %}
+              {% if error == "placement_required" %}
+                <div class="error">Печатные формы доступны только после закрытия акта размещения.</div>
+              {% else %}
+                <div class="error">Не удалось создать акт приемки. Проверьте данные.</div>
+              {% endif %}
+            {% endif %}
+            {% if can_add_items %}
+              <div class="scanner-panel">
+                <div class="scanner-field">
+                  <div class="scanner-label">Сканер</div>
+                  <input id="scan-input" class="scanner-input" placeholder="Сканируйте штрихкод (Enter в конце)">
+                </div>
+                <label class="scan-toggle">
+                  <input type="checkbox" id="scan-autosum" checked>
+                  Суммировать по скану
+                </label>
+                <div class="scanner-status" id="scan-status">Готов к сканированию.</div>
+                <a class="btn" id="scan-sku-link" href="/sku/new/?agency={{ agency_id }}" target="_blank" rel="noopener" hidden>Завести номенклатуру</a>
+              </div>
+            {% endif %}
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Штрихкод</th>
+                    <th>Наименование / Бренд / Цвет</th>
+                    <th>Размер</th>
+                    <th>Кол-во по заявке</th>
+                    <th>Кол-во фактическое</th>
+                  </tr>
+                </thead>
+                <tbody id="act-items">
+                  {% if can_add_items %}
+                    <tr class="act-entry-row">
+                      <td><input type="text" class="entry-sku" placeholder="SKU" list="sku-options"></td>
+                      <td><input type="text" class="entry-barcode" placeholder="ШК" list="barcode-options"></td>
+                      <td>
+                        <div class="entry-meta-stack">
+                          <input type="text" class="entry-name" placeholder="Наименование" list="sku-name-options">
+                          <div class="entry-meta-subgrid">
+                            <input type="text" class="entry-brand" placeholder="Бренд">
+                            <input type="text" class="entry-color" placeholder="Цвет">
+                          </div>
+                        </div>
+                      </td>
+                      <td><input type="text" class="entry-size" placeholder="-"></td>
+                      <td><input type="number" class="entry-planned" min="0" step="1" placeholder="0"></td>
+                      <td>
+                        <div class="entry-actual">
+                          <input type="number" class="entry-actual-input" min="0" step="1" placeholder="0">
+                          <button class="entry-add" type="button" id="add-act-item" title="Добавить позицию">+</button>
+                        </div>
+                      </td>
+                    </tr>
+                  {% endif %}
+                  {% for item in items %}
+                    <tr data-sku-code="{% if item.sku_code != '-' %}{{ item.sku_code }}{% endif %}" data-barcode="{% if item.barcode and item.barcode != '-' %}{{ item.barcode }}{% endif %}">
+                      <td>{{ item.sku_code|default:"-" }}</td>
+                      <td>{{ item.barcode|default:"-" }}</td>
+                      <td>
+                        <div class="item-meta-inline">
+                          <span>{{ item.name }}</span>
+                          {% if item.brand != '-' or item.color != '-' %}
+                            <span class="item-meta-extra">{{ item.brand|default:"-" }} / {{ item.color|default:"-" }}</span>
+                          {% endif %}
+                        </div>
+                      </td>
+                      <td>{{ item.size }}</td>
+                      <td>{{ item.planned_qty }}</td>
+                      <td>
+                        <input
+                          type="number"
+                          name="actual_qty[]"
+                          min="0"
+                          step="1"
+                          value="{{ item.actual_qty }}"
+                          {% if not can_submit %}disabled{% endif %}
+                          required
+                        >
+                      </td>
+                    </tr>
+                  {% empty %}
+                    <tr class="act-empty-row"><td colspan="6" class="muted">В заявке нет товарных позиций.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% if can_add_items %}
+              <template id="act-item-template">
+                <tr>
+                  <td><input type="text" name="extra_sku_code[]" placeholder="SKU" list="sku-options"></td>
+                  <td><input type="text" name="extra_barcode[]" placeholder="ШК" list="barcode-options"></td>
+                  <td>
+                    <div class="entry-meta-stack">
+                      <input type="text" name="extra_name[]" required list="sku-name-options" placeholder="Наименование">
+                      <div class="entry-meta-subgrid">
+                        <input type="text" name="extra_brand[]" placeholder="Бренд">
+                        <input type="text" name="extra_color[]" placeholder="Цвет">
+                      </div>
+                    </div>
+                  </td>
+                  <td><input type="text" name="extra_size[]" placeholder="-"></td>
+                  <td><input type="number" name="extra_planned_qty[]" min="0" step="1" value="0"></td>
+                  <td><input type="number" name="extra_actual_qty[]" min="0" step="1" value="" required></td>
+                </tr>
+              </template>
+            {% endif %}
+            <div class="action-bar" style="justify-content:space-between;">
+              <div class="action-left">
+                {% if act_documents %}
+                  {% for doc in act_documents %}
+                    <a class="btn" href="{{ doc.url }}" target="_blank" rel="noopener">{{ doc.label }}</a>
+                  {% endfor %}
+                {% endif %}
+                {% if act_exists %}
+                  <span class="muted">Акт уже создан.</span>
+                {% endif %}
+              </div>
+              <div>
+                {% if can_submit %}
+                  <button class="btn primary" type="submit">Сохранить акт приемки</button>
+                {% else %}
+                  <button class="btn primary" type="button" disabled>Сохранить акт приемки</button>
+                {% endif %}
+              </div>
+            </div>
+
+            {% if sku_options %}
+              <datalist id="sku-options">
+                {% for sku in sku_options %}
+                  <option value="{{ sku.code }}" label="{{ sku.name }}" data-brand="{{ sku.brand|default:'' }}" data-color="{{ sku.color|default:'' }}"></option>
+                {% endfor %}
+              </datalist>
+            {% endif %}
+            {% if sku_name_options %}
+              <datalist id="sku-name-options">
+                {% for name in sku_name_options %}
+                  <option value="{{ name }}"></option>
+                {% endfor %}
+              </datalist>
+            {% endif %}
+            {% if barcode_options %}
+              <datalist id="barcode-options">
+                {% for barcode in barcode_options %}
+                  <option value="{{ barcode }}"></option>
+                {% endfor %}
+              </datalist>
+            {% endif %}
+            {{ barcode_map|json_script:"barcode-map" }}
+          </div>
+        </main>
+      </div>
+    </form>
+  </div>
+  <script>
+    (function(){
+      const draftKey = 'receiving_act_draft_{{ order_id|default:"0" }}';
+      const tbody = document.getElementById('act-items');
+      const template = document.getElementById('act-item-template');
+      const form = document.querySelector('form');
+      const canSubmit = !!document.querySelector('button.btn.primary[type="submit"]');
+      const entryRow = document.querySelector('.act-entry-row');
+      const entrySku = entryRow ? entryRow.querySelector('.entry-sku') : null;
+      const entryBarcode = entryRow ? entryRow.querySelector('.entry-barcode') : null;
+      const entryName = entryRow ? entryRow.querySelector('.entry-name') : null;
+      const entryBrand = entryRow ? entryRow.querySelector('.entry-brand') : null;
+      const entryColor = entryRow ? entryRow.querySelector('.entry-color') : null;
+      const entrySize = entryRow ? entryRow.querySelector('.entry-size') : null;
+      const entryPlanned = entryRow ? entryRow.querySelector('.entry-planned') : null;
+      const entryActual = entryRow ? entryRow.querySelector('.entry-actual-input') : null;
+      const addBtn = document.getElementById('add-act-item');
+      const scanInput = document.getElementById('scan-input');
+      const scanAutoSum = document.getElementById('scan-autosum');
+      const scanStatus = document.getElementById('scan-status');
+      const scanSkuLink = document.getElementById('scan-sku-link');
+      const barcodeMapEl = document.getElementById('barcode-map');
+      const barcodeMap = barcodeMapEl ? JSON.parse(barcodeMapEl.textContent || '{}') : {};
+      const skuOptionNodes = document.querySelectorAll('#sku-options option');
+      const skuMap = {};
+      const skuNameMap = {};
+
+      skuOptionNodes.forEach((option) => {
+        const code = (option.value || '').trim();
+        const name = (option.label || '').trim();
+        if (!code) {
+          return;
+        }
+        const data = {
+          sku: code,
+          sku_code: code,
+          name,
+          brand: option.dataset.brand || '',
+          color: option.dataset.color || '',
+        };
+        skuMap[code] = data;
+        if (name && !skuNameMap[name]) {
+          skuNameMap[name] = data;
+        }
+      });
+
+      const toNumber = (value) => {
+        const num = parseInt((value || '').toString().trim(), 10);
+        return Number.isFinite(num) ? num : null;
+      };
+      const applyKnownItemToEntry = (data) => {
+        if (!data) {
+          return;
+        }
+        if (entrySku && !entrySku.value.trim() && (data.sku || data.sku_code)) {
+          entrySku.value = (data.sku || data.sku_code || '').trim();
+        }
+        if (entryName && data.name) {
+          entryName.value = data.name;
+        }
+        if (entryBrand && data.brand) {
+          entryBrand.value = data.brand;
+        }
+        if (entryColor && data.color) {
+          entryColor.value = data.color;
+        }
+        if (entrySize && data.size) {
+          entrySize.value = data.size;
+        }
+      };
+
+      const stripLeadingZeros = (input) => {
+        const value = input.value || '';
+        if (value.length > 1 && value.startsWith('0')) {
+          const cleaned = value.replace(/^0+/, '');
+          input.value = cleaned === '' ? '0' : cleaned;
+        }
+      };
+
+      const clearZeroOnFocus = (input) => {
+        if (input.value === '0') {
+          input.value = '';
+        }
+      };
+
+      const getPlanned = (row) => {
+        const cell = row.querySelector('td:nth-child(5)');
+        if (!cell) return null;
+        const input = cell.querySelector('input');
+        const raw = input ? input.value : cell.textContent;
+        return toNumber(raw);
+      };
+
+      const getActual = (row) => {
+        const cell = row.querySelector('td:nth-child(6)');
+        if (!cell) return null;
+        const input = cell.querySelector('input');
+        const raw = input ? input.value : cell.textContent;
+        return toNumber(raw);
+      };
+
+      const updateRow = (row) => {
+        const planned = getPlanned(row);
+        const actual = getActual(row);
+        if (planned !== null && actual !== null && planned === actual) {
+          row.classList.add('row-match');
+          row.classList.remove('row-mismatch');
+        } else if (planned !== null && actual !== null && planned !== actual) {
+          row.classList.add('row-mismatch');
+          row.classList.remove('row-match');
+        } else {
+          row.classList.remove('row-match');
+          row.classList.remove('row-mismatch');
+        }
+      };
+
+      const bindRow = (row) => {
+        const plannedInput = row.querySelector('td:nth-child(5) input');
+        const actualInput = row.querySelector('td:nth-child(6) input');
+        if (plannedInput) {
+          plannedInput.addEventListener('focus', () => clearZeroOnFocus(plannedInput));
+          plannedInput.addEventListener('input', () => stripLeadingZeros(plannedInput));
+          plannedInput.addEventListener('input', () => updateRow(row));
+        }
+        if (actualInput) {
+          actualInput.addEventListener('focus', () => clearZeroOnFocus(actualInput));
+          actualInput.addEventListener('input', () => stripLeadingZeros(actualInput));
+          actualInput.addEventListener('input', () => updateRow(row));
+        }
+        updateRow(row);
+      };
+
+      if (tbody) {
+        tbody.querySelectorAll('tr').forEach(bindRow);
+      }
+
+      const appendRow = (row) => {
+        if (!tbody) {
+          return;
+        }
+        const emptyRow = tbody.querySelector('.act-empty-row');
+        if (emptyRow) {
+          tbody.insertBefore(row, emptyRow);
+        } else {
+          tbody.appendChild(row);
+        }
+      };
+
+      const resetEntryRow = () => {
+        if (entrySku) entrySku.value = '';
+        if (entryBarcode) entryBarcode.value = '';
+        if (entryName) entryName.value = '';
+        if (entryBrand) entryBrand.value = '';
+        if (entryColor) entryColor.value = '';
+        if (entrySize) entrySize.value = '';
+        if (entryPlanned) entryPlanned.value = '';
+        if (entryActual) entryActual.value = '';
+        if (entryName) entryName.focus();
+      };
+
+      if (addBtn && tbody && template && entryName && entryActual) {
+        addBtn.addEventListener('click', () => {
+          const sku = entrySku ? entrySku.value.trim() : '';
+          const barcode = entryBarcode ? entryBarcode.value.trim() : '';
+          const name = entryName.value.trim();
+          const brand = entryBrand ? entryBrand.value.trim() : '';
+          const color = entryColor ? entryColor.value.trim() : '';
+          const size = entrySize ? entrySize.value.trim() : '';
+          const plannedRaw = entryPlanned ? entryPlanned.value.trim() : '';
+          const actualRaw = entryActual.value.trim();
+          const knownSku = sku && skuMap[sku];
+          const hasAny = sku || barcode || name || brand || color || size || plannedRaw || actualRaw;
+          if (!hasAny) {
+            return;
+          }
+          if (!knownSku && !name) {
+            alert('Укажите наименование.');
+            entryName.focus();
+            return;
+          }
+          if (!knownSku && (!brand || !color || !size)) {
+            alert('Для новой позиции заполните бренд, цвет и размер.');
+            (entryBrand && !brand ? entryBrand : entryColor && !color ? entryColor : entrySize).focus();
+            return;
+          }
+          if (toNumber(actualRaw) === null) {
+            alert('Укажите фактическое количество.');
+            entryActual.focus();
+            return;
+          }
+          const row = template.content.firstElementChild.cloneNode(true);
+          const skuInput = row.querySelector('input[name="extra_sku_code[]"]');
+          const barcodeInput = row.querySelector('input[name="extra_barcode[]"]');
+          const nameInput = row.querySelector('input[name="extra_name[]"]');
+          const brandInput = row.querySelector('input[name="extra_brand[]"]');
+          const colorInput = row.querySelector('input[name="extra_color[]"]');
+          const sizeInput = row.querySelector('input[name="extra_size[]"]');
+          const plannedInput = row.querySelector('input[name="extra_planned_qty[]"]');
+          const actualInput = row.querySelector('input[name="extra_actual_qty[]"]');
+          if (skuInput) skuInput.value = sku;
+          if (barcodeInput) barcodeInput.value = barcode;
+          if (nameInput) nameInput.value = name;
+          if (brandInput) brandInput.value = brand;
+          if (colorInput) colorInput.value = color;
+          if (sizeInput) sizeInput.value = size;
+          if (plannedInput) plannedInput.value = plannedRaw || '0';
+          if (actualInput) actualInput.value = actualRaw;
+          row.dataset.skuCode = sku;
+          row.dataset.barcode = barcode;
+          appendRow(row);
+          bindRow(row);
+          resetEntryRow();
+        });
+      }
+
+      if (entrySku) {
+        entrySku.addEventListener('input', () => {
+          const data = skuMap[entrySku.value.trim()];
+          if (data) {
+            applyKnownItemToEntry(data);
+          }
+        });
+      }
+      if (entryName) {
+        entryName.addEventListener('input', () => {
+          const data = skuNameMap[entryName.value.trim()];
+          if (data) {
+            applyKnownItemToEntry(data);
+          }
+        });
+      }
+      if (entryBarcode) {
+        entryBarcode.addEventListener('input', () => {
+          const data = barcodeMap[entryBarcode.value.trim()];
+          if (data) {
+            applyKnownItemToEntry(data);
+          }
+        });
+      }
+
+      const normalizeBarcode = (value) => (value || '').toString().trim();
+
+      const rowValue = (row, index) => {
+        const cell = row.querySelector(`td:nth-child(${index})`);
+        if (!cell) return '';
+        const input = cell.querySelector('input');
+        return (input ? input.value : cell.textContent).trim();
+      };
+
+      const rowSku = (row) => (row.dataset.skuCode || rowValue(row, 1));
+      const rowBarcode = (row) => (row.dataset.barcode || rowValue(row, 2));
+
+      const findRowByBarcode = (barcode) => {
+        if (!tbody) return null;
+        const rows = Array.from(tbody.querySelectorAll('tr')).filter(
+          (row) => !row.classList.contains('act-entry-row'),
+        );
+        return rows.find((row) => rowBarcode(row) === barcode) || null;
+      };
+
+      const findRowBySku = (sku) => {
+        if (!tbody) return null;
+        const rows = Array.from(tbody.querySelectorAll('tr')).filter(
+          (row) => !row.classList.contains('act-entry-row'),
+        );
+        return rows.find((row) => rowSku(row) === sku) || null;
+      };
+
+      const setScanStatus = (message, tone) => {
+        if (!scanStatus) return;
+        scanStatus.textContent = message;
+        scanStatus.classList.remove('ok', 'warn');
+        if (tone) {
+          scanStatus.classList.add(tone);
+        }
+      };
+
+      const bumpActual = (row) => {
+        const actualInput = row.querySelector('td:nth-child(6) input');
+        if (!actualInput) return;
+        const current = toNumber(actualInput.value) || 0;
+        actualInput.value = current + 1;
+        updateRow(row);
+        actualInput.focus();
+      };
+
+      const focusActual = (row) => {
+        const actualInput = row.querySelector('td:nth-child(6) input');
+        if (actualInput) {
+          actualInput.focus();
+          actualInput.select();
+        }
+      };
+
+      const addExtraRowFromScan = (barcode, data) => {
+        if (!template || !tbody) return null;
+        const row = template.content.firstElementChild.cloneNode(true);
+        const skuInput = row.querySelector('input[name="extra_sku_code[]"]');
+        const barcodeInput = row.querySelector('input[name="extra_barcode[]"]');
+        const nameInput = row.querySelector('input[name="extra_name[]"]');
+        const brandInput = row.querySelector('input[name="extra_brand[]"]');
+        const colorInput = row.querySelector('input[name="extra_color[]"]');
+        const sizeInput = row.querySelector('input[name="extra_size[]"]');
+        const plannedInput = row.querySelector('input[name="extra_planned_qty[]"]');
+        const actualInput = row.querySelector('input[name="extra_actual_qty[]"]');
+        const skuValue = (data && data.sku) ? data.sku : '';
+        const nameValue = (data && data.name) ? data.name : '';
+        const brandValue = (data && data.brand) ? data.brand : '';
+        const colorValue = (data && data.color) ? data.color : '';
+        const sizeValue = (data && data.size) ? data.size : '';
+        if (skuInput) skuInput.value = skuValue;
+        if (barcodeInput) barcodeInput.value = barcode;
+        if (nameInput) nameInput.value = nameValue;
+        if (brandInput) brandInput.value = brandValue;
+        if (colorInput) colorInput.value = colorValue;
+        if (sizeInput) sizeInput.value = sizeValue;
+        if (plannedInput) plannedInput.value = '0';
+        if (actualInput) {
+          actualInput.value = scanAutoSum && scanAutoSum.checked ? '1' : '';
+        }
+        row.dataset.skuCode = skuValue;
+        row.dataset.barcode = barcode;
+        appendRow(row);
+        bindRow(row);
+        return row;
+      };
+
+      const handleScan = (raw) => {
+        const barcode = normalizeBarcode(raw);
+        if (!barcode) return;
+        const data = barcodeMap[barcode];
+        if (!data) {
+          setScanStatus(`ШК ${barcode} не найден в номенклатуре.`, 'warn');
+          if (scanSkuLink) {
+            scanSkuLink.hidden = false;
+            scanSkuLink.href = `/sku/new/?agency={{ agency_id }}&barcode=${encodeURIComponent(barcode)}`;
+          }
+          return;
+        }
+
+        if (scanSkuLink) {
+          scanSkuLink.hidden = true;
+        }
+
+        const skuValue = (data.sku || '').toString().trim();
+        let row = findRowByBarcode(barcode);
+        if (!row && skuValue) {
+          row = findRowBySku(skuValue);
+        }
+
+        if (row) {
+          row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          if (scanAutoSum && scanAutoSum.checked) {
+            bumpActual(row);
+            setScanStatus(`Добавлено: ${data.name || skuValue} (+1).`, 'ok');
+          } else {
+            focusActual(row);
+            setScanStatus(`Найдено: ${data.name || skuValue}. Укажите количество вручную.`, 'ok');
+          }
+          return;
+        }
+
+        const newRow = addExtraRowFromScan(barcode, data);
+        if (newRow) {
+          newRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          if (scanAutoSum && scanAutoSum.checked) {
+            setScanStatus(`Добавлено: ${data.name || skuValue} (1).`, 'ok');
+          } else {
+            focusActual(newRow);
+            setScanStatus(`Добавлено: ${data.name || skuValue}. Укажите количество вручную.`, 'ok');
+          }
+        }
+      };
+
+      const collectDraft = () => {
+        if (!canSubmit) return null;
+        const data = {
+          eta_at: null,
+          vehicle_number: null,
+          items: [],
+          extras: [],
+        };
+        const etaInput = document.querySelector('input[name="eta_at"]');
+        const vehicleInput = document.querySelector('input[name="vehicle_number"]');
+        if (etaInput) data.eta_at = etaInput.value || '';
+        if (vehicleInput) data.vehicle_number = vehicleInput.value || '';
+
+        if (tbody) {
+          const rows = Array.from(tbody.querySelectorAll('tr'));
+          rows.forEach((row) => {
+            if (row.classList.contains('act-entry-row')) {
+              return;
+            }
+            const nameCell = row.querySelector('td:nth-child(3)');
+            const nameInput = nameCell ? nameCell.querySelector('input[name="extra_name[]"]') : null;
+            const skuInput = row.querySelector('input[name="extra_sku_code[]"]');
+            const barcodeInput = row.querySelector('input[name="extra_barcode[]"]');
+            const brandInput = row.querySelector('input[name="extra_brand[]"]');
+            const colorInput = row.querySelector('input[name="extra_color[]"]');
+            const sizeInput = row.querySelector('input[name="extra_size[]"]');
+            const plannedInput = row.querySelector('input[name="extra_planned_qty[]"]');
+            const actualInput = row.querySelector('td:nth-child(6) input');
+            if (nameInput || sizeInput || plannedInput) {
+              data.extras.push({
+                sku_code: skuInput ? skuInput.value : '',
+                barcode: barcodeInput ? barcodeInput.value : '',
+                name: nameInput ? nameInput.value : '',
+                brand: brandInput ? brandInput.value : '',
+                color: colorInput ? colorInput.value : '',
+                size: sizeInput ? sizeInput.value : '',
+                planned_qty: plannedInput ? plannedInput.value : '',
+                actual_qty: actualInput ? actualInput.value : '',
+              });
+            } else {
+              data.items.push({
+                actual_qty: actualInput ? actualInput.value : '',
+              });
+            }
+          });
+        }
+        return data;
+      };
+
+      const applyDraft = (draft) => {
+        if (!draft || !tbody) return;
+        const etaInput = document.querySelector('input[name="eta_at"]');
+        const vehicleInput = document.querySelector('input[name="vehicle_number"]');
+        if (etaInput && draft.eta_at) etaInput.value = draft.eta_at;
+        if (vehicleInput && draft.vehicle_number) vehicleInput.value = draft.vehicle_number;
+
+        const rows = Array.from(tbody.querySelectorAll('tr')).filter(
+          (row) => !row.classList.contains('act-entry-row'),
+        );
+        const itemRows = rows.filter((row) => !row.querySelector('input[name="extra_name[]"]'));
+        itemRows.forEach((row, idx) => {
+          const actualInput = row.querySelector('td:nth-child(6) input');
+          if (actualInput && draft.items && draft.items[idx]) {
+            actualInput.value = draft.items[idx].actual_qty || actualInput.value;
+            updateRow(row);
+          }
+        });
+
+        if (draft.extras && draft.extras.length && template && addBtn) {
+          draft.extras.forEach((extra) => {
+            const row = template.content.firstElementChild.cloneNode(true);
+            const skuInput = row.querySelector('input[name="extra_sku_code[]"]');
+            const barcodeInput = row.querySelector('input[name="extra_barcode[]"]');
+            const nameInput = row.querySelector('input[name="extra_name[]"]');
+            const brandInput = row.querySelector('input[name="extra_brand[]"]');
+            const colorInput = row.querySelector('input[name="extra_color[]"]');
+            const sizeInput = row.querySelector('input[name="extra_size[]"]');
+            const plannedInput = row.querySelector('input[name="extra_planned_qty[]"]');
+            const actualInput = row.querySelector('input[name="extra_actual_qty[]"]');
+            if (skuInput) skuInput.value = extra.sku_code || '';
+            if (barcodeInput) barcodeInput.value = extra.barcode || '';
+            if (nameInput) nameInput.value = extra.name || '';
+            if (brandInput) brandInput.value = extra.brand || '';
+            if (colorInput) colorInput.value = extra.color || '';
+            if (sizeInput) sizeInput.value = extra.size || '';
+            if (plannedInput) plannedInput.value = extra.planned_qty || '';
+            if (actualInput) actualInput.value = extra.actual_qty || '';
+            appendRow(row);
+            bindRow(row);
+          });
+        }
+      };
+
+      const saveDraft = () => {
+        const draft = collectDraft();
+        if (!draft) return;
+        try {
+          localStorage.setItem(draftKey, JSON.stringify(draft));
+        } catch (e) {
+          // Ignore storage errors.
+        }
+      };
+
+      const scheduleSave = (() => {
+        let timer = null;
+        return () => {
+          if (!canSubmit) return;
+          if (timer) clearTimeout(timer);
+          timer = setTimeout(saveDraft, 300);
+        };
+      })();
+
+      if (canSubmit) {
+        try {
+          const raw = localStorage.getItem(draftKey);
+          if (raw) {
+            const draft = JSON.parse(raw);
+            applyDraft(draft);
+          }
+        } catch (e) {
+          // Ignore parse errors.
+        }
+      }
+
+      if (form && canSubmit) {
+        form.addEventListener('input', scheduleSave);
+        form.addEventListener('submit', () => {
+          try {
+            localStorage.removeItem(draftKey);
+          } catch (e) {
+            // Ignore storage errors.
+          }
+        });
+        form.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter') return;
+          const target = event.target;
+          if (target === scanInput) {
+            return;
+          }
+          if (target && target.tagName === 'INPUT' && target.type !== 'submit') {
+            event.preventDefault();
+          }
+        });
+      }
+
+      const scanConfig = {
+        maxGap: 250,
+        minLength: 6,
+        maxTotal: 3500,
+        avgMax: 90,
+      };
+      let scanBuffer = '';
+      let scanStart = 0;
+      let scanLast = 0;
+      let scanSourceEl = null;
+      let scanSourceValue = '';
+
+      const resetScanBuffer = () => {
+        scanBuffer = '';
+        scanStart = 0;
+        scanLast = 0;
+        scanSourceEl = null;
+        scanSourceValue = '';
+      };
+
+      const handleManualScanInput = () => {
+        if (!scanInput) return;
+        const value = scanInput.value;
+        if (!value) return;
+        handleScan(value);
+        scanInput.value = '';
+        scanInput.focus();
+      };
+
+      document.addEventListener(
+        'keydown',
+        (event) => {
+          if (!scanInput) return;
+          if (event.ctrlKey || event.altKey || event.metaKey) {
+            resetScanBuffer();
+            return;
+          }
+          const key = event.key;
+          const target = event.target;
+          if (target === scanInput) {
+            return;
+          }
+          const isScanInput = target === scanInput;
+          const isChar = key.length === 1;
+          const isTerminator = key === 'Enter' || key === 'Tab';
+          if (isScanInput && key === 'Enter') {
+            event.preventDefault();
+            handleManualScanInput();
+            resetScanBuffer();
+            return;
+          }
+          if (!isChar && !isTerminator) {
+            if (!scanBuffer) {
+              resetScanBuffer();
+            }
+            return;
+          }
+          const now = Date.now();
+          if (!scanStart || target !== scanSourceEl || now - scanLast > scanConfig.maxGap) {
+            scanBuffer = '';
+            scanStart = now;
+            scanSourceEl = target;
+            scanSourceValue = target && typeof target.value === 'string' ? target.value : '';
+          }
+          scanLast = now;
+
+          if (isChar) {
+            scanBuffer += key;
+            return;
+          }
+
+          if (isTerminator) {
+            const total = now - scanStart;
+            const avg = scanBuffer.length ? total / scanBuffer.length : total;
+            const isScan = scanBuffer.length >= scanConfig.minLength && total <= scanConfig.maxTotal && avg <= scanConfig.avgMax;
+            if (isScan) {
+              event.preventDefault();
+              if (scanSourceEl && scanSourceEl !== scanInput && typeof scanSourceEl.value === 'string') {
+                scanSourceEl.value = scanSourceValue;
+              }
+              scanInput.value = scanBuffer;
+              handleManualScanInput();
+            }
+            resetScanBuffer();
+          }
+        },
+        true,
+      );
+      if (scanInput) {
+        scanInput.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter') return;
+          event.preventDefault();
+          handleManualScanInput();
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

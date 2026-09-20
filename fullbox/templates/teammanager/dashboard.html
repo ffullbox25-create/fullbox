@@ -1,0 +1,1893 @@
+{% extends "teammanager/_base.html" %}
+
+{% block title %}Задачи | Кабинет менеджера{% endblock %}
+
+{% block extra_css %}
+    /* Tasks page — Fullbox lk-theme tokens only */
+    .side {
+      width: 178px;
+      padding: 18px 10px;
+      background: rgba(255,253,248,.96);
+    }
+    .app { grid-template-columns: 198px minmax(0, 1fr); }
+    .brand { font-size: 22px; letter-spacing: .02em; color: var(--accent-strong); }
+    .profile {
+      grid-template-columns: 34px 1fr;
+      gap: 8px;
+      padding: 8px;
+      border: 0;
+      background: var(--accent-soft);
+    }
+    .avatar { width: 34px; height: 34px; }
+    .profile-name { font-size: 11px; }
+    .profile-role { font-size: 10px; line-height: 1.25; }
+    .nav-link {
+      grid-template-columns: 18px minmax(0, 1fr) auto;
+      min-height: 36px;
+      padding: 8px 9px;
+      border-radius: 9px;
+    }
+    .nav-link.active {
+      background: var(--accent-soft);
+      box-shadow: none;
+      color: var(--accent-strong);
+    }
+    .nav-title { font-size: 12px; }
+    .nav-ico { font-size: 13px; }
+    .main {
+      padding: 18px 18px 30px;
+      gap: 12px;
+      background: var(--bg);
+    }
+    .page-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+    .page-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: clamp(26px, 2vw, 31px);
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    .page-sub {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 5px;
+      line-height: 1.4;
+    }
+    .notify-status {
+      margin-top: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .notify-status:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+    .head-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .head-actions .btn {
+      min-height: 36px;
+      white-space: nowrap;
+      padding: 8px 13px;
+      border-radius: 11px;
+      box-shadow: none;
+      font-size: 12px;
+    }
+    .head-icon {
+      position: relative;
+      width: 36px;
+      height: 36px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid var(--stroke);
+      border-radius: 11px;
+      background: var(--surface);
+      color: var(--ink);
+      font-weight: 900;
+      text-decoration: none;
+    }
+    .head-icon .nav-badge {
+      position: absolute;
+      top: -7px;
+      right: -6px;
+      background: var(--danger);
+      color: #fff;
+      margin: 0;
+    }
+    .more-btn { min-width: 76px; justify-content: center; }
+
+    .manager-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(220px, 250px);
+      gap: 14px;
+      align-items: start;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .main-col,
+    .rail {
+      display: grid;
+      gap: 12px;
+      min-width: 0;
+      max-width: 100%;
+      width: 100%;
+    }
+    .main-col { overflow: hidden; }
+    .desk-knowledge {
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:14px;
+      align-items:center;
+      padding:16px;
+      border:1px solid var(--stroke);
+      border-radius:8px;
+      background:linear-gradient(135deg, rgba(248,144,0,.12), rgba(248,184,0,.18));
+      color:inherit;
+      text-decoration:none;
+      box-shadow:var(--shadow);
+    }
+    .desk-knowledge:hover { border-color:rgba(248,144,0,.45); }
+    .desk-knowledge h2 {
+      margin:0;
+      font-family:"Bricolage Grotesque","Manrope",sans-serif;
+      font-size:20px;
+      font-weight:900;
+    }
+    .desk-knowledge p {
+      margin:5px 0 0;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.45;
+      max-width:720px;
+    }
+    .desk-knowledge-links {
+      display:flex;
+      flex-wrap:wrap;
+      gap:7px;
+      margin-top:10px;
+    }
+    .desk-knowledge-pill {
+      display:inline-flex;
+      min-height:26px;
+      align-items:center;
+      padding:4px 8px;
+      border-radius:999px;
+      background:#fff;
+      border:1px solid rgba(35,33,29,.08);
+      color:var(--accent-strong);
+      font-size:11px;
+      font-weight:900;
+    }
+    .desk-knowledge-cta {
+      display:inline-flex;
+      min-height:36px;
+      align-items:center;
+      justify-content:center;
+      padding:8px 12px;
+      border-radius:8px;
+      background:var(--accent);
+      color:#2a2110;
+      font-size:12px;
+      font-weight:900;
+      white-space:nowrap;
+    }
+
+    .tab-row {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 7px 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .focus-tabs .tab {
+      background: var(--surface);
+      color: var(--ink);
+      font-weight: 600;
+    }
+    .focus-tabs .tab.active {
+      border-color: rgba(42, 33, 16, 0.16);
+      background: #fdf9f0;
+      box-shadow: inset 0 0 0 1px rgba(242, 183, 71, .35);
+    }
+    .focus-tabs .tab-count {
+      background: transparent;
+      padding: 0;
+      min-width: auto;
+      height: auto;
+      color: inherit;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .task-tab__label { line-height: 1.2; }
+    .tab-count,
+    .task-tab__count {
+      min-width: 22px;
+      height: 22px;
+      padding: 0 7px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .filter-card {
+      display: grid;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      box-shadow: none;
+      padding: 12px;
+    }
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+      gap: 8px;
+      align-items: end;
+    }
+    .more-filters-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .more-filters-btn:hover { background: var(--surface-2); }
+    .search-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 8px;
+      align-items: center;
+    }
+    .search-input-wrap {
+      position: relative;
+      min-width: 0;
+    }
+    .search-input-wrap .search-ico {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 13px;
+      pointer-events: none;
+    }
+    .search-input-wrap input.field {
+      padding-left: 32px;
+    }
+    .filters-actions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(100px, 120px) auto;
+      gap: 8px;
+      align-items: center;
+    }
+    .filter-field {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+    .filter-field > span {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .field {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      padding: 8px 11px;
+      font: inherit;
+      font-size: 12px;
+      outline: none;
+    }
+    select.field {
+      padding-right: 32px;
+      appearance: none;
+      background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+        linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+      background-position: calc(100% - 16px) 55%, calc(100% - 10px) 55%;
+      background-size: 6px 6px, 6px 6px;
+      background-repeat: no-repeat;
+    }
+    .field:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .filters-hint {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .filters-hint a {
+      font-weight: 700;
+      color: var(--accent-strong);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .filters-actions .btn {
+      min-height: 36px;
+      white-space: nowrap;
+    }
+    .btn-reset {
+      display: inline-flex;
+      align-items: center;
+      min-height: 40px;
+      padding: 0 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .btn-reset:hover { color: var(--ink); }
+    .btn-reset:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+
+    .kpi-row,
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .kpi {
+      position: relative;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      min-height: 104px;
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: none;
+      transition: border-color .14s, box-shadow .14s;
+    }
+    .kpi.active-focus {
+      border-color: rgba(242, 183, 71, .7);
+      box-shadow: 0 6px 18px rgba(242, 183, 71, .28);
+    }
+    .kpi.kpi-tone-overdue { background: #fbf1ee; border-color: #f0cfc7; }
+    .kpi.kpi-tone-stuck { background: #fff8e8; border-color: #f0e0b0; }
+    .kpi.kpi-tone-docs { background: #f3f7f5; border-color: #d5e4df; }
+    .kpi-ico {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--green-soft);
+      color: var(--green-strong);
+      font-weight: 900;
+      font-size: 14px;
+      flex: 0 0 auto;
+    }
+    .kpi-ico.red { background: var(--danger-soft); color: var(--danger); }
+    .kpi-ico.yellow,
+    .kpi-ico.orange { background: var(--sun-soft); color: #8a5a00; }
+    .kpi-ico.blue,
+    .kpi-ico.accent { background: var(--accent-soft); color: var(--accent-strong); }
+    .kpi-ico.purple { background: var(--surface-2); color: var(--accent-strong); }
+    .kpi-ico.gray { background: var(--surface-2); color: var(--muted); }
+    .kpi-body {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      min-width: 0;
+    }
+    .kpi-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+    .kpi strong {
+      display: block;
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      line-height: 1.05;
+      font-variant-numeric: tabular-nums;
+    }
+    .kpi-note {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.3;
+    }
+    .kpi-cta {
+      margin-top: 2px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-strong);
+      text-decoration: none;
+    }
+    .kpi-cta:hover { text-decoration: underline; }
+    .kpi-cta:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+
+    .billing-bulk-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid rgba(248, 144, 0, 0.28);
+      border-radius: 12px;
+      background: rgba(248, 144, 0, 0.08);
+    }
+    .billing-bulk-bar__copy { min-width: 0; }
+    .billing-bulk-bar__title { display: block; font-size: 13px; font-weight: 800; }
+    .billing-bulk-bar__note { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+    @media (max-width: 760px) {
+      .billing-bulk-bar { align-items: stretch; flex-direction: column; }
+      .billing-bulk-bar .btn { width: 100%; }
+    }
+
+    .task-table-wrapper,
+    .table-card {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: auto;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    /* Влезает в центральную колонку без раздувания страницы. */
+    .task-table,
+    .manager-table {
+      width: 100%;
+      min-width: 0;
+      table-layout: fixed;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 12px;
+    }
+    .task-table thead th,
+    .manager-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding: 8px 6px;
+      text-align: left;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.25;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--stroke);
+      vertical-align: bottom;
+      white-space: normal;
+      word-break: break-word;
+    }
+    .task-table tbody td,
+    .manager-table tbody td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--stroke);
+      vertical-align: top;
+      min-width: 0;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+    .task-table tbody tr {
+      min-height: 0;
+    }
+    .task-table tbody tr:last-child td,
+    .manager-table tbody tr:last-child td { border-bottom: 0; }
+    .task-table tbody tr:hover td,
+    .manager-table tbody tr:hover td { background: #fbf8f1; }
+    .task-table tbody tr td:first-child {
+      box-shadow: inset 3px 0 0 var(--stroke);
+    }
+    .task-table tbody tr.row-urgency-red td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+    .task-table tbody tr.row-urgency-orange td:first-child { box-shadow: inset 3px 0 0 #d99a3a; }
+    .task-table tbody tr.row-urgency-sun td:first-child { box-shadow: inset 3px 0 0 var(--sun); }
+    .task-table tbody tr.row-urgency-accent td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+    .task-table tbody tr.row-urgency-gray td:first-child { box-shadow: inset 3px 0 0 var(--stroke); }
+    .sla-text {
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+    .sla-text.red { color: var(--danger); }
+    .sla-text.orange { color: #b5772a; }
+    .sla-text.yellow,
+    .sla-text.sun { color: #8a5a00; }
+    .sla-text.accent,
+    .sla-text.blue { color: var(--accent-strong); }
+    .sla-text.green { color: var(--green-strong); }
+    .sla-text.gray,
+    .sla-text.neutral { color: var(--muted); font-weight: 600; }
+    .sla-warning {
+      color: #8a5a00;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    .sla-edit {
+      align-self: flex-start;
+      border: 0;
+      background: transparent;
+      color: var(--accent-strong);
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 0;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .col-task { width: 24%; }
+    .col-client { width: 15%; }
+    .col-process { width: 10%; }
+    .col-status { width: 12%; }
+    .col-exec { width: 12%; }
+    .col-slacol { width: 13%; }
+    .col-action { width: 14%; }
+    .col-menu { width: 4%; }
+
+    .cell-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      min-width: 0;
+      width: 100%;
+    }
+    .cell-primary {
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.3;
+      color: var(--ink);
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+    a.cell-primary {
+      font-weight: 700;
+    }
+    a.cell-primary:hover { color: var(--accent-strong); }
+    a.cell-primary:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+    .cell-muted,
+    .row-sub {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      line-height: 1.3;
+      word-break: break-word;
+    }
+    .task-number-link {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-decoration: none;
+    }
+    .task-number-link:hover { color: var(--accent-strong); }
+    .task-number-link:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+    .task-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.3;
+      word-break: break-word;
+    }
+    .task-description {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.3;
+      max-width: 100%;
+    }
+    .cell-date {
+      font-size: 12px;
+      font-weight: 600;
+      white-space: normal;
+      font-variant-numeric: tabular-nums;
+    }
+    .cell-time {
+      font-size: 11px;
+      color: var(--muted);
+      white-space: normal;
+      font-variant-numeric: tabular-nums;
+    }
+    .status-list {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 5px;
+      min-width: 0;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      max-width: 100%;
+      min-height: 22px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.2;
+      border: 1px solid transparent;
+      white-space: normal;
+    }
+    .badge.wrap {
+      white-space: normal;
+      text-align: left;
+      line-height: 1.25;
+    }
+    .badge.green { background: var(--green-soft); color: var(--green-strong); }
+    .badge.blue,
+    .badge.accent { background: var(--accent-soft); color: var(--accent-strong); }
+    .badge.orange,
+    .badge.sun,
+    .badge.yellow { background: var(--sun-soft); color: #8a5a00; }
+    .badge.red { background: var(--danger-soft); color: var(--danger); }
+    .badge.gray,
+    .badge.neutral { background: var(--surface-2); color: var(--muted); border-color: var(--stroke); }
+    .badge.market { background: var(--surface-2); color: var(--accent-strong); border-color: var(--stroke); }
+    .badge.purple { background: var(--accent-soft); color: var(--accent-strong); }
+
+    .next-step-cell { width: 100%; }
+    .next-step-cell .btn-mini {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      min-height: 32px;
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 6px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(42, 33, 16, 0.12);
+      background: linear-gradient(120deg, #f2b747, #ffd88a);
+      color: #2a2110;
+      font-size: 12px;
+      font-weight: 800;
+      text-decoration: none;
+      text-align: center;
+      line-height: 1.25;
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      cursor: pointer;
+    }
+    .next-step-cell .btn-mini:hover {
+      box-shadow: 0 4px 12px rgba(242, 183, 71, .35);
+    }
+    .next-step-cell .btn-mini:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .next-step-cell .btn-mini.is-secondary {
+      background: transparent;
+      border-color: var(--stroke);
+      color: var(--muted);
+      font-weight: 700;
+      min-height: 26px;
+      font-size: 11px;
+    }
+    .next-step-cell .btn-mini.is-secondary:hover {
+      background: var(--surface-2);
+      box-shadow: none;
+    }
+    .next-step-cell .action-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 5px;
+      width: 100%;
+      margin-top: 6px;
+    }
+
+    .row-actions {
+      display: inline-flex;
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      font-weight: 900;
+      color: var(--ink);
+      flex: 0 0 auto;
+    }
+    .row-actions:hover { background: var(--surface-2); }
+    .row-actions:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .table-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 12px 14px;
+      border-top: 1px solid var(--stroke);
+      color: var(--muted);
+      font-size: 12px;
+      background: var(--surface);
+    }
+    .task-pager {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .page-size-select {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .page-size-select select.field {
+      width: auto;
+      min-height: 32px;
+      padding: 5px 26px 5px 10px;
+      font-size: 12px;
+    }
+    .task-pager__pages {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .task-pager__btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 34px;
+      height: 34px;
+      padding: 0 10px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      color: var(--ink);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .task-pager__btn:hover { background: #f6faf8; border-color: var(--accent); }
+    .task-pager__btn.is-active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .task-pager__btn.is-disabled {
+      opacity: 0.45;
+      pointer-events: none;
+    }
+    .task-pager__meta {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      margin-right: 4px;
+    }
+    .empty-state {
+      padding: 28px 18px;
+      text-align: center;
+      border-radius: 14px;
+      background: var(--surface-2);
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 600;
+      display: grid;
+      gap: 12px;
+      justify-items: center;
+    }
+    .empty-state .btn { min-height: 36px; }
+
+    .rail .card {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius-lg);
+      box-shadow: none;
+      padding: 14px;
+    }
+    .rail .card-title {
+      margin: 0 0 12px;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .sum-list,
+    .actions,
+    .notice-list { display: grid; gap: 0; }
+    .sum-list { gap: 0; }
+    .sum-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      min-height: 40px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--stroke);
+      font-size: 13px;
+      text-decoration: none;
+      color: inherit;
+    }
+    a.sum-row:hover { color: var(--accent-strong); }
+    a.sum-row:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+    .sum-row:last-child { border-bottom: 0; }
+    .sum-row span { min-width: 0; }
+    .sum-row strong {
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+      text-align: right;
+      min-width: 2.5ch;
+    }
+    .sum-row strong.red { color: var(--danger); }
+    .sum-row strong.orange { color: #8a5a00; }
+    .sum-row strong.blue,
+    .sum-row strong.accent { color: var(--accent-strong); }
+    .rail .card > .btn {
+      width: 100%;
+      min-height: 38px;
+      margin-top: 12px;
+      justify-content: center;
+    }
+    .actions {
+      display: grid;
+      gap: 8px;
+    }
+    .actions .btn {
+      width: 100%;
+      min-height: 38px;
+      justify-content: flex-start;
+      gap: 8px;
+      text-align: left;
+    }
+    .actions .btn .act-ico {
+      width: 18px;
+      flex: 0 0 18px;
+      text-align: center;
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .notice-list { gap: 8px; }
+    .notice {
+      display: grid;
+      gap: 5px;
+      padding: 10px;
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      background: #fff;
+    }
+    .notice:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .notice-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: flex-start;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-top: 5px;
+      background: var(--blue);
+      flex: 0 0 auto;
+    }
+    .dot.red { background: var(--red); }
+    .dot.orange { background: var(--orange); }
+    .notice-sub { color: var(--muted); font-size: 12px; line-height: 1.35; }
+
+    .xfer-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(35, 33, 29, .35);
+      z-index: 80;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .xfer-backdrop.open { display: flex; }
+    .xfer-modal {
+      width: min(440px, 100%);
+      background: #fff;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      display: grid;
+      gap: 10px;
+    }
+    .xfer-modal h3 { margin: 0; font-size: 16px; font-weight: 800; }
+    .xfer-modal label {
+      display: grid;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .xfer-modal .field,
+    .xfer-modal select,
+    .xfer-modal textarea {
+      width: 100%;
+      min-height: 40px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      font: inherit;
+      font-size: 14px;
+    }
+    .xfer-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 1440px) {
+      .manager-shell { grid-template-columns: minmax(0, 1fr) minmax(200px, 240px); }
+    }
+    @media (max-width: 1200px) {
+      .manager-shell { grid-template-columns: 1fr; }
+      .kpi-row,
+      .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .filters-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .search-row { grid-template-columns: 1fr auto auto; }
+    }
+    @media (max-width: 900px) {
+      .kpi-row,
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .filters-grid,
+      .search-row { grid-template-columns: 1fr; }
+      .search-row .btn,
+      .more-filters-btn { width: 100%; justify-content: center; }
+    }
+{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">{% if manager_section == "desk" %}Рабочий стол{% else %}Задачи{% endif %}</h1>
+      <div class="page-sub">{% if manager_section == "desk" %}Новые и текущие операционные заявки{% else %}Рабочая очередь и контроль заявок{% endif %}</div>
+      <div class="notify-status" id="mgr-notify-status" role="button" tabindex="0" aria-label="Переключить звук уведомлений">◔ Уведомления включены · Звук включён</div>
+    </div>
+    <div class="head-actions">
+      <a class="btn primary" href="/orders/">Создать заявку&nbsp;＋</a>
+      <a class="btn" href="/todo/new/?kind=warehouse_internal&amp;next=/team-manager/%3Fsection%3Dtasks">Задача складу&nbsp;＋</a>
+      <a class="btn" href="/todo/new/?next=/team-manager/%3Fsection%3Dtasks">Создать задачу&nbsp;＋</a>
+      <a class="btn" href="/team-manager/knowledge/">База знаний</a>
+      <a class="head-icon" href="#mgr-control-rail" aria-label="Уведомления">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3a5 5 0 0 0-5 5v3.2c0 .8-.28 1.57-.8 2.18L5 15.2c-.6.72-.1 1.8.83 1.8h12.34c.93 0 1.43-1.08.83-1.8l-1.2-1.82a3.6 3.6 0 0 1-.8-2.18V8a5 5 0 0 0-5-5Z" stroke="currentColor" stroke-width="1.6"/><path d="M9.5 19a2.5 2.5 0 0 0 5 0" stroke="currentColor" stroke-width="1.6"/></svg>
+        {% if manager_notifications %}<span class="nav-badge">{{ manager_notifications|length }}</span>{% endif %}
+      </a>
+      <a class="btn more-btn" href="/team-manager/settings/">Ещё⌄</a>
+    </div>
+  </div>
+
+  <div class="manager-shell">
+    <section class="main-col">
+      <div class="tab-row focus-tabs" role="tablist" aria-label="Фокус задач">
+        {% if manager_section == "desk" %}
+        <a class="tab {% if manager_filters.focus == 'desk' %}active{% endif %}" href="?{{ manager_focus_links.desk }}">Текущие <span class="tab-count">{{ manager_task_total }}</span></a>
+        <a class="tab {% if manager_filters.focus == 'today' %}active{% endif %}" href="?{{ manager_focus_links.today }}">Новые сегодня <span class="tab-count" data-kpi-value="today">{{ manager_stats.today|default:0 }}</span></a>
+        <a class="tab {% if manager_filters.scope == 'mine' %}active{% endif %}" href="?{{ manager_focus_links.scope_mine }}">Мои в работе <span class="tab-count">{{ manager_desk_summary.mine|default:0 }}</span></a>
+        <a class="tab {% if manager_filters.scope == 'unassigned' %}active{% endif %}" href="?{{ manager_focus_links.scope_unassigned }}">Свободные <span class="tab-count" data-kpi-value="without_executor">{{ manager_desk_summary.unassigned|default:0 }}</span></a>
+        <a class="tab {% if manager_filters.focus == 'attention' %}active{% endif %}" href="?{{ manager_focus_links.attention }}">Требуют решения <span class="tab-count">{{ manager_desk_summary.attention|default:0 }}</span></a>
+        {% else %}
+        <a class="tab {% if manager_filters.focus == 'overdue' %}active{% endif %}" href="?{{ manager_focus_links.overdue }}">Требуют внимания <span class="tab-count" data-kpi-value="overdue">{{ manager_stats.overdue|default:0 }}</span></a>
+        <a class="tab {% if manager_filters.focus == 'today' %}active{% endif %}" href="?{{ manager_focus_links.today }}">На сегодня <span class="tab-count" data-kpi-value="today">{{ manager_stats.today|default:0 }}</span></a>
+        <a class="tab {% if manager_filters.focus == 'waiting_client' %}active{% endif %}" href="?{{ manager_focus_links.waiting_client }}">Ждём клиента <span class="tab-count" data-kpi-value="waiting_client">{{ manager_control.waiting_client|default:0 }}</span></a>
+        <a class="tab {% if manager_filters.focus == 'waiting_warehouse' %}active{% endif %}" href="?{{ manager_focus_links.waiting_warehouse }}">Ждём склад <span class="tab-count" data-kpi-value="waiting_warehouse">{{ manager_control.waiting_warehouse|default:0 }}</span></a>
+        <a class="tab {% if manager_filters.focus == 'docs' %}active{% endif %}" href="?{{ manager_focus_links.docs }}">Документы <span class="tab-count" data-kpi-value="docs">{{ manager_stats.docs|default:0 }}</span></a>
+        <a class="tab {% if manager_filters.focus == 'all' %}active{% endif %}" href="?{{ manager_focus_links.all }}">Все задачи <span class="tab-count">{{ manager_task_total }}</span></a>
+        {% endif %}
+      </div>
+
+      <div class="tab-row" role="tablist" aria-label="Типы задач">
+        {% for tab in manager_task_type_tabs %}
+          <a class="tab task-tab {% if manager_filters.type == tab.key %}active{% endif %}"
+             href="?section={{ manager_section|default:'tasks' }}&type={{ tab.key }}"
+             role="tab"
+             aria-selected="{% if manager_filters.type == tab.key %}true{% else %}false{% endif %}">
+            <span class="task-tab__label">{{ tab.label }}</span>
+            <span class="tab-count task-tab__count">{{ tab.count }}</span>
+          </a>
+        {% endfor %}
+      </div>
+
+      {% if manager_section == "desk" %}
+      <form class="filter-card" method="get" aria-label="Поиск по текущим заявкам" id="mgr-filter-form">
+        <input type="hidden" name="section" value="desk">
+        <input type="hidden" name="type" value="{{ manager_filters.type }}">
+        <input type="hidden" name="lane" value="{{ manager_filters.lane }}">
+        <input type="hidden" name="focus" value="{{ manager_filters.focus }}">
+        <input type="hidden" name="scope" value="{{ manager_filters.scope }}">
+        <div class="search-row">
+          <label class="search-input-wrap">
+            <span class="visually-hidden">Поиск</span>
+            <span class="search-ico" aria-hidden="true">⌕</span>
+            <input class="field" type="search" name="q" value="{{ manager_filters.q }}" placeholder="Поиск по номеру заявки, клиенту, складу или товару" aria-label="Поиск по текущим заявкам">
+          </label>
+          <button class="btn primary" type="submit">Применить</button>
+          <a class="btn-reset" href="/team-manager/?section=desk">↻ Сбросить</a>
+        </div>
+      </form>
+      {% else %}
+      <form class="filter-card" method="get" aria-label="Фильтры задач" id="mgr-filter-form">
+        <input type="hidden" name="section" value="{{ manager_section|default:'tasks' }}">
+        <input type="hidden" name="type" value="{{ manager_filters.type }}">
+        <input type="hidden" name="lane" value="{{ manager_filters.lane }}">
+        <input type="hidden" name="focus" value="{{ manager_filters.focus }}">
+        <div class="search-row">
+          <label class="search-input-wrap">
+            <span class="visually-hidden">Поиск</span>
+            <span class="search-ico" aria-hidden="true">⌕</span>
+            <input class="field" type="search" name="q" value="{{ manager_filters.q }}" placeholder="Поиск по номеру заявки, клиенту, складу или товару" aria-label="Поиск по номеру заявки, клиенту, складу или товару">
+          </label>
+          <button class="btn primary" type="submit">Применить</button>
+          <a class="btn-reset" href="/team-manager/?section={{ manager_section|default:'tasks' }}">↻ Сбросить</a>
+        </div>
+        <div class="filters-grid">
+          <label class="filter-field">
+            <span>Доступность</span>
+            <select class="field" name="scope" aria-label="Доступность">
+              {% for opt in manager_scope_options %}
+                <option value="{{ opt.key }}" {% if manager_filters.scope == opt.key %}selected{% endif %}>{{ opt.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="filter-field">
+            <span>Статус</span>
+            <select class="field" name="status" aria-label="Статус">
+              <option value="all">Все статусы</option>
+              {% for status in manager_status_options %}
+                <option value="{{ status }}" {% if manager_filters.status == status %}selected{% endif %}>{{ status }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="filter-field">
+            <span>Клиент</span>
+            <select class="field" name="client" aria-label="Клиент">
+              <option value="all">Все клиенты</option>
+              {% for client in manager_client_options %}
+                <option value="{{ client.id }}" {% if manager_filters.client == client.id|stringformat:"s" %}selected{% endif %}>{{ client.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="filter-field">
+            <span>Склад</span>
+            <select class="field" name="warehouse" aria-label="Склад">
+              <option value="all">Все склады</option>
+              {% for wh in manager_warehouse_options %}
+                <option value="{{ wh }}" {% if manager_filters.warehouse == wh %}selected{% endif %}>{{ wh }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="filter-field">
+            <span>Срок</span>
+            <select class="field" name="due" aria-label="Срок">
+              {% for opt in manager_due_options %}
+                <option value="{{ opt.key }}" {% if manager_filters.due == opt.key %}selected{% endif %}>{{ opt.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <button type="button" class="more-filters-btn" id="mgr-more-filters" aria-expanded="false">⚙ Ещё фильтры</button>
+        </div>
+        <div class="filters-hint" id="mgr-more-filters-panel" hidden>
+          <span>Единый реестр · фильтры по роли и подразделению</span>
+        </div>
+      </form>
+      {% endif %}
+
+      {% if manager_section == "desk" %}
+      <section class="kpi-row kpi-grid" aria-label="Сводка рабочего стола">
+        <div class="kpi {% if manager_filters.focus == 'today' %}active-focus{% endif %}">
+          <div class="kpi-ico blue" aria-hidden="true">◔</div>
+          <div class="kpi-body">
+            <div class="kpi-label">Новые сегодня</div>
+            <strong data-kpi-value="today">{{ manager_stats.today|default:0 }}</strong>
+            <div class="kpi-note">заявок</div>
+            <a class="kpi-cta" href="?{{ manager_focus_links.today }}">Показать →</a>
+          </div>
+        </div>
+        <div class="kpi {% if manager_filters.scope == 'mine' %}active-focus{% endif %}">
+          <div class="kpi-ico green" aria-hidden="true">✓</div>
+          <div class="kpi-body">
+            <div class="kpi-label">Мои в работе</div>
+            <strong>{{ manager_desk_summary.mine|default:0 }}</strong>
+            <div class="kpi-note">заявок</div>
+            <a class="kpi-cta" href="?{{ manager_focus_links.scope_mine }}">Показать →</a>
+          </div>
+        </div>
+        <div class="kpi {% if manager_filters.scope == 'unassigned' %}active-focus{% endif %}">
+          <div class="kpi-ico gray" aria-hidden="true">?</div>
+          <div class="kpi-body">
+            <div class="kpi-label">Без исполнителя</div>
+            <strong data-kpi-value="without_executor">{{ manager_desk_summary.unassigned|default:0 }}</strong>
+            <div class="kpi-note">заявок</div>
+            <a class="kpi-cta" href="?{{ manager_focus_links.scope_unassigned }}">Показать →</a>
+          </div>
+        </div>
+        <div class="kpi kpi-tone-overdue {% if manager_filters.focus == 'attention' %}active-focus{% endif %}">
+          <div class="kpi-ico red" aria-hidden="true">!</div>
+          <div class="kpi-body">
+            <div class="kpi-label">Требуют решения</div>
+            <strong>{{ manager_desk_summary.attention|default:0 }}</strong>
+            <div class="kpi-note">заявок</div>
+            <a class="kpi-cta" href="?{{ manager_focus_links.attention }}">Показать →</a>
+          </div>
+        </div>
+      </section>
+      {% else %}
+      <section class="kpi-row kpi-grid" aria-label="Показатели задач">
+        <div class="kpi kpi-tone-overdue {% if manager_filters.focus == 'overdue' %}active-focus{% endif %}">
+          <div class="kpi-ico red" aria-hidden="true">!</div>
+          <div class="kpi-body">
+            <div class="kpi-label">Просрочено</div>
+            <strong data-kpi-value="overdue">{{ manager_stats.overdue|default:0 }}</strong>
+            <div class="kpi-note">задачи</div>
+            <a class="kpi-cta" href="?{{ manager_focus_links.overdue }}">Показать все →</a>
+          </div>
+        </div>
+        <div class="kpi {% if manager_filters.focus == 'today' %}active-focus{% endif %}">
+          <div class="kpi-ico blue" aria-hidden="true">◔</div>
+          <div class="kpi-body">
+            <div class="kpi-label">На сегодня</div>
+            <strong data-kpi-value="today">{{ manager_stats.today|default:0 }}</strong>
+            <div class="kpi-note">задач</div>
+            <a class="kpi-cta" href="?{{ manager_focus_links.today }}">Показать все →</a>
+          </div>
+        </div>
+        <div class="kpi kpi-tone-stuck {% if manager_filters.focus == 'stuck' %}active-focus{% endif %}">
+          <div class="kpi-ico orange" aria-hidden="true">●</div>
+          <div class="kpi-body">
+            <div class="kpi-label">Зависло</div>
+            <strong data-kpi-value="stuck">{{ manager_stats.stuck|default:0 }}</strong>
+            <div class="kpi-note">задач</div>
+            <a class="kpi-cta" href="?{{ manager_focus_links.stuck }}">Показать все →</a>
+          </div>
+        </div>
+        <div class="kpi {% if manager_filters.focus == 'no_owner' %}active-focus{% endif %}">
+          <div class="kpi-ico gray" aria-hidden="true">?</div>
+          <div class="kpi-body">
+            <div class="kpi-label">Без ответственного</div>
+            <strong data-kpi-value="without_executor">{{ manager_stats.without_executor|default:0 }}</strong>
+            <div class="kpi-note">задачи</div>
+            <a class="kpi-cta" href="?{{ manager_focus_links.no_owner }}">Показать все →</a>
+          </div>
+        </div>
+        <div class="kpi kpi-tone-docs {% if manager_filters.focus == 'docs' %}active-focus{% endif %}">
+          <div class="kpi-ico green" aria-hidden="true">✓</div>
+          <div class="kpi-body">
+            <div class="kpi-label">Документы</div>
+            <strong data-kpi-value="docs">{{ manager_stats.docs|default:0 }}</strong>
+            <div class="kpi-note">задачи</div>
+            <a class="kpi-cta" href="?{{ manager_focus_links.docs }}">Показать все →</a>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if manager_section != "desk" %}
+      {% if manager_filters.type == "all" or manager_filters.type == "shipping" %}
+      <div class="billing-bulk-bar">
+        <div class="billing-bulk-bar__copy">
+          <span class="billing-bulk-bar__title">Несколько отгрузок в один счёт</span>
+          <span class="billing-bulk-bar__note">Сначала проверьте начисления, затем выберите отгрузки одного клиента.</span>
+        </div>
+        <a class="btn primary" href="/team-manager/billing/invoices/create/?application_type=shipping{% if manager_filters.client and manager_filters.client != 'all' %}&client={{ manager_filters.client }}{% endif %}">
+          Собрать общий счёт
+        </a>
+      </div>
+      {% endif %}
+      {% endif %}
+
+      {% if manager_task_source_truncated %}
+        <div class="tm-message tm-message-warning">
+          Показаны первые {{ manager_task_source_limit }} задач из очереди.
+          Часть работы не попала на экран — сообщите разработчику.
+        </div>
+      {% endif %}
+
+      <section class="table-card task-table-wrapper" aria-label="Таблица задач">
+        <table class="manager-table task-table">
+          <thead>
+            <tr>
+              <th class="col-task">Задача</th>
+              <th class="col-client">Клиент</th>
+              <th class="col-process">Процесс</th>
+              <th class="col-status">Статус</th>
+              <th class="col-exec">Ответственный</th>
+              <th class="col-slacol">Срок / SLA</th>
+              <th class="col-action">Следующее действие</th>
+              <th class="col-menu"><span class="visually-hidden">Меню</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in manager_task_rows %}
+              <tr class="row-urgency-{{ row.sla_css }}">
+                <td class="col-task">
+                  <div class="cell-stack">
+                    <a class="task-number-link" href="{{ row.process_url }}" title="Открыть заявку №{{ row.number }}">№{{ row.number }}</a>
+                    {% if row.submitted_at %}<span class="cell-muted">Поступила {{ row.submitted_at|date:"d.m.Y H:i" }}</span>{% endif %}
+                    <span class="task-title">{{ row.next_step }}</span>
+                    {% if row.title and row.number not in row.title and row.title != row.next_step %}
+                      <span class="cell-muted">{{ row.title }}</span>
+                    {% endif %}
+                    {% if row.marketplace and row.marketplace != "—" or row.warehouse and row.warehouse != "—" %}
+                      <span class="cell-muted">
+                        {% if row.marketplace and row.marketplace != "—" %}{{ row.marketplace }}{% endif %}
+                        {% if row.warehouse and row.warehouse != "—" %}{% if row.marketplace and row.marketplace != "—" %} · {% endif %}{{ row.warehouse }}{% endif %}
+                      </span>
+                    {% endif %}
+                    {% if row.ozon_supply_label %}<span class="cell-muted">{{ row.ozon_supply_label }}</span>{% endif %}
+                    {% if row.ozon_gm_summary %}<span class="cell-muted">{{ row.ozon_gm_summary }}</span>{% endif %}
+                  </div>
+                </td>
+                <td class="col-client">
+                  <div class="cell-stack">
+                    <span class="cell-primary">{{ row.client_name }}</span>
+                    {% if row.client_inn %}<span class="cell-muted">ИНН {{ row.client_inn }}</span>{% endif %}
+                  </div>
+                </td>
+                <td class="col-process">
+                  <div class="cell-stack">
+                    <span class="badge {{ row.process_css }}">{{ row.process_label }}</span>
+                  </div>
+                </td>
+                <td class="col-status">
+                  <div class="status-list">
+                    <span class="badge {{ row.status_css }} wrap">{{ row.status }}</span>
+                    {% if row.logistics_status %}
+                      <span class="cell-muted">{{ row.logistics_status }}{% if row.logistics_trip %} · {{ row.logistics_trip }}{% endif %}</span>
+                    {% endif %}
+                  </div>
+                </td>
+                <td class="col-exec">
+                  <div class="cell-stack">
+                    <span class="cell-primary">{{ row.executor }}</span>
+                  </div>
+                </td>
+                <td class="col-slacol">
+                  <div class="cell-stack">
+                    <span class="sla-text {{ row.sla_css }}">{{ row.sla }}</span>
+                    {% if row.deadline %}<span class="cell-muted">до {{ row.deadline|date:"d.m.Y H:i" }}</span>{% endif %}
+                    {% if row.stuck_reason %}<span class="sla-warning">{{ row.stuck_reason }}</span>{% endif %}
+                    {% if row.can_edit_deadline %}
+                      <button type="button" class="sla-edit edit-task-deadline"
+                        data-task-id="{{ row.id }}"
+                        data-task-number="{{ row.number }}"
+                        data-due-date="{{ row.deadline_input }}"
+                        aria-label="Изменить срок задачи №{{ row.number }}">Изменить срок</button>
+                    {% endif %}
+                  </div>
+                </td>
+                <td class="col-action">
+                  <div class="cell-stack next-step-cell">
+                    <div class="action-stack">
+                      <a class="btn-mini" href="{{ row.url }}" aria-label="Открыть задачу №{{ row.number }}: {{ row.next_step }}">{{ row.next_step }}</a>
+                      {% if row.boxes_url %}
+                        <a class="btn-mini is-secondary" href="{{ row.boxes_url }}" download aria-label="Скачать состав коробов по заявке №{{ row.number }}">Состав коробов</a>
+                      {% endif %}
+                      {% if row.can_claim and not row.executor_id %}
+                        <button type="button" class="btn-mini is-secondary claim-task" data-task-id="{{ row.id }}" aria-label="Взять задачу №{{ row.number }} в работу">Взять в работу</button>
+                      {% endif %}
+                      {% if row.can_transfer %}
+                        <button type="button" class="btn-mini is-secondary transfer-task"
+                          data-task-id="{{ row.id }}"
+                          data-task-number="{{ row.number }}"
+                          data-executor="{{ row.executor }}"
+                          aria-label="Передать задачу №{{ row.number }}">Передать</button>
+                      {% endif %}
+                    </div>
+                  </div>
+                </td>
+                <td class="col-menu">
+                  <a class="row-actions" href="{{ row.url }}" aria-label="Открыть меню задачи №{{ row.number }}">⋮</a>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="8">
+                  <div class="empty-state">
+                    <div>{% if manager_section == "desk" %}Текущих операционных заявок по выбранному режиму нет{% else %}По выбранным фильтрам задач нет{% endif %}</div>
+                    <a class="btn" href="/team-manager/?section={{ manager_section|default:'tasks' }}">Сбросить фильтры</a>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="table-footer">
+          <span>{% if manager_task_filtered_total %}{{ manager_task_range_start }}-{{ manager_task_range_end }}{% else %}0{% endif %} из {{ manager_task_filtered_total }}</span>
+          {% if manager_task_num_pages > 1 %}
+          <nav class="task-pager" aria-label="Страницы задач">
+            {% if manager_task_has_prev %}
+              <a class="task-pager__btn" href="?{{ manager_task_prev_qs }}" aria-label="Предыдущая страница">‹</a>
+            {% else %}
+              <span class="task-pager__btn is-disabled" aria-disabled="true">‹</span>
+            {% endif %}
+            <div class="task-pager__pages">
+              {% for link in manager_task_page_links %}
+                {% if link.active %}
+                  <span class="task-pager__btn is-active" aria-current="page">{{ link.number }}</span>
+                {% else %}
+                  <a class="task-pager__btn" href="?{{ link.qs }}">{{ link.number }}</a>
+                {% endif %}
+              {% endfor %}
+            </div>
+            {% if manager_task_has_next %}
+              <a class="task-pager__btn" href="?{{ manager_task_next_qs }}" aria-label="Следующая страница">›</a>
+            {% else %}
+              <span class="task-pager__btn is-disabled" aria-disabled="true">›</span>
+            {% endif %}
+          </nav>
+          {% endif %}
+          <label class="page-size-select">
+            <span>Показать по:</span>
+            <select class="field" id="mgr-page-size" aria-label="Показать по">
+              {% for size in manager_task_page_size_options %}
+                <option value="{{ size }}" {% if manager_task_page_size == size %}selected{% endif %}>{{ size }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+      </section>
+    </section>
+
+    <aside class="rail" id="mgr-control-rail">
+      <section class="card" id="mgr-notice-card">
+        <h2 class="card-title">Уведомления <span class="tab-count">{{ manager_notifications|length }}</span></h2>
+        {% if manager_notifications %}
+          <div class="notice-list" id="mgr-notice-preview">
+            {% for notice in manager_notifications|slice:":3" %}
+              <a class="notice" href="{{ notice.url }}" data-event-id="{{ notice.id }}">
+                <div class="notice-head">
+                  <span>{{ notice.title }}</span>
+                  <span class="dot {{ notice.tone }}" aria-hidden="true"></span>
+                </div>
+                <div class="notice-sub">{{ notice.subtitle }}</div>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">Новых событий нет.</div>
+        {% endif %}
+        <a class="btn ghost" href="#mgr-events-full">Все уведомления →</a>
+      </section>
+
+      {% if manager_section == "desk" %}
+      <section class="card">
+        <h2 class="card-title">Биллинг <span class="tab-count">{{ manager_billing_attention_count|default:0 }}</span></h2>
+        <div class="page-sub">Начисления, тарифы, акты и счета вынесены из операционной очереди.</div>
+        <a class="btn ghost" href="/team-manager/billing/">Открыть биллинг →</a>
+      </section>
+      {% endif %}
+
+      <section class="card">
+        <h2 class="card-title">Быстрые действия</h2>
+        <div class="actions">
+          <a class="btn" href="/orders/"><span class="act-ico" aria-hidden="true">＋</span>Создать заявку</a>
+          <a class="btn" href="/shipping/new/"><span class="act-ico" aria-hidden="true">↗</span>Создать отгрузку</a>
+          <a class="btn" href="/reachtruck/"><span class="act-ico" aria-hidden="true">⇄</span>Перемещение паллет</a>
+          <a class="btn" href="/sku/?view=table"><span class="act-ico" aria-hidden="true">⇧</span>Импорт номенклатуры</a>
+        </div>
+      </section>
+
+      <section class="card" id="mgr-events-full">
+        <h2 class="card-title">Новые события <span class="tab-count">{{ manager_notifications|length }}</span></h2>
+        {% if manager_notifications %}
+          <div class="notice-list">
+            {% for notice in manager_notifications %}
+              <a class="notice" href="{{ notice.url }}" data-event-id="{{ notice.id }}">
+                <div class="notice-head">
+                  <span>{{ notice.title }}</span>
+                  <span class="dot {{ notice.tone }}" aria-hidden="true"></span>
+                </div>
+                <div class="notice-sub">{{ notice.subtitle }}</div>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">Новых событий нет.</div>
+        {% endif %}
+      </section>
+    </aside>
+  </div>
+
+  <div class="xfer-backdrop" id="deadline-modal" aria-hidden="true">
+    <div class="xfer-modal" role="dialog" aria-labelledby="deadline-title">
+      <h3 id="deadline-title">Изменить срок</h3>
+      <div class="page-sub" id="deadline-subtitle">—</div>
+      <input type="hidden" id="deadline-task-id" value="">
+      <label>Новая дата и время
+        <input class="field" type="datetime-local" id="deadline-value" aria-label="Новый срок задачи">
+      </label>
+      <label>Причина изменения
+        <textarea class="field" id="deadline-reason" rows="3" placeholder="Например: перенос по согласованию с клиентом" aria-label="Причина изменения срока"></textarea>
+      </label>
+      <div class="xfer-actions">
+        <button type="button" class="btn" id="deadline-cancel">Отмена</button>
+        <button type="button" class="btn primary" id="deadline-submit">Сохранить срок</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="xfer-backdrop" id="xfer-modal" aria-hidden="true">
+    <div class="xfer-modal" role="dialog" aria-labelledby="xfer-title">
+      <h3 id="xfer-title">Передать задачу</h3>
+      <div class="page-sub" id="xfer-subtitle">—</div>
+      <input type="hidden" id="xfer-task-id" value="">
+      <label>Кому
+        <select class="field" id="xfer-to" aria-label="Кому передать задачу">
+          <option value="">— выберите сотрудника —</option>
+          {% for c in cabinet_colleagues %}
+            <option value="{{ c.id }}">{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:700;color:var(--ink)">
+        <input type="checkbox" id="xfer-queue"> Вернуть в общую очередь
+      </label>
+      <label>Причина
+        <select class="field" id="xfer-reason" aria-label="Причина передачи">
+          {% for r in transfer_reasons %}
+            <option value="{{ r.label }}">{{ r.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Комментарий
+        <textarea class="field" id="xfer-comment" rows="2" placeholder="Обязательно при передаче" aria-label="Комментарий к передаче"></textarea>
+      </label>
+      <div class="xfer-actions">
+        <button type="button" class="btn" id="xfer-cancel">Отмена</button>
+        <button type="button" class="btn primary" id="xfer-submit">Передать</button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0);
+      white-space: nowrap; border: 0;
+    }
+  </style>
+
+  <script>
+  (function(){
+    var SEEN_KEY = "fb_mgr_seen_events_v1";
+    var SOUND_KEY = "fb_mgr_sound_enabled";
+    var statusEl = document.getElementById("mgr-notify-status");
+    var soundOn = localStorage.getItem(SOUND_KEY);
+    if(soundOn === null){ soundOn = "1"; localStorage.setItem(SOUND_KEY, "1"); }
+    function seenSet(){
+      try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "[]"); } catch(e){ return []; }
+    }
+    function saveSeen(ids){
+      var uniq = Array.from(new Set(ids)).slice(-200);
+      localStorage.setItem(SEEN_KEY, JSON.stringify(uniq));
+    }
+    function beep(){
+      if(soundOn !== "1") return;
+      try {
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        if(!Ctx) return;
+        var ctx = new Ctx();
+        var o = ctx.createOscillator();
+        var g = ctx.createGain();
+        o.type = "sine";
+        o.frequency.value = 880;
+        g.gain.value = 0.04;
+        o.connect(g); g.connect(ctx.destination);
+        o.start();
+        setTimeout(function(){ o.stop(); ctx.close(); }, 160);
+      } catch(e){}
+    }
+    function updateStatus(){
+      if(!statusEl) return;
+      statusEl.textContent = "◔ Уведомления включены · Звук " + (soundOn === "1" ? "включён" : "выключен");
+    }
+    function toggleSound(){
+      soundOn = soundOn === "1" ? "0" : "1";
+      localStorage.setItem(SOUND_KEY, soundOn);
+      updateStatus();
+    }
+    updateStatus();
+    if(statusEl){
+      statusEl.style.cursor = "pointer";
+      statusEl.title = "Клик — вкл/выкл звук";
+      statusEl.addEventListener("click", toggleSound);
+      statusEl.addEventListener("keydown", function(ev){
+        if(ev.key === "Enter" || ev.key === " "){
+          ev.preventDefault();
+          toggleSound();
+        }
+      });
+    }
+    // Seed seen ids from SSR so reload does not re-beep.
+    var initial = Array.prototype.map.call(
+      document.querySelectorAll("#mgr-events [data-event-id], .notice-list [data-event-id]"),
+      function(el){ return el.getAttribute("data-event-id"); }
+    ).filter(Boolean);
+    if(initial.length){
+      var seeded = seenSet().concat(initial);
+      saveSeen(seeded);
+    }
+    function qs(){
+      return window.location.search || "";
+    }
+    function applyKpi(kpi){
+      if(!kpi) return;
+      var map = {
+        today: kpi.today,
+        overdue: kpi.overdue,
+        stuck: kpi.stuck,
+        without_executor: kpi.without_executor,
+        docs: kpi.docs
+      };
+      Object.keys(map).forEach(function(key){
+        document.querySelectorAll('[data-kpi-value="' + key + '"]').forEach(function(el){
+          if(map[key] != null) el.textContent = map[key];
+        });
+      });
+    }
+    function applyControl(control){
+      if(!control) return;
+      Object.keys(control).forEach(function(key){
+        var marker = key === "no_owner" ? "without_executor" : key;
+        document.querySelectorAll('[data-kpi-value="' + marker + '"]').forEach(function(el){
+          if(control[key] != null) el.textContent = control[key];
+        });
+      });
+    }
+    function noticeHtml(items){
+      return items.map(function(it){
+        return '<a class="notice" href="' + (it.url || "#") + '" data-event-id="' + (it.id || "") + '">' +
+          '<div class="notice-head"><span>' + String(it.title || "").replace(/</g,"&lt;") + '</span>' +
+          '<span class="dot ' + (it.tone || "blue") + '" aria-hidden="true"></span></div>' +
+          '<div class="notice-sub">' + String(it.subtitle || "").replace(/</g,"&lt;") + '</div></a>';
+      }).join("");
+    }
+    function renderNoticeCard(card, items, totalCount){
+      if(!card) return;
+      var count = card.querySelector(".card-title .tab-count");
+      if(count) count.textContent = totalCount == null ? items.length : totalCount;
+      var body = card.querySelector(".notice-list, .empty-state");
+      if(items.length){
+        var html = noticeHtml(items);
+        if(body && body.classList.contains("notice-list")){
+          body.innerHTML = html;
+        } else if(body) {
+          body.outerHTML = '<div class="notice-list">' + html + '</div>';
+        } else {
+          card.insertAdjacentHTML("beforeend", '<div class="notice-list">' + html + '</div>');
+        }
+      } else if(body) {
+        body.outerHTML = '<div class="empty-state">Новых событий нет.</div>';
+      }
+    }
+    function applyNotices(items){
+      if(!items) return;
+      var seen = seenSet();
+      var fresh = [];
+      items.forEach(function(it){
+        var id = String(it.id || "");
+        if(id && seen.indexOf(id) < 0) fresh.push(id);
+      });
+      if(fresh.length){
+        beep();
+        if(window.Notification && Notification.permission === "granted"){
+          try {
+            new Notification(items[0].title || "Новое событие", { body: items[0].subtitle || "" });
+          } catch(e){}
+        }
+        saveSeen(seen.concat(fresh));
+      }
+      renderNoticeCard(document.getElementById("mgr-notice-card"), items.slice(0, 3), items.length);
+      renderNoticeCard(document.getElementById("mgr-events-full"), items, items.length);
+    }
+    function tick(){
+      if(document.visibilityState === "hidden") return;
+      fetch("/team-manager/api/task-events/" + qs(), { credentials: "same-origin" })
+        .then(function(r){ return r.json(); })
+        .then(function(payload){
+          if(!payload || !payload.ok || !payload.data) return;
+          applyKpi(payload.data.kpi);
+          applyControl(payload.data.control);
+          applyNotices(payload.data.notifications || []);
+        })
+        .catch(function(){});
+    }
+    var timer = setInterval(tick, 60000);
+    document.addEventListener("visibilitychange", function(){
+      if(document.visibilityState === "visible") tick();
+    });
+    if(window.Notification && Notification.permission === "default"){
+      // Do not force prompt; user can enable later. Keep silent.
+    }
+    function csrfToken(){
+      var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+      return m ? decodeURIComponent(m[1]) : "";
+    }
+    document.addEventListener("click", function(ev){
+      var notice = ev.target.closest(".notice[data-event-id]");
+      if(notice){
+        var eventId = notice.getAttribute("data-event-id");
+        if(eventId){
+          fetch("/team-manager/api/notifications/read/", {
+            method: "POST",
+            credentials: "same-origin",
+            keepalive: true,
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrfToken()
+            },
+            body: JSON.stringify({ id: eventId })
+          }).catch(function(){});
+        }
+      }
+      var btn = ev.target.closest(".claim-task");
+      if(!btn) return;
+      var id = btn.getAttribute("data-task-id");
+      if(!id) return;
+      btn.disabled = true;
+      fetch("/team-manager/api/tasks/" + id + "/claim/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken()
+        },
+        body: JSON.stringify({ reason: "Взята из единого реестра" })
+      }).then(function(r){ return r.json(); }).then(function(payload){
+        if(payload && payload.ok){
+          window.location.reload();
+          return;
+        }
+        btn.disabled = false;
+        alert((payload && payload.error) || "Не удалось взять задачу");
+      }).catch(function(){
+        btn.disabled = false;
+        alert("Ошибка сети");
+      });
+    });
+
+    var deadlineModal = document.getElementById("deadline-modal");
+    function openDeadline(taskId, number, dueDate){
+      document.getElementById("deadline-task-id").value = taskId;
+      document.getElementById("deadline-subtitle").textContent = "Задача №" + (number || taskId);
+      document.getElementById("deadline-value").value = dueDate || "";
+      document.getElementById("deadline-reason").value = "";
+      deadlineModal.classList.add("open");
+      deadlineModal.setAttribute("aria-hidden", "false");
+    }
+    function closeDeadline(){
+      deadlineModal.classList.remove("open");
+      deadlineModal.setAttribute("aria-hidden", "true");
+    }
+    document.getElementById("deadline-cancel").addEventListener("click", closeDeadline);
+    deadlineModal.addEventListener("click", function(ev){
+      if(ev.target === deadlineModal) closeDeadline();
+    });
+    document.addEventListener("click", function(ev){
+      var deadlineButton = ev.target.closest(".edit-task-deadline");
+      if(!deadlineButton) return;
+      openDeadline(
+        deadlineButton.getAttribute("data-task-id"),
+        deadlineButton.getAttribute("data-task-number"),
+        deadlineButton.getAttribute("data-due-date")
+      );
+    });
+    document.getElementById("deadline-submit").addEventListener("click", function(){
+      var id = document.getElementById("deadline-task-id").value;
+      var dueDate = document.getElementById("deadline-value").value;
+      var reason = document.getElementById("deadline-reason").value.trim();
+      if(!id || !dueDate){
+        alert("Укажите новую дату и время");
+        return;
+      }
+      if(reason.length < 5){
+        alert("Укажите причину изменения срока");
+        return;
+      }
+      var submitButton = document.getElementById("deadline-submit");
+      submitButton.disabled = true;
+      fetch("/team-manager/api/tasks/" + id + "/deadline/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken()
+        },
+        body: JSON.stringify({due_date: dueDate, reason: reason})
+      }).then(function(response){ return response.json(); }).then(function(payload){
+        submitButton.disabled = false;
+        if(payload && payload.ok){
+          window.location.reload();
+          return;
+        }
+        alert((payload && payload.error) || "Не удалось изменить срок");
+      }).catch(function(){
+        submitButton.disabled = false;
+        alert("Ошибка сети");
+      });
+    });
+
+    var xfer = document.getElementById("xfer-modal");
+    var xferTo = document.getElementById("xfer-to");
+    var xferQueue = document.getElementById("xfer-queue");
+    function openXfer(taskId, number, executor){
+      document.getElementById("xfer-task-id").value = taskId;
+      document.getElementById("xfer-subtitle").textContent =
+        "№" + (number || taskId) + (executor ? " · сейчас: " + executor : "");
+      document.getElementById("xfer-comment").value = "";
+      xferQueue.checked = false;
+      xferTo.disabled = false;
+      xfer.classList.add("open");
+      xfer.setAttribute("aria-hidden", "false");
+    }
+    function closeXfer(){
+      xfer.classList.remove("open");
+      xfer.setAttribute("aria-hidden", "true");
+    }
+    if(xferQueue){
+      xferQueue.addEventListener("change", function(){
+        xferTo.disabled = xferQueue.checked;
+      });
+    }
+    document.getElementById("xfer-cancel").addEventListener("click", closeXfer);
+    xfer.addEventListener("click", function(ev){
+      if(ev.target === xfer) closeXfer();
+    });
+    document.addEventListener("click", function(ev){
+      var tbtn = ev.target.closest(".transfer-task");
+      if(!tbtn) return;
+      openXfer(
+        tbtn.getAttribute("data-task-id"),
+        tbtn.getAttribute("data-task-number"),
+        tbtn.getAttribute("data-executor")
+      );
+    });
+    document.getElementById("xfer-submit").addEventListener("click", function(){
+      var id = document.getElementById("xfer-task-id").value;
+      if(!id) return;
+      var body = {
+        reason: document.getElementById("xfer-reason").value || "Передача",
+        comment: document.getElementById("xfer-comment").value || "",
+        return_to_queue: !!xferQueue.checked
+      };
+      if(!body.return_to_queue){
+        body.to_employee_id = parseInt(xferTo.value || "0", 10) || null;
+        if(!body.to_employee_id){
+          alert("Выберите сотрудника или возврат в очередь");
+          return;
+        }
+      }
+      var submitBtn = document.getElementById("xfer-submit");
+      submitBtn.disabled = true;
+      fetch("/team-manager/api/tasks/" + id + "/transfer/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken()
+        },
+        body: JSON.stringify(body)
+      }).then(function(r){ return r.json(); }).then(function(payload){
+        submitBtn.disabled = false;
+        if(payload && payload.ok){
+          window.location.reload();
+          return;
+        }
+        alert((payload && payload.error) || "Не удалось передать задачу");
+      }).catch(function(){
+        submitBtn.disabled = false;
+        alert("Ошибка сети");
+      });
+    });
+
+    var moreBtn = document.getElementById("mgr-more-filters");
+    var morePanel = document.getElementById("mgr-more-filters-panel");
+    if(moreBtn && morePanel){
+      moreBtn.addEventListener("click", function(){
+        var open = moreBtn.getAttribute("aria-expanded") === "true";
+        moreBtn.setAttribute("aria-expanded", open ? "false" : "true");
+        morePanel.hidden = open;
+      });
+    }
+
+    var pageSizeSelect = document.getElementById("mgr-page-size");
+    if(pageSizeSelect){
+      pageSizeSelect.addEventListener("change", function(){
+        var params = new URLSearchParams(window.location.search);
+        params.set("page_size", pageSizeSelect.value);
+        params.set("page", "1");
+        window.location.search = params.toString();
+      });
+    }
+  })();
+  </script>
+{% endblock %}

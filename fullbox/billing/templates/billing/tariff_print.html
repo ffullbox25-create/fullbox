@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>{{ version.name }} — FULLBOX</title>
+  {% load billing_tags %}
+  <style>
+    body { font-family: Arial, sans-serif; color:#111827; margin:32px; }
+    .head { display:flex; justify-content:space-between; gap:24px; border-bottom:2px solid #f2b747; padding-bottom:18px; margin-bottom:24px; }
+    .logo { font-size:26px; font-weight:900; letter-spacing:.08em; }
+    h1 { margin:0 0 8px; font-size:24px; }
+    h2 { margin:24px 0 10px; font-size:18px; }
+    .muted { color:#6b7280; }
+    .meta { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px; }
+    .box { border:1px solid #e5e7eb; border-radius:10px; padding:10px; }
+    .box span { display:block; color:#6b7280; font-size:12px; margin-bottom:4px; }
+    table { width:100%; border-collapse:collapse; margin-top:8px; font-size:12px; table-layout:fixed; }
+    th, td { border:1px solid #e5e7eb; padding:8px 10px; text-align:left; vertical-align:middle; line-height:1.35; }
+    th { background:#f9fafb; color:#4b5563; }
+    .service { width:78%; overflow-wrap:anywhere; }
+    .unit { width:8%; text-align:center; white-space:nowrap; }
+    .price { width:14%; text-align:right; }
+    .price { white-space:nowrap; font-weight:700; }
+    @media print { body { margin:12mm; } .no-print { display:none; } }
+  </style>
+</head>
+<body>
+  <div class="head">
+    <div>
+      <div class="logo">FULLBOX</div>
+      <p class="muted">Сформировано {{ generated_at|date:"d.m.Y H:i" }}</p>
+    </div>
+    <div>
+      <h1>{{ version.name }}</h1>
+      <p>{{ version.client.agn_name }}{% if version.client.inn %}, ИНН {{ version.client.inn }}{% endif %}</p>
+    </div>
+  </div>
+
+  <div class="meta">
+    <div class="box"><span>Период</span>{{ version.valid_from|date:"d.m.Y" }}{% if version.valid_to %}–{{ version.valid_to|date:"d.m.Y" }}{% endif %}</div>
+    <div class="box"><span>Статус</span>{{ version.get_status_display }}</div>
+    <div class="box"><span>НДС</span>{{ version.get_vat_type_display }}</div>
+    <div class="box"><span>Договор</span>{{ version.contract_number|default:"—" }}</div>
+    <div class="box"><span>Доп. соглашение</span>{{ version.additional_agreement_number|default:"—" }}</div>
+    <div class="box"><span>Редакция</span>№ {{ version.version_number }}</div>
+  </div>
+
+  {% for group in groups %}
+    <h2>{{ group.category.name }}</h2>
+    <table>
+      <thead>
+        <tr><th class="service">Услуга</th><th class="unit">Ед.</th><th class="price">Цена</th></tr>
+      </thead>
+      <tbody>
+        {% for item in group.items %}
+          <tr>
+            <td class="service">{{ item.service_name }}</td>
+            <td class="unit">{{ item.unit.short_name }}</td>
+            <td class="price">{{ item.price|rub_fmt }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endfor %}
+
+  <h2>Специальные условия</h2>
+  {% if conditions %}
+    <ul>
+      {% for condition in conditions %}
+        <li><strong>{{ condition.name }}</strong>{% if condition.value %}: {{ condition.value }}{% if condition.unit %} {{ condition.unit.short_name }}{% endif %}{% endif %}. {{ condition.description }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">Не указаны.</p>
+  {% endif %}
+</body>
+</html>

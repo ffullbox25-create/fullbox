@@ -1,0 +1,347 @@
+{% extends "teammanager/_base.html" %}
+{% load billing_tags %}
+{% block title %}{{ client.short_name|default:client.agn_name }} — Биллинг{% endblock %}
+{% block extra_css %}
+.page-title { margin:0; font-family:"Bricolage Grotesque","Manrope",sans-serif; font-size:28px; font-weight:900; }
+.page-sub { color:var(--muted); font-size:13px; margin-top:4px; }
+.meta-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+.meta-item { background:#fff; border:1px solid var(--line); border-radius:14px; padding:12px 14px; box-shadow:var(--shadow); }
+.meta-label { font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; }
+.meta-val { margin-top:4px; font-size:14px; font-weight:800; }
+.tabs { display:flex; gap:6px; flex-wrap:wrap; }
+.tabs a { padding:8px 12px; border-radius:10px; border:1px solid var(--line); background:#fff; font-size:12px; font-weight:800; text-decoration:none; color:var(--ink); }
+.tabs a.active { background:var(--accent-soft); color:var(--accent-strong); border-color:transparent; }
+.table-card { overflow:auto; background:#fff; border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:900; background:var(--surface-2); border-bottom:1px solid var(--line); }
+td { padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+.money { font-weight:800; }
+.readonly-note { background:var(--sun-soft); border:1px solid rgba(242,183,71,.45); border-radius:12px; padding:10px 12px; color:#9a3412; font-size:12px; font-weight:700; }
+.tariff-nav { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.tariff-nav a { display:block; padding:12px; border:1px solid var(--line); border-radius:12px; text-decoration:none; color:var(--ink); background:#fff; }
+.tariff-nav a.active { border-color:var(--accent); background:var(--accent-soft); color:var(--accent-strong); }
+.tariff-nav strong { display:block; font-size:13px; }
+.tariff-nav span { display:block; margin-top:3px; color:var(--muted); font-size:11px; }
+.report-cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.report-card { display:grid; gap:8px; align-content:start; border:1px solid var(--line); border-radius:14px; background:#fff; padding:14px; }
+.period-filter { display:flex; gap:9px; align-items:end; flex-wrap:wrap; padding:12px; border:1px solid var(--line); border-radius:14px; background:#fff; }
+.period-filter label { display:grid; gap:4px; color:var(--muted); font-size:11px; font-weight:800; }
+.work-sections { display:grid; gap:10px; }
+.work-section { border:1px solid var(--line); border-radius:14px; background:#fff; overflow:hidden; }
+.work-section[open] { border-color:rgba(248,144,0,.55); }
+.work-section > summary { cursor:pointer; list-style:none; display:flex; justify-content:space-between; gap:12px; align-items:center; padding:14px 16px; }
+.work-section > summary::-webkit-details-marker { display:none; }
+.work-title { font:900 17px/1.2 "Bricolage Grotesque","Manrope",sans-serif; }
+.work-total { color:var(--muted); font-size:12px; font-weight:800; text-align:right; }
+.work-alerts { display:inline-flex; gap:5px; flex-wrap:wrap; margin-left:7px; }
+.work-pill,.charge-badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:900; }
+.work-pill { color:#9a3412; background:rgba(248,144,0,.13); }
+.charge-badge.red { color:#a11a2d; background:#fdecee; }
+.charge-badge.orange { color:#9a5b00; background:#fff4e5; }
+.charge-badge.green { color:#146c36; background:#e8f7ee; }
+.charge-badge.blue { color:#1d4ed8; background:#eff6ff; }
+.charge-badge.gray { color:var(--muted); background:var(--surface-2); }
+.work-body { border-top:1px solid var(--line); padding:12px; display:grid; gap:10px; background:#fffaf3; }
+.work-app { border:1px solid var(--line); border-radius:12px; background:#fff; overflow:hidden; }
+.work-app-head { display:flex; justify-content:space-between; gap:12px; padding:11px 12px; align-items:flex-start; }
+.work-app-title { font-weight:900; color:var(--ink); }
+.trip-note { margin-top:5px; color:#76500f; font-size:11px; font-weight:750; }
+.work-app table { min-width:760px; }
+.empty-work { padding:16px; color:var(--muted); font-size:12px; font-weight:700; text-align:center; }
+@media (max-width:960px) { .meta-grid { grid-template-columns:1fr 1fr; } .tariff-nav,.report-cards { grid-template-columns:1fr; } }
+{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start">
+  <div>
+    <h1 class="page-title">{{ client.agn_name|default:client.short_name }}</h1>
+    <div class="page-sub">Финансовая карточка · цены только из опубликованного тарифа бухгалтера</div>
+  </div>
+  <a class="btn" href="/team-manager/billing/clients/">← К списку</a>
+</div>
+{% include "billing/_billing_nav.html" %}
+
+<div class="meta-grid">
+  <div class="meta-item"><div class="meta-label">ИНН</div><div class="meta-val">{{ client.inn|default:"—" }}</div></div>
+  <div class="meta-item"><div class="meta-label">Договор</div><div class="meta-val">{{ contract_number|default:"—" }}</div></div>
+  <div class="meta-item"><div class="meta-label">КП</div><div class="meta-val">{{ commercial_offer|default:"—" }}</div></div>
+  <div class="meta-item"><div class="meta-label">FullBox</div><div class="meta-val">{% if serving_company %}{{ serving_company.short_name|default:serving_company.name }}{% else %}—{% endif %}</div></div>
+  <div class="meta-item"><div class="meta-label">Тариф</div><div class="meta-val">{% if tariff %}v{{ tariff.version_number }} · {{ tariff.get_status_display }}{% else %}нет{% endif %}</div></div>
+  <div class="meta-item"><div class="meta-label">НДС</div><div class="meta-val">{{ vat_type_label|default:"—" }}</div></div>
+  <div class="meta-item"><div class="meta-label">Задолженность</div><div class="meta-val money">{{ debt_total|rub_fmt }}</div></div>
+  <div class="meta-item"><div class="meta-label">Просрочка</div><div class="meta-val money">{{ overdue_total|rub_fmt }}</div></div>
+</div>
+
+<nav class="tabs">
+  <a class="{% if tab == 'summary' %}active{% endif %}" href="?tab=summary">Сводка</a>
+  <a class="{% if tab == 'requisites' %}active{% endif %}" href="?tab=requisites">Реквизиты</a>
+  <a class="{% if tab == 'contracts' %}active{% endif %}" href="?tab=contracts">Договоры / КП</a>
+  <a class="{% if tab == 'tariffs' %}active{% endif %}" href="?tab=tariffs">Тарифы</a>
+  <a class="{% if tab == 'reports' %}active{% endif %}" href="?tab=reports">Отчёты</a>
+  <a class="{% if tab == 'applications' %}active{% endif %}" href="?tab=applications">Заявки</a>
+  <a class="{% if tab == 'invoices' %}active{% endif %}" href="?tab=invoices">Счета</a>
+</nav>
+
+{% if tab == 'summary' or not tab %}
+<div class="card" style="display:grid;gap:10px">
+  <div class="readonly-note">Менеджер не меняет цену, НДС и договор. Условия публикует бухгалтер.</div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+    <div><div class="meta-label">Начислено</div><div class="meta-val money">{{ accrued_total|rub_fmt }}</div></div>
+    <div><div class="meta-label">Выставлено</div><div class="meta-val money">{{ invoiced_total|rub_fmt }}</div></div>
+    <div><div class="meta-label">Оплачено</div><div class="meta-val money">{{ paid_total|rub_fmt }}</div></div>
+    <div><div class="meta-label">К выставлению</div><div class="meta-val">{{ apps_ready }}</div></div>
+  </div>
+</div>
+
+<form class="period-filter" method="get">
+  <input type="hidden" name="tab" value="summary">
+  <label>С даты<input class="field" type="date" name="date_from" value="{{ client_filter_date_from }}"></label>
+  <label>По дату<input class="field" type="date" name="date_to" value="{{ client_filter_date_to }}"></label>
+  <button class="btn primary" type="submit">Показать работы</button>
+</form>
+
+<div class="work-sections">
+  {% for section in client_work_sections %}
+    <details class="work-section">
+      <summary>
+        <span class="work-title">{{ section.label }}</span>
+        <span class="work-total">
+          {% if section.key == 'storage' %}
+            {{ section.storage_days_count }} дней · {{ section.storage_pallet_count }} палето-мест · {{ section.amount|rub_fmt }}
+          {% elif section.key == 'fbs' and client_fbs_billing_disabled %}
+            {{ section.application_count }} заявок · {{ section.service_count }} услуг · не тарифицируется
+          {% else %}
+            {{ section.application_count }} заявок · {{ section.service_count }} услуг · {{ section.amount|rub_fmt }}
+          {% endif %}
+          <span class="work-alerts">
+            {% if section.missing_price %}<span class="work-pill">{{ section.missing_price }} без цены</span>{% endif %}
+            {% if section.waiting_confirmation %}<span class="work-pill">{{ section.waiting_confirmation }} ждут подтверждения</span>{% endif %}
+          </span>
+        </span>
+      </summary>
+      <div class="work-body">
+        {% if section.key == 'fbs' and client_fbs_billing_disabled %}
+          <div class="readonly-note">FBS-биллинг выключен, услуги фиксируются и не тарифицируются.</div>
+        {% endif %}
+        {% if section.key == 'storage' %}
+          {% if section.storage_amount_differs %}
+            <div class="readonly-note">По дням без НДС: {{ section.storage_days_amount|rub_fmt }}. Начислено с учётом НДС: {{ section.amount|rub_fmt }}.</div>
+          {% endif %}
+          <div class="table-card">
+            <table>
+              <thead><tr><th>Дата</th><th>Режим</th><th>Количество</th><th>Сумма</th><th>Статус</th></tr></thead>
+              <tbody>
+                {% for day in section.storage_days %}
+                  <tr>
+                    <td>{{ day.day|date:"d.m.Y" }}</td>
+                    <td>{{ day.mode_label }}</td>
+                    <td>{{ day.quantity }} {{ day.unit }}</td>
+                    <td class="money">{{ day.amount|rub_fmt }}</td>
+                    <td>{{ day.status_label }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="5" class="empty-work">Нет дней хранения за выбранный период</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          {% for app in section.applications %}
+            <article class="work-app">
+              <div class="work-app-head">
+                <div>
+                  {% if app.application_pk %}
+                    <a class="work-app-title" href="{% url 'billing-application-detail' app.application_pk %}">{{ app.number }}</a>
+                  {% else %}
+                    <span class="work-app-title">{{ app.number }}</span>
+                  {% endif %}
+                  <span class="page-sub"> · {{ app.application_type_label }}</span>
+                  {% for trip in app.trip_rows %}
+                    <div class="trip-note">Загрузка № {{ trip.number }}{% if trip.date %} · {{ trip.date|date:"d.m.Y" }}{% endif %} · машина {{ trip.vehicle }} · очередь погрузки {{ trip.loading_sequence }}</div>
+                  {% endfor %}
+                </div>
+                <span class="page-sub">{% if app.date %}{{ app.date|date:"d.m.Y H:i" }}{% else %}дата не указана{% endif %}</span>
+              </div>
+              <div class="table-card">
+                <table>
+                  <thead><tr><th>Услуга</th><th>Количество</th><th>Сумма</th><th>Состояние начисления</th></tr></thead>
+                  <tbody>
+                    {% for service in app.services %}
+                      <tr>
+                        <td>{{ service.name }}</td>
+                        <td>{{ service.quantity }} {{ service.unit }}</td>
+                        <td class="money">{% if service.amount is not None %}{{ service.amount|rub_fmt }}{% else %}—{% endif %}</td>
+                        <td><span class="charge-badge {{ service.status_badge }}">{{ service.status_label }}</span></td>
+                      </tr>
+                    {% empty %}
+                      <tr><td colspan="4" class="empty-work">Нет услуг по заявке</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          {% empty %}
+            <div class="empty-work">Нет заявок за выбранный период</div>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </details>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if tab == 'requisites' %}
+<div class="card">
+  <table>
+    <tr><th>Полное название</th><td>{{ client.agn_name }}</td></tr>
+    <tr><th>Краткое</th><td>{{ client.short_name|default:"—" }}</td></tr>
+    <tr><th>ИНН</th><td>{{ client.inn|default:"—" }}</td></tr>
+    <tr><th>КПП</th><td>{{ client.kpp|default:"—" }}</td></tr>
+    <tr><th>ОГРН</th><td>{{ client.ogrn|default:"—" }}</td></tr>
+    <tr><th>Адрес</th><td>{{ client.adres|default:client.fakt_adres|default:"—" }}</td></tr>
+    <tr><th>Банк / р/с</th><td>{{ client.bank_name|default:"—" }} · {{ client.bank_itog_account|default:"—" }}</td></tr>
+    <tr><th>Статус у менеджеров</th><td>{% if lifecycle %}{{ lifecycle.get_status_display }}{% else %}—{% endif %}</td></tr>
+  </table>
+</div>
+{% endif %}
+
+{% if tab == 'contracts' %}
+<div class="card" style="display:grid;gap:12px">
+  <div class="readonly-note">Договор и КП поступают из кабинета бухгалтера. Редактирование недоступно.</div>
+  <div><strong>Номер договора:</strong> {{ contract_number|default:"—" }}
+    {% if contract_date %} · дата {{ contract_date }}{% endif %}
+    {% if commercial_offer %} · КП {{ commercial_offer }}{% endif %}
+  </div>
+  <div class="table-card">
+    <table>
+      <thead><tr><th>FullBox</th><th>Режим</th><th>С</th><th>По</th><th>Статус</th><th>Комментарий</th></tr></thead>
+      <tbody>
+        {% for c in contracts %}
+        <tr>
+          <td>{{ c.own_company.short_name|default:c.own_company.name }}</td>
+          <td>{{ c.get_pricing_mode_display }}</td>
+          <td>{{ c.valid_from }}</td>
+          <td>{{ c.valid_to|default:"—" }}</td>
+          <td>{% if c.is_active %}Активен{% else %}Неактивен{% endif %}</td>
+          <td>{{ c.comment|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="color:var(--muted)">Нет записей ClientBillingContract — смотрите номер договора/КП выше.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if tab == 'tariffs' %}
+<div class="card" style="display:grid;gap:12px">
+  <div class="readonly-note">Три независимых источника показаны в одной карточке клиента. Каждый расчёт берёт цену только из своего раздела.</div>
+  <nav class="tariff-nav">
+    {% for key, section in tariff_sections.items %}
+      <a class="{% if tariff_section == key %}active{% endif %}" href="?tab=tariffs&tariff_section={{ key }}">
+        <strong>{{ section.label }}</strong>
+        <span>{{ section.items_count }} заполненных позиций</span>
+      </a>
+    {% endfor %}
+  </nav>
+
+  {% if tariff_section == 'general' %}
+    {% with section=tariff_sections.general %}
+      <div><strong>{{ section.label }}</strong><div class="page-sub">{{ section.description }} Источник расчёта: опубликованная редакция общего тарифа.</div></div>
+      {% if section.version %}
+        <div><strong>{{ section.version.name }}</strong> · v{{ section.version.version_number }} · {{ section.version.get_status_display }} · с {{ section.version.valid_from }}</div>
+        <div class="table-card"><table><thead><tr><th>Код</th><th>Услуга</th><th>Ед.</th><th>Цена</th><th>Мин.</th><th>Условия</th></tr></thead><tbody>
+          {% for group in section.groups %}
+            <tr><td colspan="6" style="background:var(--surface-2);font-weight:900">{{ group.category.name }}</td></tr>
+            {% for item in group.items %}<tr><td><code>{{ item.service.code }}</code></td><td>{{ item.service_name }}</td><td>{{ item.unit.short_name|default:item.unit.name }}</td><td class="money">{{ item.price }}</td><td>{{ item.minimum_amount|default:"—" }}</td><td>{{ item.conditions|default:"—" }}</td></tr>{% endfor %}
+          {% empty %}<tr><td colspan="6">Нет активных общих тарифов.</td></tr>{% endfor %}
+        </tbody></table></div>
+      {% else %}<div class="readonly-note">Нет опубликованного общего тарифа на сегодня.</div>{% endif %}
+      {% if billing_can_edit_tariffs %}<div><a class="btn primary" href="/team-manager/billing/tariffs/?client={{ client.id }}">Настроить общие тарифы</a></div>{% endif %}
+      <h3 style="margin:0">История общего тарифа</h3>
+      <div class="table-card"><table><thead><tr><th>Версия</th><th>Статус</th><th>Период</th><th>Договор</th><th>ДС</th></tr></thead><tbody>
+        {% for v in tariff_versions %}<tr><td>v{{ v.version_number }} · {{ v.name }}</td><td>{{ v.get_status_display }}</td><td>{{ v.valid_from }} — {{ v.valid_to|default:"…" }}</td><td>{{ v.contract_number|default:"—" }}</td><td>{{ v.additional_agreement_number|default:"—" }}</td></tr>{% empty %}<tr><td colspan="5">История пуста</td></tr>{% endfor %}
+      </tbody></table></div>
+    {% endwith %}
+  {% elif tariff_section == 'logistics' %}
+    {% with section=tariff_sections.logistics %}
+      <div><strong>{{ section.label }}</strong><div class="page-sub">{{ section.description }} Источник расчёта: отдельная активная редакция логистики.</div></div>
+      {% if section.tariff %}
+        <div><strong>{{ section.tariff.name }}</strong> · v{{ section.tariff.version_number }} · {{ section.tariff.get_status_display }} · с {{ section.tariff.valid_from }}</div>
+        <div class="table-card"><table><thead><tr><th>Маркетплейс</th><th>Склад / направление</th><th>Дни забора</th><th>Дни сдачи</th><th>От палет</th><th>Цена за палету</th></tr></thead><tbody>
+          {% for item in section.items %}<tr><td>{{ item.get_marketplace_display }}</td><td>{{ item.warehouse_name }}</td><td>{{ item.pickup_days|default:"—" }}</td><td>{{ item.delivery_days|default:"—" }}</td><td>{{ item.minimum_pallets }}</td><td class="money">{{ item.price_per_pallet }}</td></tr>{% empty %}<tr><td colspan="6">В активной редакции нет направлений.</td></tr>{% endfor %}
+        </tbody></table></div>
+      {% else %}<div class="readonly-note">Отдельный логистический тариф клиента не опубликован.</div>{% endif %}
+      {% if section.service_groups %}<div class="page-sub">Дополнительные логистические услуги из общего договора:</div><div class="table-card"><table><thead><tr><th>Код</th><th>Услуга</th><th>Ед.</th><th>Цена</th></tr></thead><tbody>{% for group in section.service_groups %}{% for item in group.items %}<tr><td><code>{{ item.service.code }}</code></td><td>{{ item.service_name }}</td><td>{{ item.unit.short_name|default:item.unit.name }}</td><td class="money">{{ item.price }}</td></tr>{% endfor %}{% endfor %}</tbody></table></div>{% endif %}
+      {% if billing_can_edit_tariffs %}<div><a class="btn primary" href="/accountant/logistics/tariffs/">Настроить тариф логистики</a></div>{% endif %}
+    {% endwith %}
+  {% else %}
+    {% with section=tariff_sections.fbs %}
+      <div><strong>{{ section.label }}</strong><div class="page-sub">{{ section.description }} Источник расчёта: индивидуальные ставки FBS клиента.</div></div>
+      {% if not section.storage_configured %}<div class="readonly-note">Ставка хранения FBS пока не настроена. В отчёт она не попадёт до отдельного подтверждения режима и защиты от двойного хранения.</div>{% endif %}
+      <div class="table-card"><table><thead><tr><th>Операция</th><th>Диапазон</th><th>Ед.</th><th>Цена</th><th>С даты</th><th>НДС</th></tr></thead><tbody>
+        {% for group in section.rate_groups %}
+          {% for rate in group.rates %}<tr><td>{{ group.label }}</td><td>{% if rate.operation == 'marking' or rate.operation == 'storage' %}Все объёмы{% else %}&gt; {{ rate.liters_from }} л — {% if rate.liters_to %}≤ {{ rate.liters_to }} л{% else %}без верхней границы{% endif %}{% endif %}</td><td>{{ rate.unit }}</td><td class="money">{{ rate.price }}</td><td>{{ rate.valid_from }}</td><td>{{ rate.vat_rate }}% сверху</td></tr>{% endfor %}
+        {% empty %}<tr><td colspan="6">Ставки FBS клиента не заполнены.</td></tr>{% endfor %}
+      </tbody></table></div>
+      {% if billing_can_edit_tariffs %}<div><a class="btn primary" href="/team-manager/billing/fbs/?client={{ client.id }}">Настроить тариф FBS</a></div>{% endif %}
+    {% endwith %}
+  {% endif %}
+</div>
+{% endif %}
+
+{% if tab == 'reports' %}
+<div class="card" style="display:grid;gap:12px">
+  <div><strong>Отчёты по клиенту</strong><div class="page-sub">Клиент подставляется автоматически; расчёт использует тариф соответствующего раздела.</div></div>
+  <div class="report-cards">
+    <div class="report-card"><strong>Общие тарифы</strong><span class="page-sub">Начисления складских и FBO-услуг.</span><a class="btn" href="/team-manager/billing/reports/?report=general_charges_by_service&client={{ client.id }}&period_from={{ client_filter_date_from }}&period_to={{ client_filter_date_to }}">Открыть отчёт</a></div>
+    <div class="report-card"><strong>Логистика</strong><span class="page-sub">Начисления по услугам и направлениям логистики.</span><a class="btn" href="/team-manager/billing/reports/?report=logistics_charges_by_service&client={{ client.id }}&period_from={{ client_filter_date_from }}&period_to={{ client_filter_date_to }}">Открыть отчёт</a></div>
+    <div class="report-card"><strong>FBS</strong><span class="page-sub">Предпросмотр по заказам, литражу и индивидуальным ставкам.</span><a class="btn primary" href="/team-manager/billing/reports/?report=fbs_period&client={{ client.id }}&period_from={{ client_filter_date_from }}&period_to={{ client_filter_date_to }}">Рассчитать FBS</a></div>
+  </div>
+</div>
+{% endif %}
+
+{% if tab == 'applications' %}
+<div class="table-card">
+  <table>
+    <thead><tr><th>Заявка</th><th>Тип</th><th>Статус</th><th>Сумма</th><th></th></tr></thead>
+    <tbody>
+      {% for app in recent_applications %}
+      <tr>
+        <td>{{ app.application_id }}</td>
+        <td>{{ app.get_application_type_display }}</td>
+        <td>{{ app.get_billing_status_display }}</td>
+        <td class="money">{{ app.charges_total|rub_fmt }}</td>
+        <td><a class="btn" href="{% url 'billing-application-detail' app.id %}">Открыть</a></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" style="padding:20px;color:var(--muted)">Нет заявок</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if tab == 'invoices' %}
+<div class="table-card">
+  <table>
+    <thead><tr><th>Счёт</th><th>Дата</th><th>Срок</th><th>Итого</th><th>Долг</th><th>Статус</th><th></th></tr></thead>
+    <tbody>
+      {% for inv in recent_invoices %}
+      <tr>
+        <td>{{ inv.number }}</td>
+        <td>{{ inv.invoice_date }}</td>
+        <td>{{ inv.due_date }}</td>
+        <td class="money">{{ inv.total_amount|rub_fmt }}</td>
+        <td class="money">{{ inv.debt_amount|rub_fmt }}</td>
+        <td>{{ inv.get_status_display }}</td>
+        <td><a class="btn" href="{% url 'billing-invoice-detail' inv.id %}">Открыть</a></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" style="padding:20px;color:var(--muted)">Нет счетов</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

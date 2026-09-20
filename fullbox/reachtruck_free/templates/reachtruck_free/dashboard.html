@@ -1,0 +1,562 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ричтракер Free</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f7f5;
+      --panel: #ffffff;
+      --ink: #17211b;
+      --muted: #607067;
+      --line: #d7e0da;
+      --ok: #138a45;
+      --ok-dark: #0b6b34;
+      --bad: #b42318;
+      --warn: #8a5a00;
+      --soft: #eef5f1;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.4;
+    }
+    .page {
+      width: min(760px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 14px;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .title {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 800;
+    }
+    .back {
+      color: var(--muted);
+      font-size: 14px;
+      text-decoration: none;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .move-offer {
+      border-color: #9bd7b5;
+      background: #eaf8ef;
+    }
+    .move-offer h2,
+    .panel h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+    .scan-form {
+      display: grid;
+      gap: 10px;
+    }
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    input[type="text"] {
+      width: 100%;
+      min-height: 52px;
+      border: 1px solid #b9c7bf;
+      border-radius: 8px;
+      padding: 12px;
+      color: var(--ink);
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0;
+      background: #fff;
+    }
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .actions form {
+      margin: 0;
+    }
+    .actions.single {
+      grid-template-columns: 1fr;
+    }
+    button {
+      width: 100%;
+      min-height: 50px;
+      border: 0;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: var(--ok);
+      color: #fff;
+    }
+    .btn-primary:active {
+      background: var(--ok-dark);
+    }
+    .btn-secondary {
+      background: #dfe7e2;
+      color: var(--ink);
+    }
+    .btn-danger {
+      background: #f7d7d4;
+      color: var(--bad);
+    }
+    .notice {
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+    .notice.ok {
+      background: #e8f7ee;
+      color: var(--ok-dark);
+    }
+    .notice.error {
+      background: #fdeceb;
+      color: var(--bad);
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .status.free {
+      background: #dff5e8;
+      color: var(--ok-dark);
+    }
+    .status.blocked {
+      background: #fff3d6;
+      color: var(--warn);
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .summary div {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: var(--soft);
+    }
+    .summary span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .summary strong {
+      display: block;
+      overflow-wrap: anywhere;
+      font-size: 16px;
+      margin-top: 4px;
+    }
+    .list {
+      display: grid;
+      gap: 8px;
+      padding: 0;
+      margin: 10px 0 0;
+      list-style: none;
+    }
+    .line-item {
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+    }
+    .line-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-weight: 800;
+    }
+    .line-meta {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 3px;
+      overflow-wrap: anywhere;
+    }
+    .blockers {
+      color: var(--warn);
+      font-weight: 700;
+    }
+    @media (max-width: 520px) {
+      .page {
+        padding: 10px;
+      }
+      .title {
+        font-size: 22px;
+      }
+      .summary,
+      .actions {
+        grid-template-columns: 1fr;
+      }
+      input[type="text"] {
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body data-sound-event="{{ sound_event|default:'' }}">
+  <main class="page">
+    <header class="topbar">
+      <h1 class="title">Ричтракер Free</h1>
+      <a class="back" href="{{ cabinet_url }}">Назад</a>
+    </header>
+
+    {% if ok_message %}
+      <div class="notice ok">{{ ok_message }}</div>
+    {% endif %}
+    {% if done_message %}
+      <div class="notice ok">{{ done_message }}</div>
+    {% endif %}
+    {% if error %}
+      <div class="notice error">{{ error }}</div>
+    {% endif %}
+
+    {% if moving %}
+      <section class="panel move-offer">
+        <h2>{% if move_contour_label %}{{ move_contour_label }} · {% endif %}{{ moving_title|default:"Паллета в пути" }}</h2>
+        <div class="summary">
+          <div>
+            <span>Старое место</span>
+            <strong>{{ source_label }}</strong>
+          </div>
+          <div>
+            <span>QR места</span>
+            <strong>{{ source_scan_code|default:"-" }}</strong>
+          </div>
+          <div>
+            <span>Количество</span>
+            <strong>{{ total_qty }} шт.</strong>
+          </div>
+          <div>
+            <span>Операция</span>
+            <strong>#{{ operation.id }}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>{{ destination_prompt|default:"Сканируйте новое место" }}</h2>
+        <form class="scan-form" method="post" autocomplete="off">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="scan_destination">
+          <label for="destination-scan">{{ destination_label|default:"Новое место" }}</label>
+          <input id="destination-scan" type="text" name="scan_value" autofocus inputmode="text">
+          <div class="actions">
+            <button class="btn-primary" type="submit">{{ destination_button|default:"Прикрепить к месту" }}</button>
+            <button class="btn-danger" type="submit" name="action" value="cancel_move" formnovalidate>Отмена</button>
+          </div>
+        </form>
+      </section>
+    {% else %}
+      <section class="panel">
+        <form class="scan-form" method="post" autocomplete="off" data-scan-form>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="scan_object">
+          <input id="object-scan" type="text" name="scan_value" value="{{ scan_value }}" autofocus inputmode="text" aria-label="Скан" data-auto-scan>
+        </form>
+      </section>
+
+      {% if scan_info %}
+        {% if scan_info.found %}
+          {% if scan_info.can_move and scan_info.object_type == "pallet" or scan_info.can_move and scan_info.object_type == "box" %}
+            <section class="panel move-offer">
+              <h2>Хотите переместить?</h2>
+              <div class="actions">
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="start_move">
+                  <input type="hidden" name="object_code" value="{{ scan_info.code }}">
+                  <button class="btn-primary" type="submit">Да, переместить</button>
+                </form>
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="decline_move">
+                  <button class="btn-secondary" type="submit">Нет</button>
+                </form>
+              </div>
+            </section>
+          {% endif %}
+
+          {% if can_confirm_physical_empty and scan_info.object_type == "location" and scan_info.status_kind == "blocked" %}
+            <section class="panel move-offer">
+              <h2>Место физически пустое?</h2>
+              <p class="line-meta">Нажимайте только после проверки адреса. Система повторно проверит товар, резервы, FBS и незавершённые перемещения.</p>
+              <form method="post" data-submit-once>
+                {% csrf_token %}
+                <input type="hidden" name="action" value="confirm_location_empty">
+                <input type="hidden" name="location_code" value="{{ scan_info.location_scan_code|default:scan_info.code }}">
+                <button class="btn-primary" type="submit">Подтвердить: место пустое</button>
+              </form>
+            </section>
+          {% endif %}
+
+          <section class="panel">
+            <h2>{{ scan_info.title }}</h2>
+            {% if scan_info.status_label %}
+              <span class="status {{ scan_info.status_kind }}">{{ scan_info.status_label }}</span>
+            {% endif %}
+            {% if scan_info.summary %}
+              <div class="summary">
+                {% for metric in scan_info.summary %}
+                  <div>
+                    <span>{{ metric.label }}</span>
+                    <strong>{{ metric.value|default:"-" }}</strong>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            {% if scan_info.contexts %}
+              <ul class="list">
+                {% for context in scan_info.contexts %}
+                  <li class="line-meta">{{ context }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+
+            {% if scan_info.blockers %}
+              <ul class="list blockers">
+                {% for blocker in scan_info.blockers %}
+                  <li>{{ blocker }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </section>
+
+          <section class="panel">
+            <h2>Состав</h2>
+            <ul class="list">
+              {% for line in scan_info.lines %}
+                <li class="line-item">
+                  <div class="line-head">
+                    <span>{{ line.sku }}</span>
+                    <span>{{ line.qty }} шт.</span>
+                  </div>
+                  <div class="line-meta">
+                    {% if line.name %}{{ line.name }}{% endif %}
+                    {% if line.size %} · Размер {{ line.size }}{% endif %}
+                    {% if line.barcode %} · ШК {{ line.barcode }}{% endif %}
+                    {% if line.goods_type %} · {{ line.goods_type }}{% endif %}
+                  </div>
+                  {% if line.boxes %}
+                    <div class="line-meta">Короба: {{ line.boxes|join:", " }}</div>
+                  {% endif %}
+                </li>
+              {% empty %}
+                <li class="line-meta">{% if scan_info.object_type == "location" %}{% if scan_info.status_kind == "blocked" %}Товар не числится. Место занято тарой или зарезервировано — размещение запрещено.{% else %}Место свободно.{% endif %}{% else %}Состав не найден.{% endif %}</li>
+              {% endfor %}
+            </ul>
+          </section>
+
+          {% if scan_info.object_type != "pallet" and scan_info.placements %}
+            <section class="panel">
+              <h2>Размещение</h2>
+              <ul class="list">
+                {% for place in scan_info.placements %}
+                  <li class="line-item">
+                    <div class="line-head">
+                      <span>{{ place.location }}</span>
+                      <span>{{ place.qty }} шт.</span>
+                    </div>
+                    <div class="line-meta">
+                      {% if place.pallet_code %}Паллета {{ place.pallet_code }}{% endif %}
+                      {% if place.box_code %}{% if place.pallet_code %} · {% endif %}Короб {{ place.box_code }}{% endif %}
+                      {% if place.state_label %}{% if place.pallet_code or place.box_code %} · {% endif %}{{ place.state_label }}{% endif %}
+                    </div>
+                  </li>
+                {% endfor %}
+              </ul>
+            </section>
+          {% endif %}
+        {% else %}
+          <section class="panel">
+            <h2>{{ scan_info.title|default:"Объект не найден" }}</h2>
+            <div class="notice error">{{ scan_info.error }}</div>
+          </section>
+        {% endif %}
+      {% endif %}
+    {% endif %}
+
+    <section class="panel">
+      <form method="get" action="{{ cabinet_url }}">
+        <button class="btn-secondary" type="submit">Вернуться на главную</button>
+      </form>
+    </section>
+  </main>
+  <script>
+    (function () {
+      var pendingEvent = document.body.getAttribute("data-sound-event") || "";
+      var audioContext = null;
+      var masterVolume = 0.18;
+
+      function getContext() {
+        var AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) {
+          return null;
+        }
+        if (!audioContext) {
+          audioContext = new AudioContext();
+        }
+        return audioContext;
+      }
+
+      function addTone(ctx, at, freq, duration, type, gainValue) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = type || "sine";
+        osc.frequency.setValueAtTime(freq, at);
+        gain.gain.setValueAtTime(0.0001, at);
+        gain.gain.exponentialRampToValueAtTime(Math.max(gainValue || masterVolume, 0.0001), at + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, at + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(at);
+        osc.stop(at + duration + 0.04);
+      }
+
+      function scheduleSound(ctx, name) {
+        var now = ctx.currentTime + 0.04;
+        if (name === "info") {
+          addTone(ctx, now, 880, 0.09, "sine", 0.14);
+          return;
+        }
+        if (name === "happy") {
+          [523.25, 659.25, 783.99, 1046.5].forEach(function (freq, index) {
+            addTone(ctx, now + index * 0.1, freq, 0.12, "triangle", 0.16);
+          });
+          return;
+        }
+        if (name === "confirm") {
+          addTone(ctx, now, 659.25, 0.1, "sine", 0.14);
+          addTone(ctx, now + 0.12, 880, 0.12, "sine", 0.16);
+          return;
+        }
+        if (name === "fanfare") {
+          addTone(ctx, now, 523.25, 0.18, "triangle", 0.14);
+          addTone(ctx, now, 659.25, 0.18, "triangle", 0.12);
+          addTone(ctx, now + 0.18, 783.99, 0.18, "triangle", 0.16);
+          addTone(ctx, now + 0.18, 1046.5, 0.18, "triangle", 0.12);
+          addTone(ctx, now + 0.42, 1046.5, 0.28, "sine", 0.18);
+          return;
+        }
+        if (name === "game_over") {
+          addTone(ctx, now, 440, 0.18, "sawtooth", 0.14);
+          addTone(ctx, now + 0.2, 330, 0.18, "sawtooth", 0.15);
+          addTone(ctx, now + 0.4, 220, 0.32, "sawtooth", 0.16);
+        }
+      }
+
+      function playSound(name) {
+        var ctx = getContext();
+        if (!ctx || !name) {
+          return Promise.resolve();
+        }
+        var resume = ctx.state === "suspended" ? ctx.resume() : Promise.resolve();
+        return resume.then(function () {
+          scheduleSound(ctx, name);
+        });
+      }
+
+      function tryPendingSound() {
+        if (!pendingEvent) {
+          return;
+        }
+        var eventName = pendingEvent;
+        pendingEvent = "";
+        playSound(eventName).catch(function () {
+          pendingEvent = eventName;
+        });
+      }
+
+      function unlockAudio() {
+        var ctx = getContext();
+        if (!ctx) {
+          return;
+        }
+        ctx.resume().then(tryPendingSound).catch(function () {});
+      }
+
+      ["pointerdown", "touchstart", "keydown"].forEach(function (eventName) {
+        window.addEventListener(eventName, unlockAudio, { once: true, passive: true });
+      });
+      window.setTimeout(tryPendingSound, 120);
+      window.reachtruckFreePlaySound = playSound;
+    })();
+  </script>
+  <script>
+    (function () {
+      var input = document.querySelector("[data-auto-scan]");
+      if (!input || !input.form) {
+        return;
+      }
+      var form = input.form;
+      var timer = null;
+      var submitted = false;
+      var submitScan = function () {
+        var value = (input.value || "").trim();
+        if (!value || submitted) {
+          return;
+        }
+        submitted = true;
+        input.readOnly = true;
+        if (form.requestSubmit) {
+          form.requestSubmit();
+        } else {
+          form.submit();
+        }
+      };
+      input.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          window.clearTimeout(timer);
+          submitScan();
+        }
+      });
+      input.addEventListener("input", function () {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(submitScan, 450);
+      });
+      input.addEventListener("change", submitScan);
+      window.setTimeout(function () {
+        input.focus();
+        input.select();
+      }, 0);
+    })();
+  </script>
+</body>
+</html>

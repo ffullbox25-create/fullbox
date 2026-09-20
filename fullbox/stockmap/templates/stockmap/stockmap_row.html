@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Линия {{ row_number }} | Карта склада</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #0e6b5b;
+      --accent-strong: #0b5246;
+      --sun: #f2b747;
+      --stroke: rgba(28,31,26,0.12);
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+      --free: #f6d36b;
+      --occupied: #2fb164;
+      --reserved: #d5d8df;
+      --reserved-ink: #5f6470;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 100%; margin: 0 auto; padding: 24px 16px 56px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .logo { display:flex; align-items:center; gap:10px; }
+    .logo-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(242,183,71,0.35), rgba(14,107,91,0.15));
+      color: var(--accent-strong);
+      font-weight: 700;
+    }
+    .title { margin: 0; font-size: 20px; font-family: "Bricolage Grotesque", "Manrope", sans-serif; }
+    .muted { color: var(--muted); }
+    .btn {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid var(--stroke);
+      background:rgba(28,31,26,0.04);
+      color:var(--ink);
+      font-weight:700;
+      transition:all .2s ease;
+    }
+    .btn:hover { border-color:rgba(14,107,91,0.4); box-shadow:0 12px 30px rgba(14,107,91,0.18); transform:translateY(-2px); }
+    .legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 12px 0 16px;
+      font-size: 13px;
+    }
+    .legend-item { display:flex; align-items:center; gap:8px; color: var(--muted); }
+    .legend-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid rgba(28,31,26,0.2);
+    }
+    .legend-dot.free { background: var(--free); }
+    .legend-dot.occupied { background: var(--occupied); }
+    .legend-dot.reserved { background: var(--reserved); }
+    .rack {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .rack-section {
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      padding: 10px;
+    }
+    .rack-section-title {
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .rack-tier {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .rack-tier:last-child { margin-bottom: 0; }
+    .rack-tier-label { color: var(--muted); font-size: 12px; text-align: center; }
+    .rack-cells {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 4px;
+    }
+    .rack-cell {
+      height: 28px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      border: 1px solid rgba(28,31,26,0.2);
+      font-size: 12px;
+    }
+    .rack-cell.free { background: var(--free); }
+    .rack-cell.occupied { background: var(--occupied); color: #fff; }
+    .rack-cell.passage { background: #ffe44d; color: rgba(28,31,26,0.28); }
+    .rack-cell.pick-btn {
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      font-family: inherit;
+    }
+    .rack-cell.pick-btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.5);
+      box-shadow: 0 10px 20px rgba(14,107,91,0.18);
+    }
+    .rack-cell.pick-btn.near-suggested {
+      border-color: rgba(14,107,91,0.75);
+      box-shadow: 0 0 0 2px rgba(14,107,91,0.25), 0 12px 22px rgba(14,107,91,0.2);
+      transform: translateY(-1px);
+      position: relative;
+      z-index: 1;
+    }
+    .rack-cell.pick-btn.draft-reserved {
+      cursor: not-allowed;
+      background: var(--reserved);
+      color: var(--reserved-ink);
+      border-color: rgba(28,31,26,0.22);
+      box-shadow: none;
+      transform: none;
+      opacity: 0.95;
+    }
+    .rack-cell.pick-btn.draft-reserved:hover {
+      transform: none;
+      border-color: rgba(28,31,26,0.22);
+      box-shadow: none;
+    }
+    .rack-cell.detail-btn {
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      font-family: inherit;
+    }
+    .rack-cell.detail-btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.5);
+      box-shadow: 0 10px 20px rgba(14,107,91,0.18);
+    }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 15, 12, 0.35);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 1000;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-card {
+      width: min(980px, 100%);
+      max-height: min(90vh, 920px);
+      overflow: auto;
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+    .modal-title {
+      margin: 0;
+      font-size: 22px;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    }
+    .modal-subtitle {
+      color: var(--muted);
+      margin-top: 4px;
+      font-size: 14px;
+    }
+    .modal-grid {
+      display: grid;
+      gap: 14px;
+    }
+    .modal-pallet {
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      background: var(--surface-2);
+      padding: 14px;
+    }
+    .modal-pallet-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .modal-pallet-title {
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .modal-pallet-meta {
+      display: flex;
+      gap: 8px 14px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+    .modal-kpis {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .modal-kpi {
+      border: 1px solid var(--stroke);
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: rgba(255,255,255,0.72);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .modal-items {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255,255,255,0.72);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .modal-items th,
+    .modal-items td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--stroke);
+      font-size: 13px;
+      text-align: left;
+    }
+    .modal-items th {
+      color: var(--muted);
+      font-weight: 700;
+      background: rgba(28,31,26,0.03);
+    }
+    .modal-items tr:last-child td { border-bottom: 0; }
+    .modal-empty {
+      color: var(--muted);
+      font-size: 14px;
+      padding: 12px 0 6px;
+    }
+    .picker-note {
+      margin: 12px 0 16px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(14,107,91,0.32);
+      background: rgba(14,107,91,0.1);
+      color: var(--accent-strong);
+      font-weight: 600;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <div class="logo">
+          <div class="logo-mark">FX</div>
+          <div>
+            <div class="title">Основной склад · Линия {{ row_number }}</div>
+            <div class="muted">Секций: {{ sections|length }}, ярусов: {{ tiers_total }}, ячеек в ярусе: {{ cells_per_tier }}</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <a class="btn" href="/stockmap/visual/{% if picker_mode %}?picker=1{% endif %}">Назад к карте</a>
+          <a class="btn" href="{{ cabinet_url }}">В кабинет</a>
+        </div>
+      </div>
+
+      {% if picker_mode %}
+        <div class="picker-note">Режим выбора локации: нажмите на любую свободную ячейку, чтобы вернуть ее в заявку.</div>
+      {% endif %}
+
+      <div class="legend">
+        <div class="legend-item"><span class="legend-dot free"></span>Пустые</div>
+        <div class="legend-item"><span class="legend-dot occupied"></span>Занятые</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#ffe44d;"></span>Проход</div>
+        {% if picker_mode %}
+          <div class="legend-item"><span class="legend-dot reserved"></span>Черновая бронь</div>
+        {% endif %}
+      </div>
+
+      <div class="rack">
+        {% for section in sections %}
+          <div class="rack-section">
+            <div class="rack-section-title">Линия {{ section.line_label }}</div>
+            {% for tier in section.tiers %}
+              <div class="rack-tier">
+                <div class="rack-tier-label">{{ tier.number }}</div>
+                <div class="rack-cells">
+                  {% for cell in tier.cells %}
+                    {% if cell.is_passage %}
+                      <div class="rack-cell passage" title="Проход"></div>
+                    {% elif picker_mode and not cell.occupied %}
+                      <button
+                        type="button"
+                        class="rack-cell free pick-btn"
+                        data-pick-zone="OS"
+                        data-pick-row="{{ row_number }}"
+                        data-pick-section="{{ section.number }}"
+                        data-pick-tier="{{ tier.number }}"
+                        data-pick-cell="{{ cell.number }}"
+                      >
+                        {{ cell.number }}
+                      </button>
+                    {% elif cell.occupied %}
+                      <button
+                        type="button"
+                        class="rack-cell occupied detail-btn"
+                        data-detail-key="{{ cell.detail_key }}"
+                        title="{{ cell.detail_summary|default:'Показать состав ячейки' }}"
+                      >
+                        {{ cell.display_marker|default:cell.number }}
+                      </button>
+                    {% else %}
+                      <div class="rack-cell {% if cell.occupied %}occupied{% else %}free{% endif %}">
+                        {{ cell.number }}
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {{ cell_details|json_script:"stockmap-cell-details" }}
+  <div class="modal-backdrop" id="cell-details-modal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="cell-details-title">Ячейка склада</h2>
+          <div class="modal-subtitle" id="cell-details-subtitle">Состав занятой ячейки.</div>
+        </div>
+        <button type="button" class="btn" id="cell-details-close">Закрыть</button>
+      </div>
+      <div class="modal-grid" id="cell-details-body"></div>
+    </div>
+  </div>
+  {% if picker_mode %}
+    <script>
+      (() => {
+        const params = new URLSearchParams(window.location.search || '');
+        const toInt = (value) => {
+          const parsed = Number.parseInt(String(value || '').trim(), 10);
+          return Number.isFinite(parsed) ? parsed : 0;
+        };
+        const reservedKeys = new Set(
+          params.getAll('reserved')
+            .map((value) => String(value || '').trim().toUpperCase())
+            .filter((value) => value),
+        );
+        const backLink = document.querySelector('.btn[href^="/stockmap/"]');
+        if (backLink) {
+          const backUrl = new URL(backLink.getAttribute('href'), window.location.origin);
+          backUrl.searchParams.set('picker', '1');
+          ['near_zone', 'near_row', 'near_section', 'near_tier', 'near_cell'].forEach((name) => {
+            if (params.has(name)) {
+              backUrl.searchParams.set(name, params.get(name));
+            }
+          });
+          params.getAll('reserved').forEach((value) => {
+            backUrl.searchParams.append('reserved', value);
+          });
+          backLink.setAttribute('href', `${backUrl.pathname}?${backUrl.searchParams.toString()}`);
+        }
+        const osKey = (row, section, tier, cell) => `OS:${row}:${section}:${tier}:${cell}`;
+        const sendSelection = (location, label) => {
+          const payload = {
+            type: 'stockmap-location-picked',
+            location: location || {},
+            label: label || '',
+            ts: Date.now(),
+          };
+          try {
+            localStorage.setItem('stockmap_location_pick', JSON.stringify(payload));
+          } catch (err) {}
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage(payload, window.location.origin);
+          }
+          window.close();
+        };
+        document.querySelectorAll('.pick-btn[data-pick-zone]').forEach((btn) => {
+          const zone = String(btn.dataset.pickZone || 'OS').toUpperCase();
+          const row = toInt(btn.dataset.pickRow);
+          const section = toInt(btn.dataset.pickSection);
+          const tier = toInt(btn.dataset.pickTier);
+          const cell = toInt(btn.dataset.pickCell);
+          const key = osKey(row, section, tier, cell);
+          if (zone === 'OS' && reservedKeys.has(key)) {
+            btn.disabled = true;
+            btn.classList.add('draft-reserved');
+            btn.title = 'Место уже выбрано для другой палеты в текущем наборе заданий.';
+          }
+          btn.addEventListener('click', () => {
+            if (btn.disabled) {
+              return;
+            }
+            const lineLabels = {1: '0', 2: 'A', 3: 'B', 4: 'C', 5: 'D', 6: 'E', 7: 'F', 8: 'G', 9: 'I'};
+            const lineLabel = lineLabels[section] || String(section);
+            const label = `OS · ${lineLabel}-${row}/${tier}-${cell}`;
+            sendSelection({ zone, row, section, tier, cell }, label);
+          });
+        });
+
+        const nearZone = String(params.get('near_zone') || '').toUpperCase();
+        const nearRow = toInt(params.get('near_row'));
+        const nearSection = toInt(params.get('near_section'));
+        const nearTier = toInt(params.get('near_tier'));
+        const nearCell = toInt(params.get('near_cell'));
+        const currentRow = Number.parseInt('{{ row_number }}', 10) || 0;
+        if (nearZone === 'OS' && nearRow > 0 && nearRow === currentRow) {
+          const candidates = Array.from(document.querySelectorAll('.pick-btn[data-pick-zone="OS"]'))
+            .filter((btn) => !btn.disabled);
+          if (candidates.length) {
+            const withDistance = candidates.map((btn) => {
+              const section = toInt(btn.dataset.pickSection);
+              const tier = toInt(btn.dataset.pickTier);
+              const cell = toInt(btn.dataset.pickCell);
+              const distance =
+                Math.abs(section - nearSection) * 20 +
+                Math.abs(tier - nearTier) * 5 +
+                Math.abs(cell - nearCell);
+              return { btn, distance };
+            });
+            withDistance.sort((left, right) => left.distance - right.distance);
+            const best = withDistance[0]?.btn || null;
+            if (best) {
+              best.classList.add('near-suggested');
+              best.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+            }
+          }
+        }
+      })();
+    </script>
+  {% endif %}
+  <script>
+    (() => {
+      const detailsEl = document.getElementById('stockmap-cell-details');
+      const modal = document.getElementById('cell-details-modal');
+      const closeBtn = document.getElementById('cell-details-close');
+      const titleEl = document.getElementById('cell-details-title');
+      const subtitleEl = document.getElementById('cell-details-subtitle');
+      const bodyEl = document.getElementById('cell-details-body');
+      if (!detailsEl || !modal || !closeBtn || !titleEl || !subtitleEl || !bodyEl) {
+        return;
+      }
+      let details = {};
+      try {
+        details = JSON.parse(detailsEl.textContent || '{}') || {};
+      } catch (error) {
+        details = {};
+      }
+
+      const escapeHtml = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+      const renderItemsTable = (items) => {
+        if (!Array.isArray(items) || !items.length) {
+          return '<div class="modal-empty">Состав не найден.</div>';
+        }
+        const rows = items.map((item) => `
+          <tr>
+            <td>${escapeHtml(item.sku || '—')}</td>
+            <td>${escapeHtml(item.name || '—')}</td>
+            <td>${escapeHtml(item.size || '—')}</td>
+            <td>${escapeHtml(item.barcode || '—')}</td>
+            <td>${escapeHtml(item.goods_type || '—')}</td>
+            <td>${escapeHtml(item.box_count || 0)}</td>
+            <td>${escapeHtml(item.qty || 0)}</td>
+          </tr>
+        `).join('');
+        return `
+          <table class="modal-items">
+            <thead>
+              <tr>
+                <th>Артикул</th>
+                <th>Наименование</th>
+                <th>Размер</th>
+                <th>ШК</th>
+                <th>Тип</th>
+                <th>Коробов</th>
+                <th>Кол-во</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      };
+
+      const openModal = (cellKey) => {
+        const detail = details[cellKey];
+        if (!detail) {
+          return;
+        }
+        titleEl.textContent = detail.cell_label || 'Ячейка склада';
+        subtitleEl.textContent = detail.pallet_count > 1
+          ? `В ячейке ${detail.pallet_count} паллеты.`
+          : 'В ячейке 1 паллета.';
+        const pallets = Array.isArray(detail.pallets) ? detail.pallets : [];
+        bodyEl.innerHTML = pallets.map((pallet) => `
+          <section class="modal-pallet">
+            <div class="modal-pallet-head">
+              <div>
+                <div class="modal-pallet-title">Паллета ${escapeHtml(pallet.pallet_code || '—')}</div>
+              </div>
+            </div>
+            ${renderItemsTable(pallet.items)}
+          </section>
+        `).join('');
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+      };
+
+      const closeModal = () => {
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+      };
+
+      document.querySelectorAll('.detail-btn[data-detail-key]').forEach((btn) => {
+        btn.addEventListener('click', () => openModal(btn.dataset.detailKey || ''));
+      });
+      closeBtn.addEventListener('click', closeModal);
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+          closeModal();
+        }
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modal.classList.contains('open')) {
+          closeModal();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

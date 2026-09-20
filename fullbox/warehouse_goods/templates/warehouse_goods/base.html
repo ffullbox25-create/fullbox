@@ -1,0 +1,35 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Товары{% endblock %} · FULLBOX</title>
+  <link rel="stylesheet" href="{% static 'vendor/bricolage-manrope.css' %}">
+  <link rel="stylesheet" href="{% static 'head_manager/cabinet.css' %}?v=20260812-1">
+  <link rel="stylesheet" href="{% static 'warehouse_goods/goods.css' %}?v=20260813-1">
+  <script defer src="{% static 'fbs/page_size_controls.js' %}?v=20260902-2"></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <div class="shell" id="dashboard-shell">
+    {% if request.warehouse_goods_role == "storekeeper" %}
+      {% include "warehouse_goods/_storekeeper_sidebar.html" %}
+    {% elif request.warehouse_goods_role == "processing_head" %}
+      {% include "warehouse_goods/_processing_head_sidebar.html" %}
+    {% else %}
+      {% include "head_manager/_main_sidebar.html" with active="goods" %}
+    {% endif %}
+    <main class="content goods-main warehouse-goods">
+      {% if messages %}
+        <div class="messages" aria-live="polite">
+          {% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}
+        </div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <script src="{% static 'warehouse_goods/goods.js' %}?v=20260812-2"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,479 @@
+<style>
+  #processing-services-modal .modal-card {
+    width: min(1040px, 96vw);
+    max-height: calc(100vh - 32px);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  #processing-services-modal .modal-body {
+    overflow: hidden;
+  }
+  #processing-services-modal .services-modal-scroll {
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  #processing-services-modal .services-modal-actions {
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid var(--stroke);
+    background: var(--surface);
+  }
+  .psf-panel {
+    display: grid;
+    gap: 10px;
+    color: var(--ink);
+  }
+  .psf-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+    gap: 6px;
+  }
+  .psf-summary-item {
+    padding: 8px 10px;
+    border: 1px solid var(--stroke);
+    border-radius: 8px;
+    background: var(--surface-2);
+  }
+  .psf-summary-label {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .psf-summary-value {
+    display: block;
+    margin-top: 2px;
+    font-size: 16px;
+    font-weight: 900;
+  }
+  .psf-list {
+    display: grid;
+    gap: 8px;
+    max-height: min(48vh, 420px);
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .psf-row {
+    display: grid;
+    grid-template-columns:
+      minmax(220px, 1.55fr)
+      repeat(3, minmax(78px, .55fr))
+      minmax(140px, 1fr)
+      minmax(140px, 1fr)
+      minmax(142px, .9fr)
+      34px;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--stroke);
+    border-radius: 8px;
+    background: var(--surface);
+    align-items: start;
+  }
+  .psf-field {
+    display: grid;
+    align-content: start;
+    gap: 3px;
+    min-width: 0;
+  }
+  .psf-field > span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .psf-field-wide {
+    grid-column: auto;
+  }
+  .psf-field-full {
+    grid-column: span 2;
+  }
+  .psf-unit,
+  .psf-author {
+    min-height: 16px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .psf-remove {
+    align-self: end;
+    min-height: 34px;
+    border: 0;
+    border-radius: 8px;
+    background: #fff1ee;
+    color: #cf4d3f;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 900;
+  }
+  .psf-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .psf-status {
+    min-height: 18px;
+    color: #16804b;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .psf-status.error {
+    color: #cf4d3f;
+  }
+  .psf-empty {
+    padding: 14px;
+    border: 1px dashed var(--stroke);
+    border-radius: 8px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .psf-row select,
+  .psf-row input {
+    min-height: 34px;
+    padding: 7px 8px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .psf-row small {
+    line-height: 1.25;
+  }
+  @media (max-width: 900px) {
+    .psf-summary {
+      grid-template-columns: repeat(2, minmax(110px, 1fr));
+    }
+    .psf-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) 34px;
+    }
+    .psf-field-wide,
+    .psf-field-full {
+      grid-column: 1 / -2;
+    }
+  }
+</style>
+<section
+  class="psf-panel"
+  id="processing-service-facts"
+  data-order-id="{{ order_number }}"
+  data-client-id="{{ agency.id }}"
+  data-declared-qty="{{ processing_service_metrics.declared_qty|default:0 }}"
+  data-processed-qty="{{ processing_service_metrics.processed_qty|default:0 }}"
+  data-boxed-qty="{{ processing_service_metrics.boxed_qty|default:0 }}"
+  data-boxes-count="{{ processing_service_metrics.boxes_count|default:0 }}"
+  data-pallets-count="{{ processing_service_metrics.pallets_count|default:0 }}"
+>
+  <div class="psf-summary">
+    <div class="psf-summary-item"><span class="psf-summary-label">Заявлено</span><strong class="psf-summary-value">{{ processing_service_metrics.declared_qty|default:0 }}</strong></div>
+    <div class="psf-summary-item"><span class="psf-summary-label">Обработано</span><strong class="psf-summary-value">{{ processing_service_metrics.processed_qty|default:0 }}</strong></div>
+    <div class="psf-summary-item"><span class="psf-summary-label">В коробах</span><strong class="psf-summary-value">{{ processing_service_metrics.boxed_qty|default:0 }}</strong></div>
+    <div class="psf-summary-item"><span class="psf-summary-label">Коробов</span><strong class="psf-summary-value">{{ processing_service_metrics.boxes_count|default:0 }}</strong></div>
+    <div class="psf-summary-item"><span class="psf-summary-label">Палет</span><strong class="psf-summary-value">{{ processing_service_metrics.pallets_count|default:0 }}</strong></div>
+  </div>
+  <div class="psf-list" id="processing-service-fact-rows"></div>
+  <div class="psf-toolbar">
+    <button type="button" class="btn" id="processing-service-fact-add">+ Добавить услугу</button>
+    <button type="button" class="btn" id="processing-service-fact-add-custom" disabled>+ Добавить услугу вручную</button>
+    <span class="psf-status" id="processing-service-fact-status" aria-live="polite"></span>
+  </div>
+  <small>Услуги, добавленные вручную, передаются менеджеру на проверку. Стоимость автоматически не начисляется.</small>
+</section>
+<script>
+  (() => {
+    const panel = document.getElementById('processing-service-facts');
+    if (!panel) return;
+    const rowsElement = document.getElementById('processing-service-fact-rows');
+    const statusElement = document.getElementById('processing-service-fact-status');
+    const addButton = document.getElementById('processing-service-fact-add');
+    const customButton = document.getElementById('processing-service-fact-add-custom');
+    const orderId = panel.dataset.orderId || '';
+    const clientId = panel.dataset.clientId || '';
+    const metrics = {
+      declared: Number(panel.dataset.declaredQty || 0),
+      processed: Number(panel.dataset.processedQty || 0),
+      boxed: Number(panel.dataset.boxedQty || 0),
+      boxes: Number(panel.dataset.boxesCount || 0),
+      pallets: Number(panel.dataset.palletsCount || 0),
+    };
+    let catalog = [];
+    let lines = [];
+    let loaded = false;
+    let customSequence = 0;
+
+    const escapeHtml = (value) => String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+    const csrfToken = () => {
+      const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+      return match ? decodeURIComponent(match[1]) : '';
+    };
+    const localDateTime = () => {
+      const now = new Date();
+      const offset = now.getTimezoneOffset();
+      return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 16);
+    };
+    const setStatus = (message, isError = false) => {
+      statusElement.textContent = message || '';
+      statusElement.classList.toggle('error', isError);
+    };
+    const serviceById = (serviceId) => catalog.find(
+      (service) => String(service.service_id) === String(serviceId),
+    );
+    const metricForService = (service, planned = false) => {
+      const code = String(service?.code || '').toLowerCase();
+      const unit = String(service?.unit || '').toLowerCase();
+      if (code.includes('pallet') || unit.includes('палет')) return metrics.pallets;
+      if (code.includes('box') || code.includes('короб') || unit.includes('короб')) return metrics.boxes;
+      return planned ? metrics.declared : metrics.processed;
+    };
+    const normalizedNumber = (value) => {
+      const number = Number(String(value ?? '').replace(',', '.'));
+      return Number.isFinite(number) ? number : 0;
+    };
+    const optionHtml = (selectedId) => catalog.map((service) => (
+      `<option value="${service.service_id}"${String(service.service_id) === String(selectedId) ? ' selected' : ''}>`
+      + `${escapeHtml(service.name || service.code || '')}</option>`
+    )).join('');
+    const defaultLine = (service) => {
+      const autoQuantity = metricForService(service, false);
+      return {
+        service_id: service?.service_id || '',
+        planned_quantity: metricForService(service, true) || '',
+        auto_quantity: autoQuantity || '',
+        quantity: autoQuantity || '',
+        unit: service?.unit || '',
+        discrepancy_reason: '',
+        comment: '',
+        performed_at: localDateTime(),
+        reported_by: '',
+      };
+    };
+    const render = () => {
+      addButton.disabled = !loaded || !catalog.length;
+      customButton.disabled = !loaded;
+      if (!lines.length) {
+        rowsElement.innerHTML = '<div class="psf-empty">Услуги пока не добавлены. Выберите услугу из списка или добавьте её вручную.</div>';
+        return;
+      }
+      rowsElement.innerHTML = lines.map((line, index) => {
+        const custom = Boolean(line.custom_key);
+        const service = serviceById(line.service_id) || { service_id: line.service_id, unit: line.unit };
+        const autoQuantity = !custom && (line.auto_quantity === '' || line.auto_quantity == null)
+          ? metricForService(service, false)
+          : (line.auto_quantity ?? '');
+        const plannedQuantity = !custom && (line.planned_quantity === '' || line.planned_quantity == null)
+          ? metricForService(service, true)
+          : (line.planned_quantity ?? '');
+        const quantity = line.quantity === '' || line.quantity == null ? autoQuantity : line.quantity;
+        return `
+          <div class="psf-row" data-index="${index}">
+            <label class="psf-field psf-field-wide">
+              <span>Услуга</span>
+              ${custom
+                ? `<input data-field="custom_name" maxlength="255" value="${escapeHtml(line.custom_name || '')}" placeholder="Название выполненной услуги" required>
+                   <small>Услуга вне тарифа · на проверку менеджеру</small>
+                   <span>Единица измерения</span><input data-field="unit" maxlength="32" value="${escapeHtml(line.unit || 'шт')}" required>`
+                : `<select data-field="service_id">${optionHtml(line.service_id)}</select>
+                   <small class="psf-unit">Единица: ${escapeHtml(service.unit || 'шт')}</small>`}
+            </label>
+            <label class="psf-field">
+              <span>План</span>
+              <input data-field="planned_quantity" type="number" min="0" step="0.001" value="${escapeHtml(plannedQuantity)}">
+            </label>
+            <label class="psf-field">
+              <span>Рассчитано</span>
+              <input data-field="auto_quantity" type="number" min="0" step="0.001" value="${escapeHtml(autoQuantity)}" readonly>
+            </label>
+            <label class="psf-field">
+              <span>Фактически</span>
+              <input data-field="quantity" type="number" min="0" step="0.001" value="${escapeHtml(quantity)}" required>
+            </label>
+            <button type="button" class="psf-remove" data-remove="${index}" title="Удалить услугу">×</button>
+            <label class="psf-field psf-field-wide">
+              <span>Причина корректировки</span>
+              <input data-field="discrepancy_reason" type="text" maxlength="1000" value="${escapeHtml(line.discrepancy_reason || '')}" placeholder="${custom ? 'Что выполнено и почему услуги нет в списке' : 'Обязательно, если факт отличается от расчёта'}">
+            </label>
+            <label class="psf-field psf-field-wide">
+              <span>Комментарий</span>
+              <input data-field="comment" type="text" maxlength="255" value="${escapeHtml(line.comment || '')}" placeholder="Комментарий руководителя участка">
+            </label>
+            <label class="psf-field">
+              <span>Дата и время</span>
+              <input data-field="performed_at" type="datetime-local" value="${escapeHtml(line.performed_at || localDateTime())}">
+            </label>
+            <div class="psf-field psf-field-full">
+              <span>Зафиксировал</span>
+              <small class="psf-author">${escapeHtml(line.reported_by || 'текущий пользователь')}</small>
+            </div>
+          </div>
+        `;
+      }).join('');
+    };
+    const readRows = () => {
+      lines = Array.from(rowsElement.querySelectorAll('.psf-row')).map((row) => {
+        const previous = lines[Number(row.dataset.index)] || {};
+        const value = (name) => row.querySelector(`[data-field="${name}"]`)?.value || '';
+        const service = serviceById(value('service_id'));
+        return {
+          service_id: value('service_id'),
+          custom_key: previous.custom_key || '',
+          custom_name: value('custom_name'),
+          planned_quantity: value('planned_quantity'),
+          auto_quantity: value('auto_quantity'),
+          quantity: value('quantity'),
+          unit: previous.custom_key ? value('unit').trim() : (service?.unit || ''),
+          discrepancy_reason: value('discrepancy_reason').trim(),
+          comment: value('comment').trim(),
+          performed_at: value('performed_at'),
+          reported_by: row.querySelector('.psf-author')?.textContent || '',
+        };
+      });
+      return lines;
+    };
+    const load = () => {
+      if (!orderId || !clientId) {
+        setStatus('Не хватает данных заявки для загрузки услуг.', true);
+        return Promise.resolve();
+      }
+      const catalogUrl = `/api/warehouse-billing/catalog/?client=${encodeURIComponent(clientId)}&process=processing`;
+      const factsUrl = `/api/warehouse-billing/facts/?client=${encodeURIComponent(clientId)}&order_type=processing&order_id=${encodeURIComponent(orderId)}`;
+      return Promise.all([
+        fetch(catalogUrl, { credentials: 'same-origin' }).then((response) => response.json()),
+        fetch(factsUrl, { credentials: 'same-origin' }).then((response) => response.json()),
+      ]).then(([catalogResponse, factsResponse]) => {
+        if (!catalogResponse?.ok) throw new Error(catalogResponse?.error || 'Не удалось загрузить каталог услуг.');
+        if (!factsResponse?.ok) throw new Error(factsResponse?.error || 'Не удалось загрузить факты услуг.');
+        catalog = catalogResponse.data?.services || [];
+        lines = (factsResponse.data?.facts || [])
+          .filter((fact) => fact.status !== 'cancelled')
+          .map((fact) => ({
+            service_id: fact.is_unlisted ? '' : fact.service_id,
+            custom_key: fact.is_unlisted ? fact.custom_key : '',
+            custom_name: fact.custom_name || '',
+            planned_quantity: fact.planned_quantity,
+            auto_quantity: fact.auto_quantity,
+            quantity: fact.quantity,
+            unit: fact.unit,
+            discrepancy_reason: fact.discrepancy_reason,
+            comment: fact.comment,
+            performed_at: fact.performed_at_iso,
+            reported_by: fact.reported_by,
+          }));
+        loaded = true;
+        render();
+        setStatus(lines.length ? 'Сохранённые услуги загружены.' : '');
+      }).catch((error) => {
+        setStatus(error.message || 'Не удалось загрузить услуги.', true);
+      });
+    };
+    const save = () => {
+      const currentLines = readRows();
+      if (!currentLines.length) {
+        setStatus('Укажите хотя бы одну фактически выполненную услугу.', true);
+        return Promise.reject(new Error('Услуги не указаны.'));
+      }
+      const serviceIds = currentLines.map((line) => line.custom_key ? `custom:${line.custom_key}` : `service:${line.service_id}`);
+      if (new Set(serviceIds).size !== serviceIds.length) {
+        setStatus('Одна и та же услуга указана несколько раз.', true);
+        return Promise.reject(new Error('Дубли услуг.'));
+      }
+      for (const line of currentLines) {
+        if (!Number.isFinite(Number(line.quantity)) || normalizedNumber(line.quantity) <= 0) {
+          setStatus('Укажите фактическое количество больше нуля для каждой услуги.', true);
+          return Promise.reject(new Error('Некорректное количество услуги.'));
+        }
+        if (line.custom_key) {
+          line.custom_name = line.custom_name.trim();
+          if (line.custom_name.length < 3 || !line.unit || !line.discrepancy_reason) {
+            setStatus('Для ручной услуги укажите название (от 3 символов), единицу и пояснение.', true);
+            return Promise.reject(new Error('Заполните ручную услугу.'));
+          }
+          line.source = 'warehouse_unlisted';
+          continue;
+        }
+        if (!line.service_id) {
+          setStatus('Выберите услугу из списка.', true);
+          return Promise.reject(new Error('Услуга не выбрана.'));
+        }
+        const differsFromAuto = normalizedNumber(line.quantity) !== normalizedNumber(line.auto_quantity);
+        const differsFromPlan = line.planned_quantity !== ''
+          && normalizedNumber(line.quantity) !== normalizedNumber(line.planned_quantity);
+        const adjusted = differsFromAuto || differsFromPlan;
+        if (adjusted && !line.discrepancy_reason) {
+          setStatus('Если план, расчёт и факт отличаются, укажите причину расхождения.', true);
+          return Promise.reject(new Error('Не указана причина корректировки.'));
+        }
+        line.source = adjusted ? 'processing_manual_adjustment' : 'processing_auto';
+      }
+      setStatus('Сохраняем фактически выполненные услуги…');
+      return fetch('/api/warehouse-billing/facts/', {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken(),
+        },
+        body: JSON.stringify({
+          client_id: Number(clientId),
+          order_type: 'processing',
+          order_id: orderId,
+          lines: currentLines,
+        }),
+      }).then((response) => response.json()).then((data) => {
+        if (!data?.ok) throw new Error(data?.error || 'Не удалось сохранить услуги.');
+        setStatus(`Сохранено услуг: ${data.data?.saved || 0}.`);
+        return data;
+      }).catch((error) => {
+        setStatus(error.message || 'Не удалось сохранить услуги.', true);
+        throw error;
+      });
+    };
+
+    addButton.addEventListener('click', () => {
+      if (!loaded) return;
+      readRows();
+      const used = new Set(lines.map((line) => String(line.service_id)));
+      const service = catalog.find((item) => !used.has(String(item.service_id)));
+      if (!service) {
+        setStatus('Все доступные услуги уже добавлены.', true);
+        return;
+      }
+      lines.push(defaultLine(service));
+      render();
+      setStatus('');
+    });
+    customButton.addEventListener('click', () => {
+      if (!loaded) return;
+      readRows();
+      lines.push({
+        ...defaultLine(null),
+        custom_key: `processing-${Date.now()}-${++customSequence}-${Math.random().toString(36).slice(2)}`,
+        custom_name: '', unit: 'шт', planned_quantity: '', auto_quantity: '', quantity: '',
+      });
+      render();
+      setStatus('Укажите выполненную услугу. Она будет направлена менеджеру на проверку.');
+    });
+    rowsElement.addEventListener('click', (event) => {
+      const removeButton = event.target.closest('[data-remove]');
+      if (!removeButton) return;
+      readRows();
+      lines.splice(Number(removeButton.dataset.remove), 1);
+      render();
+      setStatus('');
+    });
+    rowsElement.addEventListener('change', (event) => {
+      if (!event.target.matches('[data-field="service_id"]')) return;
+      readRows();
+      const row = event.target.closest('.psf-row');
+      const index = Number(row?.dataset.index || 0);
+      const service = serviceById(event.target.value);
+      lines[index] = defaultLine(service);
+      render();
+    });
+
+    window.__wsfSaveWarehouseServices = save;
+    window.__wsfHasWarehouseServices = () => readRows().some(
+      (line) => (line.service_id || line.custom_key) && normalizedNumber(line.quantity) > 0,
+    );
+    load();
+  })();
+</script>

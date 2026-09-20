@@ -1,0 +1,275 @@
+{% extends "fbs/workspace_base.html" %}
+
+{% block title %}{% if orders_mode == 'queue' %}Очередь{% elif orders_scope == 'archive' %}Архив{% else %}Заказы{% endif %} FBS{% endblock %}
+{% block workspace_page_class %}fbs-orders-page{% endblock %}
+{% block workspace_crumb %}<strong>{% if orders_mode == 'queue' %}Очередь{% elif orders_scope == 'archive' %}Заказы / Архив{% else %}Заказы{% endif %}</strong>{% endblock %}
+{% block workspace_title %}{% if orders_mode == 'queue' %}Очередь на сборку{% elif orders_scope == 'archive' %}Архив заказов{% else %}Заказы{% endif %}{% endblock %}
+{% block workspace_subtitle %}{% if orders_mode == 'queue' %}Заказы, готовые уйти в волну{% elif orders_scope == 'archive' %}Переданные, доставленные, возвращённые и отменённые заказы{% else %}{{ summary.total }} активных заказов · {{ agencies|length }} клиентов{% endif %}{% endblock %}
+{% block workspace_actions %}
+  <span class="fbs-last-update">Обновлено: {% if latest_order_at %}{{ latest_order_at|date:"d.m.Y H:i:s" }}{% else %}нет данных{% endif %}</span>
+  <form method="post" action="{% url 'fbs:operator_sync_all_orders' %}" data-submit-once>{% csrf_token %}<input type="hidden" name="return_to" value="{{ orders_mode }}"><button class="button button-secondary" type="submit">Обновить заказы</button></form>
+  {% if orders_mode == 'orders' and orders_scope == 'archive' %}<a class="button button-primary" href="{% url 'fbs:operator_orders' %}">К текущей работе</a>{% elif orders_mode == 'orders' %}<a class="button button-primary" href="{% url 'fbs:operator_queue' %}">Открыть очередь</a>{% endif %}
+{% endblock %}
+{% block workspace_summary %}
+  <section class="fbs-kpi-strip" aria-label="Сводка заказов">
+    <a href="{% url 'fbs:operator_orders' %}"><span>В работе</span><strong>{{ summary.total }}</strong></a>
+    <a href="{% url 'fbs:operator_queue' %}"><span>Можно подать</span><strong>{{ summary.queueable }}</strong></a>
+    <a href="{% url 'fbs:operator_waves' %}?status=active"><span>В волнах</span><strong>{{ summary.in_waves }}</strong></a>
+    <a class="{% if attention_summary.stale_unstarted %}is-problem{% endif %}" href="{% url 'fbs:operator_orders' %}?attention=stale_unstarted"><span>Не начаты &gt; 2 ч</span><strong>{{ attention_summary.stale_unstarted }}</strong></a>
+    <a class="{% if attention_summary.previous_day_unpicked %}is-problem{% endif %}" href="{% url 'fbs:operator_orders' %}?attention=previous_day_unpicked"><span>С прошлого дня</span><strong>{{ attention_summary.previous_day_unpicked }}</strong></a>
+    <a href="{% url 'fbs:operator_orders' %}?deadline=overdue"><span>Просрочено</span><strong>{{ sla_summary.overdue }}</strong></a>
+    <a class="is-problem" href="{% url 'fbs:operator_problems' %}"><span>Проблемы</span><strong>{{ summary.problems }}</strong></a>
+    <a href="{% url 'fbs:operator_orders' %}?scope=archive"><span>Архив</span><strong>{{ summary.archive }}</strong></a>
+  </section>
+{% endblock %}
+
+{% block workspace_body %}
+    <details class="fbs-availability-legend" aria-label="Правила наличия FBS">
+      <summary>
+        <strong>Наличие для сборки</strong>
+        <span class="availability-pill availability-fbs_available">Доступно</span>
+        <span class="availability-pill availability-needs_replenishment">Может не хватить</span>
+        <span class="availability-pill availability-unavailable">Нет на остатках</span>
+        <em>Пояснения</em>
+      </summary>
+      <div class="fbs-availability-legend-details">
+        <span><b>FBS факт</b> и доступный остаток используются для волны</span>
+        <span><b>Ожидает перемещение</b> — товар еще не доступен</span>
+        <span><b>Нужен подсорт</b> — требуется перемещение</span>
+        <span><b>Нет на остатках</b> — запаса для заказа нет</span>
+        <span><b>Общий склад для подсорта</b> — только источник пополнения</span>
+        <small>Общий склад в FBS-сборку не входит: это только источник будущего подсорта.</small>
+      </div>
+    </details>
+
+    <section class="fbs-panel fbs-filters-panel">
+      <div class="fbs-panel-heading"><div><span class="section-kicker">Фильтры</span><h2>Найти заказы</h2></div><a href="{{ reset_url }}">Очистить фильтры</a></div>
+      <form class="ts-orders-filters" method="get" action="{% if orders_mode == 'queue' %}{% url 'fbs:operator_queue' %}{% else %}{% url 'fbs:operator_orders' %}{% endif %}" data-orders-filter-form>
+        {% if orders_scope == 'archive' %}<input type="hidden" name="scope" value="archive">{% endif %}
+        <div class="fbs-primary-filter-grid">
+          <label class="filter-search"><span>Заказ, артикул, ШК или стикер</span><input type="search" name="q" value="{{ filters.q }}" autocomplete="off" inputmode="text" placeholder="Сканируйте стикер или введите значение" data-order-scanner-search autofocus></label>
+          <label><span>Маркетплейс</span><select name="marketplace"><option value="">Все маркетплейсы</option>{% for value, label in marketplace_choices %}<option value="{{ value }}"{% if value == filters.marketplace %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+          <label><span>Партнер</span><select name="agency" data-agency-filter><option value="">Все партнеры</option>{% for agency in agencies %}<option value="{{ agency.id }}"{% if agency.id|stringformat:"s" == filters.agency %} selected{% endif %}>{{ agency.short_name|default:agency.agn_name }}</option>{% endfor %}</select></label>
+          <label><span>Статус</span><select name="status"><option value="">{% if orders_scope == 'archive' %}Все архивные{% else %}Все рабочие{% endif %}</option>{% for value, label in status_choices %}<option value="{{ value }}"{% if value == filters.status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+          <label class="filter-page-size"><span>На странице</span><select name="page_size">{% for value in page_sizes %}<option value="{{ value }}"{% if value == page_size %} selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+          <div class="ts-orders-filter-actions"><button class="button button-primary" type="submit">Применить</button></div>
+        </div>
+        <details class="fbs-advanced-filters"{% if advanced_filters_active %} open{% endif %}>
+          <summary>Дополнительные фильтры{% if advanced_filters_active %}<span>настроены</span>{% else %}<span>открыть</span>{% endif %}</summary>
+          <div class="fbs-advanced-filter-grid">
+            <label><span>Интеграция</span><select name="integration"><option value="">Все интеграции</option>{% for profile in profiles %}<option value="{{ profile.id }}"{% if profile.id|stringformat:"s" == filters.integration %} selected{% endif %}>{{ profile.agency.short_name|default:profile.agency.agn_name }} · {{ profile.name }} · склад {{ profile.external_warehouse_id|default:"не указан" }}</option>{% endfor %}</select></label>
+            {% if orders_mode == 'queue' %}<label class="filter-group-by"><span>Группировка</span><select name="group_by"><option value="">Без группировки</option><option value="sku"{% if filters.group_by == 'sku' %} selected{% endif %}>По артикулу</option></select></label>{% endif %}
+            {% if orders_mode == 'queue' %}<label><span>Наличие</span><select name="availability"><option value="">Все состояния</option>{% for value, label in availability_filter_choices %}<option value="{{ value }}"{% if value == filters.availability %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>{% else %}<label><span>Статус площадки</span><select name="marketplace_status"><option value="">Все статусы</option>{% for status in marketplace_statuses %}<option value="{{ status.value }}"{% if status.value == filters.marketplace_status %} selected{% endif %}>{{ status.label }}</option>{% endfor %}</select></label>{% endif %}
+            {% if orders_scope != 'archive' %}<label><span>Контроль ожидания</span><select name="attention"><option value="">Все заказы</option><option value="stale_unstarted"{% if filters.attention == 'stale_unstarted' %} selected{% endif %}>Не начат более 2 часов</option><option value="previous_day_unpicked"{% if filters.attention == 'previous_day_unpicked' %} selected{% endif %}>Не собран с прошлого дня</option></select></label>{% endif %}
+            <label><span>Количество товаров</span><select name="unit_kind"><option value="">Любое</option><option value="one"{% if filters.unit_kind == 'one' %} selected{% endif %}>1 товар</option><option value="multiple"{% if filters.unit_kind == 'multiple' %} selected{% endif %}>Несколько</option></select></label>
+            <label><span>Поле даты</span><select name="date_field"><option value="created"{% if filters.date_field == 'created' %} selected{% endif %}>Дата создания</option><option value="cutoff"{% if filters.date_field == 'cutoff' %} selected{% endif %}>Срок отгрузки</option></select></label>
+            <label><span>Дата с</span><input type="date" name="date_from" value="{{ filters.date_from }}"></label>
+            <label><span>Дата по</span><input type="date" name="date_to" value="{{ filters.date_to }}"></label>
+          </div>
+        </details>
+      </form>
+    </section>
+
+    {% if orders_mode == 'queue' %}
+      <form method="post" action="{% url 'fbs:operator_prepare_wave' %}" data-submit-once data-wave-selection>
+        {% csrf_token %}
+        <input type="hidden" name="return_to" value="queue">
+        <input type="hidden" name="agency" value="{{ filters.agency }}">
+        {% for key, value in filters.items %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+        <section class="queue-launch-bar">
+          <div><span class="section-kicker">Запуск волны</span><strong>{% if selected_agency %}Партнер · {{ selected_agency.short_name|default:selected_agency.agn_name }}{% else %}Сначала выберите партнера{% endif %}</strong><small>{% if selected_agency %}Без галочек система возьмет самые старые заказы этого партнера. С галочками — только отмеченные.{% else %}Выберите партнера в фильтре — список применится автоматически. После этого можно запускать волну.{% endif %}</small></div>
+          {% if selection_enabled and page.object_list %}<label class="wave-select-all"><input type="checkbox" data-wave-select-all><span>Выбрать максимум</span></label>{% endif %}{% if page.object_list %}<strong data-wave-selected-count>Выбрано: 0</strong>{% endif %}
+          <label class="queue-limit"><span>Максимум</span><select name="queue_limit">{% for value in queue_limits %}<option value="{{ value }}"{% if value == page_size %} selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+          <button class="button button-primary" type="submit" data-wave-submit {% if not warehouse_writes_enabled or not selected_agency %}disabled{% endif %}>Запустить волну</button>
+        </section>
+    {% endif %}
+
+    <section class="fbs-panel fbs-orders-result">
+      <div class="fbs-panel-heading">
+        <div><span class="section-kicker">Результат</span><h2>{% if filters.attention == 'stale_unstarted' %}Не начаты более 2 часов{% elif filters.attention == 'previous_day_unpicked' %}Не собраны с прошлого дня{% elif orders_mode == 'queue' and filters.group_by == 'sku' %}Очередь по артикулам{% elif orders_mode == 'queue' %}Очередь{% elif orders_scope == 'archive' %}Архив заказов{% elif search_all_orders %}Поиск по текущим и архивным заказам{% else %}Список заказов{% endif %}</h2></div>
+        <div class="fbs-table-count"><strong>{{ page.paginator.count }}</strong><span>заказов{% if filters.group_by == 'sku' %} · {{ article_groups|length }} групп на странице{% endif %}</span></div>
+      </div>
+      <div class="operator-table-scroll operator-table-scroll-work">
+        <table class="operator-table ts-orders-table {% if orders_mode == 'queue' %}ts-queue-table{% endif %}">
+          <thead><tr>{% if orders_mode == 'queue' %}<th class="check-column"><span class="sr-only">Выбор</span></th>{% endif %}<th>ID</th><th>Номер заказа</th><th>Партнер</th><th>Интеграция</th><th>Склад WB</th><th>Дата заказа</th><th>Тип доставки</th><th>Трек-номер</th><th>Товаров</th><th>Внутренний статус</th>{% if orders_mode == 'queue' %}<th>Наличие FBS</th><th>Расшифровка наличия</th>{% else %}<th>Статус площадки</th><th>Срок отгрузки</th>{% endif %}</tr></thead>
+          <tbody>
+          {% if orders_mode == 'queue' and filters.group_by == 'sku' %}
+            {% for group in article_groups %}
+              <tr class="article-group-row">
+                <td class="check-column">{% if selection_enabled and group.selectable_count %}<label class="row-select" title="Выбрать все доступные заказы артикула"><input type="checkbox" data-wave-article="{{ group.index }}" aria-label="Выбрать артикул {{ group.sku }}"></label>{% endif %}</td>
+                <td colspan="12"><div class="article-group-summary"><strong>{{ group.sku }}</strong><span>{{ group.name }}</span>{% if group.barcode %}<code>ШК {{ group.barcode }}</code>{% endif %}<span class="article-group-metrics">{{ group.order_count }} заказов · {{ group.unit_count }} шт. · доступно к выбору {{ group.selectable_count }}</span></div></td>
+              </tr>
+              {% for order in group.orders %}{% include "fbs/operator_order_row.html" with article_group_index=group.index %}{% endfor %}
+            {% empty %}<tr><td class="empty-row" colspan="13">По выбранным условиям заказов нет</td></tr>{% endfor %}
+          {% else %}
+            {% for order in page.object_list %}{% include "fbs/operator_order_row.html" %}{% empty %}<tr><td class="empty-row" colspan="{% if orders_mode == 'queue' %}13{% else %}12{% endif %}">По выбранным условиям заказов нет</td></tr>{% endfor %}
+          {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {% if orders_mode == 'queue' %}</form>{% endif %}
+    {% if wave_launch_choice %}{% include "fbs/operator_wave_launch_choice.html" %}{% endif %}
+    {% if wave_stock_confirmation %}
+      <dialog class="wave-stock-dialog" data-wave-stock-dialog aria-labelledby="wave-stock-title">
+        <div class="wave-stock-dialog__head">
+          <div><span class="section-kicker">Проверка остатков</span><h2 id="wave-stock-title">Волна не запущена</h2></div>
+          <a class="button button-secondary button-compact" href="{{ wave_stock_confirmation.cancel_url }}">Закрыть</a>
+        </div>
+        <p class="wave-stock-dialog__warning">Нет товара на FBS-остатках по {{ wave_stock_confirmation.shortages|length }} заказам: не хватает {{ wave_stock_confirmation.missing_qty }} шт.</p>
+        <div class="wave-stock-dialog__list">
+          {% for shortage in wave_stock_confirmation.preview %}
+            <div><strong>Заказ {{ shortage.external_order_id }}</strong><span>{% if shortage.reasons %}{{ shortage.reasons.0 }}{% else %}Нет на остатках{% endif %}</span></div>
+          {% endfor %}
+          {% if wave_stock_confirmation.remaining_count %}<small>И еще {{ wave_stock_confirmation.remaining_count }} заказов.</small>{% endif %}
+        </div>
+        <p><strong>Запустить волну без этих заказов?</strong></p>
+        <div class="wave-stock-dialog__actions">
+          {% if wave_stock_confirmation.available_order_count %}
+            <form method="post" action="{% url 'fbs:operator_confirm_wave' %}" data-submit-once>
+              {% csrf_token %}
+              <input type="hidden" name="return_to" value="queue">
+              <input type="hidden" name="submit_mode" value="selected">
+              <input type="hidden" name="confirm_without_stock" value="1">
+              <input type="hidden" name="wave_action" value="{{ wave_stock_confirmation.wave_action }}">
+              <input type="hidden" name="target_batch_id" value="{{ wave_stock_confirmation.target_batch_id }}">
+              <input type="hidden" name="agency" value="{{ wave_stock_confirmation.agency_id }}">
+              <input type="hidden" name="queue_limit" value="{{ wave_stock_confirmation.queue_limit }}">
+              {% for order_id in wave_stock_confirmation.selected_order_ids %}<input type="hidden" name="order_ids" value="{{ order_id }}">{% endfor %}
+              <button class="button button-primary" type="submit">Да, запустить без них</button>
+            </form>
+          {% else %}
+            <span class="wave-stock-dialog__empty">Доступных заказов для волны не осталось.</span>
+          {% endif %}
+          <a class="button button-secondary" href="{{ wave_stock_confirmation.cancel_url }}">Нет, вернуться</a>
+        </div>
+      </dialog>
+      <style>
+        .wave-stock-dialog{width:min(620px,calc(100vw - 32px));max-height:calc(100vh - 32px);padding:18px;border:1px solid #ddd4c8;border-radius:8px;color:#303030;box-shadow:0 18px 50px rgba(48,48,48,.22)}
+        .wave-stock-dialog::backdrop{background:rgba(48,48,48,.42)}
+        .wave-stock-dialog__head,.wave-stock-dialog__actions{display:flex;align-items:center;justify-content:space-between;gap:12px}
+        .wave-stock-dialog__head h2{margin:2px 0 0;font-size:24px}
+        .wave-stock-dialog__warning{margin:14px 0 10px;padding:10px 12px;border-left:3px solid #f86800;background:rgba(248,144,0,.13);font-weight:700}
+        .wave-stock-dialog__list{display:grid;gap:6px;max-height:230px;overflow:auto;margin-bottom:12px}
+        .wave-stock-dialog__list>div{display:grid;grid-template-columns:minmax(150px,.45fr) 1fr;gap:10px;padding:7px 0;border-bottom:1px solid #eee7de}
+        .wave-stock-dialog__list span,.wave-stock-dialog__list small{font-size:13px;color:#666}
+        .wave-stock-dialog__actions{justify-content:flex-start;flex-wrap:wrap;margin-top:10px}
+        .wave-stock-dialog__empty{color:#a83232;font-weight:700}
+      </style>
+      <script>
+        (() => {
+          const dialog = document.querySelector("[data-wave-stock-dialog]");
+          if (!dialog || dialog.open) return;
+          if (typeof dialog.showModal === "function") dialog.showModal();
+          else dialog.setAttribute("open", "");
+        })();
+      </script>
+    {% endif %}
+    <nav class="operator-pagination" aria-label="Страницы заказов">
+      <span>Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>
+      <div>{% if page.has_previous %}<a class="button button-secondary button-compact" href="?{{ filter_query }}&page=1">В начало</a><a class="button button-secondary button-compact" href="?{{ filter_query }}&page={{ page.previous_page_number }}">Назад</a>{% endif %}{% if page.has_next %}<a class="button button-secondary button-compact" href="?{{ filter_query }}&page={{ page.next_page_number }}">Далее</a><a class="button button-secondary button-compact" href="?{{ filter_query }}&page={{ page.paginator.num_pages }}">В конец</a>{% endif %}</div>
+    </nav>
+<script>
+  (() => {
+    const form = document.querySelector("[data-orders-filter-form]");
+    const input = form?.querySelector("[data-order-scanner-search]");
+    if (!form || !input) return;
+
+    const submitSearch = () => {
+      input.value = input.value.trim();
+      if (!input.value) return;
+      if (typeof form.requestSubmit === "function") form.requestSubmit();
+      else form.submit();
+    };
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      submitSearch();
+    });
+
+    let scannerBuffer = "";
+    let lastCharacterAt = 0;
+    let resetTimer = null;
+    const isEditable = (target) => Boolean(
+      target?.matches?.("input, textarea, select, [contenteditable='true']")
+    );
+    const resetBuffer = () => {
+      scannerBuffer = "";
+      lastCharacterAt = 0;
+      resetTimer = null;
+    };
+    window.addEventListener("keydown", (event) => {
+      if (event.ctrlKey || event.altKey || event.metaKey || isEditable(event.target)) return;
+      const now = performance.now();
+      if (lastCharacterAt && now - lastCharacterAt > 250) scannerBuffer = "";
+      if ((event.key === "Enter" || event.key === "Tab") && scannerBuffer.length >= 3) {
+        event.preventDefault();
+        input.value = scannerBuffer;
+        resetBuffer();
+        submitSearch();
+        return;
+      }
+      if (event.key.length !== 1) return;
+      event.preventDefault();
+      scannerBuffer = `${scannerBuffer}${event.key}`.slice(-512);
+      lastCharacterAt = now;
+      if (resetTimer) window.clearTimeout(resetTimer);
+      resetTimer = window.setTimeout(resetBuffer, 700);
+    });
+
+    if (!input.value) input.focus({ preventScroll: true });
+  })();
+</script>
+{% if orders_mode == 'queue' %}
+<script>
+  (() => {
+    const filterForm = document.querySelector("[data-orders-filter-form]");
+    const agencyFilter = filterForm?.querySelector("[data-agency-filter]");
+    if (!filterForm || !agencyFilter) return;
+    agencyFilter.addEventListener("change", () => {
+      const launchButton = document.querySelector("[data-wave-submit]");
+      if (launchButton) launchButton.disabled = true;
+      if (typeof filterForm.requestSubmit === "function") filterForm.requestSubmit();
+      else filterForm.submit();
+    });
+  })();
+</script>
+{% endif %}
+{% if orders_mode == 'queue' and filters.group_by == 'sku' %}
+<script>
+  (() => {
+    const form = document.querySelector("[data-wave-selection]");
+    if (!form) return;
+    const groupChecks = [...form.querySelectorAll("[data-wave-article]")];
+    const ordersFor = (groupId) => [...form.querySelectorAll(`[data-wave-order][data-article-group="${groupId}"]:not(:disabled)`)];
+    const syncGroup = (groupCheck) => {
+      const orders = ordersFor(groupCheck.dataset.waveArticle);
+      const selected = orders.filter((checkbox) => checkbox.checked).length;
+      groupCheck.checked = orders.length > 0 && selected === orders.length;
+      groupCheck.indeterminate = selected > 0 && selected < orders.length;
+    };
+    groupChecks.forEach((groupCheck) => {
+      groupCheck.addEventListener("change", () => {
+        ordersFor(groupCheck.dataset.waveArticle).forEach((checkbox) => {
+          if (checkbox.checked === groupCheck.checked) return;
+          checkbox.checked = groupCheck.checked;
+          checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+        syncGroup(groupCheck);
+      });
+      syncGroup(groupCheck);
+    });
+    form.addEventListener("change", (event) => {
+      const groupId = event.target?.dataset?.articleGroup;
+      if (!groupId) {
+        if (event.target?.matches?.("[data-wave-select-all]")) groupChecks.forEach(syncGroup);
+        return;
+      }
+      const groupCheck = form.querySelector(`[data-wave-article="${groupId}"]`);
+      if (groupCheck) syncGroup(groupCheck);
+    });
+  })();
+</script>
+{% endif %}
+{% endblock %}

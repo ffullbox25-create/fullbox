@@ -1,0 +1,61 @@
+<section>
+  <div class="dir-section-head">
+    <h2 class="dir-section-title">Состояние клиентов</h2>
+    <a class="dir-section-link" href="/team-manager/clients/">Все клиенты</a>
+  </div>
+  <div class="dir-row-2">
+    <article class="dir-card">
+      <h3 class="dir-card-title">Распределение</h3>
+      <p class="dir-card-sub">Активные клиенты периода</p>
+      <div class="dir-health">
+        {% for h in client_health %}
+          <div class="dir-health-item">
+            <div>
+              <div style="font-weight:600;font-size:13px">{{ h.label }}</div>
+              <div class="dir-health-bar" style="margin-top:6px"><span style="width:{{ h.pct }}%;background:{{ h.color }}"></span></div>
+            </div>
+            <strong>{{ h.count }}</strong>
+          </div>
+        {% endfor %}
+      </div>
+    </article>
+    <article class="dir-card">
+      <h3 class="dir-card-title">Топ-клиенты</h3>
+      <p class="dir-card-sub">По выручке · демо</p>
+      <div class="dir-tabs" role="tablist" aria-label="Сортировка клиентов">
+        <button type="button" class="is-active">По выручке</button>
+        <button type="button">По прибыли</button>
+        <button type="button">По задолженности</button>
+        <button type="button">По риску</button>
+      </div>
+      <div style="overflow:auto">
+        <table class="dir-table">
+          <thead>
+            <tr>
+              <th>Клиент</th>
+              <th>Выручка</th>
+              <th>Прибыль</th>
+              <th>Задолженность</th>
+              <th>Заявки</th>
+              <th>Статус</th>
+              <th>Менеджер</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in clients %}
+              <tr>
+                <td><strong>{{ c.name }}</strong></td>
+                <td>{{ c.revenue }}</td>
+                <td>{{ c.profit }}</td>
+                <td>{{ c.debt }}</td>
+                <td>{{ c.orders }}</td>
+                <td><span class="dir-status {{ c.status }}">{{ c.status_label }}</span></td>
+                <td>{{ c.manager }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </div>
+</section>

@@ -1,0 +1,2320 @@
+
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Заявка на обработку (менеджер)</title>
+  <link href="/static/vendor/bricolage-manrope.css" rel="stylesheet">
+  <link href="/static/client_cabinet/lk-theme.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --surface: #fffdf8;
+      --surface-2: #f7f2ea;
+      --ink: #1c1f1a;
+      --muted: #6b6f66;
+      --accent: #0e6b5b;
+      --accent-strong: #0b5246;
+      --sun: #f2b747;
+      --danger: #d4543c;
+      --stroke: rgba(28,31,26,0.12);
+      --shadow: 0 18px 45px rgba(15,23,42,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      overflow: hidden;
+      background:
+        radial-gradient(1200px 540px at -10% -20%, rgba(242,183,71,0.22), transparent 60%),
+        radial-gradient(900px 520px at 110% 10%, rgba(14,107,91,0.18), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      position: relative;
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 24px 24px 72px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      align-items: stretch;
+      min-height: calc(100vh - 96px);
+    }
+    .side {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 16px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+    }
+    .brand-title {
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.6px;
+    }
+    .profile {
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+    }
+    .profile-value { font-weight: 600; }
+    .status-card {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--stroke);
+    }
+    .status-title {
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+    }
+    .status-value {
+      font-weight: 700;
+    }
+    .nav { display: grid; gap: 10px; }
+    .nav-link {
+      display: grid;
+      gap: 4px;
+      padding: 12px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .nav-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 12px 24px rgba(14,107,91,0.12);
+    }
+    .nav-link.primary {
+      background: linear-gradient(135deg, rgba(242,183,71,0.45), rgba(14,107,91,0.15));
+      border-color: transparent;
+    }
+    .nav-title { font-weight: 700; }
+    .nav-sub { font-size: 12px; color: var(--muted); }
+    .side-footer { display: grid; gap: 10px; }
+    .content {
+      display: grid;
+      gap: 18px;
+      max-height: calc(100vh - 96px);
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .priority-client-comment {
+      display:grid;
+      gap:6px;
+      padding:14px 16px;
+      border:2px solid rgba(248,144,0,0.5);
+      border-radius:10px;
+      background:#fff8e8;
+      color:var(--ink);
+      font-size:18px;
+      font-weight:750;
+      line-height:1.45;
+      overflow-wrap:anywhere;
+    }
+    .priority-client-comment strong { color:#b45309; font-size:12px; font-weight:850; text-transform:uppercase; }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .panel-title {
+      margin: 0;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+      font-size: 22px;
+    }
+    .panel-subtitle { color: var(--muted); font-size: 13px; }
+    .btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.04);
+      color: var(--ink);
+      font-weight: 700;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.14);
+    }
+    .btn.primary {
+      background: linear-gradient(120deg, var(--sun), #ffd88a);
+      border-color: transparent;
+      color: #2a2110;
+    }
+    .btn.ghost { background: transparent; }
+    .alert {
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      border: 1px solid transparent;
+    }
+    .alert.success {
+      border-color: rgba(14,107,91,0.35);
+      background: rgba(14,107,91,0.12);
+      color: var(--accent-strong);
+    }
+    .alert.error {
+      border-color: rgba(212,84,60,0.35);
+      background: rgba(212,84,60,0.14);
+      color: #7f1d1d;
+    }
+    form { display: grid; gap: 12px; }
+    .form-section {
+      border: 1px solid var(--stroke);
+      background: var(--surface-2);
+      border-radius: 16px;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .form-section h3 {
+      margin: 0;
+      font-size: 16px;
+      font-family: "Bricolage Grotesque", "Manrope", sans-serif;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .input-row input {
+      flex: 1;
+      min-width: 0;
+    }
+    .input-row .row-action {
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .stock-table input {
+      padding: 6px 8px;
+      font-size: 13px;
+    }
+    .stock-table {
+      min-width: 0;
+      width: 100%;
+      font-size: 12px;
+    }
+    .stock-table th,
+    .stock-table td {
+      padding: 6px;
+    }
+    .stock-table th {
+      font-size: 10px;
+    }
+    .stock-table th:nth-child(2),
+    .stock-table td:nth-child(2) {
+      width: 90px;
+    }
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 50;
+    }
+    .modal.active { display: flex; }
+    .modal-card {
+      width: min(760px, 96vw);
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 12px;
+      max-height: 90vh;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .modal-title {
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .modal-body {
+      min-height: 0;
+      overflow: auto;
+      display: grid;
+      gap: 10px;
+    }
+    .field { display: grid; gap: 6px; }
+    label { font-weight: 600; color: var(--muted); }
+    input, textarea, select {
+      width: 100%;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 14px;
+      font-family: inherit;
+    }
+    textarea { resize: vertical; }
+    input[type="checkbox"],
+    input[type="radio"] {
+      width: auto;
+      margin: 0;
+      accent-color: var(--accent);
+    }
+    .inline { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .inline label { display: flex; align-items: center; gap: 6px; font-weight: 500; color: var(--ink); }
+    .hint { color: var(--muted); font-size: 12px; }
+    .required { color: var(--danger); margin-left: 4px; }
+    .table-wrap {
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      overflow: auto;
+      background: var(--surface);
+    }
+    .block-body .table-wrap {
+      flex: 1;
+      min-height: 0;
+    }
+    .params-table {
+      width: 100%;
+      min-width: 320px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .params-table th,
+    .params-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--stroke);
+      vertical-align: middle;
+    }
+    .params-table th {
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      background: var(--surface-2);
+      position: sticky;
+      top: 0;
+    }
+    .params-table .param-label {
+      font-weight: 600;
+    }
+    .params-table .highlight-row td {
+      background: rgba(242,183,71,0.2);
+      border-bottom-color: rgba(242,183,71,0.45);
+    }
+    .params-table .highlight-row .param-label {
+      color: #7a4a00;
+    }
+    .param-inline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .params-table select,
+    .params-table input[type="text"],
+    .params-table input[type="number"] {
+      width: 100%;
+      min-width: 90px;
+      padding: 6px 8px;
+      font-size: 12px;
+    }
+    .params-table input[type="file"] {
+      font-size: 12px;
+    }
+    .param-value {
+      display: grid;
+      gap: 8px;
+    }
+    .param-extra {
+      display: grid;
+      gap: 6px;
+    }
+    .param-extra[hidden] {
+      display: none;
+    }
+    .param-select {
+      max-width: 260px;
+    }
+    .param-note {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .article-change-control {
+      display: grid;
+      gap: 10px;
+    }
+    .article-change-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      cursor: pointer;
+      user-select: none;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .article-change-toggle input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+    .article-change-toggle-track {
+      position: relative;
+      flex: 0 0 auto;
+      width: 42px;
+      height: 24px;
+      border-radius: 999px;
+      background: rgba(28,31,26,0.16);
+      transition: background .2s ease;
+    }
+    .article-change-toggle-track::after {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      transition: transform .2s ease;
+    }
+    .article-change-toggle input:checked + .article-change-toggle-track {
+      background: #f89000;
+    }
+    .article-change-toggle input:checked + .article-change-toggle-track::after {
+      transform: translateX(18px);
+    }
+    .article-change-map {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid rgba(242,183,71,0.5);
+      border-radius: 10px;
+      background: rgba(242,183,71,0.1);
+    }
+    .article-change-map[hidden] {
+      display: none;
+    }
+    .article-change-row {
+      display: grid;
+      grid-template-columns: minmax(150px, 1fr) 24px minmax(180px, 1.2fr);
+      align-items: center;
+      gap: 8px;
+    }
+    .article-change-source {
+      min-width: 0;
+      overflow-wrap: anywhere;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .article-change-arrow {
+      text-align: center;
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .article-change-target.is-invalid {
+      border-color: var(--danger);
+      background: rgba(190,47,47,0.07);
+    }
+    .article-change-error {
+      color: var(--danger);
+      font-size: 11px;
+      font-weight: 750;
+    }
+    .article-change-error[hidden] {
+      display: none;
+    }
+    .cz-file-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      overflow: hidden;
+    }
+    .cz-file-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 6px 10px;
+      border: 1px solid rgba(14,107,91,0.28);
+      border-radius: 9px;
+      background: rgba(14,107,91,0.08);
+      color: var(--accent-strong);
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .cz-file-name { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+    table { width: 100%; border-collapse: collapse; min-width: 900px; }
+    th, td { padding: 8px; border-bottom: 1px solid var(--stroke); vertical-align: top; }
+    th {
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      background: var(--surface-2);
+      position: sticky;
+      top: 0;
+    }
+    .table-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .row-action {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke);
+      background: transparent;
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+      .row-action:hover {
+        border-color: rgba(14,107,91,0.4);
+        box-shadow: 0 10px 24px rgba(14,107,91,0.14);
+      }
+    .direction-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .attachment-stack {
+      display: grid;
+      gap: 8px;
+    }
+    .misc-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: rgba(28,31,26,0.03);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+    }
+    .misc-toggle:hover {
+      border-color: rgba(14,107,91,0.4);
+      box-shadow: 0 10px 24px rgba(14,107,91,0.12);
+    }
+    .misc-toggle-label {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .misc-toggle-summary {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .misc-body {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .attachment-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .attachment-list {
+      display: grid;
+      gap: 6px;
+    }
+    .attachment-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: rgba(28,31,26,0.03);
+      font-size: 12px;
+    }
+    .attachment-item a {
+      font-weight: 700;
+      word-break: break-word;
+    }
+    .checkbox-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      color: var(--danger);
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .attachment-selected-empty {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    @media (max-width: 1200px) {
+      body { overflow: auto; }
+      .layout { grid-template-columns: 1fr; }
+      .side,
+      .content { max-height: none; overflow: visible; padding-right: 0; }
+    }
+  
+    .processing-content {
+      height: auto;
+      overflow: visible;
+    }
+    .processing-form {
+      height: auto;
+      display: grid;
+    }
+    .processing-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      grid-template-rows: auto;
+      grid-auto-rows: auto;
+      gap: 18px;
+      min-height: 0;
+      height: auto;
+    }
+    .processing-params {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-height: 0;
+      max-height: calc(100vh - 150px);
+      overflow: hidden;
+    }
+    .processing-params .block-body {
+      min-height: 0;
+      overflow: auto;
+      padding-right: 4px;
+      scrollbar-gutter: stable;
+    }
+    .processing-cards {
+      column-count: 2;
+      column-gap: 18px;
+      min-width: 0;
+    }
+    .processing-card {
+      min-width: 0;
+      width: 100%;
+      display: inline-block;
+      break-inside: avoid;
+      margin-bottom: 18px;
+    }
+    .processing-header {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+    .processing-header-fields {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+      gap: 10px;
+      align-items: center;
+    }
+    .processing-header-action {
+      display: flex;
+      align-items: center;
+    }
+    .processing-header-fields input {
+      padding: 6px 8px;
+      font-size: 13px;
+    }
+    .processing-header .row-action {
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+    .processing-main .block-body {
+      margin-top: 8px;
+    }
+    .processing-main {
+      height: auto;
+      align-self: start;
+      overflow: visible;
+    }
+    .processing-main .block-body {
+      flex: 0 0 auto;
+      overflow: visible;
+    }
+    .processing-block {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .processing-params {
+      grid-column: 2;
+      grid-row: auto;
+      align-self: start;
+    }
+    .block-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .block-body {
+      min-height: 0;
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 12px;
+      padding-right: 4px;
+    }
+    .processing-block.processing-main {
+      height: auto;
+    }
+    .processing-block.processing-main .block-body {
+      flex: 0 0 auto;
+      overflow: visible;
+    }
+    .processing-block.processing-main .table-wrap {
+      flex: 0 0 auto;
+    }
+    .block-footer {
+      margin-top: auto;
+      padding-top: 12px;
+    }
+    .photo-box {
+      width: 1.4cm;
+      height: 1.4cm;
+      border-radius: 6px;
+      border: 1px dashed var(--stroke);
+      background: var(--surface-2);
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .photo-box input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .photo-placeholder {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .photo-preview {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+    .photo-box.has-image .photo-placeholder {
+      display: none;
+    }
+    .photo-box.has-image .photo-preview {
+      display: block;
+    }
+    @media (max-width: 1200px) {
+      .processing-content { height: auto; }
+      .processing-form { height: auto; }
+      .processing-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        height: auto;
+      }
+      .processing-params {
+        grid-column: auto;
+        grid-row: auto;
+      }
+      .processing-cards {
+        column-count: 1;
+      }
+    }
+    @media (max-width: 720px) {
+      .article-change-row {
+        grid-template-columns: 1fr;
+      }
+      .article-change-arrow {
+        text-align: left;
+      }
+      .processing-header {
+        grid-template-columns: 1fr;
+        justify-items: start;
+      }
+      .processing-header-fields {
+        grid-template-columns: 1fr;
+        width: 100%;
+      }
+      .processing-header-action {
+        width: 100%;
+      }
+      .processing-header-action .row-action {
+        width: 100%;
+        text-align: center;
+      }
+    }
+</style>
+</head>
+<body class="lk-theme">
+  <div class="wrap">
+    <div class="layout">
+      <aside class="side">
+        <div class="brand">
+          <div class="brand-title">FULLBOX</div>
+        </div>
+        <div class="profile">
+          <div class="profile-value">
+            Кабинет менеджера<br>
+            {% if request.user.is_authenticated and request.user.employee_profile %}
+              {{ request.user.employee_profile.full_name }}
+            {% elif request.session.employee_name %}
+              {{ request.session.employee_name }}
+            {% elif request.user.is_authenticated %}
+              {{ request.user.get_full_name|default:request.user.username }}
+            {% else %}
+              Гость
+            {% endif %}
+          </div>
+        </div>
+        {% if agency %}
+          <div class="profile">
+            <div class="profile-value">
+              Клиент<br>
+              {{ agency.agn_name|default:agency.fio_agn|default:"-" }}
+            </div>
+          </div>
+        {% endif %}
+        <div class="status-card">
+          <div class="status-title">Статус заявки</div>
+          <div class="status-value">{{ status_label|default:"Подготовка заявки" }}</div>
+          {% if error %}
+            <div class="alert error">{{ error }}</div>
+          {% endif %}
+          {% if draft_saved %}
+            <div class="alert success">Черновик сохранен.</div>
+          {% endif %}
+          {% if submitted %}
+            <div class="alert success">Заявка на обработку отправлена.</div>
+          {% endif %}
+          <button class="btn primary" type="button" id="add-product-btn" data-url="{% url 'processing_app:processing-stock-picker' %}">Выбрать товар</button>
+        </div>
+        <div></div>
+        <div class="side-footer">
+          <button class="btn primary" type="submit" form="processing-form" name="submit_action" value="send">Сохранить изменения</button>
+          <a class="btn" href="{{ cabinet_url }}">В кабинет</a>
+          <a class="btn ghost" href="/logout/">Выход</a>
+        </div>
+      </aside>
+
+            <main class="content processing-content">
+        <form class="processing-form" id="processing-form" method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="agency_id" value="{{ agency.id|default:'' }}">
+          <input type="hidden" name="email" value="{{ agency.email|default:'' }}">
+          <input type="hidden" name="fio" value="{{ agency.fio_agn|default:'' }}">
+          <input type="hidden" name="org" value="{{ agency.agn_name|default:'' }}">
+          <input type="hidden" name="cards_json" id="cards-json" value="">
+          {% if draft_order_id %}
+            <input type="hidden" name="draft_order_id" value="{{ draft_order_id }}">
+          {% endif %}
+          {% if edit_order_id %}
+            <input type="hidden" name="edit_order_id" value="{{ edit_order_id }}">
+          {% endif %}
+
+          {% if draft_payload.comments %}
+            <div class="priority-client-comment" role="note">
+              <strong>Комментарий клиента к обработке</strong>
+              <div>{{ draft_payload.comments|linebreaksbr }}</div>
+            </div>
+          {% endif %}
+
+          <div class="processing-grid">
+            <div class="processing-cards" id="processing-cards"></div>
+
+            <section class="panel processing-block processing-params">
+              <div class="block-header">
+                <h3 class="panel-title" style="font-size: 18px;">Параметры обработки</h3>
+              </div>
+              <div class="block-body">
+                <div class="table-wrap">
+                  <table class="params-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 220px;">Параметр</th>
+                        <th>Значение</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr class="highlight-row">
+                        <td class="param-label">Маркетплейс</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="marketplace" class="param-select">
+                              <option value="" {% if not draft_payload.marketplace %}selected{% endif %}>-</option>
+                              <option value="WB" {% if draft_payload.marketplace == "WB" %}selected{% endif %}>Wildberries</option>
+                              <option value="Ozon" {% if draft_payload.marketplace == "Ozon" %}selected{% endif %}>Ozon</option>
+                              <option value="Yandex" {% if draft_payload.marketplace == "Yandex" %}selected{% endif %}>Яндекс Маркет</option>
+                              <option value="Sber" {% if draft_payload.marketplace == "Sber" %}selected{% endif %}>СберМегаМаркет</option>
+                              <option value="AliExpress" {% if draft_payload.marketplace == "AliExpress" %}selected{% endif %}>AliExpress</option>
+                              <option value="Lamoda" {% if draft_payload.marketplace == "Lamoda" %}selected{% endif %}>Lamoda</option>
+                            </select>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Проверка на брак</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="defect_percent" class="param-select">
+                              <option value="" {% if not draft_payload.defect_percent %}selected{% endif %}>-</option>
+                              <option value="10" {% if draft_payload.defect_percent|stringformat:"s" == "10" %}selected{% endif %}>10%</option>
+                              <option value="50" {% if draft_payload.defect_percent|stringformat:"s" == "50" %}selected{% endif %}>50%</option>
+                              <option value="100" {% if draft_payload.defect_percent|stringformat:"s" == "100" %}selected{% endif %}>100%</option>
+                            </select>
+                            <input type="hidden" name="defect_check" value="{{ draft_payload.defect_check|default:'' }}" data-needed-for="defect_percent">
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Маркировка 58/40</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="marking_5840_qty" class="param-select">
+                              <option value="" {% if not draft_payload.marking_5840_qty %}selected{% endif %}>-</option>
+                              <option value="1" {% if draft_payload.marking_5840_qty|stringformat:"s" == "1" %}selected{% endif %}>1</option>
+                              <option value="2" {% if draft_payload.marking_5840_qty|stringformat:"s" == "2" %}selected{% endif %}>2</option>
+                              <option value="3" {% if draft_payload.marking_5840_qty|stringformat:"s" == "3" %}selected{% endif %}>3</option>
+                            </select>
+                            <input type="hidden" name="marking_5840_needed" value="{{ draft_payload.marking_5840_needed|default:'' }}" data-needed-for="marking_5840_qty">
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Маркировка 58/60</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="marking_5860_qty" class="param-select">
+                              <option value="" {% if not draft_payload.marking_5860_qty %}selected{% endif %}>-</option>
+                              <option value="1" {% if draft_payload.marking_5860_qty|stringformat:"s" == "1" %}selected{% endif %}>1</option>
+                              <option value="2" {% if draft_payload.marking_5860_qty|stringformat:"s" == "2" %}selected{% endif %}>2</option>
+                              <option value="3" {% if draft_payload.marking_5860_qty|stringformat:"s" == "3" %}selected{% endif %}>3</option>
+                            </select>
+                            <input type="hidden" name="marking_5860_needed" value="{{ draft_payload.marking_5860_needed|default:'' }}" data-needed-for="marking_5860_qty">
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Маркировка 75/120</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="marking_75120_qty" class="param-select">
+                              <option value="" {% if not draft_payload.marking_75120_qty %}selected{% endif %}>-</option>
+                              <option value="1" {% if draft_payload.marking_75120_qty|stringformat:"s" == "1" %}selected{% endif %}>1</option>
+                              <option value="2" {% if draft_payload.marking_75120_qty|stringformat:"s" == "2" %}selected{% endif %}>2</option>
+                              <option value="3" {% if draft_payload.marking_75120_qty|stringformat:"s" == "3" %}selected{% endif %}>3</option>
+                            </select>
+                            <input type="hidden" name="marking_75120_needed" value="{{ draft_payload.marking_75120_needed|default:'' }}" data-needed-for="marking_75120_qty">
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Маркировка 58/40 (шт/чз)</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="marking_5840_each_qty" class="param-select">
+                              <option value="" {% if not draft_payload.marking_5840_each_qty %}selected{% endif %}>-</option>
+                              <option value="1" {% if draft_payload.marking_5840_each_qty|stringformat:"s" == "1" %}selected{% endif %}>1</option>
+                              <option value="2" {% if draft_payload.marking_5840_each_qty|stringformat:"s" == "2" %}selected{% endif %}>2</option>
+                            </select>
+                            <input type="hidden" name="marking_5840_each_needed" value="{{ draft_payload.marking_5840_each_needed|default:'' }}" data-needed-for="marking_5840_each_qty">
+                            <div class="param-extra" data-owner="marking_5840_each_qty" data-show-when="any">
+                              <div class="param-inline">
+                                <a class="cz-file-action" href="{% url 'processing_app:processing-marking-template' %}" download>Образец файла</a>
+                                <label class="cz-file-action" for="manager-marking-cz-file">Загрузить файлы с ЧЗ</label>
+                                <input id="manager-marking-cz-file" class="cz-file-input" type="file" name="marking_cz_file" accept=".xlsx" multiple data-marking-cz-file>
+                                <span class="cz-file-name" data-marking-cz-filename>Файлы не выбраны</span>
+                              </div>
+                              <div class="param-note">Excel (.xlsx): «Баркод» и «КИ (код идентификации)».</div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Замена бирок</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="tag_owner" class="param-select">
+                              <option value="" {% if not draft_payload.tag_owner %}selected{% endif %}>-</option>
+                              <option value="Фуллбокс" {% if draft_payload.tag_owner == "Фуллбокс" %}selected{% endif %}>Фуллбокс</option>
+                              <option value="Клиент" {% if draft_payload.tag_owner == "Клиент" %}selected{% endif %}>Клиент</option>
+                            </select>
+                            <input type="hidden" name="tag_replace_needed" value="{{ draft_payload.tag_replace_needed|default:'' }}" data-needed-for="tag_owner">
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Замена пакета</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="bag_replace_type" class="param-select">
+                              <option value="" {% if not draft_payload.bag_replace_type %}selected{% endif %}>-</option>
+                              <option value="Стандартный" {% if draft_payload.bag_replace_type == "Стандартный" %}selected{% endif %}>Стандартный</option>
+                              <option value="Zip" {% if draft_payload.bag_replace_type == "Zip" %}selected{% endif %}>Zip</option>
+                              <option value="Клеевой клапан" {% if draft_payload.bag_replace_type == "Клеевой клапан" %}selected{% endif %}>Клеевой клапан</option>
+                              <option value="Другое" {% if draft_payload.bag_replace_type == "Другое" %}selected{% endif %}>Другое</option>
+                            </select>
+                            <input type="hidden" name="bag_replace_needed" value="{{ draft_payload.bag_replace_needed|default:'' }}" data-needed-for="bag_replace_type">
+                            <div class="param-extra" data-owner="bag_replace_type" data-show-when="any">
+                              <div class="param-inline">
+                                <span class="param-note">Чей пакет</span>
+                                <select name="bag_replace_supply">
+                                  <option value="" {% if not draft_payload.bag_replace_supply %}selected{% endif %}>-</option>
+                                  <option value="Фуллбокс" {% if draft_payload.bag_replace_supply == "Фуллбокс" %}selected{% endif %}>Фуллбокс</option>
+                                  <option value="Клиент" {% if draft_payload.bag_replace_supply == "Клиент" %}selected{% endif %}>Клиент</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Упаковка в Бабл пленку</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="bubble_wrap_size" class="param-select">
+                              <option value="" {% if not draft_payload.bubble_wrap_size %}selected{% endif %}>-</option>
+                              <option value="Малый" {% if draft_payload.bubble_wrap_size == "Малый" %}selected{% endif %}>Малый</option>
+                              <option value="Средний" {% if draft_payload.bubble_wrap_size == "Средний" %}selected{% endif %}>Средний</option>
+                              <option value="Большой" {% if draft_payload.bubble_wrap_size == "Большой" %}selected{% endif %}>Большой</option>
+                            </select>
+                            <input type="hidden" name="bubble_wrap_needed" value="{{ draft_payload.bubble_wrap_needed|default:'' }}" data-needed-for="bubble_wrap_size">
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Упаковка в термо пленку</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="shrink_wrap_size" class="param-select">
+                              <option value="" {% if not draft_payload.shrink_wrap_size %}selected{% endif %}>-</option>
+                              <option value="Малый" {% if draft_payload.shrink_wrap_size == "Малый" %}selected{% endif %}>Малый</option>
+                              <option value="Средний" {% if draft_payload.shrink_wrap_size == "Средний" %}selected{% endif %}>Средний</option>
+                              <option value="Большой" {% if draft_payload.shrink_wrap_size == "Большой" %}selected{% endif %}>Большой</option>
+                            </select>
+                            <input type="hidden" name="shrink_wrap_needed" value="{{ draft_payload.shrink_wrap_needed|default:'' }}" data-needed-for="shrink_wrap_size">
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Упаковка в индивидуальную коробку</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="individual_box_needed" class="param-select">
+                              <option value="" {% if not draft_payload.individual_box_needed %}selected{% endif %}>-</option>
+                              <option value="Да" {% if draft_payload.individual_box_needed and draft_payload.individual_box_needed != "Нет" %}selected{% endif %}>Да</option>
+                            </select>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Вакуумная упаковка</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="vacuum_pack_needed" class="param-select">
+                              <option value="" {% if not draft_payload.vacuum_pack_needed %}selected{% endif %}>-</option>
+                              <option value="Да" {% if draft_payload.vacuum_pack_needed and draft_payload.vacuum_pack_needed != "Нет" %}selected{% endif %}>Да</option>
+                            </select>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Сборка набора</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="set_build" class="param-select">
+                              <option value="" {% if not draft_payload.set_build and not draft_payload.set_qty %}selected{% endif %}>-</option>
+                              <option value="Да" {% if draft_payload.set_build and draft_payload.set_build != "Нет" or draft_payload.set_qty %}selected{% endif %}>Кол-во</option>
+                            </select>
+                            <div class="param-extra" data-owner="set_build" data-show-when="any">
+                              <div class="param-inline">
+                                <span class="param-note">Кол-во в наборе</span>
+                                <input type="number" min="0" name="set_qty" value="{{ draft_payload.set_qty|default:'' }}">
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Вложение</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="insert_needed" class="param-select">
+                              <option value="" {% if not draft_payload.insert_needed and not draft_payload.insert_qty %}selected{% endif %}>-</option>
+                              <option value="Да" {% if draft_payload.insert_needed and draft_payload.insert_needed != "Нет" or draft_payload.insert_qty %}selected{% endif %}>Кол-во</option>
+                            </select>
+                            <div class="param-extra" data-owner="insert_needed" data-show-when="any">
+                              <div class="param-inline">
+                                <span class="param-note">Кол-во</span>
+                                <input type="number" min="0" name="insert_qty" value="{{ draft_payload.insert_qty|default:'' }}">
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label"><span data-direction="label">Распределение по направлениям</span></td>
+                        <td>
+                          <div class="param-value">
+                            <select name="direction_needed" class="param-select">
+                              <option value="none" {% if not draft_payload.direction_needed and not draft_payload.direction_file and not draft_payload.direction_plan_json and not draft_payload.direction_addresses_json %}selected{% endif %}>Отсутствует</option>
+                              <option value="file" {% if draft_payload.direction_needed == "file" or draft_payload.direction_needed == "Да" or draft_payload.direction_file %}selected{% endif %}>Файл</option>
+                              <option value="set" {% if draft_payload.direction_needed == "set" or draft_payload.direction_plan_json or draft_payload.direction_addresses_json %}selected{% endif %}>Задать</option>
+                            </select>
+                            <div class="param-extra" data-owner="direction_needed" data-show-when="file">
+                              <div class="param-inline">
+                                <span class="param-note">Прикрепить файл</span>
+                                <input type="file" name="direction_file">
+                                {% if draft_payload.direction_file %}
+                                  <span class="param-note">Файл: {{ draft_payload.direction_file }}</span>
+                                {% endif %}
+                              </div>
+                            </div>
+                            <div class="param-extra" data-owner="direction_needed" data-show-when="set">
+                              <input type="hidden" name="direction_count" value="{{ draft_payload.direction_count|default:'' }}">
+                              <input type="hidden" name="direction_addresses_json" value="{{ draft_payload.direction_addresses_json|default:'' }}">
+                              <input type="hidden" name="direction_plan_json" value="{{ draft_payload.direction_plan_json|default:'' }}">
+                              <div class="param-note" data-direction="summary"></div>
+                              <div class="direction-actions" data-direction="actions" hidden>
+                                <button type="button" class="row-action" data-direction-action="edit">Редактировать</button>
+                                <button type="button" class="row-action" data-direction-action="clear">Удалить</button>
+                              </div>
+                              <button type="button" class="row-action" data-direction-action="open">Сформировать таблицу</button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Формирование короба</td>
+                        <td>
+                          <div class="param-value">
+                            <select name="box_forming" class="param-select">
+                              <option value="" {% if not draft_payload.box_forming %}selected{% endif %}>-</option>
+                              <option value="60*4*40" {% if draft_payload.box_forming == "60*4*40" %}selected{% endif %}>60*4*40</option>
+                              <option value="60*40*25" {% if draft_payload.box_forming == "60*40*25" %}selected{% endif %}>60*40*25</option>
+                              <option value="other" {% if draft_payload.box_forming == "other" or draft_payload.box_forming_other %}selected{% endif %}>Другое</option>
+                            </select>
+                            <div class="param-extra" data-owner="box_forming" data-show-when="other">
+                              <input type="text" name="box_forming_other" value="{{ draft_payload.box_forming_other|default:'' }}" placeholder="Введите размер">
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr class="highlight-row">
+                        <td class="param-label">Перемаркировка / смена артикула А → Б</td>
+                        <td>
+                          <div class="article-change-control">
+                            <label class="article-change-toggle">
+                              <input
+                                type="checkbox"
+                                id="manager-article-change-toggle"
+                                {% if draft_payload.article_change_needed == "Да" %}checked{% endif %}
+                              >
+                              <span class="article-change-toggle-track" aria-hidden="true"></span>
+                              <span>Нужна смена</span>
+                            </label>
+                            <input
+                              type="hidden"
+                              name="article_change_needed"
+                              id="manager-article-change-needed"
+                              value="{% if draft_payload.article_change_needed == 'Да' %}Да{% endif %}"
+                            >
+                            <div class="article-change-map" id="manager-article-change-map" hidden>
+                              <div class="param-note">Для каждого исходного товара А выберите товар Б из номенклатуры маркетплейсов этого клиента. Поиск по артикулу или штрихкоду, включая OZN.</div>
+                              <div id="manager-article-change-rows"></div>
+                              <div class="article-change-error" id="manager-article-change-error" role="alert" hidden></div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="param-label">Прочие</td>
+                        <td>
+                          <div class="param-value">
+                            <button type="button" class="misc-toggle" id="processing-misc-toggle" aria-expanded="false">
+                              <span class="misc-toggle-label">Комментарий и файлы</span>
+                              <span class="misc-toggle-summary" id="processing-misc-summary">
+                                {% if draft_payload.comments %}Есть комментарий{% else %}Пусто{% endif %}{% if existing_attachments %} · Файлы: {{ existing_attachments|length }}{% endif %}
+                              </span>
+                            </button>
+                            <div class="misc-body" id="processing-misc-body" hidden>
+                              <textarea id="processing-comments" name="comments" rows="2" placeholder="Комментарий">{{ draft_payload.comments|default:'' }}</textarea>
+                              <div class="attachment-stack">
+                                <input
+                                  id="processing-documents"
+                                  type="file"
+                                  name="documents"
+                                  multiple
+                                  accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx,.csv,.txt,.doc,.docx"
+                                >
+                                <div class="attachment-title">Выбраны для загрузки</div>
+                                <div class="attachment-list" id="processing-documents-selected">
+                                  <div class="attachment-selected-empty">Файлы не выбраны.</div>
+                                </div>
+                                {% if existing_attachments %}
+                                  <div class="attachment-title">Уже загружены на сервер</div>
+                                  <div class="attachment-list">
+                                    {% for attachment in existing_attachments %}
+                                      <div class="attachment-item">
+                                        <a href="{% url 'processing_app:processing-attachment-download' attachment_order_id attachment.pk %}">{{ attachment.filename }}</a>
+                                        <span>до {{ attachment.expires_at|date:"d.m.Y H:i" }}</span>
+                                        <label class="checkbox-inline" title="Удалить файл после сохранения заявки">
+                                          <input type="checkbox" name="delete_attachment_ids" value="{{ attachment.pk }}">
+                                          <span>Удалить</span>
+                                        </label>
+                                      </div>
+                                    {% endfor %}
+                                  </div>
+                                {% endif %}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          </div>
+        </form>
+        <template id="processing-card-template">
+          <section class="panel processing-block processing-main processing-card" data-card-id="">
+            <div class="block-header processing-header">
+              <label class="photo-box">
+                <input type="file" accept="image/*">
+                <span class="photo-placeholder">Фото</span>
+                <img class="photo-preview" alt="Фото товара">
+              </label>
+              <div class="processing-header-fields">
+                <input type="text" data-field="article" placeholder="Артикул" readonly>
+                <input type="text" data-field="product_name" placeholder="Наименование товара" readonly>
+              </div>
+              <div class="processing-header-action">
+                <button type="button" class="row-action card-edit">Изменить</button>
+                <button type="button" class="row-action card-delete">Удалить</button>
+              </div>
+            </div>
+            <div class="block-body">
+              <div class="table-wrap">
+                <table class="stock-table">
+                  <thead>
+                    <tr>
+                      <th style="width:56px;">№</th>
+                      <th>Размер</th>
+                      <th>ШК</th>
+                      <th style="width:110px;">Кол-во</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </template>
+      </main>
+    </div>
+  </div>
+
+  <script type="application/json" id="processing-draft-data">{{ draft_payload_json|default:"{}"|safe }}</script>
+  <script type="application/json" id="processing-client-sku-options">{{ client_sku_options_json|default:"[]"|safe }}</script>
+  <script>
+    (() => {
+      const cardsContainer = document.getElementById('processing-cards');
+      const cardsInput = document.getElementById('cards-json');
+      const template = document.getElementById('processing-card-template');
+      const addBtn = document.getElementById('add-product-btn');
+      const form = document.getElementById('processing-form');
+      const articleChangeToggle = document.getElementById('manager-article-change-toggle');
+      const articleChangeNeeded = document.getElementById('manager-article-change-needed');
+      const articleChangeMap = document.getElementById('manager-article-change-map');
+      const articleChangeRows = document.getElementById('manager-article-change-rows');
+      const articleChangeError = document.getElementById('manager-article-change-error');
+      const clientSkuOptionsScript = document.getElementById('processing-client-sku-options');
+      if (!cardsContainer || !template) {
+        return;
+      }
+
+      let activeCardId = null;
+      let cardCounter = 0;
+
+      const clean = (value) => String(value ?? '').trim();
+      const createCardId = () => `card_${Date.now()}_${cardCounter++}`;
+      let clientSkuOptions = [];
+      try {
+        clientSkuOptions = JSON.parse(clientSkuOptionsScript?.textContent || '[]');
+      } catch (err) {
+        clientSkuOptions = [];
+      }
+      clientSkuOptions = Array.isArray(clientSkuOptions) ? clientSkuOptions.map((item) => ({
+        id: clean(item.id),
+        article: clean(item.article),
+        name: clean(item.name),
+        barcode: clean(item.barcode),
+        barcodes: Array.isArray(item.barcodes) ? item.barcodes.map((barcode) => ({
+          value: clean(barcode.value),
+          size: clean(barcode.size),
+          primary: Boolean(barcode.primary),
+        })).filter((barcode) => barcode.value) : [],
+      })).filter((item) => item.article) : [];
+      const clientSkuById = new Map(clientSkuOptions.map((item) => [item.id, item]));
+      const clientSkuSearchValues = (item) => Array.from(new Set(
+        [item.article, item.barcode, ...item.barcodes.map((barcode) => barcode.value)].filter(Boolean)
+      ));
+      const clientSkuBySearchValue = new Map();
+      clientSkuOptions.forEach((item) => {
+        clientSkuSearchValues(item).forEach((value) => {
+          const key = value.toLowerCase();
+          const matches = clientSkuBySearchValue.get(key) || new Map();
+          matches.set(item.id, item);
+          clientSkuBySearchValue.set(key, matches);
+        });
+      });
+      const clientSkuMatches = (value) => clientSkuBySearchValue.get(clean(value).toLowerCase());
+      const resolveClientSku = (value) => {
+        const matches = clientSkuMatches(value);
+        return matches?.size === 1 ? matches.values().next().value : null;
+      };
+      const clientSkuInputValue = (item) => item
+        ? clientSkuSearchValues(item).find((value) => resolveClientSku(value)?.id === item.id) || ''
+        : '';
+      const clientSkuBarcodeForSize = (item, size) => {
+        if (!item) {
+          return '';
+        }
+        const sizeValue = clean(size).toLowerCase();
+        const sized = sizeValue
+          ? item.barcodes.find((barcode) => clean(barcode.size).toLowerCase() === sizeValue)
+          : null;
+        const primary = item.barcodes.find((barcode) => barcode.primary);
+        return clean(sized?.value || primary?.value || item.barcode || item.barcodes[0]?.value || '');
+      };
+      const articleChangeEnabled = () => Boolean(articleChangeToggle?.checked);
+      const setArticleChangeError = (message = '', input = null) => {
+        if (articleChangeError) {
+          articleChangeError.textContent = message;
+          articleChangeError.hidden = !message;
+        }
+        articleChangeRows?.querySelectorAll('.article-change-target').forEach((field) => {
+          field.classList.toggle('is-invalid', field === input);
+        });
+      };
+      const setCardResultSku = (card, item) => {
+        if (!card) {
+          return;
+        }
+        card.dataset.resultSkuId = clean(item?.id);
+        card.dataset.resultArticle = clean(item?.article);
+        card.dataset.resultProductName = clean(item?.name);
+        card.dataset.resultBarcode = clean(item?.barcode);
+      };
+
+      const syncArticleChangeFields = () => {
+        const enabled = articleChangeEnabled();
+        if (articleChangeNeeded) {
+          articleChangeNeeded.value = enabled ? 'Да' : '';
+        }
+        if (articleChangeMap) {
+          articleChangeMap.hidden = !enabled;
+        }
+        if (!articleChangeRows) {
+          return;
+        }
+        if (!enabled) {
+          articleChangeRows.innerHTML = '';
+          setArticleChangeError('');
+          cardsContainer.querySelectorAll('.processing-card').forEach((card) => setCardResultSku(card, null));
+          return;
+        }
+
+        const currentValues = new Map();
+        articleChangeRows.querySelectorAll('[data-article-change-card]').forEach((input) => {
+          currentValues.set(clean(input.dataset.articleChangeCard), clean(input.value));
+        });
+        articleChangeRows.innerHTML = '';
+        cardsContainer.querySelectorAll('.processing-card').forEach((card, index) => {
+          const cardId = clean(card.dataset.cardId) || `card_${index}`;
+          const sourceArticle = clean(card.querySelector('[data-field="article"]')?.value);
+          const productName = clean(card.querySelector('[data-field="product_name"]')?.value);
+          const row = document.createElement('div');
+          row.className = 'article-change-row';
+
+          const source = document.createElement('span');
+          source.className = 'article-change-source';
+          source.textContent = [sourceArticle, productName].filter(Boolean).join(' · ') || 'Исходный товар А';
+          const arrow = document.createElement('span');
+          arrow.className = 'article-change-arrow';
+          arrow.textContent = '→';
+          const target = document.createElement('input');
+          const datalist = document.createElement('datalist');
+          const datalistId = `manager-article-change-options-${index}`;
+          datalist.id = datalistId;
+          target.type = 'text';
+          target.className = 'article-change-target';
+          target.placeholder = 'Артикул или ШК товара Б';
+          target.autocomplete = 'off';
+          target.setAttribute('list', datalistId);
+          target.dataset.articleChangeCard = cardId;
+          target.value = currentValues.get(cardId) || clientSkuInputValue(
+            clientSkuById.get(clean(card.dataset.resultSkuId)) || resolveClientSku(card.dataset.resultArticle)
+          ) || clean(card.dataset.resultArticle);
+
+          clientSkuOptions
+            .filter((item) => item.article.toLowerCase() !== sourceArticle.toLowerCase())
+            .forEach((item) => {
+              clientSkuSearchValues(item).forEach((value) => {
+                if (resolveClientSku(value)?.id !== item.id) {
+                  return;
+                }
+                const option = document.createElement('option');
+                option.value = value;
+                option.label = [item.article, item.name].filter(Boolean).join(' · ');
+                datalist.appendChild(option);
+              });
+            });
+
+          const applyTarget = () => {
+            const item = resolveClientSku(target.value);
+            const sameArticle = item && sourceArticle && item.article.toLowerCase() === sourceArticle.toLowerCase();
+            setCardResultSku(card, item && !sameArticle ? item : null);
+            setArticleChangeError('');
+          };
+          target.addEventListener('input', applyTarget);
+          target.addEventListener('change', applyTarget);
+          applyTarget();
+
+          row.appendChild(source);
+          row.appendChild(arrow);
+          row.appendChild(target);
+          row.appendChild(datalist);
+          articleChangeRows.appendChild(row);
+        });
+      };
+
+      const validateArticleChange = () => {
+        if (!articleChangeEnabled()) {
+          return true;
+        }
+        const cards = Array.from(cardsContainer.querySelectorAll('.processing-card'));
+        if (!cards.length) {
+          setArticleChangeError('Сначала выберите товар А для обработки.');
+          return false;
+        }
+        for (const card of cards) {
+          const cardId = clean(card.dataset.cardId);
+          const sourceArticle = clean(card.querySelector('[data-field="article"]')?.value);
+          const input = Array.from(articleChangeRows?.querySelectorAll('[data-article-change-card]') || [])
+            .find((field) => clean(field.dataset.articleChangeCard) === cardId);
+          const targetSku = resolveClientSku(input?.value);
+          if (!targetSku) {
+            const ambiguous = clientSkuMatches(input?.value)?.size > 1;
+            setCardResultSku(card, null);
+            setArticleChangeError(ambiguous
+              ? 'Найдено несколько товаров. Укажите уникальный артикул или штрихкод товара Б.'
+              : 'Товар Б не найден в номенклатуре маркетплейсов этого клиента. Выберите артикул или штрихкод из списка.', input || null);
+            input?.focus();
+            return false;
+          }
+          if (sourceArticle && targetSku.article.toLowerCase() === sourceArticle.toLowerCase()) {
+            setArticleChangeError('Артикул Б должен отличаться от артикула А.', input || null);
+            input?.focus();
+            return false;
+          }
+          setCardResultSku(card, targetSku);
+        }
+        setArticleChangeError('');
+        return true;
+      };
+
+      const setPhotoPreview = (photoBox, preview, url) => {
+        if (!photoBox || !preview) {
+          return;
+        }
+        if (url) {
+          preview.src = url;
+          photoBox.classList.add('has-image');
+          return;
+        }
+        preview.src = '';
+        photoBox.classList.remove('has-image');
+      };
+
+      const clampQty = (input) => {
+        if (!input) {
+          return;
+        }
+        const maxAttr = input.getAttribute('max');
+        if (!maxAttr) {
+          return;
+        }
+        const maxValue = Number(maxAttr);
+        if (!Number.isFinite(maxValue)) {
+          return;
+        }
+        const current = Number(input.value);
+        if (!Number.isFinite(current)) {
+          return;
+        }
+        if (current > maxValue) {
+          input.value = String(maxValue);
+        }
+      };
+
+      const renderRows = (card, rows) => {
+        const tbody = card.querySelector('tbody');
+        if (!tbody) {
+          return;
+        }
+        tbody.innerHTML = '';
+        const list = rows && rows.length ? rows : [{}];
+        list.forEach((row, index) => {
+          const tr = document.createElement('tr');
+          const indexCell = document.createElement('td');
+          indexCell.className = 'stock-index';
+          indexCell.textContent = String(index + 1);
+          tr.appendChild(indexCell);
+
+          const addCell = (field, value, type = 'text', options = {}) => {
+            const cell = document.createElement('td');
+            const input = document.createElement('input');
+            input.type = type;
+            input.dataset.field = field;
+            if (field === 'size' || field === 'barcode') {
+              input.readOnly = true;
+            }
+            if (type === 'number') {
+              input.min = '0';
+              if (options.max !== undefined && options.max !== null && options.max !== '') {
+                input.max = String(options.max);
+              }
+            }
+            input.value = value ?? '';
+            cell.appendChild(input);
+            tr.appendChild(cell);
+            return input;
+          };
+
+          addCell('size', row.size || '');
+          addCell('barcode', row.barcode || '');
+          const qtyMax = row.maxQty ?? row.qty;
+          const qtyInput = addCell('qty', row.qty ?? '', 'number', { max: qtyMax });
+          if (qtyInput) {
+            qtyInput.addEventListener('input', () => clampQty(qtyInput));
+            qtyInput.addEventListener('change', () => clampQty(qtyInput));
+          }
+          const meta = {
+            article: row.article || '',
+            result_sku_id: row.result_sku_id || '',
+            result_article: row.result_article || '',
+            result_product_name: row.result_product_name || '',
+            result_barcode: row.result_barcode || '',
+            box_qty: row.box_qty,
+            boxes: row.boxes,
+            box_codes: row.box_codes,
+            is_mixed_box: row.is_mixed_box,
+            mixed_group: row.mixed_group,
+          };
+          tr.dataset.rowMeta = JSON.stringify(meta);
+          if (meta.result_article) {
+            tr.dataset.resultArticle = meta.result_article;
+          }
+          tbody.appendChild(tr);
+        });
+        syncArticleChangeFields();
+      };
+
+      const updateCardFromPayload = (card, payload) => {
+        const articleInput = card.querySelector('[data-field="article"]');
+        const nameInput = card.querySelector('[data-field="product_name"]');
+        const photoBox = card.querySelector('.photo-box');
+        const preview = card.querySelector('.photo-preview');
+        const fileInput = card.querySelector('input[type="file"]');
+        if (articleInput) {
+          articleInput.value = payload.article || '';
+        }
+        if (nameInput) {
+          nameInput.value = payload.product_name || '';
+        }
+        const resultRow = (payload.rows || []).find((row) => (
+          row?.result_sku_id || row?.result_article || row?.result_product_name || row?.result_barcode
+        )) || {};
+        card.dataset.photoUrl = payload.photo_url || '';
+        card.dataset.goodsType = payload.goods_type || '';
+        card.dataset.resultSkuId = payload.result_sku_id || resultRow.result_sku_id || '';
+        card.dataset.resultArticle = payload.result_article || resultRow.result_article || '';
+        card.dataset.resultProductName = payload.result_product_name || resultRow.result_product_name || '';
+        card.dataset.resultBarcode = payload.result_barcode || resultRow.result_barcode || '';
+        if (fileInput) {
+          fileInput.value = '';
+        }
+        setPhotoPreview(photoBox, preview, card.dataset.photoUrl);
+        renderRows(card, payload.rows || []);
+      };
+
+      const createCard = (payload, options = {}) => {
+        const fragment = template.content.cloneNode(true);
+        const card = fragment.querySelector('.processing-card');
+        const cardId = payload.id || createCardId();
+        card.dataset.cardId = cardId;
+        card.dataset.photoUrl = payload.photo_url || '';
+        card.dataset.goodsType = payload.goods_type || '';
+        card.dataset.resultSkuId = payload.result_sku_id || '';
+        card.dataset.resultArticle = payload.result_article || '';
+        card.dataset.resultProductName = payload.result_product_name || '';
+        card.dataset.resultBarcode = payload.result_barcode || '';
+
+        const photoBox = card.querySelector('.photo-box');
+        const preview = card.querySelector('.photo-preview');
+        const fileInput = card.querySelector('input[type="file"]');
+        if (fileInput) {
+          fileInput.name = `product_photo_${cardId}`;
+          fileInput.addEventListener('change', () => {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) {
+              setPhotoPreview(photoBox, preview, card.dataset.photoUrl);
+              return;
+            }
+            card.dataset.photoUrl = '';
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              setPhotoPreview(photoBox, preview, event.target.result);
+            };
+            reader.readAsDataURL(file);
+          });
+        }
+
+        const editBtn = card.querySelector('.card-edit');
+        if (editBtn) {
+          editBtn.addEventListener('click', () => {
+            activeCardId = cardId;
+            openStockPicker();
+          });
+        }
+        const deleteBtn = card.querySelector('.card-delete');
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', () => {
+            card.remove();
+            syncArticleChangeFields();
+          });
+        }
+
+        updateCardFromPayload(card, payload);
+        if (options.prepend) {
+          cardsContainer.prepend(card);
+        } else {
+          cardsContainer.append(card);
+        }
+        syncArticleChangeFields();
+        return card;
+      };
+
+      const collectCards = () => {
+        const cards = [];
+        const items = cardsContainer.querySelectorAll('.processing-card');
+        items.forEach((card) => {
+          const articleInput = card.querySelector('[data-field="article"]');
+          const nameInput = card.querySelector('[data-field="product_name"]');
+          const fileInput = card.querySelector('input[type="file"]');
+          const article = (articleInput?.value || '').trim();
+          const productName = (nameInput?.value || '').trim();
+          const photoUrl = card.dataset.photoUrl || '';
+          const goodsType = card.dataset.goodsType || '';
+          const photoField = fileInput?.name || '';
+          const allowArticleChange = articleChangeEnabled();
+          const cardResultSkuId = allowArticleChange ? clean(card.dataset.resultSkuId) : '';
+          const cardResultArticle = allowArticleChange ? clean(card.dataset.resultArticle) : '';
+          const targetSku = allowArticleChange ? clientSkuById.get(cardResultSkuId) || resolveClientSku(cardResultArticle) : null;
+          const cardResultName = allowArticleChange ? (clean(card.dataset.resultProductName) || clean(targetSku?.name)) : '';
+          const cardResultBarcode = allowArticleChange ? clean(card.dataset.resultBarcode) : '';
+          const rows = [];
+          card.querySelectorAll('tbody tr').forEach((row) => {
+            const size = (row.querySelector('[data-field="size"]')?.value || '').trim();
+            const barcode = (row.querySelector('[data-field="barcode"]')?.value || '').trim();
+            const qty = (row.querySelector('[data-field="qty"]')?.value || '').trim();
+            let meta = {};
+            try {
+              meta = JSON.parse(row.dataset.rowMeta || '{}');
+            } catch (err) {
+              meta = {};
+            }
+            if (size || barcode || qty) {
+              const rowPayload = {
+                article: (meta.article || article || '').trim(),
+                size,
+                barcode,
+                qty,
+              };
+              const resultSkuId = allowArticleChange ? cardResultSkuId : '';
+              const resultArticle = allowArticleChange ? cardResultArticle : '';
+              const resultName = allowArticleChange ? cardResultName : '';
+              const resultBarcode = allowArticleChange
+                ? (targetSku ? clientSkuBarcodeForSize(targetSku, size) : cardResultBarcode)
+                : '';
+              if (resultSkuId) rowPayload.result_sku_id = resultSkuId;
+              if (resultArticle) rowPayload.result_article = resultArticle;
+              if (resultName) rowPayload.result_product_name = resultName;
+              if (resultBarcode) rowPayload.result_barcode = resultBarcode;
+              [
+                'box_qty',
+                'boxes',
+                'box_codes',
+                'is_mixed_box',
+                'mixed_group',
+              ].forEach((key) => {
+                if (meta[key] !== undefined && meta[key] !== null && meta[key] !== '') {
+                  rowPayload[key] = meta[key];
+                }
+              });
+              rows.push(rowPayload);
+            }
+          });
+          if (article || productName || rows.length || photoUrl || photoField) {
+            const firstResult = rows.find((row) => row.result_article) || {};
+            const cardPayload = {
+              id: card.dataset.cardId || '',
+              article,
+              product_name: productName,
+              photo_url: photoUrl,
+              goods_type: goodsType,
+              photo_field: photoField,
+              rows,
+            };
+            const resultArticle = firstResult.result_article || cardResultArticle;
+            const resultName = firstResult.result_product_name || cardResultName;
+            const resultBarcode = firstResult.result_barcode || cardResultBarcode;
+            const resultSkuId = firstResult.result_sku_id || cardResultSkuId;
+            if (resultSkuId) cardPayload.result_sku_id = resultSkuId;
+            if (resultArticle) cardPayload.result_article = resultArticle;
+            if (resultName) cardPayload.result_product_name = resultName;
+            if (resultBarcode) cardPayload.result_barcode = resultBarcode;
+            cards.push(cardPayload);
+          }
+        });
+        return cards;
+      };
+
+      const openStockPicker = () => {
+        const baseUrl = addBtn?.dataset?.url || '/orders/processing/stock/';
+        const agencyId = document.querySelector('input[name="agency_id"]')?.value;
+        const editOrderId = document.querySelector('input[name="edit_order_id"]')?.value;
+        const orderIdFromPage = (document.body?.dataset?.orderId || '').trim();
+        const currentOrderId = (editOrderId || orderIdFromPage || '').trim();
+        const params = new URLSearchParams();
+        if (agencyId) {
+          params.set('client', agencyId);
+        }
+        if (currentOrderId) {
+          params.set('order', currentOrderId);
+        }
+        const url = params.toString() ? `${baseUrl}?${params}` : baseUrl;
+        const popup = window.open(url, 'processing_stock_picker', 'width=1200,height=800');
+        if (!popup) {
+          window.location.href = url;
+        }
+      };
+
+      const applyStockSelection = (payload) => {
+        if (!payload || typeof payload !== 'object') {
+          return;
+        }
+        const rows = Array.isArray(payload.rows) ? payload.rows : [];
+        const firstRow = rows[0] || {};
+        const articleValue = payload.article || payload.sku || firstRow.sku || firstRow.article || '';
+        const normalizedRows = rows.map((row) => ({
+          size: row.size || '',
+          barcode: row.barcode || '',
+          qty: row.qty ?? '',
+          maxQty: row.maxQty ?? row.qty ?? '',
+        }));
+        const cardPayload = {
+          article: articleValue,
+          product_name: payload.name || '',
+          photo_url: payload.photo || '',
+          goods_type: payload.goods_type || '',
+          rows: normalizedRows,
+        };
+        const target = activeCardId
+          ? cardsContainer.querySelector(`[data-card-id="${activeCardId}"]`)
+          : null;
+        if (target) {
+          updateCardFromPayload(target, cardPayload);
+        } else {
+          createCard(cardPayload, { prepend: true });
+        }
+        activeCardId = null;
+        syncArticleChangeFields();
+      };
+
+      if (addBtn) {
+        addBtn.addEventListener('click', () => {
+          activeCardId = null;
+          openStockPicker();
+        });
+      }
+
+      if (form && cardsInput) {
+        form.addEventListener('submit', (event) => {
+          if (!validateArticleChange()) {
+            event.preventDefault();
+            return;
+          }
+          cardsInput.value = JSON.stringify(collectCards());
+        });
+      }
+
+      const draftScript = document.getElementById('processing-draft-data');
+      if (draftScript && draftScript.textContent) {
+        try {
+          const draftPayload = JSON.parse(draftScript.textContent);
+          if (draftPayload && typeof draftPayload === 'object') {
+            const draftCards = Array.isArray(draftPayload.cards) ? draftPayload.cards : [];
+            if (draftCards.length) {
+              draftCards.forEach((card) => {
+                if (!card || typeof card !== 'object') {
+                  return;
+                }
+                createCard(
+                  {
+                    id: card.id || '',
+                    article: card.article || '',
+                    product_name: card.product_name || card.name || '',
+                    photo_url: card.photo_url || card.product_photo_url || '',
+                    goods_type: card.goods_type || '',
+                    result_sku_id: card.result_sku_id || '',
+                    result_article: card.result_article || '',
+                    result_product_name: card.result_product_name || '',
+                    result_barcode: card.result_barcode || '',
+                    rows: Array.isArray(card.rows) ? card.rows : [],
+                  },
+                  { prepend: false },
+                );
+              });
+            } else if (draftPayload.product_name || draftPayload.article || (draftPayload.stock_rows || []).length) {
+              const fallbackRows = (draftPayload.stock_rows || []).map((row) => ({
+                size: row.size || '',
+                barcode: row.barcode || '',
+                result_sku_id: row.result_sku_id || '',
+                result_article: row.result_article || '',
+                result_product_name: row.result_product_name || '',
+                result_barcode: row.result_barcode || '',
+                qty: row.qty ?? '',
+                maxQty: row.maxQty ?? row.qty ?? '',
+              }));
+              createCard(
+                {
+                  article: draftPayload.article || '',
+                  product_name: draftPayload.product_name || '',
+                  photo_url: draftPayload.product_photo_url || '',
+                  goods_type: draftPayload.goods_type || '',
+                  result_sku_id: draftPayload.result_sku_id || '',
+                  result_article: draftPayload.result_article || '',
+                  result_product_name: draftPayload.result_product_name || '',
+                  result_barcode: draftPayload.result_barcode || '',
+                  rows: fallbackRows,
+                },
+                { prepend: false },
+              );
+            }
+          }
+        } catch (err) {
+          // ignore draft parse errors
+        }
+      }
+      articleChangeToggle?.addEventListener('change', syncArticleChangeFields);
+      syncArticleChangeFields();
+
+      window.addEventListener('message', (event) => {
+        if (event.origin !== window.location.origin) {
+          return;
+        }
+        const data = event.data || {};
+        if (data.type !== 'processing-stock-select') {
+          return;
+        }
+        applyStockSelection(data.payload);
+      });
+
+      const storedSelection = sessionStorage.getItem('processingStockSelection');
+      if (storedSelection) {
+        sessionStorage.removeItem('processingStockSelection');
+        try {
+          const data = JSON.parse(storedSelection);
+          if (data && data.type === 'processing-stock-select') {
+            applyStockSelection(data.payload);
+          }
+        } catch (err) {
+          // ignore storage parse errors
+        }
+      }
+      window.processingCollectCards = collectCards;
+    })();
+  </script>
+  <script>
+    (() => {
+      const selects = document.querySelectorAll('.param-select');
+      if (!selects.length) {
+        return;
+      }
+
+      const toggleExtras = (select) => {
+        const value = select.value;
+        const name = select.name;
+        document.querySelectorAll(`.param-extra[data-owner="${name}"]`).forEach((extra) => {
+          const showWhen = (extra.dataset.showWhen || 'any').trim();
+          let show = false;
+          if (showWhen === 'any') {
+            show = value !== '';
+          } else {
+            const allowed = showWhen.split(',').map((item) => item.trim());
+            show = allowed.includes(value);
+          }
+          extra.hidden = !show;
+          extra.querySelectorAll('input, select, textarea').forEach((field) => {
+            field.disabled = !show;
+          });
+        });
+        document.querySelectorAll(`input[data-needed-for="${name}"]`).forEach((hidden) => {
+          hidden.value = value ? 'Да' : '';
+        });
+      };
+
+      selects.forEach((select) => {
+        toggleExtras(select);
+        select.addEventListener('change', () => toggleExtras(select));
+      });
+
+      const markingCzFile = document.querySelector('[data-marking-cz-file]');
+      const markingCzFilename = document.querySelector('[data-marking-cz-filename]');
+      markingCzFile?.addEventListener('change', () => {
+        if (markingCzFilename) {
+          const names = Array.from(markingCzFile.files || []).map((file) => file.name);
+          markingCzFilename.textContent = names.length ? names.join(', ') : 'Файлы не выбраны';
+        }
+      });
+    })();
+  </script>
+  <script>
+    (() => {
+      const form = document.getElementById('processing-form');
+      if (!form || !window.sessionStorage) {
+        return;
+      }
+      const storage = window.sessionStorage;
+      const STORAGE_KEYS = {
+        cards: 'processingDirectionCards',
+        plan: 'processingDirectionPlan',
+        addresses: 'processingDirectionAddresses',
+        count: 'processingDirectionCount',
+        returnUrl: 'processingDirectionReturn',
+        context: 'processingDirectionContext',
+      };
+        const openBtn = form.querySelector('[data-direction-action="open"]');
+        const editBtn = form.querySelector('[data-direction-action="edit"]');
+        const clearBtn = form.querySelector('[data-direction-action="clear"]');
+        const planInput = form.querySelector('input[name="direction_plan_json"]');
+        const addressesInput = form.querySelector('input[name="direction_addresses_json"]');
+        const countInput = form.querySelector('input[name="direction_count"]');
+        const summary = form.querySelector('[data-direction="summary"]');
+        const label = form.querySelector('[data-direction="label"]');
+        const actionsWrap = form.querySelector('[data-direction="actions"]');
+        const directionSelect = form.querySelector('select[name="direction_needed"]');
+        const cardsInput = form.querySelector('input[name="cards_json"]');
+        if (!planInput || !addressesInput) {
+          return;
+        }
+        let isSavingDraft = false;
+
+      const safeParse = (raw, fallback) => {
+        if (!raw) {
+          return fallback;
+        }
+        try {
+          return JSON.parse(raw);
+        } catch (err) {
+          return fallback;
+        }
+      };
+
+      const getContextKey = () => {
+        const draftId = form.querySelector('input[name="draft_order_id"]')?.value || '';
+        const editId = form.querySelector('input[name="edit_order_id"]')?.value || '';
+        const agencyId = form.querySelector('input[name="agency_id"]')?.value || '';
+        const orderId = document.body?.dataset?.orderId || '';
+        const combined = [draftId, editId, orderId, agencyId].filter(Boolean).join('|');
+        return combined || window.location.pathname;
+      };
+
+        const buildSummary = () => {
+          if (!summary) {
+            return;
+        }
+        const plan = safeParse(planInput.value, {});
+        let addresses = safeParse(addressesInput.value, []);
+        if (!Array.isArray(addresses)) {
+          addresses = [];
+        }
+        if (!addresses.length && Array.isArray(plan?.directions)) {
+          addresses = plan.directions;
+        }
+        if (!summary) {
+          return;
+        }
+        summary.textContent = addresses.length ? addresses.join(', ') : '';
+        syncDirectionUI();
+      };
+
+        const hasDistribution = () => {
+          const plan = safeParse(planInput.value, {});
+          const rows = Array.isArray(plan?.rows) ? plan.rows : [];
+          const planDirections = Array.isArray(plan?.directions) ? plan.directions : [];
+          const parsedAddresses = safeParse(addressesInput.value, []);
+          const addresses = Array.isArray(parsedAddresses) ? parsedAddresses : [];
+          return Boolean(rows.length || planDirections.length || addresses.length);
+        };
+
+        const toggleHidden = (el, shouldShow) => {
+          if (!el) {
+            return;
+          }
+          if (shouldShow) {
+            el.removeAttribute('hidden');
+          } else {
+            el.setAttribute('hidden', '');
+          }
+        };
+
+        const syncDirectionUI = () => {
+          const hasData = hasDistribution();
+          if (label) {
+            label.textContent = hasData ? 'Распределение задано' : 'Распределение по направлениям';
+          }
+          if (directionSelect && hasData && directionSelect.value !== 'set') {
+            directionSelect.value = 'set';
+            directionSelect.dispatchEvent(new Event('change'));
+          }
+          if (directionSelect) {
+            toggleHidden(directionSelect, !hasData);
+          }
+          toggleHidden(actionsWrap, hasData);
+          toggleHidden(openBtn, !hasData);
+        };
+
+        const applyStored = () => {
+          const storedContext = storage.getItem(STORAGE_KEYS.context) || '';
+          const contextKey = getContextKey();
+        if (storedContext && contextKey && storedContext !== contextKey) {
+          buildSummary();
+          return;
+        }
+        const storedPlan = storage.getItem(STORAGE_KEYS.plan);
+        const storedAddresses = storage.getItem(STORAGE_KEYS.addresses);
+        const storedCount = storage.getItem(STORAGE_KEYS.count);
+        if (storedPlan !== null && (storedPlan || !planInput.value)) {
+          planInput.value = storedPlan;
+        }
+        if (storedAddresses !== null && (storedAddresses || !addressesInput.value)) {
+          addressesInput.value = storedAddresses;
+        }
+          if (countInput && storedCount !== null && (storedCount || !countInput.value)) {
+            countInput.value = storedCount;
+          }
+          buildSummary();
+          syncDirectionUI();
+        };
+
+      applyStored();
+
+        const stashDirections = () => {
+          const collector = window.processingCollectCards;
+          const cards = typeof collector === 'function' ? collector() : [];
+          storage.setItem(STORAGE_KEYS.cards, JSON.stringify(cards));
+          storage.setItem(STORAGE_KEYS.plan, planInput.value || '');
+          storage.setItem(STORAGE_KEYS.addresses, addressesInput.value || '');
+          storage.setItem(STORAGE_KEYS.count, countInput?.value || '');
+          storage.setItem(STORAGE_KEYS.context, getContextKey());
+          storage.setItem(STORAGE_KEYS.returnUrl, window.location.href);
+        };
+
+        const updateUrlWithDraft = (orderId) => {
+          if (!orderId || !window.history || !window.history.replaceState) {
+            return;
+          }
+          const url = new URL(window.location.href);
+          const agencyId = form.querySelector('input[name="agency_id"]')?.value || '';
+          if (agencyId) {
+            url.searchParams.set('client', agencyId);
+          }
+          url.searchParams.set('order', orderId);
+          url.searchParams.delete('ok');
+          url.searchParams.delete('status');
+          window.history.replaceState({}, '', url.toString());
+        };
+
+        const ensureDraftId = (orderId) => {
+          if (!orderId) {
+            return;
+          }
+          if (form.querySelector('input[name="edit_order_id"]')) {
+            updateUrlWithDraft(orderId);
+            return;
+          }
+          let draftInput = form.querySelector('input[name="draft_order_id"]');
+          if (!draftInput) {
+            draftInput = document.createElement('input');
+            draftInput.type = 'hidden';
+            draftInput.name = 'draft_order_id';
+            form.appendChild(draftInput);
+          }
+          draftInput.value = orderId;
+          updateUrlWithDraft(orderId);
+        };
+
+        const DRAFT_AUTOSAVE_INTERVAL_MS = 30000;
+        let draftAutosaveTouched = false;
+        const markDraftAutosaveTouched = () => {
+          draftAutosaveTouched = true;
+        };
+        form.addEventListener('input', markDraftAutosaveTouched, true);
+        form.addEventListener('change', markDraftAutosaveTouched, true);
+
+        const autosaveDraft = async ({ silent = false } = {}) => {
+          if (isSavingDraft) {
+            return null;
+          }
+          const collector = window.processingCollectCards;
+          const cards = typeof collector === 'function' ? collector() : [];
+          if (cardsInput) {
+            cardsInput.value = JSON.stringify(cards);
+          }
+          const formData = new FormData(form);
+          formData.delete('marking_cz_file');
+          formData.set('submit_action', 'draft');
+          formData.set('draft_autosave', '1');
+          if (cardsInput) {
+            formData.set('cards_json', cardsInput.value);
+          } else {
+            formData.set('cards_json', JSON.stringify(cards));
+          }
+          isSavingDraft = true;
+          if (openBtn) {
+            openBtn.disabled = true;
+          }
+          if (editBtn) {
+            editBtn.disabled = true;
+          }
+          try {
+            const response = await fetch(window.location.href, {
+              method: 'POST',
+              headers: { 'X-Requested-With': 'XMLHttpRequest' },
+              body: formData,
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data || data.ok === false) {
+              const message = data?.error || 'Не удалось сохранить черновик.';
+              if (!silent) {
+                window.alert(message);
+              }
+              return null;
+            }
+            return data;
+          } catch (err) {
+            if (!silent) {
+              window.alert('Не удалось сохранить черновик.');
+            }
+            return null;
+          } finally {
+            isSavingDraft = false;
+            if (openBtn) {
+              openBtn.disabled = false;
+            }
+            if (editBtn) {
+              editBtn.disabled = false;
+            }
+          }
+        };
+
+        const saveDraftAndRememberId = async ({ silent = false } = {}) => {
+          const saved = await autosaveDraft({ silent });
+          if (!saved) {
+            return null;
+          }
+          const draftId = saved.draft_order_id || saved.order_id || '';
+          ensureDraftId(draftId);
+          draftAutosaveTouched = false;
+          return saved;
+        };
+
+        window.setInterval(() => {
+          if (!draftAutosaveTouched) {
+            return;
+          }
+          saveDraftAndRememberId({ silent: true });
+        }, DRAFT_AUTOSAVE_INTERVAL_MS);
+
+        const openDirections = async (mode) => {
+          const saved = await saveDraftAndRememberId({ silent: false });
+          if (!saved) {
+            return;
+          }
+          stashDirections();
+          let target = `/orders/processing/directions/?return=${encodeURIComponent(window.location.href)}`;
+          if (mode === 'view') {
+            target += '&view=1';
+          }
+          window.location.href = target;
+        };
+
+        if (openBtn) {
+          openBtn.addEventListener('click', () => openDirections('edit'));
+        }
+        if (editBtn) {
+          editBtn.addEventListener('click', () => openDirections('edit'));
+        }
+        if (clearBtn) {
+          clearBtn.addEventListener('click', () => {
+            planInput.value = '';
+            addressesInput.value = '';
+            if (countInput) {
+              countInput.value = '';
+            }
+            if (summary) {
+              summary.textContent = '';
+            }
+            storage.removeItem(STORAGE_KEYS.plan);
+            storage.removeItem(STORAGE_KEYS.addresses);
+            storage.removeItem(STORAGE_KEYS.count);
+            storage.removeItem(STORAGE_KEYS.context);
+            syncDirectionUI();
+          });
+        }
+      })();
+  </script>
+  <script>
+    (() => {
+      const miscToggle = document.getElementById('processing-misc-toggle');
+      const miscBody = document.getElementById('processing-misc-body');
+      const miscSummary = document.getElementById('processing-misc-summary');
+      const commentsInput = document.getElementById('processing-comments');
+      const documentsInput = document.getElementById('processing-documents');
+      const selectedDocumentsEl = document.getElementById('processing-documents-selected');
+      const existingAttachmentCount = {{ existing_attachments|length }};
+      if (!miscToggle || !miscBody || !miscSummary || !documentsInput || !selectedDocumentsEl) {
+        return;
+      }
+      const setMiscOpen = (isOpen) => {
+        miscBody.hidden = !isOpen;
+        miscToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      };
+      const renderMiscSummary = () => {
+        const parts = [];
+        if ((commentsInput?.value || '').trim()) {
+          parts.push('Есть комментарий');
+        }
+        const selectedCount = Array.from(documentsInput.files || []).length;
+        const fileCount = selectedCount || existingAttachmentCount;
+        if (fileCount > 0) {
+          parts.push(`Файлы: ${fileCount}`);
+        }
+        miscSummary.textContent = parts.join(' · ') || 'Пусто';
+      };
+      const renderSelectedDocuments = () => {
+        const files = Array.from(documentsInput.files || []);
+        if (!files.length) {
+          selectedDocumentsEl.innerHTML = '<div class="attachment-selected-empty">Файлы не выбраны.</div>';
+          renderMiscSummary();
+          return;
+        }
+        selectedDocumentsEl.innerHTML = files
+          .map((file) => {
+            const kb = Math.max(1, Math.round((file.size || 0) / 1024));
+            return `<div class="attachment-item"><span>${file.name}</span><span>${kb} KB</span></div>`;
+          })
+          .join('');
+        renderMiscSummary();
+      };
+      miscToggle.addEventListener('click', () => setMiscOpen(miscBody.hidden));
+      commentsInput?.addEventListener('input', renderMiscSummary);
+      documentsInput.addEventListener('change', renderSelectedDocuments);
+      setMiscOpen(false);
+      renderMiscSummary();
+      renderSelectedDocuments();
+    })();
+  </script>
+</body>
+</html>
