@@ -1,0 +1,113 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}FBS · Возвраты{% endblock %}
+{% block page_class %}tsd-page-desktop{% endblock %}
+
+{% block content %}
+  <section class="operator-summary">
+    <div><span>Всего</span><strong>{{ summary.total|default:0 }}</strong></div>
+    <div><span>В работе</span><strong>{{ summary.active|default:0 }}</strong></div>
+    <div><span>На осмотре</span><strong>{{ summary.inspection|default:0 }}</strong></div>
+    <div><span>Завершено</span><strong>{{ summary.completed|default:0 }}</strong></div>
+  </section>
+
+  <section class="detail-layout return-create-layout">
+    <div class="detail-main">
+      <form class="operator-filters operator-filters-compact" method="get">
+        <label>
+          <span>Заказ, клиент или номер возврата</span>
+          <input type="search" name="q" value="{{ query }}" placeholder="Поиск">
+        </label>
+        <label>
+          <span>Статус</span>
+          <select name="status">
+            <option value="">Все</option>
+            {% for value, label in status_choices %}
+              <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          <span>На странице</span>
+          <select name="page_size">
+            {% for value in page_sizes %}
+              <option value="{{ value }}" {% if page_size == value %}selected{% endif %}>{{ value }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button class="button button-primary button-compact" type="submit">Показать</button>
+      </form>
+    </div>
+
+    <aside class="detail-panel">
+      <h2>Зарегистрировать возврат</h2>
+      <form method="post" action="{% url 'fbs:operator_create_return' %}" data-submit-once>
+        {% csrf_token %}
+        <label>
+          QR или номер заказа
+          <input type="text" name="order_code" required autocomplete="off" data-scanner-only>
+        </label>
+        <label>
+          Ожидается, шт.
+          <input type="number" name="expected_qty" min="1" required>
+        </label>
+        <label>
+          Номер возврата маркетплейса
+          <input type="text" name="external_return_id" autocomplete="off">
+        </label>
+        <label>
+          Причина
+          <input type="text" name="reason" autocomplete="off">
+        </label>
+        <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Создать</button>
+      </form>
+    </aside>
+  </section>
+
+  <section class="operator-table-band">
+    <header class="operator-table-heading">
+      <div><span class="section-kicker">Физический контур</span><h2>Журнал возвратов</h2></div>
+      <strong>{{ page.paginator.count }}</strong>
+    </header>
+    <div class="operator-table-scroll">
+      <table class="operator-table">
+        <thead>
+          <tr>
+            <th>Возврат</th>
+            <th>Клиент</th>
+            <th>Маркетплейс</th>
+            <th>Заказ</th>
+            <th>Прогресс</th>
+            <th>Результат</th>
+            <th>Статус</th>
+            <th>Создан</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in page.object_list %}
+            <tr>
+              <td><a class="table-main-link" href="{% url 'fbs:operator_return_detail' row.id %}">{{ row.number }}</a>{% if row.external_return_id %}<small>{{ row.external_return_id }}</small>{% endif %}</td>
+              <td>{{ row.order.profile.agency }}</td>
+              <td><span class="marketplace-tag marketplace-{{ row.order.profile.marketplace }}">{{ row.order.profile.get_marketplace_display }}</span></td>
+              <td>{{ row.order.external_order_id }}</td>
+              <td><strong>{{ row.scanned_qty }}/{{ row.expected_qty }}</strong></td>
+              <td>{{ row.good_qty }} годно<small>{{ row.problem_qty }} проблема</small></td>
+              <td><span class="status status-{{ row.status }}">{{ row.get_status_display }}</span></td>
+              <td>{{ row.created_at|date:"d.m.Y H:i" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td class="empty-row" colspan="8">Возвраты не найдены</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if page.has_other_pages %}
+    <nav class="operator-pagination">
+      {% if page.has_previous %}<a href="?q={{ query|urlencode }}&status={{ selected_status }}&page_size={{ page_size }}&page={{ page.previous_page_number }}">Назад</a>{% endif %}
+      <span>{{ page.number }} из {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a href="?q={{ query|urlencode }}&status={{ selected_status }}&page_size={{ page_size }}&page={{ page.next_page_number }}">Дальше</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

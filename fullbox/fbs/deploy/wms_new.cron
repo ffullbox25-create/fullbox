@@ -1,0 +1,1 @@
+*/5 * * * * /usr/bin/flock -n /tmp/fullbox-wms-new-sync.lock /bin/sh -c 'exec 9>/tmp/fullbox-heavy-sync.lock; /usr/bin/flock -w 90 9 || exit 0; cd /opt/fullbox/fullbox && exec /opt/fullbox/.venv/bin/python manage.py sync_wms_new --scope all' >> /opt/fullbox/logs/wms_new_sync.log 2>&1

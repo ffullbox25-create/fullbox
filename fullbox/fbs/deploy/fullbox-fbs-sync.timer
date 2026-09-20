@@ -1,0 +1,14 @@
+[Unit]
+Description=Poll Fullbox FBS orders and statuses every 30 seconds
+
+[Timer]
+OnBootSec=15s
+OnUnitInactiveSec=30s
+RandomizedDelaySec=0
+AccuracySec=1s
+Persistent=true
+Unit=fullbox-fbs-sync.service
+
+[Install]
+WantedBy=timers.target
+

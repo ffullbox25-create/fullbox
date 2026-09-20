@@ -1,0 +1,149 @@
+{% extends "fbs/tsd_base.html" %}
+
+{% block title %}{{ return_record.number }}{% endblock %}
+{% block page_class %}tsd-page-desktop{% endblock %}
+
+{% block content %}
+  <section class="detail-hero">
+    <div>
+      <span class="section-kicker">Физический FBS-возврат</span>
+      <h2>{{ return_record.number }}</h2>
+      <a href="{% url 'fbs:operator_order_detail' return_record.order_id %}">{{ return_record.order.external_order_id }}</a>
+      <small>{{ return_record.order.profile.agency }}</small>
+    </div>
+    <div class="detail-status">
+      <span class="status status-{{ return_record.status }}">{{ return_record.get_status_display }}</span>
+      <strong>{{ scanned_qty }}/{{ return_record.expected_qty }} шт.</strong>
+      <small>{{ return_record.order.profile.get_marketplace_display }}</small>
+    </div>
+  </section>
+
+  <section class="operator-summary operator-summary-five">
+    <div><span>Ожидается</span><strong>{{ return_record.expected_qty }}</strong></div>
+    <div><span>Отсканировано</span><strong>{{ scanned_qty }}</strong></div>
+    <div><span>Годно</span><strong>{{ good_qty }}</strong></div>
+    <div class="{% if damaged_qty or quarantine_qty %}summary-problem{% endif %}"><span>Повреждено / карантин</span><strong>{{ damaged_qty }} / {{ quarantine_qty }}</strong></div>
+    <div><span>Не осмотрено</span><strong>{{ pending_qty }}</strong></div>
+  </section>
+
+  {% if return_record.status != 'completed' %}
+    <section class="return-step-grid">
+      <article class="detail-panel {% if return_record.order_scan_confirmed_at %}return-step-done{% endif %}">
+        <span class="section-kicker">Шаг 1</span>
+        <h2>Подтвердить заказ</h2>
+        {% if return_record.order_scan_confirmed_at %}
+          <p><strong>QR подтвержден</strong></p>
+          <p class="text-muted">{{ return_record.order_scan_value }}</p>
+        {% else %}
+          <form method="post" action="{% url 'fbs:operator_return_confirm_order' return_record.id %}" data-submit-once>
+            {% csrf_token %}
+            <label>
+              QR заказа маркетплейса
+              <input type="text" name="order_scan" required autofocus autocomplete="off" data-scanner-only>
+            </label>
+            <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Подтвердить заказ</button>
+          </form>
+        {% endif %}
+      </article>
+
+      <article class="detail-panel {% if remaining_qty == 0 %}return-step-done{% endif %}">
+        <span class="section-kicker">Шаг 2</span>
+        <h2>Принять товар</h2>
+        {% if return_record.order_scan_confirmed_at and remaining_qty > 0 %}
+          <form method="post" action="{% url 'fbs:operator_return_scan_unit' return_record.id %}" data-submit-once>
+            {% csrf_token %}
+            <label>
+              ШК товара или обязательный КИЗ
+              <input type="text" name="item_scan" required autofocus autocomplete="off" data-scanner-only>
+            </label>
+            <button class="button button-primary" type="submit" {% if not warehouse_writes_enabled %}disabled{% endif %}>Принять единицу</button>
+          </form>
+          <p class="text-muted">Осталось отсканировать: {{ remaining_qty }} шт.</p>
+        {% elif not return_record.order_scan_confirmed_at %}
+          <p class="text-muted">Сначала подтвердите QR заказа.</p>
+        {% else %}
+          <p><strong>Все единицы приняты</strong></p>
+        {% endif %}
+      </article>
+
+      <article class="detail-panel {% if pending_qty == 0 and scanned_qty == return_record.expected_qty %}return-step-done{% endif %}">
+        <span class="section-kicker">Шаг 3</span>
+        <h2>Закрыть осмотр</h2>
+        <p class="text-muted">В FBS-остаток попадут только годные единицы после этой кнопки.</p>
+        <form method="post" action="{% url 'fbs:operator_return_complete' return_record.id %}" data-submit-once>
+          {% csrf_token %}
+          <button class="button button-primary" type="submit" {% if not can_complete or not warehouse_writes_enabled %}disabled{% endif %}>Завершить возврат</button>
+        </form>
+      </article>
+    </section>
+  {% else %}
+    <div class="notice notice-ok">Возврат завершен. В доступный FBS-остаток записано {{ good_qty }} шт.</div>
+  {% endif %}
+
+  <section class="operator-table-band">
+    <header class="operator-table-heading">
+      <div><span class="section-kicker">Поштучный контроль</span><h2>Осмотр товара</h2></div>
+      <strong>{{ scanned_qty }}</strong>
+    </header>
+    <div class="return-unit-list">
+      {% for unit in units %}
+        <article class="return-unit-row">
+          <div class="return-product">
+            {% if unit.order_item.sku.img %}<img class="product-thumb" src="{{ unit.order_item.sku.img }}" alt="">{% else %}<span class="product-thumb product-thumb-empty">Нет фото</span>{% endif %}
+            <div>
+              <strong>{{ unit.order_item.product_name|default:unit.order_item.external_sku }}</strong>
+              <span>{{ unit.order_item.external_sku }} · ШК {{ unit.barcode }}</span>
+              {% if unit.marking_code %}<code>КИЗ {{ unit.marking_code }}</code>{% endif %}
+              {% if unit.expiry_date %}<span>Срок {{ unit.expiry_date|date:"d.m.Y" }}</span>{% endif %}
+            </div>
+          </div>
+          <div class="return-unit-state">
+            <span class="status status-{{ unit.condition }}">{{ unit.get_condition_display }}</span>
+            {% if unit.target_box %}<small>{{ unit.target_box.box_code }} · {{ unit.target_box.pallet.cell.cell_code }}</small>{% endif %}
+            {% if unit.condition_reason %}<small>{{ unit.condition_reason }}</small>{% endif %}
+            {% if unit.released_at %}<small>В FBS-остатке</small>{% endif %}
+          </div>
+          <div class="return-unit-actions">
+            {% if return_record.status != 'completed' %}
+              <form method="post" enctype="multipart/form-data" action="{% url 'fbs:operator_return_photo' return_record.id unit.id %}" data-submit-once>
+                {% csrf_token %}
+                <label>Фото дефекта
+                  <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required>
+                </label>
+                <select name="kind">
+                  {% for value, label in photo_kinds %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                </select>
+                <button class="button button-secondary button-compact" type="submit">Добавить фото</button>
+              </form>
+              <form method="post" action="{% url 'fbs:operator_return_inspect_unit' return_record.id unit.id %}" data-submit-once>
+                {% csrf_token %}
+                <label>Результат
+                  <select name="condition" required>
+                    <option value="">Выберите</option>
+                    {% for value, label in condition_choices %}<option value="{{ value }}" {% if unit.condition == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                  </select>
+                </label>
+                <label>QR FBS-короба для годного товара
+                  <input type="text" name="target_box_scan" autocomplete="off" data-scanner-only value="{% if unit.target_box %}{{ unit.target_box.box_code }}{% endif %}">
+                </label>
+                <label>Причина повреждения или карантина
+                  <input type="text" name="condition_reason" autocomplete="off" value="{{ unit.condition_reason }}">
+                </label>
+                <button class="button button-primary button-compact" type="submit">Сохранить осмотр</button>
+              </form>
+            {% endif %}
+          </div>
+          {% if unit.photos.all %}
+            <div class="return-photos">
+              {% for photo in unit.photos.all %}
+                <a href="{% url 'fbs:operator_return_photo_file' return_record.id photo.id %}" target="_blank" rel="noopener">Фото {{ forloop.counter }} · {{ photo.get_kind_display }}</a>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </article>
+      {% empty %}
+        <div class="empty-state empty-state-large">После сканирования здесь появятся единицы для осмотра</div>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,16 @@
+[Unit]
+Description=Fullbox FBS marketplace stock export
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=user
+WorkingDirectory=/opt/fullbox/fullbox
+EnvironmentFile=/opt/fullbox/.env
+Environment=DJANGO_SETTINGS_MODULE=fullbox.settings
+ExecStart=/opt/fullbox/.venv/bin/python /opt/fullbox/fullbox/manage.py sync_fbs_stocks --apply
+Nice=5
+TimeoutStartSec=5min
+StandardOutput=journal
+StandardError=journal
